@@ -9,7 +9,6 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Send,
 } from "lucide-react";
 import axios from "@utils/axios";
 import Swal from "sweetalert2";
@@ -19,36 +18,10 @@ import {
   fetchSubDepartments,
   fetchDesignations,
 } from "@services/ApiDataService";
-
-const STORAGE_KEY = "employeeFormData";
+import { useEmployeeForm } from '@contexts/EmployeeFormContext';
 
 const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
-  const [formData, setFormData] = useState({
-    company: "",
-    department: "",
-    subDepartment: "",
-    currentSupervisor: "",
-    dateOfJoined: "",
-    designation: "",
-    probationPeriod: false,
-    trainingPeriod: false,
-    contractPeriod: false,
-    probationFrom: "",
-    probationTo: "",
-    trainingFrom: "",
-    trainingTo: "",
-    contractFrom: "",
-    contractTo: "",
-    confirmationDate: "",
-    resignationDate: "",
-    resignationLetter: null,
-    resignationApproved: false,
-    currentStatus: "Active",
-    dayOff: "",
-  });
-
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+  const { formData, updateFormData } = useEmployeeForm();
   const [isLoading, setIsLoading] = useState(false);
 
   // Dropdown data state - now storing objects with id and name
@@ -65,24 +38,11 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
     confirmationEnabled: false,
   });
 
-  // Load organizationDetails from localStorage and fetch dropdown data
+  // Load organization data from API
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // First load from localStorage
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved && saved !== "undefined" && saved !== "null") {
-          const parsed = JSON.parse(saved);
-          if (parsed.organizationDetails) {
-            setFormData((prev) => ({
-              ...prev,
-              ...parsed.organizationDetails,
-            }));
-          }
-        }
-
-        // Then fetch from API
         const [
           companiesData,
           departmentsData,
@@ -103,44 +63,17 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
         console.error("Error loading data:", e);
       } finally {
         setIsLoading(false);
-        setIsDataLoaded(true);
       }
     };
 
     loadData();
   }, []);
 
-  // Save to localStorage whenever formData changes (after initial load)
-  useEffect(() => {
-    if (!isDataLoaded) return;
-
-    const saveData = () => {
-      let allData = {};
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved && saved !== "undefined" && saved !== "null") {
-          allData = JSON.parse(saved);
-        }
-      } catch (e) {
-        console.error("Error parsing saved data:", e);
-      }
-      allData.organizationDetails = formData;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
-      setIsSaved(true);
-    };
-
-    const timeoutId = setTimeout(saveData, 300);
-    return () => clearTimeout(timeoutId);
-  }, [formData, isDataLoaded]);
-
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox" ? checked : type === "file" ? files[0] : value,
-    }));
-    setIsSaved(false);
+    updateFormData('organization', {
+      [name]: type === "checkbox" ? checked : type === "file" ? files[0] : value,
+    });
   };
 
   const handleToggle = (section) => {
@@ -155,10 +88,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
       };
       const formKey = formKeyMap[section];
       if (formKey) {
-        setFormData((prevForm) => ({
-          ...prevForm,
-          [formKey]: newValue,
-        }));
+        updateFormData('organization', { [formKey]: newValue });
       }
       return {
         ...prev,
@@ -187,106 +117,6 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
       ></div>
     </label>
   );
-
-  const handleSave = async () => {
-    try {
-      const userData = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      console.log("FINAL", JSON.stringify(userData, null, 2));
-
-      // const response = await axios.post("/employees", userData);
-
-      Swal.fire({
-        icon: "success",
-        title: "Saved!",
-        text: "User data saved successfully.",
-      });
-      // localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      if (error.response?.status === 422) {
-        const errors = error.response.data.errors;
-        const errorMessages = Object.values(errors).flat().join("\n");
-
-        Swal.fire({
-          icon: "error",
-          title: "Validation Error",
-          text: errorMessages,
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: error.message || "Something went wrong.",
-        });
-      }
-    }
-  };
-
-  const Modal = ({
-    show,
-    onClose,
-    title,
-    value,
-    setValue,
-    onAdd,
-    placeholder,
-    items,
-    onDelete,
-  }) => {
-    if (!show) return null;
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-30 backdrop-blur-sm">
-        <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-xs">
-          <h3 className="text-lg font-semibold mb-4">{title}</h3>
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-500"
-            placeholder={placeholder}
-            autoFocus
-          />
-          <div className="flex justify-end gap-2 mb-4">
-            <button
-              onClick={onClose}
-              className="px-3 py-1 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onAdd}
-              className="px-3 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-              disabled={!value.trim()}
-            >
-              Add
-            </button>
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-gray-500 mb-2">
-              Existing:
-            </h4>
-            <ul className="space-y-1 max-h-32 overflow-y-auto">
-              {items.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-center justify-between group px-2 py-1 rounded hover:bg-gray-50"
-                >
-                  <span className="truncate">{item.name}</span>
-                  <button
-                    type="button"
-                    className="ml-2 p-1 rounded-full bg-red-100 hover:bg-red-200 text-red-600 opacity-70 group-hover:opacity-100 transition"
-                    title="Delete"
-                    onClick={() => onDelete(item.id)}
-                  >
-                    <XCircle size={16} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   if (isLoading) {
     return (
@@ -324,7 +154,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
               <div className="relative flex-1">
                 <select
                   name="company"
-                  value={formData.company}
+                  value={formData.organization.company}
                   onChange={handleChange}
                   className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
@@ -348,7 +178,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
               <div className="relative flex-1">
                 <select
                   name="department"
-                  value={formData.department}
+                  value={formData.organization.department}
                   onChange={handleChange}
                   className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -371,7 +201,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
               <div className="relative flex-1">
                 <select
                   name="subDepartment"
-                  value={formData.subDepartment}
+                  value={formData.organization.subDepartment}
                   onChange={handleChange}
                   className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
@@ -395,7 +225,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                 <input
                   type="text"
                   name="currentSupervisor"
-                  value={formData.currentSupervisor}
+                  value={formData.organization.currentSupervisor}
                   onChange={handleChange}
                   placeholder="e.g., John Doe"
                   className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -416,7 +246,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                 <input
                   type="date"
                   name="dateOfJoined"
-                  value={formData.dateOfJoined}
+                  value={formData.organization.dateOfJoined}
                   onChange={handleChange}
                   className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -431,7 +261,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
               <div className="relative">
                 <select
                   name="designation"
-                  value={formData.designation}
+                  value={formData.organization.designation}
                   onChange={handleChange}
                   className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
@@ -454,7 +284,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
               <div className="relative">
                 <select
                   name="dayOff"
-                  value={formData.dayOff || ""}
+                  value={formData.organization.dayOff || ""}
                   onChange={handleChange}
                   className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
@@ -503,10 +333,10 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     {toggleStates.probationEnabled ? "Enabled" : "Disabled"}
                   </span>
                   <ToggleButton
-                    enabled={formData.probationPeriod}
+                    enabled={formData.organization.probationPeriod}
                     onToggle={() => handleToggle("probationEnabled")}
                     label="Probation Period"
-                    value={formData.probationPeriod}
+                    value={formData.organization.probationPeriod}
                   />
                 </div>
               </div>
@@ -517,7 +347,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <input
                       type="date"
                       name="probationFrom"
-                      value={formData.probationFrom}
+                      value={formData.organization.probationFrom}
                       onChange={handleChange}
                       disabled={!toggleStates.probationEnabled}
                       className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -542,7 +372,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <input
                       type="date"
                       name="probationTo"
-                      value={formData.probationTo}
+                      value={formData.organization.probationTo}
                       onChange={handleChange}
                       disabled={!toggleStates.probationEnabled}
                       className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -583,9 +413,9 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     {toggleStates.trainingEnabled ? "Enabled" : "Disabled"}
                   </span>
                   <ToggleButton
-                    enabled={formData.trainingPeriod}
+                    enabled={formData.organization.trainingPeriod}
                     onToggle={() => handleToggle("trainingEnabled")}
-                    value={formData.trainingPeriod}
+                    value={formData.organization.trainingPeriod}
                     label="Training Period"
                   />
                 </div>
@@ -597,7 +427,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <input
                       type="date"
                       name="trainingFrom"
-                      value={formData.trainingFrom}
+                      value={formData.organization.trainingFrom}
                       onChange={handleChange}
                       disabled={!toggleStates.trainingEnabled}
                       className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -622,7 +452,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <input
                       type="date"
                       name="trainingTo"
-                      value={formData.trainingTo}
+                      value={formData.organization.trainingTo}
                       onChange={handleChange}
                       disabled={!toggleStates.trainingEnabled}
                       className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -663,10 +493,10 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     {toggleStates.contractEnabled ? "Enabled" : "Disabled"}
                   </span>
                   <ToggleButton
-                    enabled={formData.contractPeriod}
+                    enabled={formData.organization.contractPeriod}
                     onToggle={() => handleToggle("contractEnabled")}
                     label="Contract Period"
-                    value={formData.contractPeriod}
+                    value={formData.organization.contractPeriod}
                   />
                 </div>
               </div>
@@ -677,7 +507,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <input
                       type="date"
                       name="contractFrom"
-                      value={formData.contractFrom}
+                      value={formData.organization.contractFrom}
                       onChange={handleChange}
                       disabled={!toggleStates.contractEnabled}
                       className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -702,7 +532,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <input
                       type="date"
                       name="contractTo"
-                      value={formData.contractTo}
+                      value={formData.organization.contractTo}
                       onChange={handleChange}
                       disabled={!toggleStates.contractEnabled}
                       className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -751,7 +581,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                 <input
                   type="date"
                   name="confirmationDate"
-                  value={formData.confirmationDate}
+                  value={formData.organization.confirmationDate}
                   onChange={handleChange}
                   disabled={!toggleStates.confirmationEnabled}
                   className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -776,14 +606,6 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
         <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
           <p className="text-gray-500 text-sm">* Required fields</p>
           <div className="flex gap-4">
-            {/* <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              onClick={handleSave}
-            >
-              <Send size={18} />
-              Submit
-            </button> */}
             <button
               type="button"
               onClick={onPrevious}

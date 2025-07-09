@@ -1,114 +1,27 @@
-import React, { useState, useEffect } from "react";
-import {
-  MapPin,
-  Phone,
-  Mail,
-  User,
-  Building,
-  Globe,
-  Shield,
-} from "lucide-react";
-
-const STORAGE_KEY = "employeeFormData";
-
-const initialState = {
-  // Address Details
-  permanentAddress: "",
-  temporaryAddress: "",
-  email: "",
-  landLine: "",
-  mobileLine: "",
-  gnDivision: "",
-  policeStation: "",
-  district: "",
-
-  // Location Details
-  province: "",
-  electoralDivision: "",
-
-  // Emergency Contact
-  emergencyContact: {
-    relationship: "",
-    contactName: "",
-    contactAddress: "",
-    contactTel: "",
-  },
-};
+import React from "react";
+import { MapPin, Phone, Mail, User, Building, Globe, Shield } from "lucide-react";
+import { useEmployeeForm } from '@contexts/EmployeeFormContext';
 
 const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
-  const [form, setForm] = useState(initialState);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-
-  // Load data from localStorage on component mount
-  useEffect(() => {
-    const loadData = () => {
-      try {
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        if (savedData && savedData !== "undefined" && savedData !== "null") {
-          const parsedData = JSON.parse(savedData);
-          // Load address data if exists in storage
-          if (parsedData.address) {
-            setForm(parsedData.address);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading saved data:", error);
-      } finally {
-        setIsDataLoaded(true);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // Save to localStorage whenever form changes
-  useEffect(() => {
-    if (!isDataLoaded) return; // Don't save until initial load is complete
-
-    const saveData = () => {
-      try {
-        // Get existing data from localStorage
-        const existingData = localStorage.getItem(STORAGE_KEY);
-        const currentStorage = existingData ? JSON.parse(existingData) : {};
-
-        // Update only the address section
-        const dataToSave = {
-          ...currentStorage,
-          address: form,
-        };
-
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      } catch (error) {
-        console.error("Error saving data to localStorage:", error);
-      }
-    };
-
-    const timeoutId = setTimeout(saveData, 300);
-    return () => clearTimeout(timeoutId);
-  }, [form, isDataLoaded]);
+  const { formData, updateFormData } = useEmployeeForm();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    updateFormData('address', { [name]: value });
   };
 
   const handleEmergencyContactChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
+    updateFormData('address', {
       emergencyContact: {
-        ...prev.emergencyContact,
+        ...formData.address.emergencyContact,
         [name]: value,
       },
-    }));
+    });
   };
 
   return (
     <>
-      {/* Address And Contact Details */}
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -136,7 +49,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <textarea
                       name="permanentAddress"
-                      value={form.permanentAddress}
+                      value={formData.address.permanentAddress}
                       onChange={handleChange}
                       rows="3"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
@@ -150,7 +63,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <textarea
                       name="temporaryAddress"
-                      value={form.temporaryAddress}
+                      value={formData.address.temporaryAddress}
                       onChange={handleChange}
                       rows="3"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
@@ -177,7 +90,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                       <input
                         name="email"
                         type="email"
-                        value={form.email}
+                        value={formData.address.email}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         placeholder="Enter email address"
@@ -193,7 +106,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                       <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                       <input
                         name="landLine"
-                        value={form.landLine}
+                        value={formData.address.landLine}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         placeholder="Enter land line number"
@@ -209,7 +122,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                       <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                       <input
                         name="mobileLine"
-                        value={form.mobileLine}
+                        value={formData.address.mobileLine}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         placeholder="Enter mobile number"
@@ -236,7 +149,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <input
                       name="province"
-                      value={form.province}
+                      value={formData.address.province}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Enter province"
@@ -249,7 +162,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <input
                       name="electoralDivision"
-                      value={form.electoralDivision}
+                      value={formData.address.electoralDivision}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Enter electoral division"
@@ -262,7 +175,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <input
                       name="gnDivision"
-                      value={form.gnDivision}
+                      value={formData.address.gnDivision}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Enter GN division"
@@ -275,7 +188,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <input
                       name="policeStation"
-                      value={form.policeStation}
+                      value={formData.address.policeStation}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Enter police station"
@@ -288,7 +201,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <select
                       name="district"
-                      value={form.district}
+                      value={formData.address.district}
                       onChange={handleChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
                     >
@@ -317,7 +230,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <select
                       name="relationship"
-                      value={form.emergencyContact.relationship}
+                      value={formData.address.emergencyContact.relationship}
                       onChange={handleEmergencyContactChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
                     >
@@ -336,7 +249,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <input
                       name="contactName"
-                      value={form.emergencyContact.contactName}
+                      value={formData.address.emergencyContact.contactName}
                       onChange={handleEmergencyContactChange}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Enter contact name"
@@ -349,7 +262,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     </label>
                     <textarea
                       name="contactAddress"
-                      value={form.emergencyContact.contactAddress}
+                      value={formData.address.emergencyContact.contactAddress}
                       onChange={handleEmergencyContactChange}
                       rows="2"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
@@ -365,7 +278,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                       <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                       <input
                         name="contactTel"
-                        value={form.emergencyContact.contactTel}
+                        value={formData.address.emergencyContact.contactTel}
                         onChange={handleEmergencyContactChange}
                         className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         placeholder="Enter contact telephone"
@@ -377,15 +290,6 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
             </div>
           </div>
 
-          {/* Save Button */}
-          {/* <div className="flex justify-center mt-8">
-            <button
-              onClick={handleSave}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-3 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 focus:ring-4 focus:ring-blue-300"
-            >
-              Save Address Details
-            </button>
-          </div> */}
           <div className="flex justify-between mt-8">
             <button
               type="button"

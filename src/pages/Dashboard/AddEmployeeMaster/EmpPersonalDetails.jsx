@@ -1,142 +1,93 @@
 import React, { useState, useEffect } from "react";
-import { User, Users, Baby, Briefcase, Plus, Trash2, Upload, X, Camera } from "lucide-react";
+import {
+  Camera,
+  Upload,
+  User,
+  Users,
+  Baby,
+  Briefcase,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 
-const initialState = {
-  title: "",
-  attendanceEmpNo: "",
-  epfNo: "",
-  nicNumber: "",
-  dob: "",
-  gender: "",
-  religion: "",
-  countryOfBirth: "",
-  employmentStatus: "",
-  nameWithInitial: "",
-  fullName: "",
-  displayName: "",
-  maritalStatus: "",
-  relationshipType: "",
-  spouseName: "",
-  spouseAge: "",
-  spouseDob: "",
-  spouseNic: "",
-  children: [{ name: "", age: "", dob: "", nic: "" }],
-  employeeImage: null, // Add image to initial state
-};
+const relationshipOptions = [
+  { value: "", label: "Select Relationship Type" },
+  { value: "husband", label: "Husband" },
+  { value: "wife", label: "Wife" },
+  { value: "relation", label: "Relation" },
+  { value: "non-relation", label: "Non-Relation" },
+  { value: "friend", label: "Friend" },
+];
 
 const EmpPersonalDetails = ({ onNext, activeCategory }) => {
-  const [form, setForm] = useState(initialState);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [imagePreview, setImagePreview] = useState(null);
-
-  // Load data from memory on component mount (localStorage removed)
-  useEffect(() => {
-    setIsDataLoaded(true);
-  }, []);
+  const { formData, updateFormData } = useEmployeeForm();
+  const [preview, setPreview] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
+    updateFormData("personal", {
       [name]: type === "checkbox" ? checked : value,
-    }));
+    });
+
+    if (e.target.type === "file" && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => setPreview(e.target.result);
+      reader.readAsDataURL(file);
+      updateFormData("personal", { profilePicture: file });
+    }
   };
 
   const handleChildChange = (idx, e) => {
-    const { name, value, type } = e.target;
-    setForm((prev) => {
-      const children = [...prev.children];
-      children[idx][name] = type === "number" ? value.toString() : value;
-      return { ...prev, children };
-    });
+    const { name, value } = e.target;
+    const updatedChildren = [...formData.personal.children];
+    updatedChildren[idx][name] = value;
+    updateFormData("personal", { children: updatedChildren });
   };
 
   const addChild = () => {
-    setForm((prev) => ({
-      ...prev,
-      children: [...prev.children, { name: "", age: "", dob: "", nic: "" }],
-    }));
+    updateFormData("personal", {
+      children: [
+        ...formData.personal.children,
+        { name: "", age: "", dob: "", nic: "" },
+      ],
+    });
   };
 
   const removeChild = (idx) => {
-    if (form.children.length > 1) {
-      setForm((prev) => ({
-        ...prev,
-        children: prev.children.filter((_, index) => index !== idx),
-      }));
+    if (formData.personal.children.length > 1) {
+      const updatedChildren = formData.personal.children.filter(
+        (_, index) => index !== idx
+      );
+      updateFormData("personal", { children: updatedChildren });
     }
   };
 
-  // Image upload handler
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Check file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
-        return;
-      }
-      
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
-        return;
-      }
-
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const imageData = event.target.result;
-        setForm((prev) => ({
-          ...prev,
-          employeeImage: imageData,
-        }));
-        setImagePreview(imageData);
-      };
+      reader.onload = (e) => setPreview(e.target.result);
       reader.readAsDataURL(file);
+      updateFormData("personal", { profilePicture: file });
     }
   };
 
-  // Remove image handler
-  const removeImage = () => {
-    setForm((prev) => ({
-      ...prev,
-      employeeImage: null,
-    }));
-    setImagePreview(null);
-    // Clear the file input
-    const fileInput = document.getElementById('imageUpload');
-    if (fileInput) {
-      fileInput.value = '';
-    }
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
   };
 
-  const handleSubmit = () => {
-    console.log("Form submitted:", JSON.stringify(form, null, 2));
-    alert("Employee details saved successfully!");
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
 
-  const clearForm = () => {
-    setForm({
-      ...initialState,
-      children: [{ name: "", age: "", dob: "", nic: "" }]
-    });
-    setImagePreview(null);
-    // Clear the file input
-    const fileInput = document.getElementById('imageUpload');
-    if (fileInput) {
-      fileInput.value = '';
-    }
-    console.log("✅ Form cleared");
-  };
 
-  const relationshipOptions = [
-    { value: "", label: "Select Relationship Type" },
-    { value: "husband", label: "Husband" },
-    { value: "wife", label: "Wife" },
-    { value: "relation", label: "Relation" },
-    { value: "non-relation", label: "Non-Relation" },
-    { value: "friend", label: "Friend" },
-  ];
 
   return (
     <div className="rounded-2xl overflow-hidden">
@@ -154,14 +105,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                 Complete employee information management system
               </p>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={clearForm}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-            >
-              Clear Form
-            </button>
           </div>
         </div>
       </div>
@@ -244,7 +187,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <select
                 name="title"
-                value={form.title}
+                value={formData.personal.title}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
@@ -265,7 +208,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="attendanceEmpNo"
-                value={form.attendanceEmpNo}
+                value={formData.personal.attendanceEmpNo}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -280,7 +223,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="epfNo"
-                value={form.epfNo}
+                value={formData.personal.epfNo}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -295,7 +238,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="nicNumber"
-                value={form.nicNumber}
+                value={formData.personal.nicNumber}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -311,7 +254,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               <input
                 type="date"
                 name="dob"
-                value={form.dob}
+                value={formData.personal.dob}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -325,7 +268,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <select
                 name="gender"
-                value={form.gender}
+                value={formData.personal.gender}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
@@ -344,7 +287,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="religion"
-                value={form.religion}
+                value={formData.personal.religion}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Enter religion"
@@ -358,11 +301,79 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="countryOfBirth"
-                value={form.countryOfBirth}
+                value={formData.personal.countryOfBirth}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Enter country of birth"
               />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Profile Picture
+              </label>
+
+              <div className="flex items-center gap-4">
+                {/* Preview Circle */}
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                    {preview ? (
+                      <img
+                        src={preview}
+                        alt="Profile preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-6 h-6 text-gray-400" />
+                    )}
+                  </div>
+                  {preview && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload Area */}
+                <div
+                  className={`relative flex-1 border-2 border-dashed rounded-lg px-4 py-3 
+                    transition-all duration-200 cursor-pointer
+                    ${
+                      isDragging
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                    }
+                  `}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  <input
+                    name="profilePicture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Camera className="w-4 h-4" />
+                      <span>Choose photo</span>
+                    </div>
+                    <div className="text-gray-400">or drag and drop</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* File info */}
+              {formData.personal.profilePicture && (
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <Upload className="w-3 h-3" />
+                  <span>
+                    {formData.personal.profilePicture.name || "File selected"}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -394,7 +405,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                   type="radio"
                   name="employmentStatus"
                   value={item.value}
-                  checked={form.employmentStatus === item.value}
+                  checked={formData.personal.employmentStatus === item.value}
                   onChange={handleChange}
                   className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
                 />
@@ -424,7 +435,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="nameWithInitial"
-                value={form.nameWithInitial}
+                value={formData.personal.nameWithInitial}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -437,7 +448,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="fullName"
-                value={form.fullName}
+                value={formData.personal.fullName}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -450,7 +461,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="displayName"
-                value={form.displayName}
+                value={formData.personal.displayName}
                 onChange={handleChange}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -465,7 +476,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </label>
             <select
               name="maritalStatus"
-              value={form.maritalStatus}
+              value={formData.personal.maritalStatus}
               onChange={handleChange}
               className="w-full lg:w-1/3 border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
             >
@@ -495,7 +506,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </label>
             <select
               name="relationshipType"
-              value={form.relationshipType || ""}
+              value={formData.personal.relationshipType || ""}
               onChange={handleChange}
               className="w-full lg:w-1/3 border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
             >
@@ -514,7 +525,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="spouseName"
-                value={form.spouseName}
+                value={formData.personal.spouseName}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Enter spouse name"
@@ -528,7 +539,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                 name="spouseAge"
                 type="number"
                 min="0"
-                value={form.spouseAge}
+                value={formData.personal.spouseAge}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Enter age"
@@ -541,7 +552,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               <input
                 name="spouseDob"
                 type="date"
-                value={form.spouseDob}
+                value={formData.personal.spouseDob}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               />
@@ -552,7 +563,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="spouseNic"
-                value={form.spouseNic}
+                value={formData.personal.spouseNic}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Enter NIC number"
@@ -582,13 +593,13 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
           </div>
 
           <div className="space-y-4">
-            {form.children.map((child, idx) => (
+            {formData.personal.children.map((child, idx) => (
               <div key={idx} className="p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-gray-600">
                     Child {idx + 1}
                   </h3>
-                  {form.children.length > 1 && (
+                  {formData.personal.children.length > 1 && (
                     <button
                       onClick={() => removeChild(idx)}
                       className="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-lg transition-colors duration-200 flex items-center gap-1"
@@ -634,7 +645,8 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
           </div>
         </div>
 
-        {/* Submit Button */}
+
+        {/* Next Button */}
         <div className="flex justify-end mt-8">
           <button
             type="button"

@@ -1,7 +1,26 @@
 import React, { useState } from "react";
-import { Building2, Users, UserCheck, Calendar, Clock, DollarSign, PieChart } from "lucide-react";
-import { Bar, Pie, Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } from 'chart.js';
+import {
+  Building2,
+  Users,
+  UserCheck,
+  Calendar,
+  Clock,
+  DollarSign,
+  PieChart,
+} from "lucide-react";
+import { Bar, Pie, Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement,
+} from "chart.js";
 
 import Sidebar from "@dashboard/Sidebar";
 import EmployeeMaster from "@dashboard/AddEmployeeMaster/EmployeeMaster";
@@ -22,6 +41,7 @@ import SalaryProcessPage from "@dashboard/salaryprocesspage";
 import LeaveApproval from "@dashboard/LeaveApproval";
 import HRLeaveApproval from "@dashboard/HRLeaveApproval";
 import Resignation from "@dashboard/Resignation";
+import Termination from "@dashboard/Termination";
 
 ChartJS.register(
   CategoryScale,
@@ -94,7 +114,9 @@ const DashboardStats = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-600 mb-1">{stat.name}</p>
+              <p className="text-sm font-semibold text-gray-600 mb-1">
+                {stat.name}
+              </p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
                 {stat.value}
               </p>
@@ -121,22 +143,22 @@ const DashboardStats = () => {
 const DashboardCharts = () => {
   // Employee Attendance Data
   const attendanceData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     datasets: [
       {
-        label: 'Present',
+        label: "Present",
         data: [2100, 2150, 2200, 2180, 2250, 1800, 800],
-        backgroundColor: 'rgba(16, 185, 129, 0.8)',
-        borderColor: 'rgba(16, 185, 129, 1)',
+        backgroundColor: "rgba(16, 185, 129, 0.8)",
+        borderColor: "rgba(16, 185, 129, 1)",
         borderWidth: 2,
         borderRadius: 8,
         borderSkipped: false,
       },
       {
-        label: 'Absent',
+        label: "Absent",
         data: [150, 120, 100, 90, 80, 200, 400],
-        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-        borderColor: 'rgba(239, 68, 68, 1)',
+        backgroundColor: "rgba(239, 68, 68, 0.8)",
+        borderColor: "rgba(239, 68, 68, 1)",
         borderWidth: 2,
         borderRadius: 8,
         borderSkipped: false,
@@ -146,25 +168,32 @@ const DashboardCharts = () => {
 
   // Department Distribution Data
   const departmentData = {
-    labels: ['Sales', 'Marketing', 'Development', 'HR', 'Finance', 'Operations'],
+    labels: [
+      "Sales",
+      "Marketing",
+      "Development",
+      "HR",
+      "Finance",
+      "Operations",
+    ],
     datasets: [
       {
         data: [300, 250, 500, 100, 150, 200],
         backgroundColor: [
-          'rgba(239, 68, 68, 0.8)',
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(251, 191, 36, 0.8)',
-          'rgba(16, 185, 129, 0.8)',
-          'rgba(139, 92, 246, 0.8)',
-          'rgba(251, 146, 60, 0.8)',
+          "rgba(239, 68, 68, 0.8)",
+          "rgba(59, 130, 246, 0.8)",
+          "rgba(251, 191, 36, 0.8)",
+          "rgba(16, 185, 129, 0.8)",
+          "rgba(139, 92, 246, 0.8)",
+          "rgba(251, 146, 60, 0.8)",
         ],
         borderColor: [
-          'rgba(239, 68, 68, 1)',
-          'rgba(59, 130, 246, 1)',
-          'rgba(251, 191, 36, 1)',
-          'rgba(16, 185, 129, 1)',
-          'rgba(139, 92, 246, 1)',
-          'rgba(251, 146, 60, 1)',
+          "rgba(239, 68, 68, 1)",
+          "rgba(59, 130, 246, 1)",
+          "rgba(251, 191, 36, 1)",
+          "rgba(16, 185, 129, 1)",
+          "rgba(139, 92, 246, 1)",
+          "rgba(251, 146, 60, 1)",
         ],
         borderWidth: 2,
       },
@@ -173,18 +202,20 @@ const DashboardCharts = () => {
 
   // Salary Trend Data
   const salaryData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
     datasets: [
       {
-        label: 'Total Salary Paid (LKR)',
-        data: [85000000, 87000000, 89000000, 91000000, 93000000, 95000000, 97000000],
+        label: "Total Salary Paid (LKR)",
+        data: [
+          85000000, 87000000, 89000000, 91000000, 93000000, 95000000, 97000000,
+        ],
         fill: true,
-        backgroundColor: 'rgba(139, 92, 246, 0.2)',
-        borderColor: 'rgba(139, 92, 246, 1)',
+        backgroundColor: "rgba(139, 92, 246, 0.2)",
+        borderColor: "rgba(139, 92, 246, 1)",
         borderWidth: 3,
         tension: 0.4,
-        pointBackgroundColor: 'rgba(139, 92, 246, 1)',
-        pointBorderColor: '#fff',
+        pointBackgroundColor: "rgba(139, 92, 246, 1)",
+        pointBorderColor: "#fff",
         pointBorderWidth: 2,
         pointRadius: 6,
       },
@@ -202,139 +233,143 @@ const DashboardCharts = () => {
           <h3 className="text-xl font-bold text-gray-800">Weekly Attendance</h3>
         </div>
         <div className="h-80">
-          <Bar 
+          <Bar
             data={attendanceData}
             options={{
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
                 legend: {
-                  position: 'top',
+                  position: "top",
                   labels: {
                     usePointStyle: true,
                     padding: 20,
                     font: {
                       size: 12,
-                      weight: 'bold'
-                    }
-                  }
+                      weight: "bold",
+                    },
+                  },
                 },
               },
               scales: {
                 y: {
                   beginAtZero: true,
                   grid: {
-                    color: 'rgba(0, 0, 0, 0.1)',
+                    color: "rgba(0, 0, 0, 0.1)",
                   },
                   ticks: {
-                    callback: function(value) {
+                    callback: function (value) {
                       return value.toLocaleString();
                     },
                     font: {
-                      size: 11
-                    }
-                  }
+                      size: 11,
+                    },
+                  },
                 },
                 x: {
                   grid: {
-                    display: false
+                    display: false,
                   },
                   ticks: {
                     font: {
-                      size: 11
-                    }
-                  }
-                }
-              }
+                      size: 11,
+                    },
+                  },
+                },
+              },
             }}
           />
         </div>
       </div>
-      
+
       {/* Department Distribution Chart */}
       <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
         <div className="flex items-center mb-6">
           <div className="bg-green-100 p-2 rounded-xl mr-3">
             <Building2 className="h-6 w-6 text-green-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800">Department Distribution</h3>
+          <h3 className="text-xl font-bold text-gray-800">
+            Department Distribution
+          </h3>
         </div>
         <div className="h-80">
-          <Pie 
+          <Pie
             data={departmentData}
             options={{
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
                 legend: {
-                  position: 'right',
+                  position: "right",
                   labels: {
                     usePointStyle: true,
                     padding: 20,
                     font: {
                       size: 12,
-                      weight: 'bold'
-                    }
-                  }
+                      weight: "bold",
+                    },
+                  },
                 },
               },
             }}
           />
         </div>
       </div>
-      
+
       {/* Salary Trend Chart */}
       <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 lg:col-span-2">
         <div className="flex items-center mb-6">
           <div className="bg-purple-100 p-2 rounded-xl mr-3">
             <DollarSign className="h-6 w-6 text-purple-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800">Monthly Salary Trend</h3>
+          <h3 className="text-xl font-bold text-gray-800">
+            Monthly Salary Trend
+          </h3>
         </div>
         <div className="h-80">
-          <Line 
+          <Line
             data={salaryData}
             options={{
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
                 legend: {
-                  position: 'top',
+                  position: "top",
                   labels: {
                     usePointStyle: true,
                     padding: 20,
                     font: {
                       size: 12,
-                      weight: 'bold'
-                    }
-                  }
+                      weight: "bold",
+                    },
+                  },
                 },
               },
               scales: {
                 y: {
                   grid: {
-                    color: 'rgba(0, 0, 0, 0.1)',
+                    color: "rgba(0, 0, 0, 0.1)",
                   },
                   ticks: {
-                    callback: function(value) {
-                      return 'LKR ' + (value / 1000000).toFixed(1) + 'M';
+                    callback: function (value) {
+                      return "LKR " + (value / 1000000).toFixed(1) + "M";
                     },
                     font: {
-                      size: 11
-                    }
-                  }
+                      size: 11,
+                    },
+                  },
                 },
                 x: {
                   grid: {
-                    display: false
+                    display: false,
                   },
                   ticks: {
                     font: {
-                      size: 11
-                    }
-                  }
-                }
-              }
+                      size: 11,
+                    },
+                  },
+                },
+              },
             }}
           />
         </div>
@@ -345,11 +380,46 @@ const DashboardCharts = () => {
 
 const QuickActions = () => {
   const actions = [
-    { icon: Users, label: "Add Employee", action: "employeeAdd", color: "from-blue-500 to-blue-600", iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-    { icon: Calendar, label: "Leave Approval", action: "leaveMaster", color: "from-green-500 to-green-600", iconBg: "bg-green-100", iconColor: "text-green-600" },
-    { icon: Clock, label: "Time Cards", action: "TimeCard", color: "from-yellow-500 to-yellow-600", iconBg: "bg-yellow-100", iconColor: "text-yellow-600" },
-    { icon: DollarSign, label: "Process Salary", action: "SalaryProcessPage", color: "from-purple-500 to-purple-600", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
-    { icon: PieChart, label: "Reports", action: "reports", color: "from-pink-500 to-pink-600", iconBg: "bg-pink-100", iconColor: "text-pink-600" },
+    {
+      icon: Users,
+      label: "Add Employee",
+      action: "employeeAdd",
+      color: "from-blue-500 to-blue-600",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+    },
+    {
+      icon: Calendar,
+      label: "Leave Approval",
+      action: "leaveMaster",
+      color: "from-green-500 to-green-600",
+      iconBg: "bg-green-100",
+      iconColor: "text-green-600",
+    },
+    {
+      icon: Clock,
+      label: "Time Cards",
+      action: "TimeCard",
+      color: "from-yellow-500 to-yellow-600",
+      iconBg: "bg-yellow-100",
+      iconColor: "text-yellow-600",
+    },
+    {
+      icon: DollarSign,
+      label: "Process Salary",
+      action: "SalaryProcessPage",
+      color: "from-purple-500 to-purple-600",
+      iconBg: "bg-purple-100",
+      iconColor: "text-purple-600",
+    },
+    {
+      icon: PieChart,
+      label: "Reports",
+      action: "reports",
+      color: "from-pink-500 to-pink-600",
+      iconBg: "bg-pink-100",
+      iconColor: "text-pink-600",
+    },
   ];
 
   return (
@@ -361,10 +431,14 @@ const QuickActions = () => {
             key={index}
             className="group flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-white hover:to-gray-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
           >
-            <div className={`${action.iconBg} p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform duration-300`}>
+            <div
+              className={`${action.iconBg} p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform duration-300`}
+            >
               <action.icon className={`h-6 w-6 ${action.iconColor}`} />
             </div>
-            <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors duration-300">{action.label}</span>
+            <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors duration-300">
+              {action.label}
+            </span>
           </button>
         ))}
       </div>
@@ -484,10 +558,11 @@ const Dashboard = ({ user, onLogout }) => {
               <LeaveCalendar />
             ) : activeItem === "SalaryProcessPage" ? (
               <SalaryProcessPage />
+            ) : activeItem === "termination" ? (
+              <Termination />
             ) : activeItem === "resignation" ? (
               <Resignation />
             ) : (
-
               <div className="space-y-8">
                 <div className="text-center mb-8">
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">

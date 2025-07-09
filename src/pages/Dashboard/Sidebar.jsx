@@ -72,7 +72,8 @@ const Sidebar = ({
         { id: "departmentMaster", name: "Department Master" },
         { id: "shiftTime", name: "Shift Time" },
         { id: "grouproster", name: "Roster" },
-        { id: "resignation", name: "Resignation"},
+        { id: "resignation", name: "Resignation" },
+        { id: "termination", name: "Termination" },
         // {
         //   id: "Allowance",
         //   name: "Allowance",
@@ -136,7 +137,6 @@ const Sidebar = ({
     // { id: "calendar", name: "Calendar", icon: Calendar, badge: null },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
-    
   ];
 
   return (

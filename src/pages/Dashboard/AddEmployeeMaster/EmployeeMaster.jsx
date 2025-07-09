@@ -5,6 +5,7 @@ import OrganizationDetails from '@dashboard/AddEmployeeMaster/OrganizationDetail
 import CompensationManagement from '@dashboard/AddEmployeeMaster/CompensationManagement';
 import Employeedocument from '@dashboard/AddEmployeeMaster/Employeedocument';
 import EmployeeConfirmationModal from './EmployeeConfirmationModal';
+import { EmployeeFormProvider } from '@contexts/EmployeeFormContext';
 
 const steps = [
   'personal',
@@ -12,6 +13,7 @@ const steps = [
   'compensation',
   'organization',
   'employeedocument',
+  'confirmation'
 ];
 
 const EmployeeMaster = () => {
@@ -31,128 +33,76 @@ const EmployeeMaster = () => {
   };
 
   const handleSubmit = (allEmployeeData) => {
-    // allEmployeeData contains all form data from localStorage and documents
-    console.log("Submitting all employee data:", allEmployeeData);
+    console.log("Submitting all employee data:", JSON.stringify(allEmployeeData, null, 2));
     alert('Employee submitted!');
-    // Clear all form data from localStorage after submission
-    localStorage.removeItem("employeeFormData");
-    // Optionally, you can reset to the first step
-    setActiveCategory('personal');
+    // Here you would typically send data to backend
   };
 
   return (
-    <div>
-      <div className="flex gap-2 px-4 py-2 border-b border-gray-200 bg-white">
-        <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeCategory === 'personal'
-              ? 'bg-indigo-600 text-white'
-              : 'text-indigo-700 hover:bg-indigo-100'
-          }`}
-          onClick={() => setActiveCategory('personal')}
-        >
-          Personal
-        </button>
-        <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeCategory === 'address'
-              ? 'bg-indigo-600 text-white'
-              : 'text-indigo-700 hover:bg-indigo-100'
-          }`}
-          onClick={() => setActiveCategory('address')}
-        >
-          Address
-        </button>
-        
-        <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeCategory === 'compensation'
-              ? 'bg-indigo-600 text-white'
-              : 'text-indigo-700 hover:bg-indigo-100'
-          }`}
-          onClick={() => setActiveCategory('compensation')}
-          >
-          Compensation
-        </button>
-        <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeCategory === 'organization'
-              ? 'bg-indigo-600 text-white'
-              : 'text-indigo-700 hover:bg-indigo-100'
-          }`}
-          onClick={() => setActiveCategory('organization')}
-        >
-          Organization
-        </button>
-        <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeCategory === 'employeedocument'
-              ? 'bg-indigo-600 text-white'
-              : 'text-indigo-700 hover:bg-indigo-100'
-          }`}
-          onClick={() => setActiveCategory('employeedocument')}
-
-        >
-         Employee Document      
-        </button>
-        <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            activeCategory === 'EmployeeConfirmationModal'
-              ? 'bg-indigo-600 text-white'
-              : 'text-indigo-700 hover:bg-indigo-100'
-          }`}
-          onClick={() => setActiveCategory('EmployeeConfirmationModal')}
-
-        >
-         Final
-        </button>
-      </div>
+    <EmployeeFormProvider>
+      <div>
+        <div className="flex gap-2 px-4 py-2 border-b border-gray-200 bg-white">
+          {steps.map((step) => (
+            <button
+              key={step}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                activeCategory === step
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-indigo-700 hover:bg-indigo-100'
+              }`}
+              onClick={() => setActiveCategory(step)}
+            >
+              {step.charAt(0).toUpperCase() + step.slice(1)}
+            </button>
+          ))}
+        </div>
         <div className="p-4">
           <div className="p-4">
-          {activeCategory === 'personal' && (
-            <EmpPersonalDetails
-              onNext={goNext}
-              activeCategory={activeCategory}
-            />
-          )}
-          {activeCategory === 'address' && (
-            <AddressDetails
-              onNext={goNext}
-              onPrevious={goPrevious}
-              activeCategory={activeCategory}
-            />
-          )}
-          {activeCategory === 'compensation' && (
-            <CompensationManagement
-              onNext={goNext}
-              onPrevious={goPrevious}
-              activeCategory={activeCategory}
-            />
-          )}
-          {activeCategory === 'organization' && (
-            <OrganizationDetails
-              onNext={goNext}
-              onPrevious={goPrevious}
-              activeCategory={activeCategory}
-            />
-          )}
-          {activeCategory === 'employeedocument' && (
-            <Employeedocument
-              onPrevious={goPrevious}
-              onSubmit={handleSubmit}
-              activeCategory={activeCategory}
-            />
-          )}
-          {activeCategory === 'EmployeeConfirmationModal' && (
-            <EmployeeConfirmationModal
-              onPrevious={goPrevious}
-              onSubmit={handleSubmit}
-              activeCategory={activeCategory}
-            />
-          )}
+            {activeCategory === 'personal' && (
+              <EmpPersonalDetails
+                onNext={goNext}
+                activeCategory={activeCategory}
+              />
+            )}
+            {activeCategory === 'address' && (
+              <AddressDetails
+                onNext={goNext}
+                onPrevious={goPrevious}
+                activeCategory={activeCategory}
+              />
+            )}
+            {activeCategory === 'compensation' && (
+              <CompensationManagement
+                onNext={goNext}
+                onPrevious={goPrevious}
+                activeCategory={activeCategory}
+              />
+            )}
+            {activeCategory === 'organization' && (
+              <OrganizationDetails
+                onNext={goNext}
+                onPrevious={goPrevious}
+                activeCategory={activeCategory}
+              />
+            )}
+            {activeCategory === 'employeedocument' && (
+              <Employeedocument
+                onPrevious={goPrevious}
+                onSubmit={handleSubmit}
+                activeCategory={activeCategory}
+              />
+            )}
+            {activeCategory === 'confirmation' && (
+              <EmployeeConfirmationModal
+                onPrevious={goPrevious}
+                onSubmit={handleSubmit}
+                activeCategory={activeCategory}
+              />
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </EmployeeFormProvider>
   );
 };
 

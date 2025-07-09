@@ -1,143 +1,16 @@
-import React, { useState, useEffect } from "react";
-import {
-  Save,
-  X,
-  DollarSign,
-  Calendar,
-  Building2,
-  CreditCard,
-  User,
-  AlertCircle,
-} from "lucide-react";
-
-const STORAGE_KEY = "employeeFormData";
-
-const initialCompensationData = {
-  basicSalary: "",
-  incrementValue: "",
-  incrementEffectiveFrom: "2025-06-20",
-  bankName: "1/1/1900",
-  branchName: "1/1/1900",
-  bankCode: "",
-  branchCode: "",
-  bankAccountNo: "",
-  comments: "",
-  secondaryEmp: false,
-  primaryEmploymentBasic: false,
-  enableEpfEtf: false,
-  otActive: false,
-  earlyDeduction: false,
-  incrementActive: false,
-  nopayActive: false,
-  morningOt: false,
-  eveningOt: false,
-  budgetaryReliefAllowance2015: false,
-  budgetaryReliefAllowance2016: false,
-};
+import React from "react";
+import { DollarSign, Calendar, Building2, CreditCard, AlertCircle, User } from "lucide-react";
+import { useEmployeeForm } from '@contexts/EmployeeFormContext';
 
 const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
-  const [formData, setFormData] = useState(initialCompensationData);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-
-  // Load data from localStorage on component mount
-  useEffect(() => {
-    const loadData = () => {
-      try {
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        if (savedData && savedData !== "undefined" && savedData !== "null") {
-          const parsedData = JSON.parse(savedData);
-          // Load compensation data if exists in storage
-          if (parsedData.compensation) {
-            setFormData(parsedData.compensation);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading saved data:", error);
-      } finally {
-        setIsDataLoaded(true);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // Save to localStorage whenever formData changes
-  useEffect(() => {
-    if (!isDataLoaded) return; // Don't save until initial load is complete
-
-    const saveData = () => {
-      try {
-        // Get existing data from localStorage
-        const existingData = localStorage.getItem(STORAGE_KEY);
-        const currentStorage = existingData ? JSON.parse(existingData) : {};
-
-        // Update only the compensation section
-        const dataToSave = {
-          ...currentStorage,
-          compensation: formData,
-        };
-
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      } catch (error) {
-        console.error("Error saving data to localStorage:", error);
-      }
-    };
-
-    const timeoutId = setTimeout(saveData, 300);
-    return () => clearTimeout(timeoutId);
-  }, [formData, isDataLoaded]);
+  const { formData, updateFormData } = useEmployeeForm();
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    updateFormData('compensation', { [field]: value });
   };
 
-  // Toggle handler for boolean values
   const handleToggleChange = (field) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form submitted:", formData);
-
-    // Clear only the compensation section
-    const existingData = localStorage.getItem(STORAGE_KEY);
-    const currentStorage = existingData ? JSON.parse(existingData) : {};
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ...currentStorage,
-        compensation: initialCompensationData,
-      })
-    );
-
-    setIsSubmitted(true);
-    setFormData(initialCompensationData);
-    setTimeout(() => setIsSubmitted(false), 1000);
-  };
-
-  const clearForm = () => {
-    // Clear only the compensation section
-    const existingData = localStorage.getItem(STORAGE_KEY);
-    const currentStorage = existingData ? JSON.parse(existingData) : {};
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ...currentStorage,
-        compensation: initialCompensationData,
-      })
-    );
-
-    setFormData(initialCompensationData);
+    updateFormData('compensation', { [field]: !formData.compensation[field] });
   };
 
   return (
@@ -149,13 +22,8 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
             <DollarSign className="w-6 h-6 mr-2 text-green-600" />
             Compensation Management
           </h2>
-          {isSubmitted && (
-            <div className="ml-auto bg-green-100 text-green-800 px-4 py-2 rounded-lg text-sm">
-              Form submitted successfully!
-            </div>
-          )}
         </div>
-        <form onSubmit={handleSubmit}>
+        <form>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Salary Information */}
             <div className="space-y-6">
@@ -174,7 +42,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="number"
-                        value={formData.basicSalary}
+                        value={formData.compensation.basicSalary}
                         onChange={(e) =>
                           handleInputChange("basicSalary", e.target.value)
                         }
@@ -193,7 +61,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="number"
-                        value={formData.incrementValue}
+                        value={formData.compensation.incrementValue}
                         onChange={(e) =>
                           handleInputChange("incrementValue", e.target.value)
                         }
@@ -211,7 +79,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="date"
-                        value={formData.incrementEffectiveFrom}
+                        value={formData.compensation.incrementEffectiveFrom}
                         onChange={(e) =>
                           handleInputChange(
                             "incrementEffectiveFrom",
@@ -243,7 +111,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.secondaryEmp
+                        backgroundColor: formData.compensation.secondaryEmp
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -251,7 +119,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.secondaryEmp
+                          formData.compensation.secondaryEmp
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -269,7 +137,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.enableEpfEtf
+                        backgroundColor: formData.compensation.enableEpfEtf
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -277,7 +145,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.enableEpfEtf
+                          formData.compensation.enableEpfEtf
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -295,7 +163,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.otActive
+                        backgroundColor: formData.compensation.otActive
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -303,7 +171,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.otActive ? "translate-x-6" : "translate-x-1"
+                          formData.compensation.otActive ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
                     </div>
@@ -319,7 +187,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.incrementActive
+                        backgroundColor: formData.compensation.incrementActive
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -327,7 +195,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.incrementActive
+                          formData.compensation.incrementActive
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -345,7 +213,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.nopayActive
+                        backgroundColor: formData.compensation.nopayActive
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -353,7 +221,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.nopayActive
+                          formData.compensation.nopayActive
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -371,7 +239,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.earlyDeduction
+                        backgroundColor: formData.compensation.earlyDeduction
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -379,7 +247,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.earlyDeduction
+                          formData.compensation.earlyDeduction
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -407,7 +275,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.morningOt
+                        backgroundColor: formData.compensation.morningOt
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -415,7 +283,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.morningOt ? "translate-x-6" : "translate-x-1"
+                          formData.compensation.morningOt ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
                     </div>
@@ -431,7 +299,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.eveningOt
+                        backgroundColor: formData.compensation.eveningOt
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -439,7 +307,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.eveningOt ? "translate-x-6" : "translate-x-1"
+                          formData.compensation.eveningOt ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
                     </div>
@@ -463,7 +331,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                         Bank Name
                       </label>
                       <select
-                        value={formData.bankName}
+                        value={formData.compensation.bankName}
                         onChange={(e) =>
                           handleInputChange("bankName", e.target.value)
                         }
@@ -481,7 +349,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                         Branch Name
                       </label>
                       <select
-                        value={formData.branchName}
+                        value={formData.compensation.branchName}
                         onChange={(e) =>
                           handleInputChange("branchName", e.target.value)
                         }
@@ -500,7 +368,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       </label>
                       <input
                         type="text"
-                        value={formData.bankCode}
+                        value={formData.compensation.bankCode}
                         onChange={(e) =>
                           handleInputChange("bankCode", e.target.value)
                         }
@@ -515,7 +383,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       </label>
                       <input
                         type="text"
-                        value={formData.branchCode}
+                        value={formData.compensation.branchCode}
                         onChange={(e) =>
                           handleInputChange("branchCode", e.target.value)
                         }
@@ -533,7 +401,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="text"
-                        value={formData.bankAccountNo}
+                        value={formData.compensation.bankAccountNo}
                         onChange={(e) =>
                           handleInputChange("bankAccountNo", e.target.value)
                         }
@@ -564,7 +432,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.budgetaryReliefAllowance2015
+                        backgroundColor: formData.compensation.budgetaryReliefAllowance2015
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -574,7 +442,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.budgetaryReliefAllowance2015
+                          formData.compensation.budgetaryReliefAllowance2015
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -594,7 +462,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.budgetaryReliefAllowance2016
+                        backgroundColor: formData.compensation.budgetaryReliefAllowance2016
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -604,7 +472,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.budgetaryReliefAllowance2016
+                          formData.compensation.budgetaryReliefAllowance2016
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -630,7 +498,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div
                       className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
                       style={{
-                        backgroundColor: formData.primaryEmploymentBasic
+                        backgroundColor: formData.compensation.primaryEmploymentBasic
                           ? "#3b82f6"
                           : "#e5e7eb",
                       }}
@@ -640,7 +508,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.primaryEmploymentBasic
+                          formData.compensation.primaryEmploymentBasic
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -656,7 +524,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                 </h2>
 
                 <textarea
-                  value={formData.comments}
+                  value={formData.compensation.comments}
                   onChange={(e) =>
                     handleInputChange("comments", e.target.value)
                   }
@@ -670,21 +538,6 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
           {/* Footer Actions */}
           <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
-            <button
-              type="button"
-              onClick={clearForm}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
-            >
-              <X className="w-4 h-4" />
-              <span>Clear Form</span>
-            </button>
-            {/* <button
-              type="submit"
-              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center space-x-2 shadow-lg"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Changes</span>
-            </button> */}
             <button
               type="button"
               onClick={onPrevious}

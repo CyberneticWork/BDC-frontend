@@ -117,33 +117,120 @@ const SalaryProcessPage = () => {
       return;
     }
     const doc = new jsPDF();
+
     data.forEach((emp, idx) => {
       if (idx > 0) doc.addPage();
-      doc.setFontSize(16);
-      doc.text(`Payslip for ${emp.Name} (${emp.EMPNo})`, 10, 20);
+
+      // Header
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("Company Name (Official Payslip)", 105, 18, { align: "center" });
+
       doc.setFontSize(12);
-      let y = 35;
-      Object.entries(emp).forEach(([key, value]) => {
-        if (
-          [
-            "EMPNo", "Name", "Department", "Designation", "Location",
-            "Basic", "Budgetary1", "Budgetary2", "Basic_Salary", "NoPayMinutes", "NoPay",
-            "Epf_Purposes", "OTMinutes", "OverTime", "DoubleOTtime", "TravellingAllowance",
-            "SpecialAllowance", "AttendanceAllowance", "ProductionIncentive", "MedicalReimbursement",
-            "GrossAmount", "SalaryAdvance", "StampDuty", "MealDeduction", "OtherDeduction",
-            "BondDeduction", "Deduct_epf8", "PayeeTax", "Loan", "TotalDeduction", "NetSalary",
-            "ETF3", "EPF12"
-          ].includes(key)
-        ) {
-          doc.text(`${key}: ${value}`, 10, y);
-          y += 8;
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-          }
+      doc.setFont("helvetica", "normal");
+      doc.text(`Payslip for the Month: ${emp.ProcessDate || emp.Month || emp.ProcessedDate}`, 105, 28, { align: "center" });
+
+      // Employee Info
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Employee Details", 14, 40);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Employee No: ${emp.EMPNo}`, 14, 48);
+      doc.text(`Name: ${emp.Name}`, 14, 54);
+      doc.text(`Department: ${emp.Department}`, 14, 60);
+      doc.text(`Designation: ${emp.Designation}`, 14, 66);
+      doc.text(`Location: ${emp.Location}`, 14, 72);
+
+      // Salary Table
+      let y = 82;
+      doc.setFont("helvetica", "bold");
+      doc.text("Earnings", 14, y);
+      doc.text("Amount (LKR)", 70, y);
+      doc.text("Deductions", 120, y);
+      doc.text("Amount (LKR)", 180, y);
+      y += 8;
+      doc.setFont("helvetica", "normal");
+
+      // Earnings
+      const earnings = [
+        ["Basic Salary", emp.Basic_Salary],
+        ["Budgetary Allowance 1", emp.Budgetary1],
+        ["Budgetary Allowance 2", emp.Budgetary2],
+        ["Over Time", emp.OverTime],
+        ["Double OT", emp.DoubleOTtime],
+        ["Travelling Allowance", emp.TravellingAllowance],
+        ["Special Allowance", emp.SpecialAllowance],
+        ["Attendance Allowance", emp.AttendanceAllowance],
+        ["Production Incentive", emp.ProductionIncentive],
+        ["Medical Reimbursement", emp.MedicalReimbursement],
+      ];
+
+      // Deductions
+      const deductions = [
+        ["No Pay", emp.NoPay],
+        ["Salary Advance", emp.SalaryAdvance],
+        ["Stamp Duty", emp.StampDuty],
+        ["Meal Deduction", emp.MealDeduction],
+        ["Other Deduction", emp.OtherDeduction],
+        ["Bond Deduction", emp.BondDeduction],
+        ["Deduct EPF 8%", emp.Deduct_epf8],
+        ["Payee Tax", emp.PayeeTax],
+        ["Loan", emp.Loan],
+      ];
+
+      // Print earnings and deductions side by side
+      const maxRows = Math.max(earnings.length, deductions.length);
+      for (let i = 0; i < maxRows; i++) {
+        if (earnings[i]) {
+          doc.text(earnings[i][0], 14, y);
+          doc.text(earnings[i][1] ? earnings[i][1].toLocaleString() : "-", 70, y, { align: "right" });
         }
-      });
+        if (deductions[i]) {
+          doc.text(deductions[i][0], 120, y);
+          doc.text(deductions[i][1] ? deductions[i][1].toLocaleString() : "-", 180, y, { align: "right" });
+        }
+        y += 8;
+        if (y > 260) {
+          doc.addPage();
+          y = 20;
+        }
+      }
+
+      // Gross, Deductions, Net
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.text("Gross Amount", 14, y);
+      doc.text(emp.GrossAmount ? emp.GrossAmount.toLocaleString() : "-", 70, y, { align: "right" });
+      doc.text("Total Deduction", 120, y);
+      doc.text(emp.TotalDeduction ? emp.TotalDeduction.toLocaleString() : "-", 180, y, { align: "right" });
+
+      y += 10;
+      doc.setFontSize(13);
+      doc.setTextColor(34, 197, 94); // green
+      doc.text("Net Salary", 14, y);
+      doc.text(emp.NetSalary ? emp.NetSalary.toLocaleString() : "-", 70, y, { align: "right" });
+      doc.setTextColor(0, 0, 0);
+
+      // Statutory
+      y += 10;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Statutory Contributions", 14, y);
+      doc.setFont("helvetica", "normal");
+      y += 7;
+      doc.text(`EPF (8% Employee): ${emp.Deduct_epf8 ? emp.Deduct_epf8.toLocaleString() : "-"}`, 14, y);
+      y += 6;
+      doc.text(`EPF (12% Employer): ${emp.EPF12 ? emp.EPF12.toLocaleString() : "-"}`, 14, y);
+      y += 6;
+      doc.text(`ETF (3% Employer): ${emp.ETF3 ? emp.ETF3.toLocaleString() : "-"}`, 14, y);
+
+      // Footer
+      y = 275;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "italic");
+      doc.text("This is a system generated payslip and does not require a signature.", 105, y, { align: "center" });
     });
+
     doc.save("payslips.pdf");
   };
 

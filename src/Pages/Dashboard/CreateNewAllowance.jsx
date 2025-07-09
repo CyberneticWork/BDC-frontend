@@ -91,11 +91,12 @@ const CreateNewAllowance = () => {
     id: null,
     code: "",
     name: "",
-    company: companies[0], 
+    company: companies[0],
     category: "Bonus",
     status: "Active",
     type: "Fixed",
-    date: "",
+    fromDate: "",
+    toDate: "",
   });
   const [newAllowance, setNewAllowance] = useState({
     code: "",
@@ -104,7 +105,8 @@ const CreateNewAllowance = () => {
     category: "Bonus",
     status: "Active",
     type: "Fixed",
-    date: "",
+    fromDate: "",
+    toDate: "",
   });
 
   const categories = ["Travel", "Bonus", "Performance", "Health", "Other"];
@@ -121,37 +123,50 @@ const CreateNewAllowance = () => {
   );
 
   const handleAddAllowance = () => {
-    if (newAllowance.code.trim() && newAllowance.name.trim()) {
+    if (
+      newAllowance.code.trim() &&
+      newAllowance.name.trim() &&
+      (newAllowance.type !== "Variable" ||
+        (newAllowance.fromDate && newAllowance.toDate))
+    ) {
       const newId = Math.max(...allowances.map((a) => a.id), 0) + 1;
       setAllowances([
         ...allowances,
         {
           id: newId,
           ...newAllowance,
-          date: newAllowance.type === "Variable" ? newAllowance.date : "",
+          fromDate: newAllowance.type === "Variable" ? newAllowance.fromDate : "",
+          toDate: newAllowance.type === "Variable" ? newAllowance.toDate : "",
         },
       ]);
       setNewAllowance({
         code: "",
         name: "",
-        company: companies[0], // Reset company
+        company: companies[0],
         category: "Bonus",
         status: "Active",
         type: "Fixed",
-        date: "",
+        fromDate: "",
+        toDate: "",
       });
       setIsAddModalOpen(false);
     }
   };
 
   const handleEditAllowance = () => {
-    if (editAllowance.code.trim() && editAllowance.name.trim()) {
+    if (
+      editAllowance.code.trim() &&
+      editAllowance.name.trim() &&
+      (editAllowance.type !== "Variable" ||
+        (editAllowance.fromDate && editAllowance.toDate))
+    ) {
       setAllowances(
         allowances.map((allowance) =>
           allowance.id === editAllowance.id
             ? {
                 ...editAllowance,
-                date: editAllowance.type === "Variable" ? editAllowance.date : "",
+                fromDate: editAllowance.type === "Variable" ? editAllowance.fromDate : "",
+                toDate: editAllowance.type === "Variable" ? editAllowance.toDate : "",
               }
             : allowance
         )
@@ -161,11 +176,12 @@ const CreateNewAllowance = () => {
         id: null,
         code: "",
         name: "",
-        company: companies[0], // Reset company
+        company: companies[0],
         category: "Bonus",
         status: "Active",
         type: "Fixed",
-        date: "",
+        fromDate: "",
+        toDate: "",
       });
     }
   };
@@ -211,7 +227,8 @@ const CreateNewAllowance = () => {
       category: "Bonus",
       status: "Active",
       type: "Fixed",
-      date: "",
+      fromDate: "",
+      toDate: "",
     });
   };
 
@@ -225,7 +242,8 @@ const CreateNewAllowance = () => {
       category: "Bonus",
       status: "Active",
       type: "Fixed",
-      date: "",
+      fromDate: "",
+      toDate: "",
     });
   };
 
@@ -260,6 +278,8 @@ const CreateNewAllowance = () => {
     const options = { year: "numeric", month: "short", day: "numeric" };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
+
+  const todayStr = new Date().toISOString().split("T")[0];
 
   return (
     <div className="">
@@ -509,10 +529,16 @@ const CreateNewAllowance = () => {
                         </span>
                       </td>
                       <td className="py-4 px-6 hidden xl:table-cell">
-                        {allowance.type === "Variable" && allowance.date ? (
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <span>{formatDate(allowance.date)}</span>
+                        {allowance.type === "Variable" && allowance.fromDate && allowance.toDate ? (
+                          <div className="flex flex-col gap-1 text-gray-700">
+                            <div>
+                              <Calendar className="w-4 h-4 text-gray-400 inline mr-1" />
+                              <span>From: {formatDate(allowance.fromDate)}</span>
+                            </div>
+                            <div>
+                              <Calendar className="w-4 h-4 text-gray-400 inline mr-1" />
+                              <span>To: {formatDate(allowance.toDate)}</span>
+                            </div>
                           </div>
                         ) : (
                           <span className="text-gray-400">-</span>
@@ -642,7 +668,8 @@ const CreateNewAllowance = () => {
                   onChange={(e) => {
                     handleInputChange("type", e.target.value);
                     if (e.target.value === "Fixed") {
-                      handleInputChange("date", "");
+                      handleInputChange("fromDate", "");
+                      handleInputChange("toDate", "");
                     }
                   }}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
@@ -656,15 +683,29 @@ const CreateNewAllowance = () => {
               </div>
 
               {newAllowance.type === "Variable" && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Date *
-                  </label>
-                  <div className="relative">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      From Date *
+                    </label>
                     <input
                       type="date"
-                      value={newAllowance.date}
-                      onChange={(e) => handleInputChange("date", e.target.value)}
+                      value={newAllowance.fromDate}
+                      min={todayStr}
+                      onChange={(e) => handleInputChange("fromDate", e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      To Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={newAllowance.toDate}
+                      min={newAllowance.fromDate || todayStr}
+                      onChange={(e) => handleInputChange("toDate", e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       required
                     />
@@ -704,7 +745,7 @@ const CreateNewAllowance = () => {
                 disabled={
                   !newAllowance.code.trim() ||
                   !newAllowance.name.trim() ||
-                  (newAllowance.type === "Variable" && !newAllowance.date)
+                  (newAllowance.type === "Variable" && (!newAllowance.fromDate || !newAllowance.toDate))
                 }
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed transition-all font-medium shadow-lg disabled:shadow-none"
               >
@@ -816,7 +857,8 @@ const CreateNewAllowance = () => {
                   onChange={(e) => {
                     handleEditInputChange("type", e.target.value);
                     if (e.target.value === "Fixed") {
-                      handleEditInputChange("date", "");
+                      handleEditInputChange("fromDate", "");
+                      handleEditInputChange("toDate", "");
                     }
                   }}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
@@ -830,17 +872,29 @@ const CreateNewAllowance = () => {
               </div>
 
               {editAllowance.type === "Variable" && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Date *
-                  </label>
-                  <div className="relative">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      From Date *
+                    </label>
                     <input
                       type="date"
-                      value={editAllowance.date || ""}
-                      onChange={(e) =>
-                        handleEditInputChange("date", e.target.value)
-                      }
+                      value={editAllowance.fromDate}
+                      min={todayStr}
+                      onChange={(e) => handleEditInputChange("fromDate", e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      To Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={editAllowance.toDate}
+                      min={editAllowance.fromDate || todayStr}
+                      onChange={(e) => handleEditInputChange("toDate", e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       required
                     />
@@ -880,7 +934,7 @@ const CreateNewAllowance = () => {
                 disabled={
                   !editAllowance.code.trim() ||
                   !editAllowance.name.trim() ||
-                  (editAllowance.type === "Variable" && !editAllowance.date)
+                  (editAllowance.type === "Variable" && (!editAllowance.fromDate || !editAllowance.toDate))
                 }
                 className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed transition-all font-medium shadow-lg disabled:shadow-none"
               >
