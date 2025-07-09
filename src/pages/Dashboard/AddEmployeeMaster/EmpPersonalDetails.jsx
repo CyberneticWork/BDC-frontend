@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Users, Baby, Briefcase, Plus, Trash2 } from "lucide-react";
-
-const STORAGE_KEY = "employeeFormData";
+import { User, Users, Baby, Briefcase, Plus, Trash2, Upload, X, Camera } from "lucide-react";
 
 const initialState = {
   title: "",
@@ -22,72 +20,19 @@ const initialState = {
   spouseAge: "",
   spouseDob: "",
   spouseNic: "",
-  children: [{ name: "", age: "", dob: "", nic: "" }], // Exactly one empty child
+  children: [{ name: "", age: "", dob: "", nic: "" }],
+  employeeImage: null, // Add image to initial state
 };
 
 const EmpPersonalDetails = ({ onNext, activeCategory }) => {
   const [form, setForm] = useState(initialState);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
 
-  // Load data from localStorage on component mount
+  // Load data from memory on component mount (localStorage removed)
   useEffect(() => {
-
-    const loadData = () => {
-      try {
-        // console.log("Attempting to load data from localStorage...");
-        const savedData = localStorage.getItem(STORAGE_KEY);
-
-        if (savedData && savedData !== "undefined" && savedData !== "null") {
-          const parsedData = JSON.parse(savedData);
-          // console.log("Data loaded from localStorage:", parsedData);
-          setForm(parsedData);
-        } else {
-          // console.log("No saved data found in localStorage");
-        }
-      } catch (error) {
-        // console.error("Error loading saved data:", error);
-        // If there's an error, clear the corrupted data
-        localStorage.removeItem(STORAGE_KEY);
-      } finally {
-        setIsDataLoaded(true);
-      }
-    };
-
-    loadData();
+    setIsDataLoaded(true);
   }, []);
-
-  // Save to localStorage whenever form changes (but only after initial load)
-  useEffect(() => {
-    if (!isDataLoaded) return; // Don't save until we've loaded initial data
-
-    const saveData = () => {
-      try {
-        const dataToSave = JSON.stringify(form);
-        localStorage.setItem(STORAGE_KEY, dataToSave);
-        // console.log("Data saved to localStorage:", form);
-
-        // Verify the save worked
-        const verification = localStorage.getItem(STORAGE_KEY);
-        if (verification) {
-          // console.log("✅ Save verified successfully");
-        } else {
-          // console.error("❌ Save verification failed");
-        }
-      } catch (error) {
-        // console.error("Error saving data to localStorage:", error);
-        // Check if localStorage is available
-        if (typeof Storage === "undefined") {
-          // console.error("localStorage is not supported in this browser");
-        } else if (error.name === "QuotaExceededError") {
-          // console.error("localStorage quota exceeded");
-        }
-      }
-    };
-
-    // Debounce the save to avoid too frequent saves
-    const timeoutId = setTimeout(saveData, 300);
-    return () => clearTimeout(timeoutId);
-  }, [form, isDataLoaded]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -101,7 +46,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     const { name, value, type } = e.target;
     setForm((prev) => {
       const children = [...prev.children];
-      // Always store as string for controlled input
       children[idx][name] = type === "number" ? value.toString() : value;
       return { ...prev, children };
     });
@@ -123,64 +67,75 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     }
   };
 
+  // Image upload handler
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageData = event.target.result;
+        setForm((prev) => ({
+          ...prev,
+          employeeImage: imageData,
+        }));
+        setImagePreview(imageData);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Remove image handler
+  const removeImage = () => {
+    setForm((prev) => ({
+      ...prev,
+      employeeImage: null,
+    }));
+    setImagePreview(null);
+    // Clear the file input
+    const fileInput = document.getElementById('imageUpload');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
   const handleSubmit = () => {
-  console.log("Form submitted:", JSON.stringify(form, null, 2));
-  alert("Employee details saved successfully!");
-  // Removed the clearForm() call here - let user decide when to clear
-};
+    console.log("Form submitted:", JSON.stringify(form, null, 2));
+    alert("Employee details saved successfully!");
+  };
 
   const clearForm = () => {
-  try {
-    // Reset to initial state with exactly one empty child
     setForm({
       ...initialState,
       children: [{ name: "", age: "", dob: "", nic: "" }]
     });
-    localStorage.removeItem(STORAGE_KEY);
-    console.log("✅ Form cleared and localStorage data removed");
-
-    // Verify the clear worked
-    const verification = localStorage.getItem(STORAGE_KEY);
-    if (!verification) {
-      console.log("✅ Clear verified successfully");
-    } else {
-      console.error("❌ Clear verification failed");
+    setImagePreview(null);
+    // Clear the file input
+    const fileInput = document.getElementById('imageUpload');
+    if (fileInput) {
+      fileInput.value = '';
     }
-  } catch (error) {
-    console.error("Error clearing localStorage:", error);
-  }
-};
-
-  // Test localStorage function
-  const testLocalStorage = () => {
-    try {
-      const testKey = "test_key";
-      const testValue = "test_value";
-
-      localStorage.setItem(testKey, testValue);
-      const retrieved = localStorage.getItem(testKey);
-      localStorage.removeItem(testKey);
-
-      if (retrieved === testValue) {
-        // console.log("✅ localStorage is working correctly");
-        alert("localStorage is working correctly");
-      } else {
-        // console.error("❌ localStorage test failed");
-        alert("localStorage test failed");
-      }
-    } catch (error) {
-      // console.error("❌ localStorage is not available:", error);
-      alert("localStorage is not available: " + error.message);
-    }
+    console.log("✅ Form cleared");
   };
 
   const relationshipOptions = [
-  { value: "", label: "Select Relationship Type" },
-  { value: "husband", label: "Husband" },
-  { value: "wife", label: "Wife" },
-  { value: "relation", label: "Relation" },
-  { value: "non-relation", label: "Non-Relation" },
-  { value: "friend", label: "Friend" },
+    { value: "", label: "Select Relationship Type" },
+    { value: "husband", label: "Husband" },
+    { value: "wife", label: "Wife" },
+    { value: "relation", label: "Relation" },
+    { value: "non-relation", label: "Non-Relation" },
+    { value: "friend", label: "Friend" },
   ];
 
   return (
@@ -202,12 +157,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={testLocalStorage}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-            >
-              Test Storage
-            </button>
-            <button
               onClick={clearForm}
               className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
             >
@@ -218,6 +167,64 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
       </div>
 
       <div className="space-y-6">
+        {/* Employee Image Upload Section */}
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-2 rounded-lg">
+              <Camera className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Employee Photo
+            </h2>
+          </div>
+
+          <div className="flex flex-col items-center space-y-4">
+            {/* Image Preview */}
+            <div className="relative">
+              {imagePreview || form.employeeImage ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview || form.employeeImage}
+                    alt="Employee"
+                    className="w-32 h-32 object-cover rounded-full border-4 border-gray-200 shadow-lg"
+                  />
+                  <button
+                    onClick={removeImage}
+                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-colors duration-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center border-4 border-dashed border-gray-300">
+                  <Camera className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+            </div>
+
+            {/* Upload Button */}
+            <div className="flex flex-col items-center space-y-2">
+              <label
+                htmlFor="imageUpload"
+                className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-2 rounded-lg font-medium cursor-pointer hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                {imagePreview || form.employeeImage ? 'Change Photo' : 'Upload Photo'}
+              </label>
+              <input
+                id="imageUpload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <p className="text-sm text-gray-500">
+                Maximum file size: 5MB. Supported formats: JPG, PNG, GIF
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Basic Information */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -499,7 +506,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               ))}
             </select>
           </div>
-        
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
@@ -629,18 +635,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
         </div>
 
         {/* Submit Button */}
-        {/* <div className="flex justify-center gap-4 pb-6">
-          <button
-            type="button"
-            onClick={() => {
-              handleSubmit();
-              clearForm();
-            }}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-3 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 focus:ring-4 focus:ring-blue-300"
-          >
-            Save Employee Details
-          </button>
-        </div> */}
         <div className="flex justify-end mt-8">
           <button
             type="button"

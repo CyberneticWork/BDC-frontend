@@ -5,7 +5,8 @@ const defaultFormData = {
   resignationDate: "",
   resignationLetter: null,
   resignationApproved: false,
-  currentStatus: "",
+  resignationReason: "",
+  employeeName: "",
 };
 
 const dummyResignations = [
@@ -16,7 +17,8 @@ const dummyResignations = [
     resignationDate: "2024-06-15",
     lastWorkingDay: "2024-07-15",
     status: "Notice Period",
-    approval: "Approved"
+    approval: "Approved",
+    reason: "Better opportunity"
   },
   {
     id: 2,
@@ -25,8 +27,17 @@ const dummyResignations = [
     resignationDate: "2024-06-20",
     lastWorkingDay: "2024-07-20",
     status: "Exit Formalities",
-    approval: "Pending"
+    approval: "Pending",
+    reason: "Personal reasons"
   }
+];
+
+const employees = [
+  { id: 1, name: "John Doe", department: "Engineering" },
+  { id: 2, name: "Jane Smith", department: "Marketing" },
+  { id: 3, name: "Mike Johnson", department: "Sales" },
+  { id: 4, name: "Sarah Wilson", department: "HR" },
+  { id: 5, name: "David Brown", department: "Finance" },
 ];
 
 const Resignation = () => {
@@ -34,6 +45,7 @@ const Resignation = () => {
   const [submitted, setSubmitted] = useState(false);
   const [showTable, setShowTable] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isTermination, setIsTermination] = useState(false);
   
   // Handle input changes
   const handleChange = (e) => {
@@ -69,7 +81,8 @@ const Resignation = () => {
     const newErrors = {};
     if (!formData.resignationDate) newErrors.resignationDate = "Resignation date is required";
     if (!formData.resignationLetter) newErrors.resignationLetter = "Resignation letter is required";
-    if (!formData.currentStatus) newErrors.currentStatus = "Current status is required";
+    if (!formData.resignationReason) newErrors.resignationReason = "Resignation reason is required";
+    if (!formData.employeeName) newErrors.employeeName = "Employee selection is required";
     return newErrors;
   };
 
@@ -85,6 +98,7 @@ const Resignation = () => {
     setErrors({});
     setSubmitted(true);
     setShowTable(true);
+    setIsTermination(true);
     
     // Scroll to table after submission
     setTimeout(() => {
@@ -98,11 +112,44 @@ const Resignation = () => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
             <FileText className="text-blue-500" size={20} />
-            Manage Resignation Details & Current Status
+            Manage Resignation Details
           </h2>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Employee Selection */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <label className="text-gray-700 font-medium mb-2 flex items-center gap-2">
+              <User className="text-blue-500" size={18} />
+              Select Employee
+            </label>
+            <div className="relative">
+              <select
+                name="employeeName"
+                value={formData.employeeName}
+                onChange={handleChange}
+                className={`w-full md:w-1/2 pl-10 pr-8 py-2 border ${errors.employeeName ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none`}
+              >
+                <option value="">Select employee</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.name}>
+                    {employee.name} - {employee.department}
+                  </option>
+                ))}
+              </select>
+              <User
+                className="absolute left-3 top-2.5 text-gray-400"
+                size={18}
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+            {errors.employeeName && (
+              <p className="mt-1 text-sm text-red-500">{errors.employeeName}</p>
+            )}
+          </div>
+
           {/* Resignation Date */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
@@ -123,6 +170,31 @@ const Resignation = () => {
               />
               {errors.resignationDate && (
                 <p className="mt-1 text-sm text-red-500">{errors.resignationDate}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Resignation Reason */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <label className="text-gray-700 font-medium mb-2 flex items-center gap-2">
+              <FileText className="text-blue-500" size={18} />
+              Resignation Reason
+            </label>
+            <div className="relative">
+              <textarea
+                name="resignationReason"
+                value={formData.resignationReason}
+                onChange={handleChange}
+                rows="4"
+                placeholder="Please provide the reason for resignation..."
+                className={`w-full pl-10 pr-3 py-2 border ${errors.resignationReason ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none`}
+              />
+              <FileText
+                className="absolute left-3 top-2.5 text-gray-400"
+                size={18}
+              />
+              {errors.resignationReason && (
+                <p className="mt-1 text-sm text-red-500">{errors.resignationReason}</p>
               )}
             </div>
           </div>
@@ -207,39 +279,6 @@ const Resignation = () => {
             </label>
           </div>
 
-          {/* Current Status */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <label className="text-gray-700 font-medium mb-2 flex items-center gap-2">
-              <User className="text-blue-500" size={18} />
-              Current Status
-            </label>
-            <div className="relative">
-              <select
-                name="currentStatus"
-                value={formData.currentStatus}
-                onChange={handleChange}
-                className={`w-full md:w-1/2 pl-10 pr-8 py-2 border ${errors.currentStatus ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none`}
-              >
-                <option value="">Select status</option>
-                <option value="Active">Active</option>
-                <option value="On Leave">On Leave</option>
-                <option value="Serving Notice Period">Serving Notice Period</option>
-                <option value="Resigned">Resigned</option>
-                <option value="Exit Formalities Pending">Exit Formalities Pending</option>
-              </select>
-              <User
-                className="absolute left-3 top-2.5 text-gray-400"
-                size={18}
-              />
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </div>
-            </div>
-            {errors.currentStatus && (
-              <p className="mt-1 text-sm text-red-500">{errors.currentStatus}</p>
-            )}
-          </div>
-
           {/* Submit Button */}
           <div className="flex justify-end">
             <button
@@ -271,7 +310,7 @@ const Resignation = () => {
         <div id="resignation-table" className="bg-white rounded-2xl shadow-xl p-6 transition-all duration-300">
           <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
             <FileText className="text-blue-500" size={20} />
-            Recent Resignations
+            {isTermination ? 'Termination Records' : 'Recent Resignations'}
           </h2>
           
           <div className="overflow-x-auto">
@@ -282,6 +321,7 @@ const Resignation = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resignation Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Working Day</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval</th>
                 </tr>
@@ -293,6 +333,7 @@ const Resignation = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{resignation.department}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{resignation.resignationDate}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{resignation.lastWorkingDay}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{resignation.reason}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                         ${resignation.status === 'Notice Period' ? 'bg-blue-100 text-blue-800' : 
@@ -311,18 +352,21 @@ const Resignation = () => {
                 ))}
                 {/* Add the newly submitted resignation */}
                 {submitted && (
-                  <tr className="bg-blue-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">You</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Your Department</td>
+                  <tr className="bg-red-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formData.employeeName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {employees.find(emp => emp.name === formData.employeeName)?.department || 'N/A'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formData.resignationDate}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formData.resignationDate ? 
                         new Date(new Date(formData.resignationDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : 
                         'N/A'}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formData.resignationReason}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {formData.currentStatus || 'Pending'}
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                        Terminated
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
