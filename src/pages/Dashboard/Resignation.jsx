@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { Calendar, FileText, CheckCircle, XCircle, User, MapPin, Download, X, Check, ChevronDown } from "lucide-react";
+import { Calendar, FileText, CheckCircle, XCircle, User, MapPin, Download, X, Check, ChevronDown, Upload } from "lucide-react";
 
 const defaultFormData = {
   resignationDate: "",
-  resignationLetter: null,
-  resignationApproved: false,
+  resignationDocuments: [],
   resignationReason: "",
   employeeName: "",
 };
@@ -17,7 +16,7 @@ const dummyResignations = [
     resignationDate: "2024-06-15",
     lastWorkingDay: "2024-07-15",
     status: "Notice Period",
-    approval: "Approved",
+    approval: "Pending",
     reason: "Better opportunity"
   },
   {
@@ -49,38 +48,42 @@ const Resignation = () => {
   
   // Handle input changes
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     });
   };
 
-  // Handle file upload
+  // Handle bulk file upload
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData({
-        ...formData,
-        resignationLetter: {
-          name: file.name,
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          file: file
-        }
-      });
-    }
+    const files = Array.from(e.target.files);
+    const newDocuments = files.map(file => ({
+      id: Date.now() + Math.random(),
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      file: file
+    }));
+    
+    setFormData({
+      ...formData,
+      resignationDocuments: [...formData.resignationDocuments, ...newDocuments]
+    });
   };
 
   // Remove uploaded file
-  const handleRemoveFile = () => {
-    setFormData({...formData, resignationLetter: null});
+  const handleRemoveFile = (documentId) => {
+    setFormData({
+      ...formData,
+      resignationDocuments: formData.resignationDocuments.filter(doc => doc.id !== documentId)
+    });
   };
 
   // Validate form
   const validateForm = () => {
     const newErrors = {};
     if (!formData.resignationDate) newErrors.resignationDate = "Resignation date is required";
-    if (!formData.resignationLetter) newErrors.resignationLetter = "Resignation letter is required";
+    if (formData.resignationDocuments.length === 0) newErrors.resignationDocuments = "At least one document is required";
     if (!formData.resignationReason) newErrors.resignationReason = "Resignation reason is required";
     if (!formData.employeeName) newErrors.employeeName = "Employee selection is required";
     return newErrors;
@@ -102,7 +105,10 @@ const Resignation = () => {
     
     // Scroll to table after submission
     setTimeout(() => {
-      document.getElementById("resignation-table").scrollIntoView({ behavior: "smooth" });
+      const table = document.getElementById("resignation-table");
+      if (table) {
+        table.scrollIntoView({ behavior: "smooth" });
+      }
     }, 500);
   };
 
@@ -116,7 +122,7 @@ const Resignation = () => {
           </h2>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           {/* Employee Selection */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <label className="text-gray-700 font-medium mb-2 flex items-center gap-2">
@@ -199,90 +205,71 @@ const Resignation = () => {
             </div>
           </div>
 
-          {/* Resignation Letter */}
+          {/* Bulk Document Upload */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <label className="text-gray-700 font-medium mb-2 flex items-center gap-2">
-              <FileText className="text-blue-500" size={18} />
-              Upload Resignation Letter
+              <Upload className="text-blue-500" size={18} />
+              Upload Documents (Multiple files allowed)
             </label>
             
-            {formData.resignationLetter ? (
-              <div className="flex items-center justify-between p-3 bg-white border border-green-100 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-50 rounded-full">
-                    <FileText className="text-green-500" size={20} />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">{formData.resignationLetter.name}</p>
-                    <p className="text-sm text-gray-500">{formData.resignationLetter.size}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRemoveFile}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                    title="Remove"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+            {/* Upload Area */}
+            <label className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors mb-4"
+              style={{ borderColor: errors.resignationDocuments ? '#ef4444' : '#d1d5db' }}>
+              <div className="flex flex-col items-center justify-center">
+                <Upload className="w-10 h-10 mb-3 text-gray-400" />
+                <p className="mb-1 text-sm text-gray-500">
+                  <span className="font-semibold text-blue-500">Click to upload</span> or drag and drop
+                </p>
+                <p className="text-xs text-gray-400">PDF, DOCX, JPG, PNG (MAX. 5MB each)</p>
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors"
-                style={{ borderColor: errors.resignationLetter ? '#ef4444' : '#d1d5db' }}>
-                <div className="flex flex-col items-center justify-center">
-                  <FileText className="w-10 h-10 mb-3 text-gray-400" />
-                  <p className="mb-1 text-sm text-gray-500">
-                    <span className="font-semibold text-blue-500">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-400">PDF, DOCX (MAX. 5MB)</p>
-                </div>
-                <input
-                  type="file"
-                  name="resignationLetter"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept=".pdf,.doc,.docx"
-                />
-              </label>
-            )}
-            {errors.resignationLetter && (
-              <p className="mt-1 text-sm text-red-500">{errors.resignationLetter}</p>
-            )}
-          </div>
-
-          {/* Approval Status */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <label className="inline-flex items-center cursor-pointer">
               <input
-                type="checkbox"
-                name="resignationApproved"
-                checked={formData.resignationApproved}
-                onChange={handleChange}
-                className="sr-only peer"
+                type="file"
+                name="resignationDocuments"
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                multiple
               />
-              <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-              <span className="ms-3 text-gray-700 font-medium flex items-center gap-2">
-                {formData.resignationApproved ? (
-                  <>
-                    <CheckCircle className="text-green-500" size={18} />
-                    <span>Resignation Approved</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="text-red-500" size={18} />
-                    <span>Pending Approval</span>
-                  </>
-                )}
-              </span>
             </label>
+
+            {/* Uploaded Files Display */}
+            {formData.resignationDocuments.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-gray-700">Uploaded Documents ({formData.resignationDocuments.length})</h4>
+                {formData.resignationDocuments.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-green-100 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-50 rounded-full">
+                        <FileText className="text-green-500" size={16} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">{doc.name}</p>
+                        <p className="text-xs text-gray-500">{doc.size}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(doc.id)}
+                      className="p-1 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                      title="Remove"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {errors.resignationDocuments && (
+              <p className="mt-1 text-sm text-red-500">{errors.resignationDocuments}</p>
+            )}
           </div>
 
           {/* Submit Button */}
           <div className="flex justify-end">
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
             >
               {submitted ? (
@@ -295,7 +282,7 @@ const Resignation = () => {
               )}
             </button>
           </div>
-        </form>
+        </div>
 
         {submitted && (
           <div className="mt-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
@@ -324,6 +311,7 @@ const Resignation = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documents</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -343,10 +331,12 @@ const Resignation = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${resignation.approval === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
-                        {resignation.approval}
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                        Pending
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className="text-blue-500 hover:text-blue-700 cursor-pointer">View (2)</span>
                     </td>
                   </tr>
                 ))}
@@ -370,9 +360,13 @@ const Resignation = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${formData.resignationApproved ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
-                        {formData.resignationApproved ? 'Approved' : 'Pending'}
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                        Pending
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className="text-blue-500 hover:text-blue-700 cursor-pointer">
+                        View ({formData.resignationDocuments.length})
                       </span>
                     </td>
                   </tr>
