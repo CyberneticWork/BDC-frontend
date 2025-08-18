@@ -175,6 +175,8 @@ const TimeCard = () => {
     department: '',
     status: '',
   });
+  // Inline validation errors for Add New modal
+  const [addErrors, setAddErrors] = useState({});
 
   // Import Data section toggle state
   const [showImport, setShowImport] = useState(true);
@@ -251,6 +253,7 @@ const TimeCard = () => {
     setFilteredData(filterAttendance('Leave'));
   };
 
+  // Cancel handler for filters
   const handleCancel = () => {
     setLocation('');
     setDateFrom('');
@@ -259,6 +262,8 @@ const TimeCard = () => {
     setEmployeeName('');
     setDepartment('');
     setFilterDate('');
+    // clear employee search when cancelling filters
+    setEmployeeSearch('');
     setFilteredData(attendanceData);
   };
 
@@ -350,6 +355,7 @@ const TimeCard = () => {
     }
     setIsLoading(true);
     setNicError('');
+    setAddErrors({}); // reset field errors
 
     let employee;
     try {
@@ -366,8 +372,15 @@ const TimeCard = () => {
       return;
     }
 
-    if (!newRecord.time || !newRecord.date || !newRecord.entry || !newRecord.status) {
-      setNicError('All fields are required');
+    // Validate required fields and show per-field errors
+    const errs = {};
+    if (!newRecord.date) errs.date = 'Date is required';
+    if (!newRecord.status) errs.status = 'Status is required';
+    if (!newRecord.entry) errs.entry = 'Entry will be auto-filled after selecting a Status';
+    if (!newRecord.time) errs.time = 'Time is required';
+
+    if (Object.keys(errs).length > 0) {
+      setAddErrors(errs);
       setIsLoading(false);
       return;
     }
@@ -395,8 +408,7 @@ const TimeCard = () => {
         department: '',
         status: '',
       });
-      setNic('');
-      setNicError('');
+      setAddErrors({});
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -420,6 +432,7 @@ const TimeCard = () => {
   const clearAddModalFields = () => {
     setNic('');
     setNicError('');
+    setAddErrors({});
     setNewRecord({
       empNo: '',
       name: '',
@@ -1083,7 +1096,7 @@ const TimeCard = () => {
                 </label>
                 <input
                   type="text"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                  className={`w-full border rounded-lg px-3 py-1.5 text-sm ${nicError ? 'border-red-500' : 'border-gray-300'}`}
                   value={nic}
                   onChange={e => setNic(e.target.value)}
                   onBlur={handleNicBlur}
@@ -1136,11 +1149,22 @@ const TimeCard = () => {
                   </label>
                   <input
                     type="date"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 text-sm ${addErrors.date ? 'border-red-500' : 'border-gray-300'}`}
                     value={newRecord.date}
-                    onChange={e => setNewRecord({ ...newRecord, date: e.target.value })}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setNewRecord({ ...newRecord, date: v });
+                      setAddErrors(prev => ({ ...prev, date: v ? undefined : 'Date is required' }));
+                    }}
+                    onBlur={() => {
+                      if (!newRecord.date) {
+                        setAddErrors(prev => ({ ...prev, date: 'Date is required' }));
+                      }
+                    }}
                     max={new Date().toISOString().split('T')[0]}
+                    aria-invalid={!!addErrors.date}
                   />
+                  {addErrors.date && <div className="text-red-500 text-xs mt-1">{addErrors.date}</div>}
                 </div>
                 <div className="mb-3">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1148,10 +1172,21 @@ const TimeCard = () => {
                   </label>
                   <input
                     type="time"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 text-sm ${addErrors.time ? 'border-red-500' : 'border-gray-300'}`}
                     value={newRecord.time}
-                    onChange={e => setNewRecord({ ...newRecord, time: e.target.value })}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setNewRecord({ ...newRecord, time: v });
+                      setAddErrors(prev => ({ ...prev, time: v ? undefined : 'Time is required' }));
+                    }}
+                    onBlur={() => {
+                      if (!newRecord.time) {
+                        setAddErrors(prev => ({ ...prev, time: 'Time is required' }));
+                      }
+                    }}
+                    aria-invalid={!!addErrors.time}
                   />
+                  {addErrors.time && <div className="text-red-500 text-xs mt-1">{addErrors.time}</div>}
                 </div>
               </div>
               
@@ -1161,7 +1196,7 @@ const TimeCard = () => {
                     Status <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 text-sm ${addErrors.status ? 'border-red-500' : 'border-gray-300'}`}
                     value={newRecord.status}
                     onChange={e => {
                       const status = e.target.value;
@@ -1169,28 +1204,42 @@ const TimeCard = () => {
                       if (status === 'IN') entry = '1';
                       else if (status === 'OUT') entry = '2';
                       else if (status === 'Leave') entry = '0';
-                      setNewRecord(prev => ({
+
+                      setNewRecord(prev => ({ ...prev, status, entry }));
+                      setAddErrors(prev => ({
                         ...prev,
-                        status,
-                        entry,
+                        status: status ? undefined : 'Status is required',
+                        entry: status ? undefined : 'Entry will be auto-filled after selecting a Status',
                       }));
                     }}
+                    onBlur={() => {
+                      if (!newRecord.status) {
+                        setAddErrors(prev => ({
+                          ...prev,
+                          status: 'Status is required',
+                          entry: 'Entry will be auto-filled after selecting a Status',
+                        }));
+                      }
+                    }}
+                    aria-invalid={!!addErrors.status}
                   >
                     <option value="">Select Status</option>
                     <option value="IN">IN</option>
                     <option value="OUT">OUT</option>
                     <option value="Leave">Leave</option>
                   </select>
+                  {addErrors.status && <div className="text-red-500 text-xs mt-1">{addErrors.status}</div>}
                 </div>
                 <div className="mb-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Entry Code</label>
                   <input
                     type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-100 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 bg-gray-100 text-sm ${addErrors.entry ? 'border-red-500' : 'border-gray-200'}`}
                     value={newRecord.entry}
                     readOnly
                     placeholder="Auto-filled"
                   />
+                  {addErrors.entry && <div className="text-red-500 text-xs mt-1">{addErrors.entry}</div>}
                 </div>
               </div>
             </div>
@@ -1205,12 +1254,7 @@ const TimeCard = () => {
               <button
                 className="px-4 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition font-semibold shadow text-sm"
                 onClick={handleAddNew}
-                disabled={
-                  !nic ||
-                  !newRecord.time ||
-                  !newRecord.date ||
-                  !newRecord.status
-                }
+                disabled={isLoading} // allow click to trigger validation
               >
                 Add Record
               </button>
