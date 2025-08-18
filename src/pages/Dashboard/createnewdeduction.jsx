@@ -233,8 +233,6 @@ const CreateNewDeduction = () => {
   const validateForm = () => {
     const errors = {};
     if (!formData.company_id) errors.company_id = "Company is required";
-    if (!formData.department_id)
-      errors.department_id = "Department is required";
     if (!formData.deduction_code)
       errors.deduction_code = "Deduction code is required";
     if (!formData.deduction_name)
@@ -290,7 +288,9 @@ const CreateNewDeduction = () => {
       // Prepare data for API
       const deductionData = {
         company_id: parseInt(formData.company_id),
-        department_id: parseInt(formData.department_id),
+        department_id: formData.department_id
+          ? parseInt(formData.department_id)
+          : null,
         deduction_code: formData.deduction_code,
         deduction_name: formData.deduction_name,
         description: formData.description,
@@ -310,18 +310,17 @@ const CreateNewDeduction = () => {
       const selectedCompany = companies.find(
         (c) => c.id === parseInt(formData.company_id)
       );
-      const selectedDepartment = departments.find(
-        (d) => d.id === parseInt(formData.department_id)
-      );
+      const selectedDepartment = formData.department_id
+        ? departments.find((d) => d.id === parseInt(formData.department_id))
+        : null;
       setDeductions((prev) => [
         ...prev,
         {
           ...result,
           company: { id: selectedCompany.id, name: selectedCompany.name },
-          department: {
-            id: selectedDepartment.id,
-            name: selectedDepartment.name,
-          },
+          department: selectedDepartment
+            ? { id: selectedDepartment.id, name: selectedDepartment.name }
+            : { id: null, name: "Unknown" },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -374,7 +373,7 @@ const CreateNewDeduction = () => {
       setFormData({
         ...deduction,
         company_id: companyId,
-        department_id: deduction.department.id,
+        department_id: deduction.department?.id || "",
         category: isCustomCategory ? "other" : deduction.category,
         customCategory: isCustomCategory ? deduction.category : "",
       });
@@ -520,7 +519,9 @@ const CreateNewDeduction = () => {
       // Prepare data for API
       const deductionData = {
         company_id: parseInt(formData.company_id),
-        department_id: parseInt(formData.department_id),
+        department_id: formData.department_id
+          ? parseInt(formData.department_id)
+          : null,
         deduction_name: formData.deduction_name,
         description: formData.description,
         amount: parseFloat(formData.amount),
@@ -546,11 +547,14 @@ const CreateNewDeduction = () => {
                   name: companies.find((c) => c.id == formData.company_id)
                     ?.name,
                 },
-                department: {
-                  id: parseInt(formData.department_id),
-                  name: departments.find((d) => d.id == formData.department_id)
-                    ?.name,
-                },
+                department: formData.department_id
+                  ? {
+                      id: parseInt(formData.department_id),
+                      name: departments.find(
+                        (d) => d.id == formData.department_id
+                      )?.name,
+                    }
+                  : { id: null, name: "Unknown" },
                 updated_at: new Date().toISOString(),
               }
             : item
@@ -911,7 +915,7 @@ const CreateNewDeduction = () => {
                 {/* Department Field */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Department <span className="text-red-500">*</span>
+                    Department
                   </label>
                   <div className="relative">
                     <Layers
@@ -922,7 +926,6 @@ const CreateNewDeduction = () => {
                       name="department_id"
                       value={formData.department_id}
                       onChange={handleInputChange}
-                      required
                       disabled={!formData.company_id || isLoadingDepartments}
                       className={`w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white ${
                         !formData.company_id || isLoadingDepartments
