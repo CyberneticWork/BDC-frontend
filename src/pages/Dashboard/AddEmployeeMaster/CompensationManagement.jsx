@@ -161,6 +161,32 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                   <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
                     <label
+                      htmlFor="Stamp"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Stamp
+                    </label>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      style={{
+                        backgroundColor: formData.compensation.stamp
+                          ? "#3b82f6"
+                          : "#e5e7eb",
+                      }}
+                      onClick={() => handleToggleChange("stamp")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          formData.compensation.stamp
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <label
                       htmlFor="enableEpfEtf"
                       className="text-sm font-medium text-gray-700"
                     >
@@ -501,7 +527,8 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Bank Account Number <span className="text-red-500">*</span>
+                      Bank Account Number{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
