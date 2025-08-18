@@ -286,71 +286,90 @@ const ShowEmployee = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {employees.map((employee) => (
-                  <tr
-                    key={employee.id}
-                    className="hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-12 w-12">
-                          <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden">
-                            {employee.profile_photo_path ? (
-                              <img
-                                src={`${apiUrl}/storage/${employee.profile_photo_path}`}
-                                alt="Profile photo"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-white font-semibold text-sm">
-                                {employee.name_with_initials?.charAt(0) || "?"}
-                              </span>
-                            )}
+                {employees && employees.length > 0 ? (
+                  employees.map((employee) => (
+                    <tr
+                      key={employee.id}
+                      className="hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-12 w-12">
+                            <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden">
+                              {employee.profile_photo_path ? (
+                                <img
+                                  src={`${apiUrl}/storage/${employee.profile_photo_path}`}
+                                  alt="Profile photo"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-white font-semibold text-sm">
+                                  {employee.name_with_initials?.charAt(0) ||
+                                    "?"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {employee.full_name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Emp No: {employee.epf}
+                            </div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {employee.full_name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Emp No: {employee.epf}
-                          </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 font-medium">
+                          {employee.title}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 font-medium">
-                        {employee.title}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        ID: {employee.attendance_employee_no}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(employee.is_active)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getTypeBadge(employee.employment_type?.name)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {employee.contact_detail?.email}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {employee.contact_detail?.mobile_line}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleViewEmployee(employee.id)}
-                        className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </button>
+                        <div className="text-sm text-gray-500">
+                          ID: {employee.attendance_employee_no}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(employee.is_active)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getTypeBadge(employee.employment_type?.name)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {employee.contact_detail?.email}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {employee.contact_detail?.mobile_line}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => handleViewEmployee(employee.id)}
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="px-6 py-4 text-center text-gray-500"
+                    >
+                      {isLoading ? (
+                        <div className="flex justify-center items-center">
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Loading employees...
+                        </div>
+                      ) : (
+                        "No employees found"
+                      )}
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

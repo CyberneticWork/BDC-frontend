@@ -158,78 +158,102 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
             </div>
 
             {/* Contact Information */}
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Phone className="w-5 h-5 text-green-600" />
-                Contact Information
-              </h3>
+<div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6">
+  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+    <Phone className="w-5 h-5 text-green-600" />
+    Contact Information
+  </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                    <input
-                      name="email"
-                      type="email"
-                      value={formData.address.email}
-                      onChange={handleChange}
-                      className={`w-full border ${
-                        errors.address?.email 
-                          ? 'border-red-500' 
-                          : 'border-gray-300'
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      placeholder="Enter email address"
-                    />
-                  </div>
-                  <FieldError error={errors.address?.email} />
-                </div>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">
+        Email <span className="text-red-500">*</span>
+      </label>
+      <div className="relative">
+        <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+        <input
+          name="email"
+          type="email"
+          value={formData.address.email}
+          onChange={handleChange}
+          className={`w-full border ${
+            errors.address?.email 
+              ? 'border-red-500' 
+              : 'border-gray-300'
+          } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+          placeholder="Enter email address"
+        />
+      </div>
+      <FieldError error={errors.address?.email} />
+    </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Land Line
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                    <input
-                      name="landLine"
-                      value={formData.address.landLine}
-                      onChange={handleChange}
-                      className={`w-full border ${
-                        errors.address?.landLine 
-                          ? 'border-red-500' 
-                          : 'border-gray-300'
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      placeholder="Enter land line number"
-                    />
-                  </div>
-                  <FieldError error={errors.address?.landLine} />
-                </div>
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">
+        Land Line
+      </label>
+      <div className="relative">
+        <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+        <input
+          name="landLine"
+          value={formData.address.landLine}
+          onChange={(e) => {
+            // Allow only numbers and limit to 10 digits
+            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+            handleChange({
+              target: {
+                name: 'landLine',
+                value: value
+              }
+            });
+          }}
+          className={`w-full border ${
+            errors.address?.landLine 
+              ? 'border-red-500' 
+              : 'border-gray-300'
+          } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+          placeholder="Enter land line number"
+        />
+      </div>
+      <FieldError error={errors.address?.landLine} />
+      {formData.address.landLine && formData.address.landLine.length !== 10 && (
+        <p className="text-red-500 text-xs mt-1">Land line must be 10 digits</p>
+      )}
+    </div>
 
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Mobile Line <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                    <input
-                      name="mobileLine"
-                      value={formData.address.mobileLine}
-                      onChange={handleChange}
-                      className={`w-full border ${
-                        errors.address?.mobileLine 
-                          ? 'border-red-500' 
-                          : 'border-gray-300'
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      placeholder="Enter mobile number"
-                    />
-                  </div>
-                  <FieldError error={errors.address?.mobileLine} />
-                </div>
-              </div>
-            </div>
+    <div className="space-y-2 sm:col-span-2">
+      <label className="block text-sm font-medium text-gray-700">
+        Mobile Line <span className="text-red-500">*</span>
+      </label>
+      <div className="relative">
+        <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+        <input
+          name="mobileLine"
+          value={formData.address.mobileLine}
+          onChange={(e) => {
+            // Allow only numbers and limit to 10 digits
+            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+            handleChange({
+              target: {
+                name: 'mobileLine',
+                value: value
+              }
+            });
+          }}
+          className={`w-full border ${
+            errors.address?.mobileLine 
+              ? 'border-red-500' 
+              : 'border-gray-300'
+          } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+          placeholder="Enter mobile number"
+        />
+      </div>
+      <FieldError error={errors.address?.mobileLine} />
+      {formData.address.mobileLine && formData.address.mobileLine.length !== 10 && (
+        <p className="text-red-500 text-xs mt-1">Mobile number must be 10 digits</p>
+      )}
+    </div>
+  </div>
+</div>
           </div>
 
           {/* Right Column - Location & Emergency */}
@@ -419,25 +443,38 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Contact Tel <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                    <input
-                      name="contactTel"
-                      value={formData.address.emergencyContact.contactTel}
-                      onChange={handleEmergencyContactChange}
-                      className={`w-full border ${
-                        errors.address?.emergencyContact?.contactTel 
-                          ? 'border-red-500' 
-                          : 'border-gray-300'
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      placeholder="Enter contact telephone"
-                    />
-                  </div>
-                  <FieldError error={errors.address?.emergencyContact?.contactTel} />
-                </div>
+  <label className="block text-sm font-medium text-gray-700">
+    Contact Tel <span className="text-red-500">*</span>
+  </label>
+  <div className="relative">
+    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+    <input
+      name="contactTel"
+      value={formData.address.emergencyContact.contactTel}
+      onChange={(e) => {
+        // Allow only numbers and limit to 10 digits
+        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+        handleEmergencyContactChange({
+          target: {
+            name: 'contactTel',
+            value: value
+          }
+        });
+      }}
+      className={`w-full border ${
+        errors.address?.emergencyContact?.contactTel 
+          ? 'border-red-500' 
+          : 'border-gray-300'
+      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+      placeholder="Enter contact telephone"
+    />
+  </div>
+  <FieldError error={errors.address?.emergencyContact?.contactTel} />
+  {formData.address.emergencyContact.contactTel && 
+   formData.address.emergencyContact.contactTel.length !== 10 && (
+    <p className="text-red-500 text-xs mt-1">Contact number must be 10 digits</p>
+  )}
+</div>
               </div>
             </div>
           </div>

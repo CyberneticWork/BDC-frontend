@@ -119,62 +119,61 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
   }, [formData.organization.department]);
 
   const handleChange = (e) => {
-  const { name, value, type, checked, files } = e.target;
-  const parsedValue = value === "" ? "" : Number(value); // safely parse to number if not empty
+    const { name, value, type, checked, files } = e.target;
+    const parsedValue = value === "" ? "" : Number(value); // safely parse to number if not empty
 
-  // Clear field error
-  if (errors.organization?.[name]) {
-    clearFieldError("organization", name);
-  }
+    // Clear field error
+    if (errors.organization?.[name]) {
+      clearFieldError("organization", name);
+    }
 
-  if (name === "company") {
-    const selected = companies.find((c) => c.id === parsedValue);
+    if (name === "company") {
+      const selected = companies.find((c) => c.id === parsedValue);
+      updateFormData("organization", {
+        company: parsedValue.toString(),
+        companyName: selected?.name || "",
+        department: "",
+        departmentName: "",
+        subDepartment: "",
+        subDepartmentName: "",
+      });
+      return;
+    }
+
+    if (name === "department") {
+      const selected = departments.find((d) => d.id === parsedValue);
+      updateFormData("organization", {
+        department: parsedValue.toString(),
+        departmentName: selected?.name || "",
+        subDepartment: "",
+        subDepartmentName: "",
+      });
+      return;
+    }
+
+    if (name === "subDepartment") {
+      const selected = subDepartments.find((s) => s.id === parsedValue);
+      updateFormData("organization", {
+        subDepartment: parsedValue.toString(),
+        subDepartmentName: selected?.name || "",
+      });
+      return;
+    }
+
+    if (name === "designation") {
+      const selected = designations.find((s) => s.id === parsedValue);
+      updateFormData("organization", {
+        designation: parsedValue.toString(),
+        designationName: selected?.name || "",
+      });
+      return;
+    }
+
     updateFormData("organization", {
-      company: parsedValue.toString(),
-      companyName: selected?.name || "",
-      department: "",
-      departmentName: "",
-      subDepartment: "",
-      subDepartmentName: "",
+      [name]:
+        type === "checkbox" ? checked : type === "file" ? files[0] : value,
     });
-    return;
-  }
-
-  if (name === "department") {
-    const selected = departments.find((d) => d.id === parsedValue);
-    updateFormData("organization", {
-      department: parsedValue.toString(),
-      departmentName: selected?.name || "",
-      subDepartment: "",
-      subDepartmentName: "",
-    });
-    return;
-  }
-
-  if (name === "subDepartment") {
-    const selected = subDepartments.find((s) => s.id === parsedValue);
-    updateFormData("organization", {
-      subDepartment: parsedValue.toString(),
-      subDepartmentName: selected?.name || "",
-    });
-    return;
-  }
-
-  if (name === "designation") {
-    const selected = designations.find((s) => s.id === parsedValue);
-    updateFormData("organization", {
-      designation: parsedValue.toString(),
-      designationName: selected?.name || "",
-    });
-    return;
-  }
-
-  updateFormData("organization", {
-    [name]:
-      type === "checkbox" ? checked : type === "file" ? files[0] : value,
-  });
-};
-
+  };
 
   const handleToggle = (section) => {
     setToggleStates((prev) => {
@@ -463,6 +462,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                   <option value="Thursday">Thursday</option>
                   <option value="Friday">Friday</option>
                   <option value="Saturday">Saturday</option>
+                  <option value="none">None</option>
                 </select>
               </div>
               <FieldError error={errors.organization?.dayOff} />
@@ -791,24 +791,21 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
-          <p className="text-gray-500 text-sm">* Required fields</p>
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={onPrevious}
-              className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              onClick={onNext}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Next
-            </button>
-          </div>
+        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between space-x-4">
+          <button
+            type="button"
+            onClick={onPrevious}
+            className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Next
+          </button>
         </div>
       </form>
     </div>

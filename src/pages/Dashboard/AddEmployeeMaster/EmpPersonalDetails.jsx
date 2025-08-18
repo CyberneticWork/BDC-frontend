@@ -16,6 +16,7 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
+import config from "@src/config"; 
 
 const relationshipOptions = [
   { value: "", label: "Select Relationship Type" },
@@ -63,6 +64,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [dobError, setDobError] = useState(""); // local DOB validation error
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
@@ -101,8 +103,35 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     performSearch();
   }, [debouncedSearchTerm]);
 
+  // Helper to format YYYY-MM-DD reliably in local time
+  const formatDate = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  // Max selectable DOB = today - 8 years
+  const today = new Date();
+  const fifteenYearsAgo = new Date(
+    today.getFullYear() - 15,
+    today.getMonth(),
+    today.getDate()
+  );
+  const maxDob = formatDate(fifteenYearsAgo);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Validate DOB: must be at least 15 years before today
+    if (name === "dob") {
+      if (value && value > maxDob) {
+        setDobError("Date of Birth must be at least 15 years before today.");
+        return; // block invalid updates
+      } else {
+        if (dobError) setDobError("");
+      }
+    }
 
     if (errors.personal?.[name]) {
       clearFieldError("personal", name);
@@ -185,6 +214,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
       const transformedData = {
         personal: {
+          id: apiData.id,
           title: apiData.title,
           attendanceEmpNo: apiData.attendance_employee_no,
           epfNo: apiData.epf,
@@ -520,12 +550,15 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                 name="dob"
                 value={formData.personal.dob}
                 onChange={handleChange}
+                max={maxDob} // prevent selecting dates newer than 8 years ago
                 className={`w-full border ${
-                  errors.personal?.dob ? "border-red-500" : "border-gray-300"
+                  errors.personal?.dob || dobError
+                    ? "border-red-500"
+                    : "border-gray-300"
                 } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 required
               />
-              <FieldError error={errors.personal?.dob} />
+              <FieldError error={errors.personal?.dob || dobError} />
             </div>
 
             {/* Gender */}
@@ -781,7 +814,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Marital Status
+              Marital Status <span className="text-red-500">*</span>
             </label>
             <select
               name="maritalStatus"
@@ -817,7 +850,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Relationship Type
+                Relationship Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="relationshipType"
@@ -840,7 +873,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Title
+                Title <span className="text-red-500">*</span>
               </label>
               <select
                 name="spouseTitle"
@@ -865,7 +898,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                Name
+                Name <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseName"
@@ -882,7 +915,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                Age
+                Age <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseAge"
@@ -901,7 +934,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                DOB
+                DOB <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseDob"
@@ -918,7 +951,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                NIC
+                NIC <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseNic"
@@ -1038,7 +1071,9 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
         </div>
 
         {/* Next Button */}
-        <div className="flex justify-end mt-8">
+        
+      </div>
+      <div className="flex justify-end mt-8">
           <button
             type="button"
             onClick={onNext}
@@ -1047,7 +1082,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             Next
           </button>
         </div>
-      </div>
     </div>
   );
 };

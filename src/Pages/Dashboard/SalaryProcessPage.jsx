@@ -22,9 +22,12 @@ import {
   saveSalaryData,
   updateSlaryStatus,
   getProcessedSalaries,
+  fetchExcelData,
+  importExcelData,
 } from "@services/SalaryProcessService";
 import AllowancesService from "@services/AllowancesService";
 import * as DeductionService from "@services/DeductionService";
+import ImportExcelModal from "@dashboard/ImportExcelModal";
 
 const STORAGE_KEY = "processedSalaryData";
 
@@ -63,6 +66,32 @@ const SalaryProcessPage = () => {
   const [bulkActionAmount, setBulkActionAmount] = useState("");
   const [bulkActionName, setBulkActionName] = useState("");
   const [bulkActionId, setBulkActionId] = useState("");
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importSuccessMessage, setImportSuccessMessage] = useState("");
+
+  // Add this function to handle the import
+  const handleImportExcel = async (file) => {
+    try {
+      const response = await importExcelData(file);
+      setImportSuccessMessage(
+        response.message || "Employee allowances imported successfully"
+      );
+      // Optionally refresh your data after import
+      // await fetchSalaryData();
+      return true;
+    } catch (error) {
+      console.error("Error importing Excel:", error);
+      throw error.response?.data?.message || "Failed to import file";
+    }
+  };
+
+  // Add this success handler
+  const handleImportSuccess = (message) => {
+    setImportSuccessMessage(message);
+    // You might want to refresh your data here
+    fetchSalaryData();
+  };
 
   // Status information
   const statusInfo = {
@@ -115,106 +144,160 @@ const SalaryProcessPage = () => {
       alert("No processed salary data found.");
     }
   };
-const handleDownloadAllProcessed = async () => {
-  try {
-    setIsLoading(true);
+  const handleDownloadAllProcessed = async () => {
+    try {
+      setIsLoading(true);
 
-    const processedData = await getProcessedSalaries();
+      const processedData = await getProcessedSalaries();
 
-    if (!processedData || processedData.length === 0) {
-      alert("No processed salary data found for the selected period.");
-      return;
-    }
+      if (!processedData || processedData.length === 0) {
+        alert("No processed salary data found for the selected period.");
+        return;
+      }
 
-    const doc = new jsPDF();
+      const doc = new jsPDF();
 
-    const monthObj = months.find((m) => m.value === month);
-    const monthName = monthObj ? monthObj.label : ` ${month}`;
+      const monthObj = months.find((m) => m.value === month);
+      const monthName = monthObj ? monthObj.label : ` ${month}`;
 
-    processedData.forEach((emp, idx) => {
-      if (idx > 0) doc.addPage();
+      processedData.forEach((emp, idx) => {
+        if (idx > 0) doc.addPage();
 
-      // Header
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Company: ${emp.company_name}`, 105, 15, { align: "center" });
-      doc.text(`Department: ${emp.department_name}`, 105, 22, { align: "center" });
-      doc.text("Payslip", 105, 29, { align: "center" });
-      doc.text(`${monthName} ${year}`, 105, 36, { align: "center" });
-      doc.rect(10, 8, 190, 32);
+        // Header
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Company: ${emp.company_name}`, 105, 15, { align: "center" });
+        doc.text(`Department: ${emp.department_name}`, 105, 22, {
+          align: "center",
+        });
+        doc.text("Payslip", 105, 29, { align: "center" });
+        doc.text(`${monthName} ${year}`, 105, 36, { align: "center" });
+        doc.rect(10, 8, 190, 32);
 
-      let y = 50;
+        let y = 50;
 
-      // Employee Info
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`EPF No :`, 15, y);
-      doc.text(`${emp.employee_no || "N/A"}`, 60, y);
-      y += 6;
+        // Employee Info
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`EPF No :`, 15, y);
+        doc.text(`${emp.employee_no || "N/A"}`, 60, y);
+        y += 6;
 
-      doc.text(`Code :`, 15, y);
-      doc.text(`${emp.employee_no || "N/A"}`, 60, y);
-      y += 6;
+        doc.text(`Code :`, 15, y);
+        doc.text(`${emp.employee_no || "N/A"}`, 60, y);
+        y += 6;
 
-      doc.text(`Name :`, 15, y);
-      doc.text(`${emp.full_name || "N/A"}`, 60, y);
-      y += 6;
+        doc.text(`Name :`, 15, y);
+        doc.text(`${emp.full_name || "N/A"}`, 60, y);
+        y += 6;
 
-      doc.text(`Bank :`, 15, y);
-      doc.text(`${emp.compensation?.bank_name || "N/A"}`, 60, y);
-      y += 6;
+        doc.text(`Bank :`, 15, y);
+        doc.text(`${emp.compensation?.bank_name || "N/A"}`, 60, y);
+        y += 6;
 
-      doc.text(`Branch :`, 15, y);
-      doc.text(`${emp.compensation?.branch_name || "N/A"}`, 60, y);
-      y += 6;
+        doc.text(`Branch :`, 15, y);
+        doc.text(`${emp.compensation?.branch_name || "N/A"}`, 60, y);
+        y += 6;
 
-      doc.text(`Account No. :`, 15, y);
-      doc.text(`${emp.compensation?.bank_account_no || "N/A"}`, 60, y);
-      y += 10;
+        doc.text(`Account No. :`, 15, y);
+        doc.text(`${emp.compensation?.bank_account_no || "N/A"}`, 60, y);
+        y += 10;
 
-      // Basic Salary
-      doc.setFont("helvetica", "bold");
-      doc.text(`Basic Salary`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.basic_salary?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 10;
-
-      // Transactions for EPF
-      doc.setFont("helvetica", "normal");
-      doc.text(`Transactions for EPF`, 15, y);
-      y += 8;
-
-      doc.text(`Allowances`, 15, y);
-      y += 6;
-
-      if (emp.allowances && emp.allowances.length > 0) {
-        emp.allowances.forEach((allowance) => {
-          doc.text(`${allowance.name}`, 15, y);
-          doc.text(
-            `${parseFloat(allowance.amount || 0).toLocaleString("en-US", {
+        // Basic Salary
+        doc.setFont("helvetica", "bold");
+        doc.text(`Basic Salary`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.basic_salary?.toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
-            })}`,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 10;
+
+        // Transactions for EPF
+        doc.setFont("helvetica", "normal");
+        doc.text(`Transactions for EPF`, 15, y);
+        y += 8;
+
+        doc.text(`Allowances`, 15, y);
+        y += 6;
+
+        if (emp.allowances && emp.allowances.length > 0) {
+          emp.allowances.forEach((allowance) => {
+            doc.text(`${allowance.name}`, 15, y);
+            doc.text(
+              `${parseFloat(allowance.amount || 0).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`,
+              170,
+              y,
+              { align: "right" }
+            );
+            y += 6;
+          });
+        } else {
+          doc.text(`BRA1 Act`, 15, y);
+          doc.text(
+            `${
+              emp.salary_breakdown?.br_allowance?.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }) || "0.00"
+            }`,
             170,
             y,
             { align: "right" }
           );
           y += 6;
-        });
-      } else {
-        doc.text(`BRA1 Act`, 15, y);
+        }
+
+        y += 4;
+
+        doc.text(`Nopay Amount`, 15, y);
         doc.text(
           `${
-            emp.salary_breakdown?.br_allowance?.toLocaleString("en-US", {
+            emp.salary_breakdown?.no_pay_deduction?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 8;
+
+        doc.setFont("helvetica", "bold");
+        doc.text(`Gross for EPF`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.epf_etf_base?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 10;
+
+        // ✅ OVERTIME SECTION
+        doc.setFont("helvetica", "bold");
+        doc.text("Overtime Details", 15, y);
+        y += 8;
+        doc.setFont("helvetica", "normal");
+
+        doc.text(`Morning OT Amount`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.ot_morning_fees?.toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             }) || "0.00"
@@ -224,126 +307,100 @@ const handleDownloadAllProcessed = async () => {
           { align: "right" }
         );
         y += 6;
-      }
 
-      y += 4;
+        doc.text(`Evening OT Amount`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.ot_night_fees?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 8;
 
-      doc.text(`Nopay Amount`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.no_pay_deduction?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 8;
+        doc.text(`Nopay Amount `, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.no_pay_deduction?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 8;
 
-      doc.setFont("helvetica", "bold");
-      doc.text(`Gross for EPF`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.epf_etf_base?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 10;
-
-      // ✅ OVERTIME SECTION
         doc.setFont("helvetica", "bold");
-      doc.text("Overtime Details", 15, y);
-      y += 8;
-      doc.setFont("helvetica", "normal");
+        doc.text(`Gross Salary`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.gross_salary?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 10;
 
-      doc.text(`Morning OT Amount`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.ot_morning_fees?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 6;
+        // Deductions
+        doc.text(`Deductions`, 15, y);
+        y += 8;
 
-      doc.text(`Evening OT Amount`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.ot_night_fees?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 8;
+        doc.setFont("helvetica", "normal");
+        doc.text(`EPF - Employee - 8.00%`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.epf_employee_deduction?.toLocaleString(
+              "en-US",
+              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+            ) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 6;
 
-      doc.text(`Nopay Amount `, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.no_pay_deduction?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 8;
+        if (emp.deductions && emp.deductions.length > 0) {
+          emp.deductions.forEach((deduction) => {
+            doc.text(`${deduction.name}`, 15, y);
+            doc.text(
+              `${parseFloat(deduction.amount || 0).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`,
+              170,
+              y,
+              { align: "right" }
+            );
+            y += 6;
+          });
+        } else {
+          // Default deduction entries
+          // doc.text(`Salary Advance`, 15, y);
+          // doc.text(`0.00`, 170, y, { align: "right" });
+          // y += 6;
+          // doc.text(`APIT`, 15, y);
+          // doc.text(`0.00`, 170, y, { align: "right" });
+          // y += 6;
+          doc.text(`Stamp Duty`, 15, y);
+          doc.text(`0.00`, 170, y, { align: "right" });
+          y += 6;
+        }
 
-      doc.setFont("helvetica", "bold");
-      doc.text(`Gross Salary`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.gross_salary?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 10;
-
-      // Deductions
-      doc.text(`Deductions`, 15, y);
-      y += 8;
-
-      doc.setFont("helvetica", "normal");
-      doc.text(`EPF - Employee - 8.00%`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.epf_employee_deduction?.toLocaleString(
-            "en-US",
-            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-          ) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 6;
-
-      if (emp.deductions && emp.deductions.length > 0) {
-        emp.deductions.forEach((deduction) => {
-          doc.text(`${deduction.name}`, 15, y);
+        if (emp.salary_breakdown?.loan_installment) {
+          doc.text(`Loan`, 15, y);
           doc.text(
-            `${parseFloat(deduction.amount || 0).toLocaleString("en-US", {
+            `${emp.salary_breakdown.loan_installment.toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}`,
@@ -352,23 +409,81 @@ const handleDownloadAllProcessed = async () => {
             { align: "right" }
           );
           y += 6;
-        });
-      } else {
-        doc.text(`Salary Advance`, 15, y);
-        doc.text(`0.00`, 170, y, { align: "right" });
-        y += 6;
-        doc.text(`APIT`, 15, y);
-        doc.text(`0.00`, 170, y, { align: "right" });
-        y += 6;
-        doc.text(`Stamp Duty`, 15, y);
-        doc.text(`0.00`, 170, y, { align: "right" });
-        y += 6;
-      }
+        }
 
-      if (emp.salary_breakdown?.loan_installment) {
-        doc.text(`Loan`, 15, y);
+        y += 2;
+
+        doc.setFont("helvetica", "bold");
+        doc.text(`Total Deduction`, 15, y);
         doc.text(
-          `${emp.salary_breakdown.loan_installment.toLocaleString("en-US", {
+          `${
+            emp.salary_breakdown?.total_deductions?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 10;
+
+        doc.setFontSize(12);
+        doc.text(`Net Salary Rs.`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.net_salary?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 12;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "italic");
+        doc.text(`Employer Contribution:`, 15, y);
+        y += 8;
+
+        doc.setFont("helvetica", "normal");
+        doc.text(`EPF - 12.00%`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.epf_employer_contribution?.toLocaleString(
+              "en-US",
+              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+            ) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 6;
+
+        doc.text(`ETF - 3.00%`, 15, y);
+        doc.text(
+          `${
+            emp.salary_breakdown?.etf_employer_contribution?.toLocaleString(
+              "en-US",
+              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+            ) || "0.00"
+          }`,
+          170,
+          y,
+          { align: "right" }
+        );
+        y += 6;
+
+        const totalEPF =
+          (emp.salary_breakdown?.epf_employee_deduction || 0) +
+          (emp.salary_breakdown?.epf_employer_contribution || 0);
+
+        doc.text(`Total EPF`, 15, y);
+        doc.text(
+          `${totalEPF.toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}`,
@@ -376,120 +491,36 @@ const handleDownloadAllProcessed = async () => {
           y,
           { align: "right" }
         );
-        y += 6;
+        y += 15;
+
+        doc.text(`LIFEHRMS`, 15, y);
+        const currentDate = new Date();
+        const formattedDate = `${currentDate
+          .getDate()
+          .toString()
+          .padStart(2, "0")}/${(currentDate.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}/${currentDate.getFullYear()}`;
+        doc.text(formattedDate, 170, y, { align: "right" });
+
+        doc.rect(10, 45, 190, y - 40);
+      });
+
+      doc.save(`payslips_${monthName}_${year}.pdf`);
+
+      try {
+        await updateSlaryStatus("issued");
+        alert("Salary Issued !");
+      } catch (error) {
+        alert(error);
       }
-
-      y += 2;
-
-      doc.setFont("helvetica", "bold");
-      doc.text(`Total Deduction`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.total_deductions?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 10;
-
-      doc.setFontSize(12);
-      doc.text(`Net Salary Rs.`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.net_salary?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 12;
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "italic");
-      doc.text(`Employer Contribution:`, 15, y);
-      y += 8;
-
-      doc.setFont("helvetica", "normal");
-      doc.text(`EPF - 12.00%`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.epf_employer_contribution?.toLocaleString(
-            "en-US",
-            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-          ) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 6;
-
-      doc.text(`ETF - 3.00%`, 15, y);
-      doc.text(
-        `${
-          emp.salary_breakdown?.etf_employer_contribution?.toLocaleString(
-            "en-US",
-            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-          ) || "0.00"
-        }`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 6;
-
-      const totalEPF =
-        (emp.salary_breakdown?.epf_employee_deduction || 0) +
-        (emp.salary_breakdown?.epf_employer_contribution || 0);
-
-      doc.text(`Total EPF`, 15, y);
-      doc.text(
-        `${totalEPF.toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`,
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 15;
-
-      doc.text(`LIFEHRMS`, 15, y);
-      const currentDate = new Date();
-      const formattedDate = `${currentDate
-        .getDate()
-        .toString()
-        .padStart(2, "0")}/${(currentDate.getMonth() + 1)
-        .toString()
-        .padStart(2, "0")}/${currentDate.getFullYear()}`;
-      doc.text(formattedDate, 170, y, { align: "right" });
-
-      doc.rect(10, 45, 190, y - 40);
-    });
-
-    doc.save(`payslips_${monthName}_${year}.pdf`);
-
-    try {
-      await updateSlaryStatus("issued");
-      alert("Salary Issued !");
     } catch (error) {
-      alert(error);
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    alert("Error generating PDF. Please try again.");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   // Handle EPF filter
   const handleEPFFilter = () => {
@@ -706,6 +737,94 @@ const handleDownloadAllProcessed = async () => {
       setSelectedEmployees([...selectedEmployees, empId]);
     }
   };
+
+  const getExcelData = async () => {
+    if (!bulkActionId || selectedEmployees.length === 0) {
+      alert("Please fill all fields and select at least one employee");
+      return;
+    }
+    const payload = {
+      selectedEmployees: selectedEmployees,
+      bulkActionId: bulkActionId,
+      bulkActionType: bulkActionType,
+    };
+
+    try {
+      const response = await fetchExcelData(payload);
+      console.log(JSON.stringify(response));
+
+      // Process the response data - now contains [employees, allowances, deductions]
+      const [employees, allowances, deductions] = response;
+
+      // Create worksheet data
+      const worksheetData = employees.map((employee) => {
+        const row = {
+          ID: employee.id,
+          NIC: employee.nic,
+          "Full Name": employee.full_name,
+        };
+
+        // Add allowance columns if they exist
+        if (allowances && allowances.length > 0) {
+          allowances.forEach((allowance) => {
+            row[`Allowance ID`] = allowance.id;
+            row[`Allowance Name`] = allowance.allowance_name;
+            row[`Amount (LKR)`] = 0; // Default amount
+          });
+        }
+
+        // Add deduction columns if they exist
+        if (deductions && deductions.length > 0) {
+          deductions.forEach((deduction) => {
+            row[`Deduction ID`] = deduction.id;
+            row[`Deduction Name`] = deduction.deduction_name;
+            row[`Amount (LKR)`] = 0; // Default amount
+          });
+        }
+
+        return row;
+      });
+
+      // Convert to CSV
+      const csvContent = convertArrayToCSV(worksheetData);
+
+      // Create appropriate filename based on type
+      const filePrefix =
+        payload.bulkActionType === "allowance"
+          ? "employee_allowances"
+          : "employee_deductions";
+
+      // Download the file
+      downloadCSV(csvContent, `${filePrefix}_${Date.now()}.csv`);
+    } catch (error) {
+      console.error("Error generating Excel data:", error);
+      alert("Failed to generate Excel file");
+    }
+  };
+
+  // Helper function to convert array to CSV
+  function convertArrayToCSV(data) {
+    if (data.length === 0) return "";
+
+    const headers = Object.keys(data[0]);
+    const rows = data.map((obj) =>
+      headers
+        .map((header) => {
+          let value = obj[header] !== undefined ? String(obj[header]) : "";
+          if (
+            value.includes(",") ||
+            value.includes('"') ||
+            value.includes("\n")
+          ) {
+            value = `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        })
+        .join(",")
+    );
+
+    return [headers.join(","), ...rows].join("\n");
+  }
 
   // Handle select all checkbox
   const handleSelectAll = () => {
@@ -1089,32 +1208,7 @@ const handleDownloadAllProcessed = async () => {
                 <Filter size={18} strokeWidth={2} />
                 Apply Filters
               </button>
-              <button
-                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-base font-semibold hover:bg-green-700 transition-colors shadow"
-                onClick={async () => {
-                  if (filteredData.length === 0) {
-                    alert("No data to save. Please apply filters first.");
-                    return;
-                  }
-                  try {
-                    const savedData = await saveSalaryData(filteredData);
 
-                    // Convert to CSV and download
-                    const csvContent = convertToCSV(filteredData);
-                    downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
-
-                    alert("Salary data saved and downloaded successfully!");
-                  } catch (error) {
-                    console.error("Error saving salary data:", error);
-                    alert(error);
-                  }
-                }}
-                type="button"
-                disabled={filteredData.length === 0}
-              >
-                <FileText size={18} strokeWidth={2} />
-                Save Data
-              </button>
               <button
                 className="flex items-center gap-2 px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-base font-semibold hover:bg-gray-300 transition-colors shadow"
                 onClick={resetFilter}
@@ -1168,6 +1262,39 @@ const handleDownloadAllProcessed = async () => {
               </p>
             </div>
             <div className="pt-2 space-y-3">
+              <button
+                className={`
+                  w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
+                  ${
+                    status === "Processed"
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-purple-600 text-white hover:bg-purple-700 shadow"
+                  }
+                `}
+                onClick={async () => {
+                  if (filteredData.length === 0) {
+                    alert("No data to save. Please apply filters first.");
+                    return;
+                  }
+                  try {
+                    const savedData = await saveSalaryData(filteredData);
+
+                    // Convert to CSV and download
+                    const csvContent = convertToCSV(filteredData);
+                    downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
+
+                    alert("Salary data saved and downloaded successfully!");
+                  } catch (error) {
+                    console.error("Error saving salary data:", error);
+                    alert(error);
+                  }
+                }}
+                type="button"
+                disabled={filteredData.length === 0}
+              >
+                <FileText size={18} strokeWidth={2} />
+                Save Data
+              </button>
               <button
                 className={`
                   w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
@@ -1269,11 +1396,42 @@ const handleDownloadAllProcessed = async () => {
 
             <div className="flex items-end">
               <button
-                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200"
+                className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200"
                 onClick={applyBulkAction}
               >
                 Apply to Selected
               </button>
+              <button
+                className="ms-2 py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200"
+                onClick={getExcelData}
+                type="button"
+              >
+                Download Excel
+              </button>
+              <button
+                className="ms-2 py-2 px-4 bg-green-300 hover:bg-green-400 text-black font-medium rounded-lg transition duration-200"
+                onClick={() => setIsImportModalOpen(true)}
+                type="button"
+              >
+                Import Excel
+              </button>
+              {isImportModalOpen && (
+                <ImportExcelModal
+                  isOpen={isImportModalOpen}
+                  onClose={() => {
+                    setIsImportModalOpen(false);
+                    setImportSuccessMessage("");
+                  }}
+                  onSuccess={handleImportSuccess}
+                  onImport={handleImportExcel}
+                />
+              )}
+
+              {importSuccessMessage && (
+                <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
+                  {importSuccessMessage}
+                </div>
+              )}
             </div>
           </div>
 

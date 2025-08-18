@@ -281,49 +281,25 @@ const Employeedocument = ({ onNext, onPrevious, onSubmit, activeCategory }) => {
                 </div>
               ))}
             </div>
-
-            {/* Upload Button */}
-            <div className="mt-8 text-center">
-              {/* <button
-                onClick={handleUpload}
-                disabled={
-                  uploading || formData.documents.some((doc) => !doc.type)
-                }
-                className={`inline-flex items-center px-8 py-3 rounded-xl font-medium text-white transition-all duration-200 transform ${
-                  uploading || formData.documents.some((doc) => !doc.type)
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 hover:scale-105 shadow-lg hover:shadow-xl"
-                }`}
-              >
-                {uploading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Saving Documents...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5 mr-2" />
-                    Save All Documents ({formData.documents.length})
-                  </>
-                )}
-              </button> */}
-              <button
-                type="button"
-                onClick={onPrevious}
-                className="inline-flex items-center px-8 py-3 rounded-xl font-medium text-white transition-all duration-200 transform bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 hover:scale-105 shadow-lg hover:shadow-xl ml-4"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={onNext}
-                className="inline-flex items-center px-8 py-3 rounded-xl font-medium text-white transition-all duration-200 transform bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 hover:scale-105 shadow-lg hover:shadow-xl ml-4"
-              >
-                Next
-              </button>
-            </div>
           </div>
         )}
+        {/* Upload Button */}
+        <div className="mt-8 flex justify-between">
+          <button
+            type="button"
+            onClick={onPrevious}
+            className="inline-flex items-center px-8 py-3 rounded-xl font-medium text-white transition-all duration-200 transform bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 hover:scale-105 shadow-lg hover:shadow-xl"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="inline-flex items-center px-8 py-3 rounded-xl font-medium text-white transition-all duration-200 transform bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 hover:scale-105 shadow-lg hover:shadow-xl"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );

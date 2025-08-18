@@ -11,9 +11,29 @@ const ResignationService = {
     }
   },
 
-  // Create a new resignation
+  // Create a new resignation with validation checks
   createResignation: async (resignationData) => {
     try {
+      // Client-side file size validation
+      if (resignationData.documents && resignationData.documents.length > 0) {
+        const oversizedFiles = resignationData.documents.filter(
+          file => file.size > 5 * 1024 * 1024 // 5MB in bytes
+        );
+        
+        if (oversizedFiles.length > 0) {
+          const errorFiles = oversizedFiles.map(f => f.name).join(', ');
+          throw {
+            response: {
+              data: {
+                errors: {
+                  documents: [`The following files exceed 5MB limit: ${errorFiles}`]
+                }
+              }
+            }
+          };
+        }
+      }
+
       const formData = new FormData();
       
       // Append basic fields
@@ -34,9 +54,39 @@ const ResignationService = {
           'Content-Type': 'multipart/form-data'
         }
       });
+      
       return response.data;
     } catch (error) {
-      throw error.response.data;
+      // Handle duplicate resignation error
+      if (error.response && error.response.data && 
+          error.response.data.message === 'This employee already has a pending resignation request') {
+        throw {
+          response: {
+            data: {
+              errors: {
+                employee_id: ['This employee already has a pending resignation request']
+              }
+            }
+          }
+        };
+      }
+      
+      // Handle file size errors from server
+      if (error.response && error.response.data && 
+          error.response.data.errors && 
+          error.response.data.errors.documents) {
+        throw {
+          response: {
+            data: {
+              errors: {
+                documents: error.response.data.errors.documents
+              }
+            }
+          }
+        };
+      }
+      
+      throw error.response ? error.response.data : error;
     }
   },
 
@@ -60,22 +110,60 @@ const ResignationService = {
     }
   },
 
-  // Upload additional documents
+  // Upload additional documents with validation
   uploadDocuments: async (id, documents) => {
     try {
+      // Client-side file size validation
+      const oversizedFiles = documents.filter(
+        file => file.size > 5 * 1024 * 1024 // 5MB in bytes
+      );
+      
+      if (oversizedFiles.length > 0) {
+        const errorFiles = oversizedFiles.map(f => f.name).join(', ');
+        throw {
+          response: {
+            data: {
+              errors: {
+                documents: [`The following files exceed 5MB limit: ${errorFiles}`]
+              }
+            }
+          }
+        };
+      }
+
       const formData = new FormData();
       documents.forEach((file, index) => {
         formData.append(`documents[${index}]`, file);
       });
       
-      const response = await axios.post(`/resignations/${id}/documents`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+      const response = await axios.post(
+        `/resignations/${id}/documents`, 
+        formData, 
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
         }
-      });
+      );
+      
       return response.data;
     } catch (error) {
-      throw error.response.data;
+      // Handle file size errors from server
+      if (error.response && error.response.data && 
+          error.response.data.errors && 
+          error.response.data.errors.documents) {
+        throw {
+          response: {
+            data: {
+              errors: {
+                documents: error.response.data.errors.documents
+              }
+            }
+          }
+        };
+      }
+      
+      throw error.response ? error.response.data : error;
     }
   },
 
@@ -94,6 +182,15 @@ const EmployeeService = {
   getAllEmployees: async () => {
     try {
       const response = await axios.get('/employees');
+      return response.data;
+    } catch (error) {
+      throw error.response.data;
+    }
+  },
+
+  getActiveEmployees: async () => {
+    try {
+      const response = await axios.get('/employees/active');
       return response.data;
     } catch (error) {
       throw error.response.data;

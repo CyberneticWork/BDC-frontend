@@ -15,10 +15,10 @@ import {
   Edit2,
   Trash2,
   X,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import ShiftScheduleService from "../../services/ShiftScheduleService.js";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 // Modal component for Add/Edit
 const ShiftModal = ({
   open,
@@ -38,7 +38,7 @@ const ShiftModal = ({
     lateDeduction: "",
     midnightRoster: false,
     nightlyHours: 0,
-   
+
     breakTime: "",
     ...initialData,
   });
@@ -98,10 +98,11 @@ const ShiftModal = ({
                   onChange={(e) => setForm({ ...form, code: e.target.value })}
                 />
                 {errors.shift_code && (
-                  <div className="text-xs text-red-600 mt-1">{errors.shift_code[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.shift_code[0]}
+                  </div>
                 )}
               </div>
-             
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
@@ -117,7 +118,9 @@ const ShiftModal = ({
                 }
               />
               {errors.shift_description && (
-                <div className="text-xs text-red-600 mt-1">{errors.shift_description[0]}</div>
+                <div className="text-xs text-red-600 mt-1">
+                  {errors.shift_description[0]}
+                </div>
               )}
             </div>
           </div>
@@ -143,7 +146,9 @@ const ShiftModal = ({
                   }
                 />
                 {errors.start_time && (
-                  <div className="text-xs text-red-600 mt-1">{errors.start_time[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.start_time[0]}
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
@@ -160,7 +165,9 @@ const ShiftModal = ({
                   }
                 />
                 {errors.end_time && (
-                  <div className="text-xs text-red-600 mt-1">{errors.end_time[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.end_time[0]}
+                  </div>
                 )}
               </div>
             </div>
@@ -237,7 +244,6 @@ const ShiftModal = ({
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Break Time
@@ -245,11 +251,16 @@ const ShiftModal = ({
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="Enter break duration (e.g., 12:00-13:00)"
-                  value={form.breakTime}
+                  value={form.breakTime ?? ""}
                   onChange={(e) =>
                     setForm({ ...form, breakTime: e.target.value })
                   }
                 />
+                {errors.break_time && (
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.break_time[0]}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -260,7 +271,7 @@ const ShiftModal = ({
               <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
               Special Options
             </h3>
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+            {/* <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
               <input
                 type="checkbox"
                 checked={form.midnightRoster}
@@ -279,7 +290,7 @@ const ShiftModal = ({
               <span className="text-xs text-gray-500">
                 Check if this shift crosses midnight
               </span>
-            </div>
+            </div> */}
           </div>
 
           {/* Action Buttons */}
@@ -365,21 +376,23 @@ const ShiftSchedule = () => {
     try {
       setLoading(true);
       const data = await ShiftScheduleService.getAllShifts();
-      setShifts(data.map(shift => ({
-        code: shift.shift_code,
-        description: shift.shift_description,
-        startTime: shift.start_time,
-        endTime: shift.end_time,
-        morningOTStart: shift.morning_ot_start,
-        specialOTStart: shift.special_ot_start,
-        lateDeduction: shift.late_deduction,
-        midnightRoster: shift.midnight_roster,
-        nightlyHours: parseFloat(shift.nopay_hour_halfday),
- 
-        location: shift.location,
-        breakTime: shift.break_time,
-        id: shift.id
-      })));
+      setShifts(
+        data.map((shift) => ({
+          code: shift.shift_code,
+          description: shift.shift_description,
+          startTime: shift.start_time,
+          endTime: shift.end_time,
+          morningOTStart: shift.morning_ot_start,
+          specialOTStart: shift.special_ot_start,
+          lateDeduction: shift.late_deduction,
+          midnightRoster: shift.midnight_roster,
+          nightlyHours: parseFloat(shift.nopay_hour_halfday),
+
+          location: shift.location,
+          breakTime: shift.break_time || "", // <- ensure empty string when not set
+          id: shift.id,
+        }))
+      );
     } catch (error) {
       console.error("Failed to fetch shifts:", error);
     } finally {
@@ -390,14 +403,18 @@ const ShiftSchedule = () => {
   // Add Shift
   const handleAddShift = async (shift) => {
     try {
-      await ShiftScheduleService.createShift(shift);
+      const payload = {
+        ...shift,
+        breakTime: shift.breakTime?.trim() ? shift.breakTime.trim() : null, // <- omit if empty
+      };
+      await ShiftScheduleService.createShift(payload);
       await fetchShifts();
       setModalOpen(false);
       setFormErrors({});
       Swal.fire({
-        icon: 'success',
-        title: 'Shift Created',
-        text: 'The shift was created successfully!',
+        icon: "success",
+        title: "Shift Created",
+        text: "The shift was created successfully!",
         timer: 2000,
         showConfirmButton: false,
       });
@@ -407,9 +424,9 @@ const ShiftSchedule = () => {
         // No SweetAlert for validation errors, only set field errors
       } else {
         Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: error?.response?.data?.message || 'Failed to create shift.',
+          icon: "error",
+          title: "Error",
+          text: error?.response?.data?.message || "Failed to create shift.",
         });
       }
     }
@@ -418,15 +435,21 @@ const ShiftSchedule = () => {
   // Update Shift
   const handleUpdateShift = async (updatedShift) => {
     try {
-      await ShiftScheduleService.updateShift(updatedShift.id, updatedShift);
+      const payload = {
+        ...updatedShift,
+        breakTime: updatedShift.breakTime?.trim()
+          ? updatedShift.breakTime.trim()
+          : null, // <- omit if empty
+      };
+      await ShiftScheduleService.updateShift(updatedShift.id, payload);
       await fetchShifts();
       setEditShift(null);
       setModalOpen(false);
       setFormErrors({});
       Swal.fire({
-        icon: 'success',
-        title: 'Shift Updated',
-        text: 'The shift was updated successfully!',
+        icon: "success",
+        title: "Shift Updated",
+        text: "The shift was updated successfully!",
         timer: 2000,
         showConfirmButton: false,
       });
@@ -436,9 +459,9 @@ const ShiftSchedule = () => {
         // No SweetAlert for validation errors, only set field errors
       } else {
         Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: error?.response?.data?.message || 'Failed to update shift.',
+          icon: "error",
+          title: "Error",
+          text: error?.response?.data?.message || "Failed to update shift.",
         });
       }
     }
@@ -457,17 +480,17 @@ const ShiftSchedule = () => {
         return newSet;
       });
       Swal.fire({
-        icon: 'success',
-        title: 'Shift Deleted',
-        text: 'The shift was deleted successfully!',
+        icon: "success",
+        title: "Shift Deleted",
+        text: "The shift was deleted successfully!",
         timer: 2000,
         showConfirmButton: false,
       });
     } catch (error) {
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error?.response?.data?.message || 'Failed to delete shift.',
+        icon: "error",
+        title: "Error",
+        text: error?.response?.data?.message || "Failed to delete shift.",
       });
     }
   };
@@ -475,7 +498,7 @@ const ShiftSchedule = () => {
   const filteredShifts = shifts.filter((shift) => {
     const matchesSearch =
       shift.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shift.description.toLowerCase().includes(searchTerm.toLowerCase()) ;
+      shift.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (filterType === "all") return matchesSearch;
     if (filterType === "weekday")
@@ -806,7 +829,10 @@ const ShiftSchedule = () => {
             <tbody className="divide-y divide-gray-100">
               {filteredShifts.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-6 text-center text-gray-500">
+                  <td
+                    colSpan="8"
+                    className="px-4 py-6 text-center text-gray-500"
+                  >
                     No shifts found matching your criteria
                   </td>
                 </tr>
@@ -902,7 +928,10 @@ const ShiftSchedule = () => {
                         </div>
                         <div className="flex items-center gap-1 text-xs text-gray-500">
                           <Coffee className="w-3 h-3" />
-                          <span>Break: {shift.breakTime}</span>
+                          <span>
+                            Break: {shift.breakTime ? shift.breakTime : "—"}
+                          </span>{" "}
+                          {/* <- show dash when empty */}
                         </div>
                       </div>
                     </td>
@@ -952,7 +981,9 @@ const ShiftSchedule = () => {
                         ) : (
                           <div className="flex items-center gap-1">
                             <Circle className="w-5 h-5 text-gray-300" />
-                            <span className="text-xs text-gray-500">Regular</span>
+                            <span className="text-xs text-gray-500">
+                              Regular
+                            </span>
                           </div>
                         )}
                       </div>

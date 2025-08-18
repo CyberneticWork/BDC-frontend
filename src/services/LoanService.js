@@ -25,7 +25,7 @@ export const fetchLoans = async () => {
 export const fetchEmployeeNameByNo = async (employeeNo) => {
   try {
     const response = await axios.get(`/loans/employee-by-number/${employeeNo}`);
-    return response.data.full_name || "";
+    return response.data || "";
   } catch (error) {
     console.error("Error fetching employee name:", error);
     return "";
