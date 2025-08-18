@@ -413,6 +413,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                             : "border-gray-300"
                           } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                       >
+                        <option value="1/1/1900">Select Bank</option>
                         <option value="Bank of Ceylon">Bank of Ceylon</option>
                         <option value="Standard Chartered Bank">Standard Chartered Bank</option>
                         <option value="Citi Bank">Citi Bank</option>
