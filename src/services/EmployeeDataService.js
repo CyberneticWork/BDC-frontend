@@ -66,7 +66,7 @@ const employeeService = {
 
   async updateEmployee(id, formData) {
     try {
-      console.log("Updating employee with ID:", formData);
+      // Create FormData for file uploads
       const submissionData = new FormData();
 
       // Append profile picture if exists
@@ -105,14 +105,17 @@ const employeeService = {
         });
       }
 
-      console.log("Submission data prepared:", submissionData);
-      const response = await axios.put(`/employees/${id}`, submissionData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await axios.post(
+        "/employes/post/update",
+        submissionData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-      console.log("Employee updated successfully:", response.data);
+      console.log("Update response:", JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
       if (error.response) {
