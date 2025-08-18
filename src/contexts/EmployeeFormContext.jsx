@@ -75,6 +75,7 @@ const initialState = {
     eveningOt: false,
     budgetaryReliefAllowance2015: false,
     budgetaryReliefAllowance2016: false,
+    stamp: false,
   },
   organization: {
     company: "",

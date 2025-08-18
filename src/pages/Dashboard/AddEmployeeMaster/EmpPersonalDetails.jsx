@@ -16,7 +16,7 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
-import config from "@src/config"; 
+import config from "@src/config";
 
 const relationshipOptions = [
   { value: "", label: "Select Relationship Type" },
@@ -291,6 +291,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             apiData.compensation?.budgetary_relief_allowance_2015 === 1,
           budgetaryReliefAllowance2016:
             apiData.compensation?.budgetary_relief_allowance_2016 === 1,
+          stamp: apiData.compensation?.stamp === 1,
         },
         organization: {
           company: apiData.organization_assignment?.company?.id?.toString(),
@@ -1071,17 +1072,16 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
         </div>
 
         {/* Next Button */}
-        
       </div>
       <div className="flex justify-end mt-8">
-          <button
-            type="button"
-            onClick={onNext}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Next
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onNext}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 };
