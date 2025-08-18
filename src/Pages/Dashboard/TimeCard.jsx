@@ -189,6 +189,9 @@ const TimeCard = () => {
   // ref to clear the native file input after import
   const excelInputRef = useRef(null);
 
+  // debounce ref for backend search
+  const searchDebounceRef = useRef(null);
+
   // Fetch data from backend on mount
   useEffect(() => {
     const loadData = async () => {
@@ -488,55 +491,86 @@ const TimeCard = () => {
   }, [filterOption]);
 
   useEffect(() => {
-    const fetchEmployeeRecords = async () => {
-      // Only handle when "Filter by Employee" is active
-      if (filterOption === 'employee') {
-        setIsLoading(true);
-        try {
-          let data = [];
-
-          // If user typed NIC/EPF, fetch search results; otherwise use full attendanceData as base
-          if (employeeSearch.trim() !== '') {
-            data = await timeCardService.searchEmployeeTimeCards(employeeSearch.trim());
-            if (!Array.isArray(data)) data = [];
-          } else {
-            data = [...attendanceData];
-          }
-
-          // Apply date filters (single date or range) on the fetched results
-          if (filterDate) {
-            data = data.filter((rec) => rec.date === filterDate);
-          }
-          if (dateFrom) {
-            data = data.filter((rec) => rec.date >= dateFrom);
-          }
-          if (dateTo) {
-            data = data.filter((rec) => rec.date <= dateTo);
-          }
-
-          setFilteredData(data);
-        } catch (e) {
-          setFilteredData([]);
-        } finally {
-          setIsLoading(false);
-        }
-      } else if (filterOption === 'all') {
-        // When "All" is selected, still allow date filtering
-        if (filterDate || dateFrom || dateTo) {
-          let data = [...attendanceData];
-          if (filterDate) data = data.filter((rec) => rec.date === filterDate);
-          if (dateFrom) data = data.filter((rec) => rec.date >= dateFrom);
-          if (dateTo) data = data.filter((rec) => rec.date <= dateTo);
-          setFilteredData(data);
-        } else {
-          setFilteredData(attendanceData);
-        }
+    // Only run when "Filter by Employee" is active
+    if (filterOption !== 'employee') {
+      // When switched away, restore attendanceData (but respect date filters)
+      if (filterDate || dateFrom || dateTo) {
+        let data = [...attendanceData];
+        if (filterDate) data = data.filter((rec) => rec.date === filterDate);
+        if (dateFrom) data = data.filter((rec) => rec.date >= dateFrom);
+        if (dateTo) data = data.filter((rec) => rec.date <= dateTo);
+        setFilteredData(data);
       } else {
         setFilteredData(attendanceData);
       }
-    };
+      return;
+    }
 
-    fetchEmployeeRecords();
+    const term = (employeeSearch || '').trim();
+
+    // empty search -> show base attendance data (with date filters applied)
+    if (!term) {
+      let data = [...attendanceData];
+      if (filterDate) data = data.filter((rec) => rec.date === filterDate);
+      if (dateFrom) data = data.filter((rec) => rec.date >= dateFrom);
+      if (dateTo) data = data.filter((rec) => rec.date <= dateTo);
+      setFilteredData(data);
+      setIsLoading(false);
+      return;
+    }
+
+    // If the user types only digits, do immediate client-side filtering (instant number-by-number)
+    if (/^\d+$/.test(term)) {
+      setIsLoading(false);
+      const filtered = attendanceData.filter((rec) => {
+        const empNo = (rec.empNo || '').toString().toLowerCase();
+        const epf = (rec.epf || '').toString().toLowerCase();
+        const nicVal = (rec.nic || '').toLowerCase();
+        return (
+          empNo.includes(term.toLowerCase()) ||
+          epf.includes(term.toLowerCase()) ||
+          nicVal.includes(term.toLowerCase())
+        );
+      }).filter((rec) => {
+        if (filterDate && rec.date !== filterDate) return false;
+        if (dateFrom && rec.date < dateFrom) return false;
+        if (dateTo && rec.date > dateTo) return false;
+        return true;
+      });
+      setFilteredData(filtered);
+      return;
+    }
+
+    // For non-numeric or mixed input, call backend but debounce requests
+    setIsLoading(true);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const data = await timeCardService.searchEmployeeTimeCards(term);
+        let results = Array.isArray(data) ? data : [];
+        // apply local date filters if backend doesn't support them
+        if (filterDate || dateFrom || dateTo) {
+          results = results.filter((rec) => {
+            if (filterDate && rec.date !== filterDate) return false;
+            if (dateFrom && rec.date < dateFrom) return false;
+            if (dateTo && rec.date > dateTo) return false;
+            return true;
+          });
+        }
+        setFilteredData(results);
+      } catch (err) {
+        setFilteredData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
   }, [employeeSearch, filterOption, filterDate, dateFrom, dateTo, attendanceData]);
 
   const handleExcelUpload = (e) => {
@@ -766,13 +800,13 @@ const TimeCard = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {filterOption === 'employee' && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">Search by NIC or EPF Number</label>
+                    <label className="block text-sm font-semibold text-slate-700">Search by NIC/EPF/EMP Attendance Number</label>
                     <input
                       type="text"
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
                       value={employeeSearch}
                       onChange={(e) => setEmployeeSearch(e.target.value)}
-                      placeholder="Enter NIC or EPF number"
+                      placeholder="Enter NIC/EPF/EMP Attendance number"
                     />
                   </div>
                 )}
@@ -1096,7 +1130,7 @@ const TimeCard = () => {
                   value={nic}
                   onChange={e => setNic(e.target.value)}
                   onBlur={handleNicBlur}
-                  placeholder="Enter employee NIC number"
+                  placeholder="Enter employee NIC/ EMP Attendance number"
                 />
                 {nicError && <div className="text-red-500 text-xs mt-1">{nicError}</div>}
               </div>
@@ -1288,7 +1322,7 @@ const TimeCard = () => {
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                placeholder="Filter by NIC or EPF"
+                placeholder="Filter by NIC/EPF/EMP Attendane no"
                 value={absentSearch}
                 onChange={handleAbsentSearch}
               />
