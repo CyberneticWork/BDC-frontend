@@ -48,81 +48,117 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                   Salary Information
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Basic Salary <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="number"
-                        value={formData.compensation.basicSalary}
-                        onChange={(e) =>
-                          handleInputChange("basicSalary", e.target.value)
-                        }
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.basicSalary
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter basic salary"
-                        required
-                      />
-                    </div>
-                    <FieldError error={errors.compensation?.basicSalary} />
-                  </div>
+                <div className="md:col-span-2">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Basic Salary <span className="text-red-500">*</span>
+  </label>
+  <div className="relative">
+    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+    <input
+      type="number"
+      value={formData.compensation.basicSalary}
+      onChange={(e) =>
+        handleInputChange("basicSalary", e.target.value)
+      }
+      className={`w-full pl-10 pr-4 py-3 border ${
+        errors.compensation?.basicSalary
+          ? "border-red-500"
+          : "border-gray-300"
+      } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+      placeholder="Enter basic salary"
+      required
+    />
+  </div>
+  <FieldError error={errors.compensation?.basicSalary} />
+</div>
+              </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Increment Value
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="number"
-                        value={formData.compensation.incrementValue}
-                        onChange={(e) =>
-                          handleInputChange("incrementValue", e.target.value)
-                        }
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.incrementValue
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter increment"
-                      />
-                    </div>
-                    <FieldError error={errors.compensation?.incrementValue} />
-                  </div>
+              {/* Increment Settings */}
+              <div className="bg-gradient-to-r from-indigo-50 to-violet-50 p-6 rounded-xl border border-indigo-200">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
+                  Increment Settings
+                </h2>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Increment Effective From
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="date"
-                        value={formData.compensation.incrementEffectiveFrom}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "incrementEffectiveFrom",
-                            e.target.value
-                          )
-                        }
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.incrementEffectiveFrom
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      />
-                    </div>
-                    <FieldError
-                      error={errors.compensation?.incrementEffectiveFrom}
+                <div className="flex items-center justify-between p-3 bg-white rounded-lg border mb-4">
+                  <label
+                    htmlFor="incrementActive"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Increment Active
+                  </label>
+                  <div
+                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                    style={{
+                      backgroundColor: formData.compensation.incrementActive
+                        ? "#3b82f6"
+                        : "#e5e7eb",
+                    }}
+                    onClick={() => handleToggleChange("incrementActive")}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                        formData.compensation.incrementActive
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                      }`}
                     />
                   </div>
                 </div>
+
+                {formData.compensation.incrementActive && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Increment Value
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="number"
+                          value={formData.compensation.incrementValue}
+                          onChange={(e) =>
+                            handleInputChange("incrementValue", e.target.value)
+                          }
+                          className={`w-full pl-10 pr-4 py-3 border ${
+                            errors.compensation?.incrementValue
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                          placeholder="Enter increment"
+                        />
+                      </div>
+                      <FieldError error={errors.compensation?.incrementValue} />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Increment Effective From
+                      </label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="date"
+                          value={formData.compensation.incrementEffectiveFrom}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "incrementEffectiveFrom",
+                              e.target.value
+                            )
+                          }
+                          className={`w-full pl-10 pr-4 py-3 border ${
+                            errors.compensation?.incrementEffectiveFrom
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                        />
+                      </div>
+                      <FieldError
+                        error={errors.compensation?.incrementEffectiveFrom}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Employment Settings */}
@@ -230,32 +266,6 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                           formData.compensation.otActive
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="incrementActive"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Increment Active
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.incrementActive
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("incrementActive")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.incrementActive
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
