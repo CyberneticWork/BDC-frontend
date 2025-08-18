@@ -385,12 +385,13 @@ const SalaryProcessPage = () => {
             y += 6;
           });
         } else {
-          doc.text(`Salary Advance`, 15, y);
-          doc.text(`0.00`, 170, y, { align: "right" });
-          y += 6;
-          doc.text(`APIT`, 15, y);
-          doc.text(`0.00`, 170, y, { align: "right" });
-          y += 6;
+          // Default deduction entries
+          // doc.text(`Salary Advance`, 15, y);
+          // doc.text(`0.00`, 170, y, { align: "right" });
+          // y += 6;
+          // doc.text(`APIT`, 15, y);
+          // doc.text(`0.00`, 170, y, { align: "right" });
+          // y += 6;
           doc.text(`Stamp Duty`, 15, y);
           doc.text(`0.00`, 170, y, { align: "right" });
           y += 6;

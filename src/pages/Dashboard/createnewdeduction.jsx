@@ -44,7 +44,6 @@ const CreateNewDeduction = () => {
     description: "",
     amount: "",
     status: "active",
-    category: "EPF",
     deduction_type: "fixed",
     startDate: "",
     endDate: "",
@@ -168,7 +167,8 @@ const CreateNewDeduction = () => {
       case "deduction_type":
         return deduction.deduction_type?.toLowerCase().includes(searchLower);
       case "category":
-        return deduction.category?.toLowerCase().includes(searchLower);
+        // Handle potentially undefined category field
+        return deduction.category?.toLowerCase().includes(searchLower) || false;
       default:
         // Search in all fields
         return (
@@ -176,6 +176,7 @@ const CreateNewDeduction = () => {
           deduction.deduction_name?.toLowerCase().includes(searchLower) ||
           deduction.deduction_type?.toLowerCase().includes(searchLower) ||
           deduction.category?.toLowerCase().includes(searchLower) ||
+          false ||
           deduction.description?.toLowerCase().includes(searchLower)
         );
     }
@@ -246,8 +247,6 @@ const CreateNewDeduction = () => {
       errors.amount = "Amount must be a number and >= 0";
     if (!["active", "inactive"].includes(formData.status))
       errors.status = "Status must be active or inactive";
-    if (!["EPF", "ETF", "Other"].includes(formData.category))
-      errors.category = "Category must be EPF, ETF, or Other";
     if (!["fixed", "variable"].includes(formData.deduction_type))
       errors.deduction_type = "Deduction type must be fixed or variable";
     if (!formData.startDate) errors.startDate = "Start date is required";
@@ -297,7 +296,7 @@ const CreateNewDeduction = () => {
         description: formData.description,
         amount: parseFloat(formData.amount),
         status: formData.status,
-        category: formData.category,
+        category: "Other", // Add a default category
         deduction_type: formData.deduction_type,
         startDate: formData.startDate,
         endDate:
@@ -432,7 +431,6 @@ const CreateNewDeduction = () => {
       description: "",
       amount: "",
       status: "active",
-      category: "EPF",
       deduction_type: "fixed",
       startDate: "",
       endDate: "",
@@ -527,7 +525,7 @@ const CreateNewDeduction = () => {
         description: formData.description,
         amount: parseFloat(formData.amount),
         status: formData.status,
-        category: formData.category,
+        category: formData.category || "Other", // Add this line to keep category
         deduction_type: formData.deduction_type,
         startDate: formData.startDate,
         endDate:
@@ -699,9 +697,6 @@ const CreateNewDeduction = () => {
                     Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                     Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
@@ -742,19 +737,19 @@ const CreateNewDeduction = () => {
                           ? deduction.amount.toFixed(2)
                           : deduction.amount}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            deduction.category === "EPF"
+                            deduction.deduction_type === "fixed"
                               ? "bg-blue-100 text-blue-800"
-                              : deduction.category === "ETF"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-orange-100 text-orange-800"
+                              : "bg-purple-100 text-purple-800"
                           }`}
                         >
-                          {deduction.category.toUpperCase()}
+                          {deduction.deduction_type
+                            ? deduction.deduction_type.toUpperCase()
+                            : "N/A"}
                         </span>
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1034,29 +1029,6 @@ const CreateNewDeduction = () => {
                     placeholder="Enter deduction description"
                     rows="3"
                   />
-                </div>
-
-                {/* Category with "Other" option */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                  >
-                    <option value="EPF">EPF</option>
-                    <option value="ETF">ETF</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  {validationErrors.category && (
-                    <div className="text-red-500 text-xs mt-1">
-                      {validationErrors.category}
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-2">
