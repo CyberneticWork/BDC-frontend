@@ -106,17 +106,32 @@ export const deleteDepartment = async (id) => {
 };
 
 export const createSubDepartment = async (data) => {
-  const response = await axios.post(`/subdepartments`, data);
-  return response.data;
+  try {
+    const response = await axios.post(`/subdepartments`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating sub-department:", error);
+    throw error;
+  }
 };
 
 export const updateSubDepartment = async (id, data) => {
-  const response = await axios.put(`/subdepartments/${id}`, data);
-  return response.data;
+  try {
+    const response = await axios.put(`/subdepartments/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating sub-department:", error);
+    throw error;
+  }
 };
 
 export const deleteSubDepartment = async (id) => {
-  await axios.delete(`/subdepartments/${id}`);
+  try {
+    await axios.delete(`/subdepartments/${id}`);
+  } catch (error) {
+    console.error("Error deleting sub-department:", error);
+    throw error;
+  }
 };
 
 export const fetchTimeCards = async () => {

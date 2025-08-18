@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Clock, Search } from "lucide-react";
-import { fetchTimeCards } from "@services/OverTimeService";
+import { fetchTimeCards, approveOt } from "@services/OverTimeService";
 
 const Overtime = () => {
   const [timeData, setTimeData] = useState([]);
@@ -24,6 +24,11 @@ const Overtime = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleApprove = async (id, sts) => {
+    await approveOt(id, sts);
+    fetchOvertimeData();
   };
 
   return (
@@ -77,7 +82,7 @@ const Overtime = () => {
                       OUT Time
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Working Hour
+                      Working Hours
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Morning OT
@@ -145,27 +150,51 @@ const Overtime = () => {
                           {row?.time_card_id?.working_hours ?? "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                          {row?.shift_code?.morning_ot_start ?? "-"}
+                          {/* Morning OT - not directly in data, showing shift morning OT start time */}
+                          {row.time_card_id.working_hours}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                          {row?.shift_code?.evening_ot_start ?? "-"}
+                          {row.morning_ot}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">
-                          {row?.ot_hours ?? "-"}
+                          {row.evening_ot}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
-                          {row?.shift_code?.special_ot_start ?? "-"}
+                          {(parseFloat(row.morning_ot) || 0) +
+                            (parseFloat(row.evening_ot) || 0)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {row?.ot_morning_rate ?? "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {row?.ot_night_rate ?? "-"}
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{row?.ot_morning_rate ?? "-"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{row?.ot_night_rate ?? "-"}</td>
+
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          <button className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200">
-                            Approve
-                          </button>
+                          {row.status === "pending" ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() =>
+                                  handleApprove(row.id, "approved")
+                                }
+                                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleApprove(row.id, "rejected")
+                                }
+                                className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : row.status === "approved" ? (
+                            <span className="text-green-600 font-semibold">
+                              Approved
+                            </span>
+                          ) : (
+                            <span className="text-red-600 font-semibold">
+                              Rejected
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))

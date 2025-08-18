@@ -197,7 +197,7 @@ const Sidebar = ({
               <p className="font-medium text-gray-900 truncate">{user.name}</p>
               <p className="text-sm text-gray-500 truncate">HR Manager</p>
             </div>
-            <ChevronDown className="h-4 w-4 text-gray-400" />
+            
           </div>
         </div>
 

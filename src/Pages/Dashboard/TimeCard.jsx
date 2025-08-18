@@ -416,6 +416,35 @@ const TimeCard = () => {
     setIsLoading(false);
   };
 
+  // Clear fields helper for Add New modal
+  const clearAddModalFields = () => {
+    setNic('');
+    setNicError('');
+    setNewRecord({
+      empNo: '',
+      name: '',
+      time: '',
+      date: '',
+      entry: '',
+      department: '',
+      status: '',
+    });
+  };
+
+  // Cancel handler for Add New modal: clear fields if any data present, then close
+  const handleAddModalCancel = () => {
+    const hasData =
+      nic ||
+      newRecord.empNo ||
+      newRecord.name ||
+      newRecord.time ||
+      newRecord.date ||
+      newRecord.entry ||
+      newRecord.status;
+    if (hasData) clearAddModalFields();
+    setShowAddModal(false);
+  };
+
   const handleNicBlur = async () => {
     if (!nic) return;
     setNicError('');
@@ -454,22 +483,55 @@ const TimeCard = () => {
 
   useEffect(() => {
     const fetchEmployeeRecords = async () => {
-      if (filterOption === 'employee' && employeeSearch.trim() !== '') {
+      // Only handle when "Filter by Employee" is active
+      if (filterOption === 'employee') {
         setIsLoading(true);
         try {
-          const data = await timeCardService.searchEmployeeTimeCards(employeeSearch.trim());
+          let data = [];
+
+          // If user typed NIC/EPF, fetch search results; otherwise use full attendanceData as base
+          if (employeeSearch.trim() !== '') {
+            data = await timeCardService.searchEmployeeTimeCards(employeeSearch.trim());
+            if (!Array.isArray(data)) data = [];
+          } else {
+            data = [...attendanceData];
+          }
+
+          // Apply date filters (single date or range) on the fetched results
+          if (filterDate) {
+            data = data.filter((rec) => rec.date === filterDate);
+          }
+          if (dateFrom) {
+            data = data.filter((rec) => rec.date >= dateFrom);
+          }
+          if (dateTo) {
+            data = data.filter((rec) => rec.date <= dateTo);
+          }
+
           setFilteredData(data);
         } catch (e) {
           setFilteredData([]);
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       } else if (filterOption === 'all') {
+        // When "All" is selected, still allow date filtering
+        if (filterDate || dateFrom || dateTo) {
+          let data = [...attendanceData];
+          if (filterDate) data = data.filter((rec) => rec.date === filterDate);
+          if (dateFrom) data = data.filter((rec) => rec.date >= dateFrom);
+          if (dateTo) data = data.filter((rec) => rec.date <= dateTo);
+          setFilteredData(data);
+        } else {
+          setFilteredData(attendanceData);
+        }
+      } else {
         setFilteredData(attendanceData);
       }
     };
+
     fetchEmployeeRecords();
-    // eslint-disable-next-line
-  }, [employeeSearch, filterOption]);
+  }, [employeeSearch, filterOption, filterDate, dateFrom, dateTo, attendanceData]);
 
   const handleExcelUpload = (e) => {
     setExcelFile(e.target.files[0]);
@@ -494,7 +556,7 @@ const TimeCard = () => {
       const res = await timeCardService.importExcel(formData);
       Swal.fire({
         icon: 'success',
-        title: 'Import Complete',
+        title: 'Import Completed',
         html: `
           <div>
             <p>Imported: <b>${res.imported}</b></p>
@@ -652,7 +714,7 @@ const TimeCard = () => {
             <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-br from-emerald-50 to-green-50 border-l-4 border-emerald-500 rounded-lg shadow-sm">
               <div className="flex items-center mb-4 sm:mb-6">
                 <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center mr-3 shadow-md">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
                 </div>
@@ -993,138 +1055,160 @@ const TimeCard = () => {
         </div>
       )}
 
-      {/* Add New Modal */}
+      {/* Add New Modal - Streamlined & Better Organized */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative animate-fade-in">
             <button
               className="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition"
-              onClick={() => setShowAddModal(false)}
+              onClick={handleAddModalCancel}
               title="Close"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <h2 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
-              <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <h2 className="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
+              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
               Add New Attendance Record
             </h2>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">NIC Number</label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={nic}
-                onChange={e => setNic(e.target.value)}
-                onBlur={handleNicBlur}
-                placeholder="Enter employee NIC number"
-              />
-              {nicError && <div className="text-red-500 text-xs mt-1">{nicError}</div>}
+            
+            {/* Employee Identification Section */}
+            <div className="bg-gray-50 p-3 rounded-lg mb-4 border border-gray-100">
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  NIC Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                  value={nic}
+                  onChange={e => setNic(e.target.value)}
+                  onBlur={handleNicBlur}
+                  placeholder="Enter employee NIC number"
+                />
+                {nicError && <div className="text-red-500 text-xs mt-1">{nicError}</div>}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="mb-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Employee Number</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-100 text-sm"
+                    value={newRecord.empNo}
+                    readOnly
+                    placeholder="Auto-filled"
+                  />
+                </div>
+                <div className="mb-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-100 text-sm"
+                    value={newRecord.department}
+                    readOnly
+                    placeholder="Auto-filled"
+                  />
+                </div>
+              </div>
+              
+              <div className="mb-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Employee Name</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-100 text-sm"
+                  value={newRecord.name}
+                  readOnly
+                  placeholder="Auto-filled from NIC"
+                />
+              </div>
             </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Employee Number</label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={newRecord.empNo}
-                readOnly
-                placeholder="Auto-filled from NIC"
-              />
+            
+            {/* Attendance Data Section */}
+            <div className="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-100">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="mb-3">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    value={newRecord.date}
+                    onChange={e => setNewRecord({ ...newRecord, date: e.target.value })}
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Time <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    value={newRecord.time}
+                    onChange={e => setNewRecord({ ...newRecord, time: e.target.value })}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="mb-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    value={newRecord.status}
+                    onChange={e => {
+                      const status = e.target.value;
+                      let entry = '';
+                      if (status === 'IN') entry = '1';
+                      else if (status === 'OUT') entry = '2';
+                      else if (status === 'Leave') entry = '0';
+                      setNewRecord(prev => ({
+                        ...prev,
+                        status,
+                        entry,
+                      }));
+                    }}
+                  >
+                    <option value="">Select Status</option>
+                    <option value="IN">IN</option>
+                    <option value="OUT">OUT</option>
+                    <option value="Leave">Leave</option>
+                  </select>
+                </div>
+                <div className="mb-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Entry Code</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-100 text-sm"
+                    value={newRecord.entry}
+                    readOnly
+                    placeholder="Auto-filled"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Name</label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={newRecord.name}
-                readOnly
-                placeholder="Auto-filled from NIC"
-              />
-            </div>
-            {/* <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Fingerprint Clock</label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={newRecord.fingerprintClock}
-                onChange={e => setNewRecord({ ...newRecord, fingerprintClock: e.target.value })}
-                placeholder="Enter fingerprint clock"
-              />
-            </div> */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Time</label>
-              <input
-                type="time"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={newRecord.time}
-                onChange={e => setNewRecord({ ...newRecord, time: e.target.value })}
-                placeholder="e.g. 08:45 AM"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Date</label>
-              <input
-                type="date"
-                className="w-full border border-blue-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                value={newRecord.date}
-                onChange={e => setNewRecord({ ...newRecord, date: e.target.value })}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Status</label>
-              <select
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={newRecord.status}
-                onChange={e => {
-                  const status = e.target.value;
-                  let entry = '';
-                  if (status === 'IN') entry = '1';
-                  else if (status === 'OUT') entry = '2';
-                  else if (status === 'Leave') entry = '0';
-                  setNewRecord(prev => ({
-                    ...prev,
-                    status,
-                    entry,
-                  }));
-                }}
-              >
-                <option value="">Select Status</option>
-                <option value="IN">IN</option>
-                <option value="OUT">OUT</option>
-                {/* <option value="Absent">Absent</option> */}
-                <option value="Leave">Leave</option>
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Entry</label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={newRecord.entry}
-                readOnly
-                placeholder="Auto-filled from Status"
-              />
-            </div>
-            <div className="flex justify-end gap-3 mt-8">
+            
+            <div className="flex justify-end gap-3 mt-5">
               <button
-                className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-                onClick={() => setShowAddModal(false)}
+                className="px-4 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition text-sm"
+                onClick={handleAddModalCancel}
               >
                 Cancel
               </button>
               <button
-                className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition font-semibold shadow"
+                className="px-4 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition font-semibold shadow text-sm"
                 onClick={handleAddNew}
                 disabled={
-                  !newRecord.empNo ||
-                  !newRecord.name ||
-                  // !newRecord.fingerprintClock ||
+                  !nic ||
                   !newRecord.time ||
                   !newRecord.date ||
-                  !newRecord.entry ||
                   !newRecord.status
                 }
               >

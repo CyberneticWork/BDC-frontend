@@ -61,3 +61,40 @@ export const markPayslipsAsIssued = async (employeeIds) => {
     throw error;
   }
 };
+
+export const fetchExcelData = async (payload) => {
+  try {
+    const response = await axios.post(
+      "/salary/process/fetchExcelData",
+      payload
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error marking payslips as issued:", error);
+    throw error;
+  }
+};
+
+export const importExcelData = async (file) => {
+  const fileType = file.name.toLowerCase().includes("allowance")
+    ? "allowances"
+    : file.name.toLowerCase().includes("deduction")
+    ? "deductions"
+    : "allowances"; // default
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("type", fileType);
+
+  const response = await axios.post(
+    "/salary/process/importExcelData",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+
+  return response.data;
+};

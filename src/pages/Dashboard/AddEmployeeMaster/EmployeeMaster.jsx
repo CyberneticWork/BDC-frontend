@@ -49,18 +49,33 @@ const EmployeeMaster = () => {
 
   const handleSubmit = async (allEmployeeData) => {
     setIsSubmitting(true);
+
     try {
-      const response = await employeeService.submitEmployee(allEmployeeData);
-      console.log("Employee created:", response);
-      Swal.fire({
-        icon: "success",
-        title: "Success!",
-        text: "Employee submitted successfully!",
-      });
-      clearForm();
-      setActiveCategory("personal");
+      let response;
+      if (allEmployeeData.personal?.id) {
+        response = await employeeService.updateEmployee(
+          allEmployeeData.personal.id,
+          allEmployeeData
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Employee updated successfully!",
+        });
+      } else {
+        response = await employeeService.submitEmployee(allEmployeeData);
+        Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Employee submitted successfully!",
+        });
+        // Clear form after successful creation if desired
+        // clearForm();
+        // setActiveCategory("personal");
+      }
+      return response;
     } catch (error) {
-      console.error("Submission error:", error);
+      console.error("Update error:", error);
       if (error.response?.data?.errors) {
         const formattedErrors = {};
 
@@ -90,7 +105,7 @@ const EmployeeMaster = () => {
         Swal.fire({
           icon: "error",
           title: "Oops...",
-          text: "Error submitting employee. Please try again.!",
+          text: "Error updating employee. Please try again.!",
         });
       }
     } finally {

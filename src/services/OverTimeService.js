@@ -9,3 +9,16 @@ export const fetchTimeCards = async () => {
     return [];
   }
 };
+
+export const approveOt = async (id, sts) => {
+  try {
+    const response = await axios.post(`/overtime/approve/${id}`, {
+      status: sts
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error approving overtime:", error);
+    throw error; // Re-throw the error to handle it in the calling function
+  }
+};
+

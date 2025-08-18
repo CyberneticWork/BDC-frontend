@@ -7,6 +7,7 @@ const EmployeeLoan = () => {
   const [loanId, setLoanId] = useState("");
   const [interestType, setInterestType] = useState("withInterest");
   const [employeeNo, setEmployeeNo] = useState("");
+  const [employeeIdd, setEmployeeIdd] = useState("");
   const [startDate, setStartDate] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
   const [interestRate, setInterestRate] = useState("");
@@ -74,7 +75,7 @@ const EmployeeLoan = () => {
 
       const payload = {
         loan_id: loanId,
-        employee_id: employeeNo,
+        employee_id: employeeIdd,
         loan_amount: parseFloat(loanAmount),
         interest_rate_per_annum:
           interestType === "withInterest" ? parseFloat(interestRate) : 0,
@@ -133,10 +134,13 @@ const EmployeeLoan = () => {
   useEffect(() => {
     const fetchName = async () => {
       if (employeeNo) {
-        const name = await fetchEmployeeNameByNo(employeeNo);
-        setEmployeeName(name);
+        const res = await fetchEmployeeNameByNo(employeeNo);
+        setEmployeeName(res.full_name);
+        setEmployeeIdd(res.id);
       } else {
         setEmployeeName("");
+        setEmployeeIdd("");
+
       }
     };
     fetchName();

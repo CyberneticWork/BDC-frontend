@@ -41,23 +41,11 @@ const Resignation = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // In a real app, you would fetch employees from your API
         const employeesResponse = await employeeService.fetchEmployees();
-        // setEmployees(employeesResponse.data);
-
-        // Mock employees data
-        // const mockEmployees = [
-        //   { id: 1, full_name: "John Doe", attendance_employee_no: "EMP001", department: "Engineering" },
-        //   { id: 2, full_name: "Jane Smith", attendance_employee_no: "EMP002", department: "Marketing" },
-        //   { id: 3, full_name: "Robert Johnson", attendance_employee_no: "EMP003", department: "HR" },
-        //   { id: 4, full_name: "Emily Davis", attendance_employee_no: "EMP004", department: "Finance" },
-        //   { id: 5, full_name: "Michael Wilson", attendance_employee_no: "EMP005", department: "Operations" }
-        // ];
         setEmployees(employeesResponse);
         setFilteredEmployees(employeesResponse);
 
-        const resignationsResponse =
-          await ResignationsService.getAllResignations();
+        const resignationsResponse = await ResignationsService.getAllResignations();
         setResignations(resignationsResponse.data);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -108,20 +96,46 @@ const Resignation = () => {
     setFormData({
       ...formData,
       employee_id: employee.id,
-      employee_name: employee.full_name, // Use the correct field from employee object
-      employee_number: employee.attendance_employee_no, // Use the correct field from employee object
+      employee_name: employee.full_name,
+      employee_number: employee.attendance_employee_no,
     });
     setShowEmployeeDropdown(false);
     setSearchTerm("");
   };
 
-  // Handle file upload
+  // Handle file upload with size validation
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
+    // Check for oversized files
+    const oversizedFiles = files.filter(file => file.size > MAX_SIZE);
+    
+    if (oversizedFiles.length > 0) {
+      const errorMessage = [
+        "The following files exceed 5MB limit:",
+        ...oversizedFiles.map(f => `• ${f.name} (${(f.size/(1024*1024)).toFixed(2)}MB)`)
+      ].join('\n');
+
+      setErrors({
+        ...errors,
+        documents: [errorMessage]
+      });
+      return;
+    }
+
     setFormData({
       ...formData,
       documents: [...formData.documents, ...files],
     });
+    
+    // Clear previous errors if any
+    if (errors.documents) {
+      setErrors({
+        ...errors,
+        documents: null,
+      });
+    }
   };
 
   // Remove uploaded file
@@ -137,18 +151,39 @@ const Resignation = () => {
   // Validate form
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.employee_id)
-      newErrors.employee_id = "Employee selection is required";
-    if (!formData.resigning_date)
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+    if (!formData.employee_id) {
+      newErrors.employee_id = "Please select an employee";
+    }
+
+    if (!formData.resigning_date) {
       newErrors.resigning_date = "Resignation date is required";
-    if (!formData.last_working_day)
+    }
+
+    if (!formData.last_working_day) {
       newErrors.last_working_day = "Last working day is required";
+    } else if (new Date(formData.last_working_day) < new Date(formData.resigning_date)) {
+      newErrors.last_working_day = "Last working day must be on or after resignation date";
+    }
+
     if (!formData.resignation_reason) {
       newErrors.resignation_reason = "Resignation reason is required";
     } else if (formData.resignation_reason.length < 10) {
-      newErrors.resignation_reason =
-        "Please provide the reason for resignation (10 characters minimum)";
+      newErrors.resignation_reason = "Reason must be at least 10 characters long";
     }
+
+    // File size validation
+    if (formData.documents?.length > 0) {
+      const oversizedFiles = formData.documents.filter(f => f.size > MAX_SIZE);
+      if (oversizedFiles.length > 0) {
+        newErrors.documents = [
+          "The following files exceed 5MB limit:",
+          ...oversizedFiles.map(f => `• ${f.name} (${(f.size/(1024*1024)).toFixed(2)}MB)`)
+        ];
+      }
+    }
+
     return newErrors;
   };
 
@@ -156,13 +191,26 @@ const Resignation = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formErrors = validateForm();
+    
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      
+      // Display all errors in a modal
+      const errorMessages = [];
+      Object.values(formErrors).forEach(error => {
+        if (Array.isArray(error)) {
+          errorMessages.push(...error);
+        } else {
+          errorMessages.push(error);
+        }
+      });
+
       Swal.fire({
         icon: "error",
-        title: "Form Error",
-        text: "Please fill all required fields correctly.",
+        title: "Form Errors",
+        html: errorMessages.map(msg => `<div>${msg}</div>`).join(''),
       });
+      
       return;
     }
 
@@ -175,12 +223,8 @@ const Resignation = () => {
         resignation_reason: formData.resignation_reason,
         documents: formData.documents,
       };
+      
       await ResignationsService.createResignation(submissionData);
-
-      // Update the resignations list
-      const updatedResignations =
-        await ResignationsService.getAllResignations();
-      setResignations(updatedResignations.data);
 
       // Reset form
       setFormData({
@@ -192,26 +236,37 @@ const Resignation = () => {
         resignation_reason: "",
         documents: [],
       });
+      
+      setErrors({});
+      setSuccessMessage("Resignation submitted successfully!");
+
+      // Refresh data
+      const updatedResignations = await ResignationsService.getAllResignations();
+      setResignations(updatedResignations.data);
 
       Swal.fire({
         icon: "success",
-        title: "Success",
+        title: "Success!",
         text: "Resignation submitted successfully!",
         timer: 2000,
-        showConfirmButton: false,
       });
+
     } catch (error) {
       console.error("Error submitting resignation:", error);
+      
+      let errorMessage = "An error occurred while submitting the resignation";
+      
+      if (error.response?.data?.message === 'This employee already has a pending resignation request') {
+        errorMessage = "This employee already has a pending resignation request";
+      } else if (error.response?.data?.errors) {
+        errorMessage = Object.values(error.response.data.errors).flat().join('\n');
+      }
+
       Swal.fire({
         icon: "error",
-        title: "Submission Failed",
-        text:
-          error?.message ||
-          "An error occurred while submitting the resignation.",
+        title: "Error",
+        text: errorMessage,
       });
-      if (error.errors) {
-        setErrors(error.errors);
-      }
     } finally {
       setLoading(false);
     }
@@ -474,7 +529,7 @@ const Resignation = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <label className="text-gray-700 font-medium mb-2 flex items-center gap-2">
                   <Upload className="text-blue-500" size={18} />
-                  Upload Documents (Multiple files allowed)
+                  Upload Documents (Max 5MB each)
                 </label>
 
                 {/* Upload Area */}
@@ -493,7 +548,7 @@ const Resignation = () => {
                       or drag and drop
                     </p>
                     <p className="text-xs text-gray-400">
-                      PDF, DOCX, JPG, PNG (MAX. 5MB each)
+                      PDF, DOC, DOCX, JPG, PNG (MAX. 5MB each)
                     </p>
                   </div>
                   <input
@@ -527,7 +582,7 @@ const Resignation = () => {
                               {file.name}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {(file.size / (1024 * 1024)).toFixed(1)} MB
+                              {(file.size / (1024 * 1024)).toFixed(2)} MB
                             </p>
                           </div>
                         </div>
@@ -545,10 +600,13 @@ const Resignation = () => {
                   </div>
                 )}
 
+                {/* File size errors */}
                 {errors.documents && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.documents}
-                  </p>
+                  <div className="mt-2 p-2 bg-red-50 text-red-600 rounded text-sm">
+                    {errors.documents.map((msg, i) => (
+                      <p key={i}>{msg}</p>
+                    ))}
+                  </div>
                 )}
               </div>
 
@@ -649,9 +707,6 @@ const Resignation = () => {
                           >
                             {resignation.status}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {/* Document view removed */}
                         </td>
                       </tr>
                     ))}
