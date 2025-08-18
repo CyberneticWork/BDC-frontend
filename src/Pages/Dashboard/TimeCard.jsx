@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { addTimeCard, fetchTimeCards } from '../../services/ApiDataService';
 import employeeService from '../../services/EmployeeDataService';
 import timeCardService from '../../services/timeCardService';
@@ -186,6 +186,8 @@ const TimeCard = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedToDate, setSelectedToDate] = useState('');
   const [excelFile, setExcelFile] = useState(null);
+  // ref to clear the native file input after import
+  const excelInputRef = useRef(null);
 
   // Fetch data from backend on mount
   useEffect(() => {
@@ -399,16 +401,7 @@ const TimeCard = () => {
       setAttendanceData(updated);
       setFilteredData(updated);
       setShowAddModal(false);
-      setNewRecord({
-        empNo: '',
-        name: '',
-        time: '',
-        date: '',
-        entry: '',
-        department: '',
-        status: '',
-      });
-      setAddErrors({});
+      clearAddModalFields();
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -586,6 +579,8 @@ const TimeCard = () => {
       setSelectedDate('');
       setSelectedToDate('');
       setExcelFile(null);
+      // clear the native file input so it visually resets in the UI
+      if (excelInputRef.current) excelInputRef.current.value = '';
     } catch (e) {
       Swal.fire({
         icon: 'error',
@@ -709,6 +704,7 @@ const TimeCard = () => {
                         accept=".xlsx,.xls"
                         className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm"
                         onChange={handleExcelUpload}
+                        ref={excelInputRef}
                       />
                       <button
                         className="mt-3 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg"
@@ -851,7 +847,7 @@ const TimeCard = () => {
                   <div className="flex items-center">
                     <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center mr-3">
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2v-6a2 2 0 012-2h2v6z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2v-6a2 2 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                       </svg>
                     </div>
                     <h3 className="text-lg sm:text-xl font-bold text-white">Attendance Records</h3>
