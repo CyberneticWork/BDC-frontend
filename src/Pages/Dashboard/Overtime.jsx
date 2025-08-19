@@ -1,11 +1,106 @@
 import React, { useState, useEffect } from "react";
-import { Clock, Search } from "lucide-react";
+import { Clock, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { fetchTimeCards, approveOt } from "@services/OverTimeService";
+
+// Pagination component
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  let start = Math.max(1, currentPage - 2);
+  let end = Math.min(totalPages, currentPage + 2);
+
+  if (currentPage <= 3) {
+    end = Math.min(5, totalPages);
+  }
+
+  if (currentPage >= totalPages - 2) {
+    start = Math.max(1, totalPages - 4);
+  }
+
+  const pages = [];
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+
+  return (
+    <div className="flex justify-center items-center gap-1 mt-4 mb-4">
+      <button
+        className={`px-3 py-1 rounded-lg font-medium transition-all duration-150 ${
+          currentPage === 1
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+            : "bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+        }`}
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        aria-label="Previous page"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+
+      {start > 1 && (
+        <>
+          <button
+            className="px-3 py-1 rounded-lg font-medium bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+            onClick={() => onPageChange(1)}
+          >
+            1
+          </button>
+          {start > 2 && <span className="px-2 text-gray-400">...</span>}
+        </>
+      )}
+
+      {pages.map((page) => (
+        <button
+          key={page}
+          className={`px-3 py-1 rounded-lg font-medium transition-all duration-150 ${
+            page === currentPage
+              ? "bg-blue-600 text-white shadow"
+              : "bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+          }`}
+          onClick={() => onPageChange(page)}
+          disabled={page === currentPage}
+          aria-current={page === currentPage ? "page" : undefined}
+        >
+          {page}
+        </button>
+      ))}
+
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="px-2 text-gray-400">...</span>}
+          <button
+            className="px-3 py-1 rounded-lg font-medium bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+            onClick={() => onPageChange(totalPages)}
+          >
+            {totalPages}
+          </button>
+        </>
+      )}
+
+      <button
+        className={`px-3 py-1 rounded-lg font-medium transition-all duration-150 ${
+          currentPage === totalPages
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+            : "bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+        }`}
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        aria-label="Next page"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
 const Overtime = () => {
   const [timeData, setTimeData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage] = useState(9);
 
   // Helper: convert decimal hours (e.g. 2.17) to "2h 10m"
   const formatDecimalHours = (val) => {
@@ -34,6 +129,11 @@ const Overtime = () => {
     // Fetch initial data
     fetchOvertimeData();
   }, []);
+
+  // Reset to first page when data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [timeData.length]);
 
   // Fetch data
   const fetchOvertimeData = async () => {
@@ -69,6 +169,31 @@ const Overtime = () => {
     } catch (error) {
       console.error("Error approving overtime:", error);
     }
+  };
+
+  // Compact dropdown + confirmation handler (optimistic UI)
+  const handleStatusChange = async (id, newStatus) => {
+    // optimistic update (no confirmation)
+    setTimeData((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+
+    try {
+      await handleApprove(id, newStatus);
+    } catch (err) {
+      console.error("Failed to change status:", err);
+      // revert / refresh on error
+      fetchOvertimeData();
+    }
+  };
+
+  // Calculate pagination values
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = timeData.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(timeData.length / rowsPerPage);
+
+  // Handle page change
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
   };
 
   return (
@@ -155,7 +280,7 @@ const Overtime = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-gray-100">
-                  {timeData.length === 0 ? (
+                  {currentRows.length === 0 ? (
                     <tr>
                       <td colSpan="15" className="px-6 py-8 text-center">
                         <div className="flex flex-col items-center space-y-2">
@@ -167,7 +292,7 @@ const Overtime = () => {
                       </td>
                     </tr>
                   ) : (
-                    timeData.map((row) => (
+                    currentRows.map((row) => (
                       <tr
                         key={row.id}
                         className={`transition-all duration-200 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400`}
@@ -234,26 +359,32 @@ const Overtime = () => {
                           {row.ot_night_rate || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row.status === "pending" ? (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleApprove(row.id, "approved")}
-                                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleApprove(row.id, "rejected")}
-                                className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : row.status === "approved" ? (
-                            <span className="text-green-600 font-semibold">Approved</span>
-                          ) : (
-                            <span className="text-red-600 font-semibold">Rejected</span>
-                          )}
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium ${
+                                row.status === "pending"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : row.status === "approved"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : "Pending"}
+                            </span>
+
+                            <label className="sr-only" htmlFor={`status-${row.id}`}>Change status</label>
+                            <select
+                              id={`status-${row.id}`}
+                              value={row.status || "pending"}
+                              onChange={(e) => handleStatusChange(row.id, e.target.value)}
+                              className="ml-1 px-2 py-1 border border-gray-200 rounded-md text-sm bg-white focus:outline-none"
+                              aria-label="Change status"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="approved">Approve</option>
+                              <option value="rejected">Reject</option>
+                            </select>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -261,6 +392,28 @@ const Overtime = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination controls */}
+            {timeData.length > 0 && (
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-700">
+                    Showing{" "}
+                    <span className="font-medium">{indexOfFirstRow + 1}</span> to{" "}
+                    <span className="font-medium">
+                      {Math.min(indexOfLastRow, timeData.length)}
+                    </span>{" "}
+                    of <span className="font-medium">{timeData.length}</span> records
+                  </div>
+
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
