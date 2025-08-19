@@ -412,7 +412,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bank Name
+                        Bank Name <span className="text-red-500">*</span>
                       </label>
                       <select
                         value={formData.compensation.bankName}
@@ -435,7 +435,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Branch Name
+                        Branch Name <span className="text-red-500">*</span>
                       </label>
                       <select
                         value={formData.compensation.branchName}
@@ -458,7 +458,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bank Code
+                        Bank Code <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -478,7 +478,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Branch Code
+                        Branch Code <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -499,7 +499,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Bank Account Number
+                      Bank Account Number <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -651,7 +651,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
           </div>
 
           {/* Footer Actions */}
-          <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-4">
+          <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between space-x-4">
             <button
               type="button"
               onClick={onPrevious}

@@ -29,3 +29,15 @@ export const deleteSalaryRecordAPI = async (id) => {
     throw error;
   }
 };
+
+export const fetchSalaryCSV = async () => {
+  try {
+    const response = await axios.get(`/salary/process/csv`, {
+      responseType: "blob", // Important for handling CSV files
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching salary data:", error);
+    throw error;
+  }
+};

@@ -10,6 +10,7 @@ const EmployeeFormContext = createContext();
 
 const initialState = {
   personal: {
+    id: "",
     title: "",
     attendanceEmpNo: "",
     epfNo: "",
@@ -69,8 +70,8 @@ const initialState = {
     incrementActive: false,
     nopayActive: false,
     morningOt: false,
-    ot_morning_rate: "",
-    ot_night_rate: "",
+    ot_morning_rate: "0",
+    ot_night_rate: "0",
     eveningOt: false,
     budgetaryReliefAllowance2015: false,
     budgetaryReliefAllowance2016: false,

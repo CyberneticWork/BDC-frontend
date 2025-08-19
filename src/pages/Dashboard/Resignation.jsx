@@ -380,7 +380,7 @@ const Resignation = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
                   <Calendar className="text-blue-500" size={18} />
-                  Date of Resigning
+                  Resignation Submission Date
                 </h3>
                 <div className="relative">
                   <input

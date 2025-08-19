@@ -93,9 +93,15 @@ const Overtime = () => {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Total OT
                     </th>
-                    {/* <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Special OT
-                    </th> */}
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Morning OT Rate
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Night OT Rate
+                    </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Approve OT
                     </th>
@@ -104,7 +110,7 @@ const Overtime = () => {
                 <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-gray-100">
                   {timeData.length === 0 ? (
                     <tr>
-                      <td colSpan="11" className="px-6 py-8 text-center">
+                      <td colSpan="15" className="px-6 py-8 text-center">
                         <div className="flex flex-col items-center space-y-2">
                           <Search className="h-8 w-8 text-gray-300" />
                           <span className="text-sm text-gray-500">
@@ -126,22 +132,22 @@ const Overtime = () => {
                           {row.employee_name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row.time_card_id.date}
+                          {row?.time_card_id?.date ?? "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row.shift_code.start_time}
+                          {row?.shift_code?.start_time ?? "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row.time_card_id.time}
+                          {row?.time_card_id?.time ?? "-"}
                         </td>
-                        {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
-                          {row.time_card_id.working_hours}
-                        </td> */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
-                          {row.shift_code.end_time}
+                          {row?.shift_code?.end_time ?? "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row.time_card_id.time}
+                          {row?.time_card_id?.time ?? "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
+                          {row?.time_card_id?.working_hours ?? "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
                           {/* Morning OT - not directly in data, showing shift morning OT start time */}
@@ -157,6 +163,8 @@ const Overtime = () => {
                           {(parseFloat(row.morning_ot) || 0) +
                             (parseFloat(row.evening_ot) || 0)}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{row?.ot_morning_rate ?? "-"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{row?.ot_night_rate ?? "-"}</td>
 
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {row.status === "pending" ? (

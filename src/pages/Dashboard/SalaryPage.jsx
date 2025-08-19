@@ -20,6 +20,7 @@ import {
   fetchSalaryDataAPI,
   updateSalaryAPI,
   deleteSalaryRecordAPI,
+  fetchSalaryCSV,
 } from "@services/SalaryService";
 
 // Modal Component
@@ -256,51 +257,73 @@ const SalaryPage = () => {
     ...new Set(salaryData.map((item) => item.company_name)),
   ].sort();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [expandedRow, setExpandedRow] = useState(null);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "LKR",
       minimumFractionDigits: 2,
     }).format(amount);
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      processed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      pending: 'bg-amber-100 text-amber-800 border-amber-200',
-      draft: 'bg-gray-100 text-gray-800 border-gray-200'
+      processed: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      pending: "bg-amber-100 text-amber-800 border-amber-200",
+      draft: "bg-gray-100 text-gray-800 border-gray-200",
     };
 
     return (
-      <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${statusConfig[status] || statusConfig.draft}`}>
+      <span
+        className={`px-3 py-1 text-xs font-semibold rounded-full border ${
+          statusConfig[status] || statusConfig.draft
+        }`}
+      >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
 
   const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
     }
     setSortConfig({ key, direction });
   };
 
   const toggleRowExpansion = (id) => {
     setExpandedRow(expandedRow === id ? null : id);
+  };
+
+  const handleDownloadCSV = async () => {
+    try {
+      const response = await fetchSalaryCSV();
+
+      const blob = await response;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "salary_records.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Failed to download CSV");
+    }
   };
 
   return (
@@ -336,13 +359,21 @@ const SalaryPage = () => {
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
           </div>
-          <div className="flex items-end">
+          {/* In your filter section, modify the button container */}
+          <div className="flex items-end gap-2">
             <button
               onClick={fetchSalaryData}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
             >
               <RefreshCw size={18} className="mr-2" />
               Refresh
+            </button>
+            <button
+              onClick={handleDownloadCSV}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+            >
+              <FileText size={18} className="mr-2" />
+              Download CSV
             </button>
           </div>
         </div>

@@ -16,6 +16,7 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
+import config from "@src/config"; 
 
 const relationshipOptions = [
   { value: "", label: "Select Relationship Type" },
@@ -185,6 +186,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
       const transformedData = {
         personal: {
+          id: apiData.id,
           title: apiData.title,
           attendanceEmpNo: apiData.attendance_employee_no,
           epfNo: apiData.epf,
@@ -781,7 +783,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Marital Status
+              Marital Status <span className="text-red-500">*</span>
             </label>
             <select
               name="maritalStatus"
@@ -817,7 +819,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Relationship Type
+                Relationship Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="relationshipType"
@@ -840,7 +842,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Title
+                Title <span className="text-red-500">*</span>
               </label>
               <select
                 name="spouseTitle"
@@ -865,7 +867,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                Name
+                Name <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseName"
@@ -882,7 +884,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                Age
+                Age <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseAge"
@@ -901,7 +903,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                DOB
+                DOB <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseDob"
@@ -918,7 +920,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                NIC
+                NIC <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseNic"
@@ -1038,7 +1040,9 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
         </div>
 
         {/* Next Button */}
-        <div className="flex justify-end mt-8">
+        
+      </div>
+      <div className="flex justify-end mt-8">
           <button
             type="button"
             onClick={onNext}
@@ -1047,7 +1051,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             Next
           </button>
         </div>
-      </div>
     </div>
   );
 };
