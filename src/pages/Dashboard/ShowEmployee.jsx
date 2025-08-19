@@ -315,7 +315,7 @@ const ShowEmployee = () => {
                               {employee.full_name}
                             </div>
                             <div className="text-sm text-gray-500">
-                              Emp No: {employee.epf}
+                              Emp No: {employee.attendance_employee_no}
                             </div>
                           </div>
                         </div>
@@ -325,7 +325,7 @@ const ShowEmployee = () => {
                           {employee.title}
                         </div>
                         <div className="text-sm text-gray-500">
-                          ID: {employee.attendance_employee_no}
+                          {/* ID: {employee.epf} */}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
