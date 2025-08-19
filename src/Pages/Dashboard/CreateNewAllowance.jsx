@@ -27,7 +27,7 @@ const CreateNewAllowance = () => {
   const [departments, setDepartments] = useState([]);
   const [filteredDepartments, setFilteredDepartments] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState("all");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  // category removed
   const [allowances, setAllowances] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,7 +50,7 @@ const CreateNewAllowance = () => {
     company_id: "",
     amount: "",
     department_id: "",
-    category: "travel",
+    // category removed
     status: "active",
     allowance_type: "fixed",
     fixed_date: "",
@@ -64,7 +64,7 @@ const CreateNewAllowance = () => {
     company_id: "",
     department_id: "",
     amount: "",
-    category: "travel",
+    // category removed
     status: "active",
     allowance_type: "fixed",
     fixed_date: "",
@@ -78,7 +78,7 @@ const CreateNewAllowance = () => {
   });
 
   // Constants
-  const categories = ["travel", "bonus", "performance", "health", "other"];
+  // categories removed
   const statuses = ["active", "inactive"];
   const allowanceTypes = ["fixed", "variable"];
 
@@ -222,15 +222,13 @@ const CreateNewAllowance = () => {
   const filteredAllowances = allowances.filter((allowance) => {
     const matchesCompany =
       selectedCompany === "all" || allowance.company_id == selectedCompany;
-    const matchesCategory =
-      selectedCategory === "" || allowance.category === selectedCategory;
     const matchesSearch =
       allowance.allowance_name
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       allowance.allowance_code.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesCompany && matchesCategory && matchesSearch;
+    return matchesCompany && matchesSearch;
   });
 
   // Excel Import/Export Functions
@@ -238,16 +236,16 @@ const CreateNewAllowance = () => {
     setIsDownloadingTemplate(true);
     try {
       const response = await AllowancesService.downloadTemplate();
-      
+
       // Create a download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', 'allowances_template.xlsx');
+      link.setAttribute("download", "allowances_template.xlsx");
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
-      
+
       showSuccessAlert("Template downloaded successfully!");
     } catch (error) {
       showErrorAlert(error.message || "Failed to download template");
@@ -261,44 +259,44 @@ const CreateNewAllowance = () => {
     setImportErrors([]);
   };
 
-const handleImportSubmit = async () => {
-  if (!importFile) {
-    showErrorAlert("Please select a file to import");
-    return;
-  }
-
-  setIsProcessing(true);
-  setImportErrors([]);
-  
-  try {
-    const response = await AllowancesService.importAllowances(importFile);
-    showSuccessAlert(response.message || "Allowances imported successfully!");
-    setIsImportModalOpen(false);
-    setImportFile(null);
-    fetchData();
-  } catch (error) {
-    console.error("Import error:", error);
-    
-    let errorMessage = "There were errors in your import file:";
-    let errorsToDisplay = [];
-    
-    if (error.message.includes("Row")) {
-      // Format multiple row errors
-      const rowErrors = error.message.split("\n");
-      errorsToDisplay = rowErrors;
-      errorMessage += "\n\n" + rowErrors.map(e => `• ${e}`).join("\n");
-    } else {
-      // Single error
-      errorsToDisplay = [error.message];
-      errorMessage += `\n\n• ${error.message}`;
+  const handleImportSubmit = async () => {
+    if (!importFile) {
+      showErrorAlert("Please select a file to import");
+      return;
     }
-    
-    setImportErrors(errorsToDisplay);
-    showErrorAlert(errorMessage);
-  } finally {
-    setIsProcessing(false);
-  }
-};
+
+    setIsProcessing(true);
+    setImportErrors([]);
+
+    try {
+      const response = await AllowancesService.importAllowances(importFile);
+      showSuccessAlert(response.message || "Allowances imported successfully!");
+      setIsImportModalOpen(false);
+      setImportFile(null);
+      fetchData();
+    } catch (error) {
+      console.error("Import error:", error);
+
+      let errorMessage = "There were errors in your import file:";
+      let errorsToDisplay = [];
+
+      if (error.message.includes("Row")) {
+        // Format multiple row errors
+        const rowErrors = error.message.split("\n");
+        errorsToDisplay = rowErrors;
+        errorMessage += "\n\n" + rowErrors.map((e) => `• ${e}`).join("\n");
+      } else {
+        // Single error
+        errorsToDisplay = [error.message];
+        errorMessage += `\n\n• ${error.message}`;
+      }
+
+      setImportErrors(errorsToDisplay);
+      showErrorAlert(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   // Handlers for CRUD operations
   const handleAddAllowance = async () => {
@@ -317,9 +315,7 @@ const handleImportSubmit = async () => {
       if (!newAllowance.company_id) {
         errors.company_id = ["Company is required"];
       }
-      if (!newAllowance.department_id) {
-        errors.department_id = ["Department is required"];
-      }
+      // department is optional now
       if (!newAllowance.amount) {
         errors.amount = ["Amount is required"];
       }
@@ -354,7 +350,7 @@ const handleImportSubmit = async () => {
       const response = await AllowancesService.createAllowance(newAllowance);
 
       // Find company and department objects
-      const selectedCompany = companies.find(
+      const selectedCompanyObj = companies.find(
         (c) => c.id == newAllowance.company_id
       );
       const selectedDepartment = departments.find(
@@ -366,15 +362,13 @@ const handleImportSubmit = async () => {
         ...prev,
         {
           ...response,
-          // Add these nested objects explicitly
-          company: {
-            id: selectedCompany.id,
-            name: selectedCompany.name,
-          },
-          department: {
-            id: selectedDepartment.id,
-            name: selectedDepartment.name,
-          },
+          // Add these nested objects explicitly, department may be null
+          company: selectedCompanyObj
+            ? { id: selectedCompanyObj.id, name: selectedCompanyObj.name }
+            : null,
+          department: selectedDepartment
+            ? { id: selectedDepartment.id, name: selectedDepartment.name }
+            : null,
         },
       ]);
 
@@ -384,7 +378,6 @@ const handleImportSubmit = async () => {
         allowance_name: "",
         company_id: companies[0]?.id || "",
         department_id: "",
-        category: "travel",
         status: "active",
         allowance_type: "fixed",
         amount: "",
@@ -423,9 +416,7 @@ const handleImportSubmit = async () => {
       if (!editAllowance.company_id) {
         errors.company_id = ["Company is required"];
       }
-      if (!editAllowance.department_id) {
-        errors.department_id = ["Department is required"];
-      }
+      // department is optional now
       if (!editAllowance.amount) {
         errors.amount = ["Amount is required"];
       }
@@ -458,7 +449,7 @@ const handleImportSubmit = async () => {
       }
 
       // Find company and department objects to include in the updated allowance
-      const selectedCompany = companies.find(
+      const selectedCompanyObj = companies.find(
         (c) => c.id == editAllowance.company_id
       );
       const selectedDepartment = departments.find(
@@ -477,14 +468,12 @@ const handleImportSubmit = async () => {
             return {
               ...response,
               // Ensure these nested objects exist
-              company: {
-                id: selectedCompany.id,
-                name: selectedCompany.name,
-              },
-              department: {
-                id: selectedDepartment.id,
-                name: selectedDepartment.name,
-              },
+              company: selectedCompanyObj
+                ? { id: selectedCompanyObj.id, name: selectedCompanyObj.name }
+                : null,
+              department: selectedDepartment
+                ? { id: selectedDepartment.id, name: selectedDepartment.name }
+                : null,
             };
           }
           return item;
@@ -560,7 +549,6 @@ const handleImportSubmit = async () => {
       company_id: companies[0]?.id || "",
       department_id: "",
       amount: "",
-      category: "travel",
       status: "active",
       allowance_type: "fixed",
       fixed_date: "",
@@ -579,7 +567,6 @@ const handleImportSubmit = async () => {
       amount: "",
       company_id: companies[0]?.id || "",
       department_id: "",
-      category: "travel",
       status: "active",
       allowance_type: "fixed",
       fixed_date: "",
@@ -599,19 +586,6 @@ const handleImportSubmit = async () => {
     return status === "active"
       ? "bg-green-100 text-green-800 border-green-200"
       : "bg-gray-100 text-gray-600 border-gray-200";
-  };
-
-  const getCategoryIcon = (category) => {
-    const icons = {
-      travel: <Plane className="w-4 h-4 text-blue-600" />,
-      bonus: <DollarSign className="w-4 h-4 text-yellow-600" />,
-      performance: <Target className="w-4 h-4 text-green-600" />,
-      health: <Heart className="w-4 h-4 text-red-600" />,
-      other: <Clipboard className="w-4 h-4 text-gray-600" />,
-    };
-    return (
-      icons[category] || <DollarSign className="w-4 h-4 text-yellow-600" />
-    );
   };
 
   // Loading state
@@ -733,9 +707,11 @@ const handleImportSubmit = async () => {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Categories</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Allowance Types
+                </p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {categories.length}
+                  {allowanceTypes.length}
                 </p>
               </div>
               <div className="p-3 bg-purple-100 rounded-xl">
@@ -763,7 +739,7 @@ const handleImportSubmit = async () => {
           </div>
         </div>
 
-        {/* Company and Category Filter */}
+        {/* Company Filter (category removed) */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -778,23 +754,6 @@ const handleImportSubmit = async () => {
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
                   {company.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Category
-            </label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
                 </option>
               ))}
             </select>
@@ -818,9 +777,6 @@ const handleImportSubmit = async () => {
                   </th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">
                     Department
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">
-                    Category
                   </th>
 
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">
@@ -849,7 +805,7 @@ const handleImportSubmit = async () => {
               <tbody className="divide-y divide-gray-100">
                 {filteredAllowances.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-12">
+                    <td colSpan="11" className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <div className="p-4 bg-gray-100 rounded-full">
                           <Search className="w-8 h-8 text-gray-400" />
@@ -884,27 +840,13 @@ const handleImportSubmit = async () => {
                           <span className="font-medium text-gray-900">
                             {allowance.allowance_name}
                           </span>
-                          <span className="text-sm text-gray-500 sm:hidden">
-                            {getCategoryIcon(allowance.category)}{" "}
-                            {allowance.category.charAt(0).toUpperCase() +
-                              allowance.category.slice(1)}
-                          </span>
                         </div>
                       </td>
                       <td className="py-4 px-6 hidden sm:table-cell">
-                        <div className="flex items-center gap-2">
-                          {getCategoryIcon(allowance.category)}
-                          <span className="text-gray-700">
-                            {allowance.category.charAt(0).toUpperCase() +
-                              allowance.category.slice(1)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 hidden lg:table-cell">
                         {allowance.company?.name || "Unknown Company"}
                       </td>
                       <td className="py-4 px-6 hidden lg:table-cell">
-                        {allowance.department?.name || "Unknown Department"}
+                        {allowance.department?.name || "—"}
                       </td>
                       <td className="py-4 px-6 hidden lg:table-cell">
                         LKR {parseFloat(allowance.amount).toFixed(2)}
@@ -1066,25 +1008,6 @@ const handleImportSubmit = async () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Category *
-                </label>
-                <select
-                  value={newAllowance.category}
-                  onChange={(e) =>
-                    handleInputChange("category", e.target.value)
-                  }
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Allowance Type *
                 </label>
                 <select
@@ -1120,7 +1043,7 @@ const handleImportSubmit = async () => {
                         formErrors.add.fixed_date
                           ? "border-red-500"
                           : "border-gray-200"
-                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                       required
                     />
                     {formErrors.add.fixed_date && (
@@ -1145,7 +1068,7 @@ const handleImportSubmit = async () => {
                           formErrors.add.variable_from
                             ? "border-red-500"
                             : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                       />
                       {formErrors.add.variable_from && (
@@ -1168,7 +1091,7 @@ const handleImportSubmit = async () => {
                           formErrors.add.variable_to
                             ? "border-red-500"
                             : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                         min={newAllowance.variable_from}
                       />
@@ -1191,7 +1114,7 @@ const handleImportSubmit = async () => {
                   onChange={(e) => handleInputChange("amount", e.target.value)}
                   className={`w-full px-4 py-3 border ${
                     formErrors.add.amount ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter allowance amount"
                 />
                 {formErrors.add.amount && (
@@ -1213,7 +1136,7 @@ const handleImportSubmit = async () => {
                     formErrors.add.company_id
                       ? "border-red-500"
                       : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                 >
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
@@ -1230,7 +1153,7 @@ const handleImportSubmit = async () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Department *
+                  Department
                 </label>
                 <select
                   value={newAllowance.department_id}
@@ -1241,12 +1164,12 @@ const handleImportSubmit = async () => {
                     formErrors.add.department_id
                       ? "border-red-500"
                       : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   disabled={
                     !newAllowance.company_id || filteredDepartments.length === 0
                   }
                 >
-                  <option value="">Select Department</option>
+                  <option value="">None / Select Department</option>
                   {filteredDepartments.map((department) => (
                     <option key={department.id} value={department.id}>
                       {department.name}
@@ -1335,7 +1258,7 @@ const handleImportSubmit = async () => {
                     onChange={(e) =>
                       handleEditInputChange("status", e.target.value)
                     }
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all"
                   >
                     {statuses.map((status) => (
                       <option key={status} value={status}>
@@ -1360,7 +1283,7 @@ const handleImportSubmit = async () => {
                     formErrors.edit.allowance_name
                       ? "border-red-500"
                       : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter allowance name"
                 />
                 {formErrors.edit.allowance_name && (
@@ -1372,25 +1295,6 @@ const handleImportSubmit = async () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Category *
-                </label>
-                <select
-                  value={editAllowance.category}
-                  onChange={(e) =>
-                    handleEditInputChange("category", e.target.value)
-                  }
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Allowance Type *
                 </label>
                 <select
@@ -1398,9 +1302,8 @@ const handleImportSubmit = async () => {
                   onChange={(e) =>
                     handleEditInputChange("allowance_type", e.target.value)
                   }
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all"
                 >
-
                   {allowanceTypes.map((type) => (
                     <option key={type} value={type}>
                       {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -1427,7 +1330,7 @@ const handleImportSubmit = async () => {
                           formErrors.edit.fixed_date
                             ? "border-red-500"
                             : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                       />
                       {formErrors.edit.fixed_date && (
@@ -1455,7 +1358,7 @@ const handleImportSubmit = async () => {
                             formErrors.edit.variable_from
                               ? "border-red-500"
                               : "border-gray-200"
-                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                           required
                         />
                         {formErrors.edit.variable_from && (
@@ -1478,7 +1381,7 @@ const handleImportSubmit = async () => {
                             formErrors.edit.variable_to
                               ? "border-red-500"
                               : "border-gray-200"
-                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                           required
                           min={editAllowance.variable_from}
                         />
@@ -1507,7 +1410,7 @@ const handleImportSubmit = async () => {
                     formErrors.edit.amount
                       ? "border-red-500"
                       : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter allowance amount"
                 />
                 {formErrors.edit.amount && (
@@ -1530,7 +1433,7 @@ const handleImportSubmit = async () => {
                     formErrors.edit.company_id
                       ? "border-red-500"
                       : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                 >
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
@@ -1546,7 +1449,7 @@ const handleImportSubmit = async () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Department *
+                  Department
                 </label>
                 <select
                   value={editAllowance.department_id}
@@ -1557,8 +1460,9 @@ const handleImportSubmit = async () => {
                     formErrors.edit.department_id
                       ? "border-red-500"
                       : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                 >
+                  <option value="">None / Select Department</option>
                   {departments.map((department) => (
                     <option key={department.id} value={department.id}>
                       {department.name}
@@ -1653,7 +1557,9 @@ const handleImportSubmit = async () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Import Allowances</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Import Allowances
+                </h2>
                 <p className="text-gray-600 text-sm mt-1">
                   Upload an Excel file to import multiple allowances
                 </p>
@@ -1698,7 +1604,9 @@ const handleImportSubmit = async () => {
 
               {importErrors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-medium text-red-700 mb-2">Import Errors:</h4>
+                  <h4 className="font-medium text-red-700 mb-2">
+                    Import Errors:
+                  </h4>
                   <ul className="text-sm text-red-600 list-disc pl-5 space-y-1">
                     {importErrors.map((error, index) => (
                       <li key={index}>{error}</li>

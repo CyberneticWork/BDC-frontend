@@ -1708,6 +1708,10 @@ const SalaryProcessPage = () => {
                                   "0"}
                               </span>
                             </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs">Stamp :</span>
+                              <span>{employee.stamp || "0"}</span>
+                            </div>
                           </div>
                         )}
                       </td>
