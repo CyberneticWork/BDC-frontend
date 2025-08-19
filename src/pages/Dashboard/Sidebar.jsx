@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   Users,
@@ -32,6 +32,68 @@ const Sidebar = ({
     salaryProcess: false,
     timeAttendance: false,
   });
+
+  // Keep dropdowns open when a descendant item is the active item.
+  // This ensures a page refresh or direct deep link doesn't collapse the
+  // sidebar sections that contain the active page.
+  useEffect(() => {
+    const newExpanded = {
+      hrMaster: false,
+      allowanceDeduction: false,
+      loans: false,
+      salaryProcess: false,
+      timeAttendance: false,
+    };
+
+    if (activeItem) {
+      // top-level HR Master descendants
+      const hrDescendants = [
+        "show",
+        "employeeMaster",
+        "departmentMaster",
+        "shiftTime",
+        "grouproster",
+        "resignation",
+        "termination",
+        "allowanceDeduction",
+        "loans",
+        "salaryProcess",
+        "timeAttendance",
+      ];
+
+      if (hrDescendants.includes(activeItem)) {
+        newExpanded.hrMaster = true;
+      }
+
+      if (["createNewAllowance", "createNewDeduction"].includes(activeItem)) {
+        newExpanded.allowanceDeduction = true;
+      }
+
+      if (["viewLoans", "employeeLoan"].includes(activeItem)) {
+        newExpanded.loans = true;
+      }
+
+      if (["SalaryProcessPage", "SalaryPage"].includes(activeItem)) {
+        newExpanded.salaryProcess = true;
+      }
+
+      if (
+        [
+          "TimeCard",
+          "Overtime",
+          "leaveMaster",
+          "leaveApproval",
+          "hrLeaveApproval",
+          "noPayManagement",
+          "leavecalendar",
+        ].includes(activeItem)
+      ) {
+        newExpanded.timeAttendance = true;
+      }
+    }
+
+    setExpandedItems((prev) => ({ ...prev, ...newExpanded }));
+  }, [activeItem]);
 
   const toggleHrMaster = () => {
     setExpandedItems((prev) => ({ ...prev, hrMaster: !prev.hrMaster }));
