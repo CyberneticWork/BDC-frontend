@@ -360,8 +360,9 @@ const TimeCard = () => {
     }
     setIsLoading(true);
     setNicError('');
-    setAddErrors({}); // reset field errors
+    setAddErrors({});
 
+    // Get employee info
     let employee;
     try {
       employee = await timeCardService.fetchEmployeeByNic(nic);
@@ -371,13 +372,7 @@ const TimeCard = () => {
       return;
     }
 
-    if (!employee || !employee.id) {
-      setNicError('Employee not found');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate required fields and show per-field errors
+    // Validate fields
     const errs = {};
     if (!newRecord.date) errs.date = 'Date is required';
     if (!newRecord.status) errs.status = 'Status is required';
@@ -399,12 +394,52 @@ const TimeCard = () => {
     };
 
     try {
-      await addTimeCard(payload);
+      // Add the record
+      const response = await addTimeCard(payload);
+      // Get updated data
       const updated = await fetchTimeCards();
+      
+      // Store the record info we need to find later
+      const recordInfo = {
+        employeeId: employee.id,
+        date: newRecord.date,
+        time: newRecord.time,
+        status: newRecord.status
+      };
+      
+      // Set data first
       setAttendanceData(updated);
       setFilteredData(updated);
+      
+      // Find the new record with more flexible matching
+      let newRecordIndex = updated.findIndex(record => {
+        return (
+          // Match by employee info - could be different formats
+          (record.empNo === employee.attendance_employee_no || 
+           record.employee_id === employee.id) &&
+          // Match by date
+          record.date === newRecord.date &&
+          // Match by approximate time (in case of formatting differences)
+          record.time?.includes(newRecord.time.substring(0, 4))
+        );
+      });
+      
+      console.log("Found new record at index:", newRecordIndex);
+      
+      if (newRecordIndex !== -1) {
+        // Calculate which page contains the new record
+        const pageWithNewRecord = Math.floor(newRecordIndex / attendanceRowsPerPage) + 1;
+        console.log("Setting page to:", pageWithNewRecord);
+        
+        // Use setTimeout to ensure this happens after state updates
+        setTimeout(() => {
+          setAttendancePage(pageWithNewRecord);
+        }, 10);
+      }
+      
       setShowAddModal(false);
       clearAddModalFields();
+      
       Swal.fire({
         icon: 'success',
         title: 'Success!',

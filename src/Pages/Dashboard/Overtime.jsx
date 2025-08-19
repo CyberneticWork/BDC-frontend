@@ -5,6 +5,30 @@ import { fetchTimeCards, approveOt } from "@services/OverTimeService";
 const Overtime = () => {
   const [timeData, setTimeData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Helper: convert decimal hours (e.g. 2.17) to "2h 10m"
+  const formatDecimalHours = (val) => {
+    if (val === null || val === undefined || val === "") return "-";
+    const num = parseFloat(val);
+    if (isNaN(num)) return "-";
+    const sign = num < 0 ? "-" : "";
+    const abs = Math.abs(num);
+    const hours = Math.floor(abs);
+    const minutes = Math.round((abs - hours) * 60);
+    // Normalize rounding e.g. 1h 60m => 2h 0m
+    const adjHours = hours + Math.floor(minutes / 60);
+    const adjMinutes = minutes % 60;
+    return `${sign}${adjHours}h ${String(adjMinutes).padStart(2, "0")}m`;
+  };
+
+  // small helper to compute total OT when backend doesn't provide it
+  const computeTotalOt = (row) => {
+    const a = parseFloat(row.morning_ot || 0) || 0;
+    const b = parseFloat(row.evening_ot || row.afternoon_ot || 0) || 0;
+    const total = a + b;
+    return formatDecimalHours(total);
+  };
 
   useEffect(() => {
     // Fetch initial data
@@ -14,21 +38,37 @@ const Overtime = () => {
   // Fetch data
   const fetchOvertimeData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      // await new Promise((resolve) => setTimeout(resolve, 800));
       const data = await fetchTimeCards();
-      // console.log("Fetched overtime data:", data);
-      setTimeData(data);
+      console.log("Overtime API response:", data); // Debug what's coming back
+
+      if (Array.isArray(data)) {
+        setTimeData(data);
+      } else if (data && Array.isArray(data.data)) {
+        // Some APIs wrap the response in a data property
+        setTimeData(data.data);
+      } else {
+        console.error("Unexpected data format:", data);
+        setError("Data received in unexpected format");
+        setTimeData([]);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
+      setError("Failed to load overtime data");
+      setTimeData([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleApprove = async (id, sts) => {
-    await approveOt(id, sts);
-    fetchOvertimeData();
+    try {
+      await approveOt(id, sts);
+      fetchOvertimeData();
+    } catch (error) {
+      console.error("Error approving overtime:", error);
+    }
   };
 
   return (
@@ -48,6 +88,13 @@ const Overtime = () => {
             Manage and approve employee overtime hours efficiently
           </p>
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
 
         {/* Main Content - Always show table */}
         {isLoading ? (
@@ -126,74 +173,86 @@ const Overtime = () => {
                         className={`transition-all duration-200 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          {row.employee_id}
+                          {row.employee_no || row.employee_id || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {row.employee_name}
+                          {row.employee_name || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row?.time_card_id?.date ?? "-"}
+                          {row.date || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row?.shift_code?.start_time ?? "-"}
+                          {row.shift_start || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row?.time_card_id?.time ?? "-"}
+                          {row.in_time || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
-                          {row?.shift_code?.end_time ?? "-"}
+                          {row.shift_end || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {row?.time_card_id?.time ?? "-"}
+                          {/* Show OUT time and mark Cross-day when actual_date differs from date */}
+                          <div className="flex items-center gap-2">
+                            <span>{row.out_time || "-"}</span>
+                            {row.out_time &&
+                              (row.is_cross_day ||
+                                (row.actual_date && row.date && row.actual_date !== row.date)) && (
+                                <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                                  Cross-day
+                                </span>
+                              )}
+                          </div>
                         </td>
+
+                        {/* Format working hours */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
-                          {row?.time_card_id?.working_hours ?? "-"}
+                          {formatDecimalHours(row.working_hours)}
                         </td>
+
+                        {/* Morning OT */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                          {/* Morning OT - not directly in data, showing shift morning OT start time */}
-                          {row.time_card_id.working_hours}
+                          {formatDecimalHours(row.morning_ot)}
                         </td>
+
+                        {/* Evening/afternoon OT */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                          {row.morning_ot}
+                          {formatDecimalHours(row.evening_ot ?? row.afternoon_ot)}
                         </td>
+
+                        {/* Total OT */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">
-                          {row.evening_ot}
+                          {row.total_ot ? formatDecimalHours(row.total_ot) : computeTotalOt(row)}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
+                          {row.special_ot || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
-                          {(parseFloat(row.morning_ot) || 0) +
-                            (parseFloat(row.evening_ot) || 0)}
+                          {row.ot_morning_rate || "-"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{row?.ot_morning_rate ?? "-"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{row?.ot_night_rate ?? "-"}</td>
-
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
+                          {row.ot_night_rate || "-"}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {row.status === "pending" ? (
                             <div className="flex gap-2">
                               <button
-                                onClick={() =>
-                                  handleApprove(row.id, "approved")
-                                }
+                                onClick={() => handleApprove(row.id, "approved")}
                                 className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200"
                               >
                                 Approve
                               </button>
                               <button
-                                onClick={() =>
-                                  handleApprove(row.id, "rejected")
-                                }
+                                onClick={() => handleApprove(row.id, "rejected")}
                                 className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200"
                               >
                                 Reject
                               </button>
                             </div>
                           ) : row.status === "approved" ? (
-                            <span className="text-green-600 font-semibold">
-                              Approved
-                            </span>
+                            <span className="text-green-600 font-semibold">Approved</span>
                           ) : (
-                            <span className="text-red-600 font-semibold">
-                              Rejected
-                            </span>
+                            <span className="text-red-600 font-semibold">Rejected</span>
                           )}
                         </td>
                       </tr>
