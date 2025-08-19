@@ -46,10 +46,10 @@ function Home() {
       const userData = await loadUser();
       setUser(userData);
       storeUser(userData);
-  // After successful login, navigate to previous attempted path if any,
-  // otherwise go to /dashboard
-  const dest = (location.state && location.state.from) || "/dashboard";
-  navigate(dest);
+      // After successful login, navigate to previous attempted path if any,
+      // otherwise go to /dashboard
+      const dest = (location.state && location.state.from) || "/dashboard";
+      navigate(dest);
     } catch {
       setUser(null);
       clearUser();

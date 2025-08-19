@@ -8,7 +8,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-  <Route path="/dashboard/*" element={<Home />} />
+      <Route path="/dashboard/*" element={<Home />} />
       {/* Fallback to home for unknown routes */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

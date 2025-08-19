@@ -259,7 +259,6 @@ const Sidebar = ({
               <p className="font-medium text-gray-900 truncate">{user.name}</p>
               <p className="text-sm text-gray-500 truncate">HR Manager</p>
             </div>
-            
           </div>
         </div>
 
