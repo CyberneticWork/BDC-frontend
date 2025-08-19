@@ -19,6 +19,7 @@ import {
 import axios from "@utils/axios";
 import { format, parseISO } from "date-fns";
 import Swal from "sweetalert2";
+import NoPayService from "@services/NoPayService";
 
 const NoPayManagement = () => {
   // State management
@@ -32,7 +33,9 @@ const NoPayManagement = () => {
   const [employees, setEmployees] = useState([]);
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
-  
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage] = useState(20);
@@ -47,6 +50,16 @@ const NoPayManagement = () => {
   // Generate years (current year and 5 previous years)
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 
+  // Fetch companies
+  const fetchCompanies = async () => {
+    try {
+      const response = await axios.get("/apiData/companies");
+      setCompanies(Array.isArray(response.data) ? response.data : response.data || []);
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    }
+  };
+
   // Fetch no pay records with pagination
   const fetchNoPayRecords = async () => {
     setIsLoading(true);
@@ -55,14 +68,20 @@ const NoPayManagement = () => {
         page: currentPage,
         per_page: recordsPerPage
       };
-      
+
       if (month) params.month = months.indexOf(month) + 1;
       if (year) params.year = year;
       if (searchTerm) params.search = searchTerm;
 
-      const response = await axios.get("/no-pay-records", { params });
-      setNoPayRecords(response.data.data || response.data);
-      setTotalRecords(response.data.total || response.data.length);
+      if (selectedCompany !== "" && selectedCompany !== null && selectedCompany !== undefined) {
+        const companyId = Number(selectedCompany);
+        if (!Number.isNaN(companyId)) params.company_id = companyId;
+      }
+
+      const response = await NoPayService.getAllRecords(params);
+      const items = response.data || response;
+      setNoPayRecords(items);
+      setTotalRecords(response.total ?? (Array.isArray(items) ? items.length : 0));
     } catch (error) {
       Swal.fire({
         icon: 'error',
@@ -98,11 +117,16 @@ const NoPayManagement = () => {
       if (month) params.month = months.indexOf(month) + 1;
       if (year) params.year = year;
 
-      const response = await axios.get("/no-pay-records/stats", { params });
+      if (selectedCompany !== "" && selectedCompany !== null && selectedCompany !== undefined) {
+        const companyId = Number(selectedCompany);
+        if (!Number.isNaN(companyId)) params.company_id = companyId;
+      }
+
+      const data = await NoPayService.getStats(params);
       setStats({
-        totalRecords: response.data.total_records,
-        totalDays: response.data.total_days,
-        affectedEmployees: response.data.affected_employees,
+        totalRecords: data.total_records ?? 0,
+        totalDays: data.total_days ?? 0,
+        affectedEmployees: data.affected_employees ?? 0,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -111,19 +135,20 @@ const NoPayManagement = () => {
 
   // Initial data fetch
   useEffect(() => {
+    fetchCompanies();
     fetchNoPayRecords();
     fetchEmployees();
-  }, [month, year, currentPage, recordsPerPage]);
+  }, [month, year, currentPage, recordsPerPage, selectedCompany]);
 
   // Fetch stats when filters change
   useEffect(() => {
     fetchStats();
-  }, [month, year, noPayRecords]);
+  }, [month, year, noPayRecords, selectedCompany]);
 
   // Handle record selection
   const handleSelectRecord = (id) => {
-    setSelectedRecords(prev => 
-      prev.includes(id) 
+    setSelectedRecords(prev =>
+      prev.includes(id)
         ? prev.filter(recordId => recordId !== id)
         : [...prev, id]
     );
@@ -164,15 +189,11 @@ const NoPayManagement = () => {
 
     if (result.isConfirmed) {
       try {
-        const response = await axios.post("/no-pay-records/bulk-update", {
-          ids: selectedRecords,
-          status: status
-        });
-
+        const response = await NoPayService.bulkUpdateStatus(selectedRecords, status);
         Swal.fire({
           icon: 'success',
           title: 'Success!',
-          text: response.data.message,
+          text: response.message,
           confirmButtonColor: '#3b82f6',
         });
 
@@ -258,14 +279,14 @@ const NoPayManagement = () => {
       try {
         await axios.delete(`/no-pay-records/${id}`);
         setNoPayRecords(noPayRecords.filter((record) => record.id !== id));
-        
+
         Swal.fire({
           icon: 'success',
           title: 'Deleted!',
           text: 'Record has been deleted.',
           confirmButtonColor: '#3b82f6',
         });
-        
+
         fetchStats();
       } catch (error) {
         Swal.fire({
@@ -279,46 +300,54 @@ const NoPayManagement = () => {
   };
 
   // Handle generate NoPay records with SweetAlert
- const handleGenerateNoPay = async () => {
-  setIsGenerating(true);
-  try {
-    const result = await Swal.fire({
-      title: 'Generate No-Pay Records?',
-      text: `This will generate records for ${format(new Date(selectedDate), 'MMMM d, yyyy')}`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#3b82f6',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Generate',
-      cancelButtonText: 'Cancel'
-    });
-
-    if (result.isConfirmed) {
-      const response = await axios.post("/no-pay-records/generate", {
-        date: selectedDate
+  const handleGenerateNoPay = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await Swal.fire({
+        title: 'Generate No-Pay Records?',
+        text: `This will generate records for ${format(new Date(selectedDate), 'MMMM d, yyyy')}`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Generate',
+        cancelButtonText: 'Cancel'
       });
-      
+
+      if (result.isConfirmed) {
+        const payload = { date: selectedDate };
+
+        if (month) payload.month = months.indexOf(month) + 1;
+        if (year) payload.year = year;
+
+        if (selectedCompany !== "" && selectedCompany !== null && selectedCompany !== undefined) {
+          const companyId = Number(selectedCompany);
+          if (!Number.isNaN(companyId)) payload.company_id = companyId;
+        }
+
+        const response = await axios.post("/no-pay-records/generate", payload);
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: response.data.message,
+          confirmButtonColor: '#3b82f6',
+        });
+
+        fetchNoPayRecords();
+        fetchStats();
+      }
+    } catch (error) {
       Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: response.data.message,
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.message || 'Failed to generate no-pay records',
         confirmButtonColor: '#3b82f6',
       });
-      
-      fetchNoPayRecords();
-      fetchStats();
+    } finally {
+      setIsGenerating(false);
     }
-  } catch (error) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Error',
-      text: error.response?.data?.message || 'Failed to generate no-pay records',
-      confirmButtonColor: '#3b82f6',
-    });
-  } finally {
-    setIsGenerating(false);
-  }
-};
+  };
 
   // Handle print
   const handlePrint = () => {
@@ -350,7 +379,8 @@ const NoPayManagement = () => {
           
           <div class="report-meta">
             ${month ? `<strong>Month:</strong> ${month} ${year} | ` : ""}
-            <strong>Total Records:</strong> ${filteredRecords.length}
+            ${selectedCompany ? `<strong>Company ID:</strong> ${selectedCompany} | ` : ""}
+            <strong>Total Records:</strong> ${noPayRecords.length}
           </div>
           
           <table>
@@ -365,7 +395,7 @@ const NoPayManagement = () => {
               </tr>
             </thead>
             <tbody>
-              ${filteredRecords
+              ${noPayRecords
                 .map(
                   (record) => `
                 <tr>
@@ -387,13 +417,6 @@ const NoPayManagement = () => {
           </div>
         </body>
       </html>
-    `);
-
-    // Add summary at the bottom
-    printWindow.document.write(`
-      <div style="margin-top: 20px; padding: 10px; border-top: 1px solid #ddd;">
-        <p><strong>Summary:</strong> Total No Pay Days: ${stats.totalDays} | Affected Employees: ${stats.affectedEmployees}</p>
-      </div>
     `);
 
     printWindow.document.close();
@@ -469,7 +492,26 @@ const NoPayManagement = () => {
             )}
 
             {/* Filter Section */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Company
+                </label>
+                <select
+                  value={selectedCompany}
+                  onChange={(e) => {
+                    setSelectedCompany(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm"
+                >
+                  <option value="">All Companies</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Month
@@ -626,9 +668,7 @@ const NoPayManagement = () => {
                                   value={record.status}
                                   onChange={async (e) => {
                                     try {
-                                      await axios.put(`/no-pay-records/${record.id}`, {
-                                        status: e.target.value
-                                      });
+                                      await NoPayService.updateStatus(record.id, e.target.value);
                                       fetchNoPayRecords();
                                       fetchStats();
                                     } catch (error) {

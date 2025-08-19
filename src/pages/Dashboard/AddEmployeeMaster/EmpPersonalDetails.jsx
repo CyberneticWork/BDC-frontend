@@ -16,7 +16,7 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
-import config from "@src/config"; 
+import config from "@src/config";
 
 const relationshipOptions = [
   { value: "", label: "Select Relationship Type" },
@@ -49,6 +49,35 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
+const handleKeyDown = (e) => {
+  // Allow: backspace, delete, tab, escape, enter, arrows
+  // Allow: digits (0-9), decimal point (.)
+  if (
+    // Navigation keys
+    [46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
+    // Arrow keys
+    (e.keyCode >= 35 && e.keyCode <= 40) ||
+    // Numbers and decimal on main keyboard
+    (e.keyCode >= 48 && e.keyCode <= 57) ||
+    // Numbers on numpad
+    (e.keyCode >= 96 && e.keyCode <= 105) ||
+    // Decimal on numpad
+    e.keyCode === 110 ||
+    e.keyCode === 190
+  ) {
+    // Allow only one decimal point
+    if (
+      (e.keyCode === 110 || e.keyCode === 190) &&
+      e.target.value.includes(".")
+    ) {
+      e.preventDefault();
+    }
+    return;
+  }
+  // Prevent all other keys
+  e.preventDefault();
+};
+
 const EmpPersonalDetails = ({ onNext, activeCategory }) => {
   const {
     formData,
@@ -64,6 +93,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [dobError, setDobError] = useState(""); // local DOB validation error
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
@@ -102,8 +132,35 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     performSearch();
   }, [debouncedSearchTerm]);
 
+  // Helper to format YYYY-MM-DD reliably in local time
+  const formatDate = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  // Max selectable DOB = today - 8 years
+  const today = new Date();
+  const fifteenYearsAgo = new Date(
+    today.getFullYear() - 15,
+    today.getMonth(),
+    today.getDate()
+  );
+  const maxDob = formatDate(fifteenYearsAgo);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Validate DOB: must be at least 15 years before today
+    if (name === "dob") {
+      if (value && value > maxDob) {
+        setDobError("Date of Birth must be at least 15 years before today.");
+        return; // block invalid updates
+      } else {
+        if (dobError) setDobError("");
+      }
+    }
 
     if (errors.personal?.[name]) {
       clearFieldError("personal", name);
@@ -183,6 +240,34 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     try {
       const response = await employeeService.fetchEmployeeById(employeeId);
       const apiData = response;
+      // console.log("API Data:", apiData);
+      const normalizeGender = (gender) => {
+        if (!gender) return "";
+        const lower = gender.toLowerCase();
+        if (lower === "male") return "Male";
+        if (lower === "female") return "Female";
+        if (lower === "other") return "Other";
+        return gender;
+      };
+
+      const normalizeMaritalStatus = (status) => {
+        if (!status) return "";
+        const lower = status.toLowerCase();
+        if (lower === "single") return "Single";
+        if (lower === "married") return "Married";
+        if (lower === "divorced") return "Divorced";
+        if (lower === "widowed") return "Widowed";
+        return status;
+      };
+
+      const normalizeEmploymentStatus = (status) => {
+        if (!status) return "";
+        if (typeof status === "number") return status.toString();
+        return status;
+      };
+
+      // Fix: Get relationship type from spouse.type
+      const relationshipType = apiData.spouse?.type || "";
 
       const transformedData = {
         personal: {
@@ -192,19 +277,23 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
           epfNo: apiData.epf,
           nicNumber: apiData.nic,
           dob: apiData.dob,
-          gender: apiData.gender,
+          gender: normalizeGender(apiData.gender),
           religion: apiData.religion,
           countryOfBirth: apiData.country_of_birth,
           profilePicture: null,
           profilePicturePreview: apiData.profile_photo_path
             ? `${config.apiBaseUrl}/storage/${apiData.profile_photo_path}`
             : null,
-          employmentStatus: apiData.employment_status,
+          employmentStatus: normalizeEmploymentStatus(
+            apiData.employment_type_id
+          ),
           nameWithInitial: apiData.name_with_initials,
           fullName: apiData.full_name,
           displayName: apiData.display_name,
-          maritalStatus: apiData.marital_status,
-          relationshipType: apiData.relationship_type,
+          // FIX: Use apiData.marital_status instead of apiData.employment_type.name
+          maritalStatus: normalizeMaritalStatus(apiData.marital_status),
+          // FIX: Get relationship type from spouse data
+          relationshipType: relationshipType,
           spouseTitle: apiData.spouse?.title,
           spouseName: apiData.spouse?.name,
           spouseAge: apiData.spouse?.age,
@@ -263,6 +352,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             apiData.compensation?.budgetary_relief_allowance_2015 === 1,
           budgetaryReliefAllowance2016:
             apiData.compensation?.budgetary_relief_allowance_2016 === 1,
+          stamp: apiData.compensation?.stamp === 1,
         },
         organization: {
           company: apiData.organization_assignment?.company?.id?.toString(),
@@ -401,7 +491,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                       {employee.full_name}
                     </div>
                     <div className="text-sm text-gray-500">
-                      EPF: {employee.epf} | NIC: {employee.nic}
+                      No: {employee.attendance_employee_no} | NIC: {employee.nic}
                     </div>
                   </div>
                 </div>
@@ -522,12 +612,15 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                 name="dob"
                 value={formData.personal.dob}
                 onChange={handleChange}
+                max={maxDob} // prevent selecting dates newer than 8 years ago
                 className={`w-full border ${
-                  errors.personal?.dob ? "border-red-500" : "border-gray-300"
+                  errors.personal?.dob || dobError
+                    ? "border-red-500"
+                    : "border-gray-300"
                 } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 required
               />
-              <FieldError error={errors.personal?.dob} />
+              <FieldError error={errors.personal?.dob || dobError} />
             </div>
 
             {/* Gender */}
@@ -888,10 +981,11 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="spouseAge"
-                type="number"
+                type="text"
                 min="0"
                 value={formData.personal.spouseAge}
                 onChange={handleChange}
+                onKeyDown={handleKeyDown}
                 className={`w-full border ${
                   errors.personal?.spouseAge
                     ? "border-red-500"
@@ -903,13 +997,14 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                DOB <span className="text-red-500">*</span>
+                Date of Birth <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseDob"
                 type="date"
                 value={formData.personal.spouseDob}
                 onChange={handleChange}
+                max={maxDob}
                 className={`w-full border ${
                   errors.personal?.spouseDob
                     ? "border-red-500"
@@ -988,11 +1083,12 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                   />
                   <input
                     name="age"
-                    type="number"
+                    type="text"
                     min="0"
                     placeholder="Age"
                     value={child.age}
                     onChange={(e) => handleChildChange(idx, e)}
+                    onKeyDown={handleKeyDown}
                     className={`w-full border ${
                       errors.personal?.children?.[idx]?.age
                         ? "border-red-500"
@@ -1040,17 +1136,16 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
         </div>
 
         {/* Next Button */}
-        
       </div>
       <div className="flex justify-end mt-8">
-          <button
-            type="button"
-            onClick={onNext}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Next
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onNext}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 };

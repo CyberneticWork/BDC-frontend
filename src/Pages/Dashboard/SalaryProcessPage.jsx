@@ -25,11 +25,24 @@ import {
   fetchExcelData,
   importExcelData,
 } from "@services/SalaryProcessService";
+import { fetchSalaryCSV } from "@services/SalaryService";
 import AllowancesService from "@services/AllowancesService";
 import * as DeductionService from "@services/DeductionService";
 import ImportExcelModal from "@dashboard/ImportExcelModal";
+import Swal from "sweetalert2";
 
 const STORAGE_KEY = "processedSalaryData";
+
+const notify = {
+  success: (title, text) =>
+    Swal.fire({ icon: "success", title, text, confirmButtonColor: "#3085d6" }),
+  error: (title, text) =>
+    Swal.fire({ icon: "error", title, text, confirmButtonColor: "#d33" }),
+  warning: (title, text) =>
+    Swal.fire({ icon: "warning", title, text, confirmButtonColor: "#f59e0b" }),
+  info: (title, text) =>
+    Swal.fire({ icon: "info", title, text, confirmButtonColor: "#3085d6" }),
+};
 
 const SalaryProcessPage = () => {
   // State for filters
@@ -79,17 +92,38 @@ const SalaryProcessPage = () => {
       );
       // Optionally refresh your data after import
       // await fetchSalaryData();
+      notify.success("Imported", "Employee allowances imported successfully");
       return true;
     } catch (error) {
       console.error("Error importing Excel:", error);
-      throw error.response?.data?.message || "Failed to import file";
+      const msg = error.response?.data?.message || "Failed to import file";
+      notify.error("Import Failed", msg);
+      throw msg;
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    try {
+      const response = await fetchSalaryCSV();
+
+      const blob = await response;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "salary_records.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Failed to download CSV");
     }
   };
 
   // Add this success handler
   const handleImportSuccess = (message) => {
     setImportSuccessMessage(message);
-    // You might want to refresh your data here
+    notify.success("Import Successful", message || "Data imported");
     fetchSalaryData();
   };
 
@@ -109,15 +143,15 @@ const SalaryProcessPage = () => {
 
   // Months for dropdowns
   const months = [
-    { value: "1", label: "January" },
-    { value: "2", label: "February" },
-    { value: "3", label: "March" },
-    { value: "4", label: "April" },
-    { value: "5", label: "May" },
-    { value: "6", label: "June" },
-    { value: "7", label: "July" },
-    { value: "8", label: "August" },
-    { value: "9", label: "September" },
+    { value: "01", label: "January" },
+    { value: "02", label: "February" },
+    { value: "03", label: "March" },
+    { value: "04", label: "April" },
+    { value: "05", label: "May" },
+    { value: "06", label: "June" },
+    { value: "07", label: "July" },
+    { value: "08", label: "August" },
+    { value: "09", label: "September" },
     { value: "10", label: "October" },
     { value: "11", label: "November" },
     { value: "12", label: "December" },
@@ -129,9 +163,12 @@ const SalaryProcessPage = () => {
     statusInfo.lastProcessDate = new Date().toISOString().split("T")[0];
     try {
       await updateSlaryStatus("processed");
-      alert("Salary status updated!");
+      notify.success("Status Updated", "Salary status updated!");
     } catch (error) {
-      alert(error);
+      notify.error(
+        "Update Failed",
+        error.response?.data?.message || error.message || "Unknown error"
+      );
     }
     // Save processed data to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(employeeData));
@@ -141,7 +178,7 @@ const SalaryProcessPage = () => {
     // Get processed data from localStorage
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
     if (!data.length) {
-      alert("No processed salary data found.");
+      notify.info("No Data", "No processed salary data found.");
     }
   };
   const handleDownloadAllProcessed = async () => {
@@ -151,7 +188,10 @@ const SalaryProcessPage = () => {
       const processedData = await getProcessedSalaries();
 
       if (!processedData || processedData.length === 0) {
-        alert("No processed salary data found for the selected period.");
+        notify.info(
+          "No Data",
+          "No processed salary data found for the selected period."
+        );
         return;
       }
 
@@ -385,14 +425,23 @@ const SalaryProcessPage = () => {
             y += 6;
           });
         } else {
-          doc.text(`Salary Advance`, 15, y);
-          doc.text(`0.00`, 170, y, { align: "right" });
-          y += 6;
-          doc.text(`APIT`, 15, y);
-          doc.text(`0.00`, 170, y, { align: "right" });
-          y += 6;
+          // Default deduction entries
+          // doc.text(`Salary Advance`, 15, y);
+          // doc.text(`0.00`, 170, y, { align: "right" });
+          // y += 6;
+          // doc.text(`APIT`, 15, y);
+          // doc.text(`0.00`, 170, y, { align: "right" });
+          // y += 6;
           doc.text(`Stamp Duty`, 15, y);
-          doc.text(`0.00`, 170, y, { align: "right" });
+          doc.text(
+            `${(emp.salary_breakdown?.stamp || 0).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`,
+            170,
+            y,
+            { align: "right" }
+          );
           y += 6;
         }
 
@@ -509,13 +558,16 @@ const SalaryProcessPage = () => {
 
       try {
         await updateSlaryStatus("issued");
-        alert("Salary Issued !");
+        notify.success("Salary Issued", "Salary Issued!");
       } catch (error) {
-        alert(error);
+        notify.error(
+          "Issue Update Failed",
+          error.response?.data?.message || error.message || "Unknown error"
+        );
       }
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Error generating PDF. Please try again.");
+      notify.error("PDF Error", "Error generating PDF. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -533,6 +585,18 @@ const SalaryProcessPage = () => {
     setActiveFilter("NonEPF");
     const nonEPFEmployees = employeeData.filter((emp) => !emp.enable_epf_etf);
     setDisplayedData(nonEPFEmployees);
+  };
+
+  // NEW: Handle All Employees (show current fetched dataset)
+  const handleAllEmployees = () => {
+    setActiveFilter("All");
+    if (!employeeData || employeeData.length === 0) {
+      notify.info("No Data", "No data loaded yet. Please apply filters first.");
+      return;
+    }
+    setDisplayedData(employeeData);
+    setFilteredData(employeeData);
+    setSearchTerm("");
   };
 
   // Fetch companies on component mount
@@ -577,7 +641,10 @@ const SalaryProcessPage = () => {
   // Fetch salary data when Apply Filters is clicked
   const fetchSalaryData = async () => {
     if (!month || !year || !selectedCompany) {
-      alert("Please select company, month, and year before applying filters");
+      notify.warning(
+        "Missing Filters",
+        "Please select company, month, and year before applying filters"
+      );
       return null;
     }
 
@@ -595,7 +662,10 @@ const SalaryProcessPage = () => {
       return data.data; // Return the data
     } catch (error) {
       console.error("Error fetching salary data:", error);
-      alert("Error fetching salary data. Please try again.");
+      notify.error(
+        "Fetch Failed",
+        "Error fetching salary data. Please try again."
+      );
       return null;
     } finally {
       setIsLoading(false);
@@ -739,7 +809,10 @@ const SalaryProcessPage = () => {
 
   const getExcelData = async () => {
     if (!bulkActionId || selectedEmployees.length === 0) {
-      alert("Please fill all fields and select at least one employee");
+      notify.warning(
+        "Missing Data",
+        "Please fill all fields and select at least one employee"
+      );
       return;
     }
     const payload = {
@@ -758,7 +831,8 @@ const SalaryProcessPage = () => {
       // Create worksheet data
       const worksheetData = employees.map((employee) => {
         const row = {
-          ID: employee.id,
+          // ID: employee.id,
+          EMPLOYEE_NO: employee.attendance_employee_no,
           NIC: employee.nic,
           "Full Name": employee.full_name,
         };
@@ -795,9 +869,10 @@ const SalaryProcessPage = () => {
 
       // Download the file
       downloadCSV(csvContent, `${filePrefix}_${Date.now()}.csv`);
+      notify.success("Download Ready", "Template downloaded successfully");
     } catch (error) {
       console.error("Error generating Excel data:", error);
-      alert("Failed to generate Excel file");
+      notify.error("Failed", "Failed to generate Excel file");
     }
   };
 
@@ -839,7 +914,10 @@ const SalaryProcessPage = () => {
   // Apply bulk action to selected employees
   const applyBulkAction = async () => {
     if (!bulkActionId || selectedEmployees.length === 0) {
-      alert("Please fill all fields and select at least one employee");
+      notify.warning(
+        "Missing Data",
+        "Please fill all fields and select at least one employee"
+      );
       return;
     }
 
@@ -853,7 +931,8 @@ const SalaryProcessPage = () => {
     try {
       const res = await UpdateAllowances(payload);
       console.log(JSON.stringify(res));
-      alert(
+      notify.success(
+        "Success",
         `Successfully applied ${bulkActionType} to ${selectedEmployees.length} employee(s)`
       );
       // Refresh data after bulk action
@@ -867,7 +946,10 @@ const SalaryProcessPage = () => {
       setBulkActionName("");
     } catch (error) {
       console.log(error);
-      alert(`Error - ${error.response?.data?.message || error.message}`);
+      notify.error(
+        "Error",
+        error.response?.data?.message || error.message || "Operation failed"
+      );
     }
   };
 
@@ -893,30 +975,138 @@ const SalaryProcessPage = () => {
     const flattenedData = data.map((item) => {
       const flattened = { ...item };
 
-      // If salary_breakdown exists, flatten its properties with a prefix
+      // Process allowances array
+      if (Array.isArray(item.allowances)) {
+        flattened.allowances = item.allowances
+          .map((a) => `${a.name}: $${a.amount}`)
+          .join("; ");
+      } else {
+        flattened.allowances = "";
+      }
+
+      // Process deductions array
+      if (Array.isArray(item.deductions)) {
+        flattened.deductions = item.deductions
+          .map((d) => `${d.name}: $${d.amount}`)
+          .join("; ");
+      } else {
+        flattened.deductions = "";
+      }
+
+      // If salary_breakdown exists, flatten its properties
       if (item.salary_breakdown && typeof item.salary_breakdown === "object") {
         for (const [key, value] of Object.entries(item.salary_breakdown)) {
           flattened[`breakdown_${key}`] = value;
         }
-        delete flattened.salary_breakdown; // Remove the original nested object
+        delete flattened.salary_breakdown;
       }
+
+      // Convert boolean/flag values to Yes/No
+      const yesNoFields = [
+        "increment_active",
+        "ot_morning",
+        "ot_evening",
+        "enable_epf_etf",
+        "br1",
+        "br2",
+      ];
+      yesNoFields.forEach((field) => {
+        if (flattened[field] !== undefined && flattened[field] !== null) {
+          flattened[field] = flattened[field] == 1 ? "Yes" : "No";
+        }
+      });
 
       return flattened;
     });
 
+    // Create user-friendly header mappings
+    const headerMappings = {
+      id: "ID",
+      emp_no: "Employee No",
+      full_name: "Full Name",
+      company_name: "Company",
+      department_name: "Department",
+      sub_department_name: "Sub Department",
+      basic_salary: "Basic Salary",
+      increment_active: "Increment Active",
+      increment_value: "Increment Value",
+      increment_effected_date: "Increment Effective Date",
+      ot_morning: "OT Morning",
+      ot_evening: "OT Evening",
+      enable_epf_etf: "EPF/ETF Enabled",
+      br1: "BR1 Allowance",
+      br2: "BR2 Allowance",
+      ot_morning_rate: "OT Morning Rate",
+      ot_night_rate: "OT Night Rate",
+      stamp: "Stamp Fee",
+      br_status: "BR Status",
+      total_loan_amount: "Total Loan Amount",
+      installment_count: "Installment Count",
+      installment_amount: "Installment Amount",
+      approved_no_pay_days: "Approved No-Pay Days",
+      allowances: "Allowances",
+      deductions: "Deductions",
+      breakdown_basic_salary: "Basic Salary (Adjusted)",
+      breakdown_br_allowance: "BR Allowance",
+      breakdown_ot_morning_fees: "OT Morning Fees",
+      breakdown_ot_night_fees: "OT Night Fees",
+      breakdown_adjusted_basic: "Adjusted Basic",
+      breakdown_per_day_salary: "Per Day Salary",
+      breakdown_no_pay_deduction: "No-Pay Deduction",
+      breakdown_total_allowances: "Total Allowances",
+      breakdown_epf_etf_base: "EPF/ETF Base",
+      breakdown_epf_employee_deduction: "EPF Employee Deduction",
+      breakdown_epf_employer_contribution: "EPF Employer Contribution",
+      breakdown_etf_employer_contribution: "ETF Employer Contribution",
+      breakdown_total_fixed_deductions: "Total Fixed Deductions",
+      breakdown_loan_installment: "Loan Installment",
+      breakdown_gross_salary: "Gross Salary",
+      breakdown_total_deductions: "Total Deductions",
+      breakdown_stamp: "Stamp Fee (Breakdown)",
+      breakdown_net_salary: "Net Salary",
+    };
+
     // Extract headers from the first flattened object
     const headers = Object.keys(flattenedData[0]);
+
+    // Create user-friendly headers
+    const friendlyHeaders = headers.map(
+      (header) =>
+        headerMappings[header] ||
+        header.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+    );
 
     // Create CSV rows
     const rows = flattenedData.map((obj) =>
       headers
         .map((header) => {
-          // Escape quotes and wrap in quotes if contains comma
-          let value = obj[header] !== undefined ? String(obj[header]) : "";
+          // Handle null/undefined values
+          let value =
+            obj[header] !== undefined && obj[header] !== null
+              ? String(obj[header])
+              : "";
+
+          // Format currency values
+          if (
+            header.includes("salary") ||
+            header.includes("amount") ||
+            header.includes("rate") ||
+            header.includes("fee") ||
+            header.includes("deduction") ||
+            header.includes("contribution")
+          ) {
+            // Check if it's already formatted or is a textual description
+            if (!isNaN(parseFloat(value)) && isFinite(value)) {
+              value = parseFloat(value).toFixed(2);
+            }
+          }
+
+          // Escape quotes and wrap in quotes if contains comma or special characters
           if (
             value.includes(",") ||
             value.includes('"') ||
-            value.includes("\n")
+            value.includes("\n") ||
+            value.includes(";")
           ) {
             value = `"${value.replace(/"/g, '""')}"`;
           }
@@ -925,7 +1115,7 @@ const SalaryProcessPage = () => {
         .join(",")
     );
 
-    return [headers.join(","), ...rows].join("\n");
+    return [friendlyHeaders.join(","), ...rows].join("\n");
   }
 
   // Trigger CSV download
@@ -1016,7 +1206,7 @@ const SalaryProcessPage = () => {
                     : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50"
                 }
               `}
-              onClick={resetFilter}
+              onClick={handleAllEmployees} // changed from resetFilter
             >
               All Employees
             </button>
@@ -1047,10 +1237,6 @@ const SalaryProcessPage = () => {
             >
               <Users size={18} strokeWidth={2} />
               Non EPF Employee
-            </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg text-base font-semibold text-gray-700 hover:bg-blue-50 transition-colors shadow">
-              <Download size={18} strokeWidth={2} />
-              Export
             </button>
           </div>
 
@@ -1162,7 +1348,7 @@ const SalaryProcessPage = () => {
                   htmlFor="month"
                   className="block text-xs font-semibold text-gray-500 mb-1"
                 >
-                  Month
+                  Month {month}
                 </label>
                 <select
                   id="month"
@@ -1272,20 +1458,36 @@ const SalaryProcessPage = () => {
                 `}
                 onClick={async () => {
                   if (filteredData.length === 0) {
-                    alert("No data to save. Please apply filters first.");
+                    notify.info(
+                      "No Data",
+                      "No data to save. Please apply filters first."
+                    );
                     return;
                   }
                   try {
-                    const savedData = await saveSalaryData(filteredData);
+                    const dataWithMonth = filteredData.map((item) => ({
+                      ...item,
+                      month: month,
+                    }));
 
+                    const savedData = await saveSalaryData(dataWithMonth);
+                    // console.log(JSON.stringify(dataWithMonth));
                     // Convert to CSV and download
                     const csvContent = convertToCSV(filteredData);
                     downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
 
-                    alert("Salary data saved and downloaded successfully!");
+                    notify.success(
+                      "Saved",
+                      "Salary data saved and downloaded successfully!"
+                    );
                   } catch (error) {
                     console.error("Error saving salary data:", error);
-                    alert(error);
+                    notify.error(
+                      "Save Failed",
+                      error.response?.data?.message ||
+                        error.message ||
+                        "Unknown error"
+                    );
                   }
                 }}
                 type="button"
@@ -1310,13 +1512,16 @@ const SalaryProcessPage = () => {
                 Process Salary
               </button>
               <button
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
+                className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
     ${
       status !== "Processed"
         ? "bg-gray-100 text-gray-400 cursor-not-allowed"
         : "bg-purple-600 text-white hover:bg-purple-700 shadow"
     }`}
-                onClick={handleDownloadAllProcessed}
+                onClick={() => {
+                  handleDownloadAllProcessed();
+                  handleDownloadCSV();
+                }}
                 disabled={status !== "Processed"}
               >
                 <Download size={18} strokeWidth={2} />
@@ -1601,15 +1806,17 @@ const SalaryProcessPage = () => {
                         <div className="flex justify-between">
                           <span className="text-xs">EPF:</span>
                           <span className="text-yellow-600">
-                            {employee.salary_breakdown
-                              .epf_employer_contribution || "0"}
+                            {employee.salary_breakdown.epf_employer_contribution.toFixed(
+                              2
+                            ) || "0"}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-xs">ETF:</span>
                           <span className="text-yellow-600">
-                            {employee.salary_breakdown
-                              .etf_employer_contribution || "0"}
+                            {employee.salary_breakdown.etf_employer_contribution.toFixed(
+                              2
+                            ) || "0"}
                           </span>
                         </div>
                       </td>
@@ -1694,6 +1901,40 @@ const SalaryProcessPage = () => {
                                 {employee.salary_breakdown.per_day_salary?.toLocaleString()}
                               </span>
                             </div>
+
+                            {/* New: show probation over limit days and deduction */}
+                            {employee.salary_breakdown
+                              .probation_over_limit_days !== undefined && (
+                              <div className="flex justify-between">
+                                <span className="text-xs">
+                                  Probation Over Limit (days):
+                                </span>
+                                <span>
+                                  {Number(
+                                    employee.salary_breakdown
+                                      .probation_over_limit_days
+                                  ).toString()}
+                                </span>
+                              </div>
+                            )}
+                            {employee.salary_breakdown.probation_deduction !==
+                              undefined && (
+                              <div className="flex justify-between">
+                                <span className="text-xs">
+                                  Probation Deduction:
+                                </span>
+                                <span>
+                                  {Number(
+                                    employee.salary_breakdown
+                                      .probation_deduction
+                                  ).toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </div>
+                            )}
+
                             <div className="flex justify-between">
                               <span className="text-xs">Loan:</span>
                               <span>
@@ -1706,6 +1947,10 @@ const SalaryProcessPage = () => {
                                 {employee.salary_breakdown.no_pay_deduction ||
                                   "0"}
                               </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs">Stamp :</span>
+                              <span>{employee.stamp || "0"}</span>
                             </div>
                           </div>
                         )}

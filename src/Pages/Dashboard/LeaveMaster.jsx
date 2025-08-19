@@ -15,6 +15,7 @@ import Swal from "sweetalert2";
 import employeeService from "../../services/EmployeeDataService";
 import {
   createLeave,
+  createLeaveWithOverride, // Add this import
   getLeaveById,
   getLeaveCountsByEmployee,
 } from "../../services/LeaveMaster";
@@ -23,14 +24,15 @@ import { fetchLeaveCalendar } from "../../services/LeaveCalendar";
 const LeaveMaster = () => {
   // State for form fields
   const [formData, setFormData] = useState({
+    emp_id: "",
     attendanceNo: "",
     epfNo: "",
     employeeName: "",
     department: "",
     reportingDate: getCurrentDate(),
     leaveType: "",
-    leaveDateType: "fullDay", // fullDay, halfDay, manual
-    halfDayPeriod: "morning", // morning, afternoon
+    leaveDateType: "fullDay",
+    halfDayPeriod: "morning",
     leaveDate: {
       single: getCurrentDate(),
       from: getCurrentDate(),
@@ -55,21 +57,23 @@ const LeaveMaster = () => {
   // Add a new state to store employee data
   const [employeeData, setEmployeeData] = useState(null);
 
-  // Define standard leave entitlements
+  // Define standard leave entitlements - modified to only have Casual Leave available
   const leaveEntitlements = {
-    "Annual Leave": 14,
     "Casual Leave": 7,
-    "Medical Leave": 7,
+    "Annual Leave": 0,
+    "Medical Leave": 0,
     "Unpaid Leave": 0,
-    "Special Leave": 3,
+    "Special Leave": 0,
   };
 
+  // Keep all leave types but make only Casual Leave selectable
   const leaveTypes = [
-    "Annual Leave",
     "Casual Leave",
-    "Medical Leave",
-    "Unpaid Leave",
-    "Special Leave",
+    // Keep these for future use but they won't be selectable in the dropdown
+    // "Annual Leave",
+    // "Medical Leave",
+    // "Unpaid Leave",
+    // "Special Leave",
   ];
 
   // Helper function to get current date in YYYY-MM-DD format
@@ -88,21 +92,39 @@ const LeaveMaster = () => {
 
   // Function to format leave record for display
   function formatLeaveRecord(leaveData) {
+    let leaveDateDisplay = "";
+
+    if (leaveData.leave_date) {
+      leaveDateDisplay = formatDate(leaveData.leave_date);
+      if (leaveData.period) {
+        leaveDateDisplay += ` (${leaveData.period})`;
+      }
+    } else if (leaveData.leave_from && leaveData.leave_to) {
+      leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
+        leaveData.leave_to
+      )}`;
+      if (leaveData.leave_duration > 1) {
+        leaveDateDisplay += ` (${leaveData.leave_duration} days)`;
+      }
+    }
+
+    // Check for over-limit leave
+    const hasOverLimit = leaveData.over_limit && leaveData.over_limit > 0;
+
     return {
       id: leaveData.id,
-      leaveDate: leaveData.leave_date
-        ? formatDate(leaveData.leave_date)
-        : `${formatDate(leaveData.leave_from)} to ${formatDate(
-            leaveData.leave_to
-          )}`,
+      leaveDate: leaveDateDisplay,
       reportDate: formatDate(leaveData.reporting_date),
-      fullHalfDay: leaveData.leave_date
-        ? leaveData.period
-          ? `Half Day (${leaveData.period})`
-          : "Full Day"
-        : "Multiple Days",
+      fullHalfDay: leaveData.is_half_day
+        ? "Half Day"
+        : leaveData.leave_duration > 1
+        ? "Multiple Days"
+        : "Full Day",
       leaveType: leaveData.leave_type,
       status: leaveData.status,
+      duration: leaveData.leave_duration || (leaveData.is_half_day ? 0.5 : 1),
+      hasOverLimit: hasOverLimit,
+      overLimit: hasOverLimit ? leaveData.over_limit : 0,
     };
   }
 
@@ -253,13 +275,19 @@ const LeaveMaster = () => {
       }
     } catch (error) {
       console.error("Error fetching employee leaves:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Data Fetch Error",
+        text: "Failed to fetch leave records. Please try again.",
+        confirmButtonColor: "#3085d6",
+      });
       setLeaveRecords([]);
     } finally {
       setIsLoadingLeaves(false);
     }
   };
 
-  // Function to fetch employee leave counts
+  // Function to fetch employee leave counts - modified to handle half-day calculations and exclude rejected leaves
   const fetchLeaveUsage = async (employeeId) => {
     if (!employeeId) return;
 
@@ -270,46 +298,62 @@ const LeaveMaster = () => {
       if (leaveCounts && Array.isArray(leaveCounts)) {
         const formattedUsage = Object.keys(leaveEntitlements).map(
           (leaveType, index) => {
+            // Find the leave data for this type
             const leaveData = leaveCounts.find(
               (item) => item.leave_type === leaveType
             ) || {
-              count: 0,
+              approved_full_days: 0,
+              approved_half_days: 0,
+              rejected_full_days: 0,
+              rejected_half_days: 0,
             };
+
+            // Calculate total usage: approved full days + approved half days
+            const usage =
+              (parseFloat(leaveData.approved_full_days) || 0) +
+              (parseFloat(leaveData.approved_half_days) || 0);
+
             const total = leaveEntitlements[leaveType];
-            const usage = leaveData.count;
             const balance = total - usage;
 
             return {
               id: index + 1,
               leaveType: leaveType,
               total: total,
-              usage: usage,
-              balance: balance,
+              usage: usage.toFixed(1),
+              balance: balance.toFixed(1),
             };
           }
         );
         setLeaveUsageData(formattedUsage);
       } else {
+        // Default data if no records found
         const defaultUsage = Object.keys(leaveEntitlements).map(
           (leaveType, index) => ({
             id: index + 1,
             leaveType: leaveType,
             total: leaveEntitlements[leaveType],
-            usage: 0,
-            balance: leaveEntitlements[leaveType],
+            usage: "0.0",
+            balance: leaveEntitlements[leaveType].toFixed(1),
           })
         );
         setLeaveUsageData(defaultUsage);
       }
     } catch (error) {
       console.error("Error fetching leave usage data:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Data Fetch Error",
+        text: "Failed to fetch leave usage data. Please try again.",
+        confirmButtonColor: "#3085d6",
+      });
       const defaultUsage = Object.keys(leaveEntitlements).map(
         (leaveType, index) => ({
           id: index + 1,
           leaveType: leaveType,
           total: leaveEntitlements[leaveType],
-          usage: 0,
-          balance: leaveEntitlements[leaveType],
+          usage: "0.0",
+          balance: leaveEntitlements[leaveType].toFixed(1),
         })
       );
       setLeaveUsageData(defaultUsage);
@@ -321,7 +365,12 @@ const LeaveMaster = () => {
   // Function to fetch employee details using the API
   const fetchEmployeeDetails = async () => {
     if (!formData.attendanceNo) {
-      setSearchError("Please enter an employee number");
+      Swal.fire({
+        icon: "error",
+        title: "Input Required",
+        text: "Please enter an employee number",
+        confirmButtonColor: "#3085d6",
+      });
       return;
     }
 
@@ -329,7 +378,7 @@ const LeaveMaster = () => {
     setSearchError("");
 
     try {
-      const empData = await employeeService.fetchEmployeeById(
+      const empData = await employeeService.searchByAttendanceNo(
         formData.attendanceNo
       );
 
@@ -339,17 +388,23 @@ const LeaveMaster = () => {
 
         setFormData({
           ...formData,
+          emp_id: empData.id || "",
           epfNo: empData.epf || "",
           employeeName: empData.name_with_initials || "",
           department: empData.organization_assignment?.department?.name || "",
         });
 
         await Promise.all([
-          fetchEmployeeLeaves(formData.attendanceNo, empData),
-          fetchLeaveUsage(formData.attendanceNo),
+          fetchEmployeeLeaves(empData.id, empData),
+          fetchLeaveUsage(empData.id),
         ]);
       } else {
-        setSearchError("Employee not found");
+        Swal.fire({
+          icon: "error",
+          title: "Employee Not Found",
+          text: "No employee found with the provided number",
+          confirmButtonColor: "#3085d6",
+        });
         setLeaveRecords([]);
         setEmployeeData(null);
         const defaultUsage = Object.keys(leaveEntitlements).map(
@@ -365,7 +420,24 @@ const LeaveMaster = () => {
       }
     } catch (error) {
       console.error("Error fetching employee data:", error);
-      setSearchError("Failed to retrieve employee data. Please try again.");
+
+      if (error.response?.data?.message) {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: error.response.data.message,
+          confirmButtonColor: "#3085d6",
+        });
+      } else if (error.response?.data) {
+        showValidationErrors(error.response.data);
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Failed to retrieve employee data. Please try again.",
+          confirmButtonColor: "#3085d6",
+        });
+      }
       setLeaveRecords([]);
       setEmployeeData(null);
     } finally {
@@ -373,12 +445,55 @@ const LeaveMaster = () => {
     }
   };
 
-  // Handle form submission for leave requests
+  // Add this function at the top level of your component
+  const showValidationErrors = (errors) => {
+    const errorList = Object.values(errors)
+      .map((error) => `<li class="text-left">${error}</li>`)
+      .join("");
+
+    Swal.fire({
+      icon: "error",
+      title: "Limitation exceeded",
+      html: `
+        <div>
+          <ul class="list-disc pl-4 mt-2">
+            ${errorList}
+          </ul>
+        </div>
+      `,
+      confirmButtonColor: "#3085d6",
+      customClass: {
+        container: "font-sans",
+        popup: "rounded-xl",
+        confirmButton: "rounded-lg text-sm px-5 py-2.5",
+      },
+    });
+  };
+
+  // Handle form submission for leave requests - modified to validate leave balance
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError("");
     setSubmitSuccess(false);
     setIsSubmitting(true);
+
+    // If all main identifying fields are empty, show same error as for missing employee number
+    const allEmpty =
+      !formData.attendanceNo &&
+      !formData.epfNo &&
+      !formData.employeeName &&
+      !formData.department;
+
+    if (allEmpty) {
+      Swal.fire({
+        icon: "error",
+        title: "Input Required",
+        text: "Please enter an employee number",
+        confirmButtonColor: "#3085d6",
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       // First validate all selected dates
@@ -396,6 +511,18 @@ const LeaveMaster = () => {
         // Check each date in the range
         const fromDate = new Date(formData.leaveDate.from);
         const toDate = new Date(formData.leaveDate.to);
+
+        // Validate date range (to date should be after or equal to from date)
+        if (toDate < fromDate) {
+          Swal.fire({
+            icon: "error",
+            title: "Invalid Date Range",
+            text: "End date cannot be before start date",
+            confirmButtonColor: "#3085d6",
+          });
+          setIsSubmitting(false);
+          return;
+        }
 
         for (
           let d = new Date(fromDate);
@@ -417,28 +544,24 @@ const LeaveMaster = () => {
           icon: "error",
           title: "Invalid Date Selection",
           html: `
-            <div class="text-left">
-              <p>The following selected dates are not available:</p>
-              <ul class="list-disc pl-5 mt-2">
-                ${invalidDates
-                  .map((d) => `<li>${formatDateForDisplay(d)}</li>`)
-                  .join("")}
-              </ul>
-              <p class="mt-3 text-sm">Please adjust your leave dates and try again.</p>
-            </div>
-          `,
+          <div class="text-left">
+            <p>The following selected dates are not available:</p>
+            <ul class="list-disc pl-5 mt-2">
+              ${invalidDates
+                .map((d) => `<li>${formatDateForDisplay(d)}</li>`)
+                .join("")}
+            </ul>
+            <p class="mt-3 text-sm">Please adjust your leave dates and try again.</p>
+          </div>
+        `,
           confirmButtonColor: "#3085d6",
           confirmButtonText: "Ok, I understand",
-          customClass: {
-            popup: "rounded-xl",
-            confirmButton: "rounded-lg text-sm px-5 py-2.5",
-          },
         });
         return;
       }
 
       let leaveData = {
-        employee_id: parseInt(formData.attendanceNo),
+        employee_id: parseInt(employeeData.id),
         reporting_date: formData.reportingDate,
         leave_type: formData.leaveType,
         reason: formData.reason,
@@ -447,49 +570,157 @@ const LeaveMaster = () => {
         leave_from: null,
         leave_to: null,
         period: null,
+        is_half_day: false,
+        leave_duration: 0, // Add duration field
       };
 
       if (formData.leaveDateType === "fullDay") {
         leaveData.leave_date = formData.leaveDate.single;
+        leaveData.is_half_day = false;
+        leaveData.leave_duration = 1;
       } else if (formData.leaveDateType === "halfDay") {
         leaveData.leave_date = formData.leaveDate.single;
         leaveData.period =
           formData.halfDayPeriod === "morning" ? "Morning" : "Afternoon";
+        leaveData.is_half_day = true;
+        leaveData.leave_duration = 0.5;
       } else if (formData.leaveDateType === "manual") {
         leaveData.leave_from = formData.leaveDate.from;
         leaveData.leave_to = formData.leaveDate.to;
+        leaveData.is_half_day = false;
+
+        // Calculate duration for date range
+        const fromDate = new Date(formData.leaveDate.from);
+        const toDate = new Date(formData.leaveDate.to);
+        const timeDiff = toDate.getTime() - fromDate.getTime();
+        const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+        leaveData.leave_duration = dayDiff;
       }
 
-      const response = await createLeave(leaveData);
+      try {
+        const response = await createLeave(leaveData);
 
-      await Promise.all([
-        fetchEmployeeLeaves(formData.attendanceNo),
-        fetchLeaveUsage(formData.attendanceNo),
-      ]);
+        // Show success message
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Leave request submitted successfully!",
+          confirmButtonColor: "#3085d6",
+        });
 
-      setSubmitSuccess(true);
-      setFormData({
-        attendanceNo: formData.attendanceNo,
-        epfNo: formData.epfNo,
-        employeeName: formData.employeeName,
-        department: formData.department,
-        reportingDate: getCurrentDate(),
-        leaveType: "",
-        leaveDateType: "fullDay",
-        halfDayPeriod: "morning",
-        leaveDate: {
-          single: getCurrentDate(),
-          from: getCurrentDate(),
-          to: getCurrentDate(),
-        },
-        reason: "",
-      });
+        await handleSubmitSuccess();
+      } catch (error) {
+        // Check if this is a limit exceeded error that allows continuation
+        if (
+          error.response?.status === 422 &&
+          error.response?.data?.limit_exceeded &&
+          error.response?.data?.continue_allowed
+        ) {
+          // Show warning with continue option
+          const result = await Swal.fire({
+            icon: "warning",
+            title: "Leave Limitation",
+            html: `
+              <div class="text-left">
+                <p>${error.response.data.message}</p>
+                <p class="mt-3">Do you want to continue with this request anyway?</p>
+                <p class="mt-2 text-xs text-gray-500">
+                  Note: Continuing will mark this leave with an override status
+                </p>
+              </div>
+            `,
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Continue Anyway",
+            cancelButtonText: "Cancel Request",
+          });
+
+          if (result.isConfirmed) {
+            // User wants to continue - resubmit with force_continue flag
+            try {
+              const forceResponse = await createLeaveWithOverride(leaveData);
+
+              Swal.fire({
+                icon: "success",
+                title: "Leave Request Submitted",
+                text: "Your leave request has been submitted with the noted limitation.",
+                confirmButtonColor: "#3085d6",
+              });
+
+              await handleSubmitSuccess();
+            } catch (innerError) {
+              handleSubmitError(innerError);
+            }
+          } else {
+            // User canceled the request
+            setIsSubmitting(false);
+          }
+          return;
+        }
+
+        // Handle other errors
+        handleSubmitError(error);
+      }
     } catch (error) {
-      console.error("Error submitting leave request:", error);
-      setSubmitError("Failed to submit leave request. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      handleSubmitError(error);
     }
+  };
+
+  // Add these helper functions for cleaner code
+  const handleSubmitSuccess = async () => {
+    // Refresh the leave data to show updated balance
+    await Promise.all([
+      fetchEmployeeLeaves(employeeData.id, employeeData),
+      fetchLeaveUsage(employeeData.id),
+    ]);
+
+    setSubmitSuccess(true);
+    setFormData({
+      ...formData,
+      reportingDate: getCurrentDate(),
+      leaveType: "",
+      leaveDateType: "fullDay",
+      halfDayPeriod: "morning",
+      leaveDate: {
+        single: getCurrentDate(),
+        from: getCurrentDate(),
+        to: getCurrentDate(),
+      },
+      reason: "",
+    });
+
+    setIsSubmitting(false);
+  };
+
+  const handleSubmitError = (error) => {
+    console.error("Error submitting leave request:", error);
+
+    // Check if the error response contains validation errors
+    if (
+      error.response?.status === 422 &&
+      !error.response?.data?.limit_exceeded
+    ) {
+      showValidationErrors(error.response.data);
+    } else if (error.response?.data?.message) {
+      // Show specific error message from the server
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response.data.message,
+        confirmButtonColor: "#3085d6",
+      });
+    } else {
+      // Show generic error message
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to submit leave request. Please try again.",
+        confirmButtonColor: "#3085d6",
+      });
+    }
+
+    setIsSubmitting(false);
   };
 
   // Initialize default leave usage data when component mounts
@@ -499,8 +730,8 @@ const LeaveMaster = () => {
         id: index + 1,
         leaveType: leaveType,
         total: leaveEntitlements[leaveType],
-        usage: 0,
-        balance: leaveEntitlements[leaveType],
+        usage: "0.0",
+        balance: leaveEntitlements[leaveType].toFixed(1),
       })
     );
     setLeaveUsageData(defaultUsage);
@@ -516,7 +747,8 @@ const LeaveMaster = () => {
               Leave Master
             </h1>
             <p className="text-slate-300 text-center mt-2 text-sm sm:text-base">
-              Employee Leave Management System
+              Employee Leave Management System{" "}
+              {formData.attendanceNo && `- EMP No: ${formData.attendanceNo}`}
             </p>
           </div>
           <div className="p-4 sm:p-6 lg:p-8">
@@ -942,7 +1174,7 @@ const LeaveMaster = () => {
                     <button
                       type="submit"
                       className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md hover:shadow-lg flex items-center justify-center min-w-[150px]"
-                      disabled={isSubmitting || !formData.attendanceNo}
+                      disabled={isSubmitting}
                     >
                       {isSubmitting ? (
                         <>
@@ -1068,16 +1300,22 @@ const LeaveMaster = () => {
                                 Leave Date
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                                Duration
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                                 Report Date
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
-                                Full/Half Day
+                                Type
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                                 Leave Type
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                                 Status
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                                Limit
                               </th>
                             </tr>
                           </thead>
@@ -1089,6 +1327,9 @@ const LeaveMaster = () => {
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   {record.leaveDate}
+                                </td>
+                                <td className="px-4 py-3 border text-sm">
+                                  {record.duration} days
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   {record.reportDate}
@@ -1112,12 +1353,23 @@ const LeaveMaster = () => {
                                     {record.status}
                                   </span>
                                 </td>
+                                <td className="px-4 py-3 border text-sm">
+                                  {record.hasOverLimit ? (
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                      Over limit: {record.overLimit}
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Within limit
+                                    </span>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                             {leaveRecords.length === 0 && !isLoadingLeaves && (
                               <tr>
                                 <td
-                                  colSpan="6"
+                                  colSpan="8"
                                   className="px-4 py-8 border text-center text-gray-500"
                                 >
                                   {formData.employeeName

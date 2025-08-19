@@ -10,6 +10,35 @@ import {
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 
+const handleKeyDown = (e) => {
+  // Allow: backspace, delete, tab, escape, enter, arrows
+  // Allow: digits (0-9), decimal point (.)
+  if (
+    // Navigation keys
+    [46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
+    // Arrow keys
+    (e.keyCode >= 35 && e.keyCode <= 40) ||
+    // Numbers and decimal on main keyboard
+    (e.keyCode >= 48 && e.keyCode <= 57) ||
+    // Numbers on numpad
+    (e.keyCode >= 96 && e.keyCode <= 105) ||
+    // Decimal on numpad
+    e.keyCode === 110 ||
+    e.keyCode === 190
+  ) {
+    // Allow only one decimal point
+    if (
+      (e.keyCode === 110 || e.keyCode === 190) &&
+      e.target.value.includes(".")
+    ) {
+      e.preventDefault();
+    }
+    return;
+  }
+  // Prevent all other keys
+  e.preventDefault();
+};
+
 const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
   const { formData, updateFormData, errors, clearFieldError } =
     useEmployeeForm();
@@ -25,6 +54,8 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
   const handleToggleChange = (field) => {
     updateFormData("compensation", { [field]: !formData.compensation[field] });
   };
+
+  const isHighSalary = Number(formData.compensation?.basicSalary || 0) > 40000; // add this
 
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -46,81 +77,119 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                   Salary Information
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Basic Salary <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="number"
-                        value={formData.compensation.basicSalary}
-                        onChange={(e) =>
-                          handleInputChange("basicSalary", e.target.value)
-                        }
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.basicSalary
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter basic salary"
-                        required
-                      />
-                    </div>
-                    <FieldError error={errors.compensation?.basicSalary} />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Basic Salary <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.compensation.basicSalary}
+                      onChange={(e) =>
+                        handleInputChange("basicSalary", e.target.value)
+                      }
+                      onKeyDown={handleKeyDown}
+                      className={`w-full pl-10 pr-4 py-3 border ${
+                        errors.compensation?.basicSalary
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      placeholder="Enter basic salary"
+                      required
+                    />
                   </div>
+                  <FieldError error={errors.compensation?.basicSalary} />
+                </div>
+              </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Increment Value
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="number"
-                        value={formData.compensation.incrementValue}
-                        onChange={(e) =>
-                          handleInputChange("incrementValue", e.target.value)
-                        }
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.incrementValue
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter increment"
-                      />
-                    </div>
-                    <FieldError error={errors.compensation?.incrementValue} />
-                  </div>
+              {/* Increment Settings */}
+              <div className="bg-gradient-to-r from-indigo-50 to-violet-50 p-6 rounded-xl border border-indigo-200">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
+                  Increment Settings
+                </h2>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Increment Effective From
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="date"
-                        value={formData.compensation.incrementEffectiveFrom}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "incrementEffectiveFrom",
-                            e.target.value
-                          )
-                        }
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.incrementEffectiveFrom
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      />
-                    </div>
-                    <FieldError
-                      error={errors.compensation?.incrementEffectiveFrom}
+                <div className="flex items-center justify-between p-3 bg-white rounded-lg border mb-4">
+                  <label
+                    htmlFor="incrementActive"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Increment Active
+                  </label>
+                  <div
+                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                    style={{
+                      backgroundColor: formData.compensation.incrementActive
+                        ? "#3b82f6"
+                        : "#e5e7eb",
+                    }}
+                    onClick={() => handleToggleChange("incrementActive")}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                        formData.compensation.incrementActive
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                      }`}
                     />
                   </div>
                 </div>
+
+                {formData.compensation.incrementActive && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Increment Value
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.compensation.incrementValue}
+                          onChange={(e) =>
+                            handleInputChange("incrementValue", e.target.value)
+                          }
+                          onKeyDown={handleKeyDown}
+                          className={`w-full pl-10 pr-4 py-3 border ${
+                            errors.compensation?.incrementValue
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                          placeholder="Enter increment"
+                        />
+                      </div>
+                      <FieldError error={errors.compensation?.incrementValue} />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Increment Effective From
+                      </label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="date"
+                          value={formData.compensation.incrementEffectiveFrom}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "incrementEffectiveFrom",
+                              e.target.value
+                            )
+                          }
+                          className={`w-full pl-10 pr-4 py-3 border ${
+                            errors.compensation?.incrementEffectiveFrom
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                        />
+                      </div>
+                      <FieldError
+                        error={errors.compensation?.incrementEffectiveFrom}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Employment Settings */}
@@ -150,6 +219,32 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                           formData.compensation.secondaryEmp
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <label
+                      htmlFor="Stamp"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Stamp
+                    </label>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      style={{
+                        backgroundColor: formData.compensation.stamp
+                          ? "#3b82f6"
+                          : "#e5e7eb",
+                      }}
+                      onClick={() => handleToggleChange("stamp")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          formData.compensation.stamp
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -202,32 +297,6 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                           formData.compensation.otActive
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="incrementActive"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Increment Active
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.incrementActive
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("incrementActive")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.incrementActive
                             ? "translate-x-6"
                             : "translate-x-1"
                         }`}
@@ -356,11 +425,12 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
-                        type="number"
+                        type="text"
                         value={formData.compensation.ot_morning_rate}
                         onChange={(e) =>
                           handleInputChange("ot_morning_rate", e.target.value)
                         }
+                        onKeyDown={handleKeyDown}
                         className={`w-full pl-10 pr-4 py-3 border ${
                           errors.compensation?.ot_morning_rate
                             ? "border-red-500"
@@ -380,11 +450,12 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
-                        type="number"
+                        type="text"
                         value={formData.compensation.ot_night_rate}
                         onChange={(e) =>
                           handleInputChange("ot_night_rate", e.target.value)
                         }
+                        onKeyDown={handleKeyDown}
                         className={`w-full pl-10 pr-4 py-3 border ${
                           errors.compensation?.ot_night_rate
                             ? "border-red-500"
@@ -426,9 +497,111 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                         } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                       >
                         <option value="1/1/1900">Select Bank</option>
-                        <option value="bank1">Bank of Ceylon</option>
-                        <option value="bank2">Commercial Bank</option>
-                        <option value="bank3">Peoples Bank</option>
+                        <option value="Bank of Ceylon">Bank of Ceylon</option>
+                        <option value="Standard Chartered Bank">
+                          Standard Chartered Bank
+                        </option>
+                        <option value="Citi Bank">Citi Bank</option>
+                        <option value="Commercial Bank PLC">
+                          Commercial Bank PLC
+                        </option>
+                        <option value="Habib Bank Ltd">Habib Bank Ltd</option>
+                        <option value="Hatton National Bank PLC">
+                          Hatton National Bank PLC
+                        </option>
+                        <option value="Hongkong   Shanghai Bank">
+                          Hongkong Shanghai Bank
+                        </option>
+                        <option value="Indian Bank">Indian Bank</option>
+                        <option value="Indian Overseas Bank">
+                          Indian Overseas Bank
+                        </option>
+                        <option value="Peoples Bank">Peoples Bank</option>
+                        <option value="State Bank of India">
+                          State Bank of India
+                        </option>
+                        <option value="Nations Trust Bank PLC">
+                          Nations Trust Bank PLC
+                        </option>
+                        <option value="Deutsche Bank">Deutsche Bank</option>
+                        <option value="National Development Bank PLC">
+                          National Development Bank PLC
+                        </option>
+                        <option value="MCB Bank Ltd">MCB Bank Ltd</option>
+                        <option value="Sampath Bank PLC">
+                          Sampath Bank PLC
+                        </option>
+                        <option value="Seylan Bank PLC">Seylan Bank PLC</option>
+                        <option value="Public Bank">Public Bank</option>
+                        <option value="Union Bank of Colombo PLC">
+                          Union Bank of Colombo PLC
+                        </option>
+                        <option value="Pan Asia Banking Corporation PLC">
+                          Pan Asia Banking Corporation PLC
+                        </option>
+                        <option value="ICICI Bank Ltd">ICICI Bank Ltd</option>
+                        <option value="DFCC Bank PLC">DFCC Bank PLC</option>
+                        <option value="Amana Bank PLC">Amana Bank PLC</option>
+                        <option value="Axis Bank">Axis Bank</option>
+                        <option value="Cargills Bank Limited">
+                          Cargills Bank Limited
+                        </option>
+                        <option value="National Savings Bank">
+                          National Savings Bank
+                        </option>
+                        <option value="Sanasa Development Bank">
+                          Sanasa Development Bank
+                        </option>
+                        <option value="HDFC Bank">HDFC Bank</option>
+                        <option value="Citizen Development Business Finance PLC">
+                          Citizen Development Business Finance PLC
+                        </option>
+                        <option value="Regional Development Bank">
+                          Regional Development Bank
+                        </option>
+                        <option value="State Mortgage & Investment Bank">
+                          State Mortgage & Investment Bank
+                        </option>
+                        <option value="LB Finance PLC">LB Finance PLC</option>
+                        <option value="Senkadagala Finance PLC">
+                          Senkadagala Finance PLC
+                        </option>
+                        <option value="Commercial Leasing and Finance">
+                          Commercial Leasing and Finance
+                        </option>
+                        <option value="Vallibel Finance PLC">
+                          Vallibel Finance PLC
+                        </option>
+                        <option value="Central Finance PLC">
+                          Central Finance PLC
+                        </option>
+                        <option value="Kanrich Finance Limited">
+                          Kanrich Finance Limited
+                        </option>
+                        <option value="Alliance Finance Company PLC">
+                          Alliance Finance Company PLC
+                        </option>
+                        <option value="LOLC Finance PLC">
+                          LOLC Finance PLC
+                        </option>
+                        <option value="Commercial Credit & Finance PLC">
+                          Commercial Credit & Finance PLC
+                        </option>
+                        <option value="Merchant Bank of Sri Lanka & Finance PLC">
+                          Merchant Bank of Sri Lanka & Finance PLC
+                        </option>
+                        <option value="HNB Grameen Finance Limited">
+                          HNB Grameen Finance Limited
+                        </option>
+                        <option value="Mercantile Investment and Finance PLC">
+                          Mercantile Investment and Finance PLC
+                        </option>
+                        <option value="People's Leasing & Finance PLC">
+                          People's Leasing & Finance PLC
+                        </option>
+                        <option value="Central Bank of Sri Lanka">
+                          Central Bank of Sri Lanka
+                        </option>
                       </select>
                       <FieldError error={errors.compensation?.bankName} />
                     </div>
@@ -437,7 +610,8 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Branch Name <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <input
+                        type="text"
                         value={formData.compensation.branchName}
                         onChange={(e) =>
                           handleInputChange("branchName", e.target.value)
@@ -447,12 +621,8 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                             ? "border-red-500"
                             : "border-gray-300"
                         } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      >
-                        <option value="1/1/1900">Select Branch</option>
-                        <option value="branch1">Main Branch</option>
-                        <option value="branch2">City Branch</option>
-                        <option value="branch3">Regional Branch</option>
-                      </select>
+                        placeholder="Enter branch name"
+                      />
                       <FieldError error={errors.compensation?.branchName} />
                     </div>
 
@@ -466,6 +636,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                         onChange={(e) =>
                           handleInputChange("bankCode", e.target.value)
                         }
+                        onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-3 border ${
                           errors.compensation?.bankCode
                             ? "border-red-500"
@@ -499,7 +670,8 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Bank Account Number <span className="text-red-500">*</span>
+                      Bank Account Number{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -509,6 +681,7 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                         onChange={(e) =>
                           handleInputChange("bankAccountNo", e.target.value)
                         }
+                        onKeyDown={handleKeyDown}
                         className={`w-full pl-10 pr-4 py-3 border ${
                           errors.compensation?.bankAccountNo
                             ? "border-red-500"
@@ -538,25 +711,30 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                         BR1 Relief allowance for 2015
                       </p>
                     </div>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation
-                          .budgetaryReliefAllowance2015
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() =>
-                        handleToggleChange("budgetaryReliefAllowance2015")
-                      }
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.budgetaryReliefAllowance2015
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                        style={{
+                          backgroundColor: formData.compensation
+                            .budgetaryReliefAllowance2015
+                            ? "#3b82f6"
+                            : "#e5e7eb",
+                        }}
+                        onClick={() =>
+                          handleToggleChange("budgetaryReliefAllowance2015")
+                        }
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                            formData.compensation.budgetaryReliefAllowance2015
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                          }`}
+                        />
+                      </div>
+                      {isHighSalary && (
+                        <span className="text-xs text-green-600">Eligible</span>
+                      )}
                     </div>
                   </div>
 
@@ -569,25 +747,30 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                         BR2 Relief allowance for 2016
                       </p>
                     </div>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation
-                          .budgetaryReliefAllowance2016
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() =>
-                        handleToggleChange("budgetaryReliefAllowance2016")
-                      }
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.budgetaryReliefAllowance2016
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                        style={{
+                          backgroundColor: formData.compensation
+                            .budgetaryReliefAllowance2016
+                            ? "#3b82f6"
+                            : "#e5e7eb",
+                        }}
+                        onClick={() =>
+                          handleToggleChange("budgetaryReliefAllowance2016")
+                        }
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                            formData.compensation.budgetaryReliefAllowance2016
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                          }`}
+                        />
+                      </div>
+                      {isHighSalary && (
+                        <span className="text-xs text-green-600">Eligible</span>
+                      )}
                     </div>
                   </div>
                 </div>

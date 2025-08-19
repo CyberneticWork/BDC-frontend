@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   Users,
@@ -33,6 +33,98 @@ const Sidebar = ({
     timeAttendance: false,
   });
 
+  const menuItems = [
+    { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
+    // { id: "user", name: "Users", icon: User2, badge: null },
+    {
+      id: "hrMaster",
+      name: "HR Master",
+      icon: Users,
+      badge: null,
+      subItems: [
+        { id: "show", name: "Show Employee", icon: UserCheck },
+        { id: "employeeMaster", name: " Add Employee Master" },
+        { id: "departmentMaster", name: "Department Master" },
+        { id: "shiftTime", name: "Shift Time" },
+        { id: "grouproster", name: "Roster" },
+        { id: "resignation", name: "Resignation" },
+        { id: "termination", name: "Termination" },
+        {
+          id: "allowanceDeduction",
+          name: "Compensation",
+          icon: DollarSign,
+          subItems: [
+            { id: "createNewAllowance", name: "Allowance" },
+            { id: "createNewDeduction", name: "Deduction" },
+          ],
+        },
+        {
+          id: "loans",
+          name: "Loans",
+          icon: DollarSign,
+          subItems: [
+            { id: "viewLoans", name: "View Loans" },
+            { id: "employeeLoan", name: "Employee Wise Loan" },
+          ],
+        },
+        {
+          id: "salaryProcess",
+          name: "Salary Process",
+          icon: DollarSign,
+          subItems: [
+            { id: "SalaryProcessPage", name: "Salary Process" },
+            { id: "SalaryPage", name: "View Salary" },
+          ],
+        },
+        {
+          id: "timeAttendance",
+          name: "Time Attendance",
+          icon: UserCheck,
+          subItems: [
+            { id: "TimeCard", name: "Time Card" },
+            { id: "Overtime", name: "Over Time" },
+            { id: "leaveMaster", name: "Leave Master" },
+            { id: "leaveApproval", name: "Leave Approval" },
+            { id: "hrLeaveApproval", name: "HR Leave Approval" },
+            { id: "noPayManagement", name: "NoPay" },
+            { id: "leavecalendar", name: "Leave Calendar" },
+          ],
+        },
+        //add more i needed
+      ],
+    },
+    { id: "reports", name: "Reports", icon: BarChart3, badge: null },
+    { id: "utilities", name: "Utilities", icon: FileText, badge: null },
+  ];
+
+  // NEW: auto-expand nested groups based on the current activeItem (works on reload)
+  useEffect(() => {
+    const findPath = (items, target) => {
+      for (const item of items) {
+        if (item.id === target) return [item.id];
+        if (item.subItems) {
+          const subPath = findPath(item.subItems, target);
+          if (subPath) return [item.id, ...subPath];
+        }
+      }
+      return null;
+    };
+
+    const path = findPath(menuItems, activeItem) || [];
+
+    setExpandedItems({
+      hrMaster: path.includes("hrMaster"),
+      allowanceDeduction:
+        path.includes("allowanceDeduction") ||
+        activeItem === "allowanceDeduction",
+      loans: path.includes("loans") || activeItem === "loans",
+      salaryProcess:
+        path.includes("salaryProcess") || activeItem === "salaryProcess",
+      timeAttendance:
+        path.includes("timeAttendance") || activeItem === "timeAttendance",
+    });
+  }, [activeItem]);
+
   const toggleHrMaster = () => {
     setExpandedItems((prev) => ({ ...prev, hrMaster: !prev.hrMaster }));
   };
@@ -57,88 +149,6 @@ const Sidebar = ({
       timeAttendance: !prev.timeAttendance,
     }));
   };
-
-  const menuItems = [
-    { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
-
-    {
-      id: "hrMaster",
-      name: "HR Master",
-      icon: Users,
-      badge: null,
-      subItems: [
-        { id: "show", name: "Show Employee", icon: UserCheck },
-        { id: "employeeMaster", name: " Add Employee Master" },
-        { id: "departmentMaster", name: "Department Master" },
-        { id: "shiftTime", name: "Shift Time" },
-        { id: "grouproster", name: "Roster" },
-        { id: "resignation", name: "Resignation" },
-        { id: "termination", name: "Termination" },
-        // {
-        //   id: "Allowance",
-        //   name: "Allowance",
-        //   icon: DollarSign,
-        //   subItems: [{ id: "createNewAllowance", name: "View Allowance" }],
-        // },
-        // {
-        //   id: "deduction",
-        //   name: "Deduction",
-        //   icon: DollarSign,
-        //   subItems: [{ id: "createNewDeduction", name: "View Deduction" }],
-        // },
-        {
-          id: "allowanceDeduction",
-          name: "Compensation",
-          icon: DollarSign,
-          subItems: [
-            { id: "createNewAllowance", name: "Allowance" },
-            { id: "createNewDeduction", name: "Deduction" },
-          ],
-        },
-
-        {
-          id: "loans",
-          name: "Loans",
-          icon: DollarSign,
-          subItems: [
-            { id: "viewLoans", name: "View Loans" },
-            { id: "employeeLoan", name: "Employee Wise Loan" },
-            // { id: "loanProcess", name: "Loan Process" },
-          ],
-        },
-        {
-          id: "salaryProcess",
-          name: "Salary Process",
-          icon: DollarSign,
-          subItems: [
-            // { id: "salaryMaster", name: "Salary Master" },
-            { id: "SalaryProcessPage", name: "Salary Process" },
-            { id: "SalaryPage", name: "View Salary" },
-          ],
-        },
-        {
-          id: "timeAttendance",
-          name: "Time Attendance",
-          icon: UserCheck,
-          subItems: [
-            { id: "TimeCard", name: "Time Card" },
-            { id: "Overtime", name: "Over Time" },
-            { id: "leaveMaster", name: "Leave Master" },
-            { id: "leaveApproval", name: "Leave Approval" },
-            { id: "hrLeaveApproval", name: "HR Leave Approval" }, // Add this new line
-            { id: "noPayManagement", name: "NoPay" },
-            { id: "leavecalendar", name: "Leave Calendar" },
-          ],
-        },
-        //add more i needed
-      ],
-    },
-    // { id: "attendance", name: "Attendance", icon: UserCheck, badge: null },
-    // { id: "payroll", name: "Payroll", icon: DollarSign, badge: null },
-    // { id: "calendar", name: "Calendar", icon: Calendar, badge: null },
-    { id: "reports", name: "Reports", icon: BarChart3, badge: null },
-    { id: "utilities", name: "Utilities", icon: FileText, badge: null },
-  ];
 
   return (
     <>
@@ -197,7 +207,6 @@ const Sidebar = ({
               <p className="font-medium text-gray-900 truncate">{user.name}</p>
               <p className="text-sm text-gray-500 truncate">HR Manager</p>
             </div>
-            <ChevronDown className="h-4 w-4 text-gray-400" />
           </div>
         </div>
 

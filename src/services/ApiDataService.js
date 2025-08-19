@@ -157,10 +157,20 @@ export const employeesBySubDepartment = async (id) => {
 
 export const addTimeCard = async (data) => {
   try {
-    const response = await axios.post('/time-cards', data);
+    const response = await axios.post("/time-cards", data);
     console.log("Time card added successfully:", response.data);
     return response.data;
   } catch (error) {
     throw error;
+  }
+};
+
+export const employeesByCompany = async (id) => {
+  try {
+    const response = await axios.get(`${API_PREFIX}/companies/${id}/employees`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching employees by company:", error);
+    return [];
   }
 };

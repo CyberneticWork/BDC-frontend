@@ -41,11 +41,56 @@ const timeCardService = {
     return response.data;
   },
 
+  // Add this method to process the data client-side
+  async importExcelData(data) {
+    // client-side guard: require from_date & to_date
+    if (!data || !data.from_date || !data.to_date) {
+      throw new Error('Both From Date and To Date are required for import.');
+    }
+
+    const formData = new FormData();
+
+    // Add basic fields (ensure strings)
+    formData.append('from_date', String(data.from_date));
+    formData.append('to_date', String(data.to_date));
+    if (data.company_id !== undefined && data.company_id !== '') {
+      formData.append('company_id', String(data.company_id));
+    }
+
+    // If you're sending parsed records, include them
+    if (data.records) {
+      formData.append('records', JSON.stringify(data.records));
+    }
+
+    // Preserve original filename when appending the file
+    if (data.file) {
+      const fileName = data.file.name || 'import.xlsx';
+      formData.append('file', data.file, fileName);
+      formData.append('file_type', data.file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      formData.append('file_ext', fileName.split('.').pop().toLowerCase());
+    }
+
+    try {
+      const response = await axios.post('/attendance/import-excel', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Excel import error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
   async fetchCompanies() {
     const res = await axios.get('/companies');
     return res.data;
   },
-
+async fetchTodayStats() {
+    const response = await axios.get('/dashboard/stats/today');
+    return response.data;
+},
   async fetchAbsentees({ date, search = "" }) {
     const response = await axios.get('/attendance/absentees', {
       params: { date, search }
@@ -61,7 +106,13 @@ const timeCardService = {
       if (response.status !== 200 || !response.data) {
         throw new Error('Download failed');
       }
-      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      
+      // IMPORTANT: Explicitly set the MIME type instead of relying on response headers
+      // This fixes the Linux server issue
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
       const link = document.createElement('a');
       link.href = window.URL.createObjectURL(blob);
       link.setAttribute('download', 'attendance_template.xlsx');

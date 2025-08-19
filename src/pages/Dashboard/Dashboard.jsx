@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   Users,
@@ -44,6 +44,11 @@ import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
+import employeeService from "../../services/EmployeeDataService";
+import { fetchDepartments } from "../../services/ApiDataService";
+import timeCardService from "../../services/timeCardService";
+
+import { useLocation, useNavigate } from "react-router-dom";
 
 ChartJS.register(
   CategoryScale,
@@ -64,55 +69,62 @@ const clearForm = () => {
 };
 
 const DashboardStats = () => {
-  const stats = [
-    {
-      name: "Total Employees",
-      value: "2,847",
-      change: "+12%",
-      icon: Users,
-      gradient: "from-blue-500 to-blue-600",
-      lightBg: "bg-blue-50",
-      iconBg: "bg-blue-500",
-      shadowColor: "shadow-blue-200",
-    },
-    {
-      name: "Present Today",
-      value: "2,234",
-      change: "+2.3%",
-      icon: UserCheck,
-      gradient: "from-green-500 to-green-600",
-      lightBg: "bg-green-50",
-      iconBg: "bg-green-500",
-      shadowColor: "shadow-green-200",
-    },
-    {
-      name: "On Leave",
-      value: "89",
-      change: "-5.4%",
-      icon: Calendar,
-      gradient: "from-yellow-500 to-orange-500",
-      lightBg: "bg-yellow-50",
-      iconBg: "bg-yellow-500",
-      shadowColor: "shadow-yellow-200",
-    },
-    {
-      name: "Departments",
-      value: "24",
-      change: "+1",
-      icon: Building2,
-      gradient: "from-purple-500 to-purple-600",
-      lightBg: "bg-purple-50",
-      iconBg: "bg-purple-500",
-      shadowColor: "shadow-purple-200",
-    },
-  ];
+  const [stats, setStats] = useState([
+    { name: "Total Employees", value: "-", change: "-", icon: Users },
+    { name: "Present Today", value: "-", change: "-", icon: UserCheck },
+    { name: "On Leave", value: "-", change: "-", icon: Calendar },
+    { name: "Departments", value: "-", change: "-", icon: Building2 },
+  ]);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        // Fetch total employees
+        const employees = await employeeService.fetchEmployees();
+        // Fetch departments
+        const departments = await fetchDepartments();
+        // Fetch today's stats
+        const todayStats = await timeCardService.fetchTodayStats();
+
+        setStats([
+          {
+            name: "Total Employees",
+            value: employees.length,
+            change: "+12%",
+            icon: Users,
+          },
+          {
+            name: "Present Today",
+            value: todayStats.present,
+            change: "+2.3%",
+            icon: UserCheck,
+          },
+          {
+            name: "On Leave",
+            value: todayStats.on_leave,
+            change: "-5.4%",
+            icon: Calendar,
+          },
+          {
+            name: "Departments",
+            value: departments.length,
+            change: "+1",
+            icon: Building2,
+          },
+        ]);
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      }
+    }
+    fetchStats();
+  }, []);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {stats.map((stat, index) => (
         <div
           key={index}
-          className={`${stat.lightBg} rounded-2xl shadow-lg ${stat.shadowColor} p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 border border-white/50 backdrop-blur-sm`}
+          className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 border border-gray-100"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -132,8 +144,8 @@ const DashboardStats = () => {
                 {stat.change} from last month
               </p>
             </div>
-            <div className={`${stat.iconBg} p-4 rounded-2xl shadow-lg`}>
-              <stat.icon className="h-8 w-8 text-white" />
+            <div className="bg-blue-100 p-4 rounded-2xl shadow-lg">
+              <stat.icon className="h-8 w-8 text-blue-600" />
             </div>
           </div>
         </div>
@@ -143,66 +155,107 @@ const DashboardStats = () => {
 };
 
 const DashboardCharts = () => {
-  // Employee Attendance Data
-  const attendanceData = {
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    datasets: [
-      {
-        label: "Present",
-        data: [2100, 2150, 2200, 2180, 2250, 1800, 800],
-        backgroundColor: "rgba(16, 185, 129, 0.8)",
-        borderColor: "rgba(16, 185, 129, 1)",
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      },
-      {
-        label: "Absent",
-        data: [150, 120, 100, 90, 80, 200, 400],
-        backgroundColor: "rgba(239, 68, 68, 0.8)",
-        borderColor: "rgba(239, 68, 68, 1)",
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      },
-    ],
-  };
+  const [attendanceData, setAttendanceData] = useState({
+    labels: [],
+    datasets: [],
+  });
+  const [departmentData, setDepartmentData] = useState({
+    labels: [],
+    datasets: [],
+  });
 
-  // Department Distribution Data
-  const departmentData = {
-    labels: [
-      "Sales",
-      "Marketing",
-      "Development",
-      "HR",
-      "Finance",
-      "Operations",
-    ],
-    datasets: [
-      {
-        data: [300, 250, 500, 100, 150, 200],
-        backgroundColor: [
-          "rgba(239, 68, 68, 0.8)",
-          "rgba(59, 130, 246, 0.8)",
-          "rgba(251, 191, 36, 0.8)",
-          "rgba(16, 185, 129, 0.8)",
-          "rgba(139, 92, 246, 0.8)",
-          "rgba(251, 146, 60, 0.8)",
-        ],
-        borderColor: [
-          "rgba(239, 68, 68, 1)",
-          "rgba(59, 130, 246, 1)",
-          "rgba(251, 191, 36, 1)",
-          "rgba(16, 185, 129, 1)",
-          "rgba(139, 92, 246, 1)",
-          "rgba(251, 146, 60, 1)",
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
+  useEffect(() => {
+    async function fetchChartData() {
+      try {
+        // Fetch attendance for the last 7 days
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        let presentCounts = [];
+        let absentCounts = [];
+        
+        for (let i = 0; i < 7; i++) {
+          const date = new Date();
+          date.setDate(date.getDate() - (6 - i));
+          const dateStr = date.toISOString().slice(0, 10);
+          
+          // Get present count for this date
+          const timeCards = await timeCardService.getTimeCardsByDate(dateStr);
+          const presentEmployees = new Set();
+          
+          timeCards.forEach(card => {
+            if (card.status === 'IN') {
+              presentEmployees.add(card.employee_id);
+            }
+          });
+          
+          const employees = await employeeService.fetchEmployees();
+          presentCounts.push(presentEmployees.size);
+          absentCounts.push(employees.length - presentEmployees.size);
+        }
+        
+        setAttendanceData({
+          labels: days,
+          datasets: [
+            {
+              label: "Present",
+              data: presentCounts,
+              backgroundColor: "rgba(16, 185, 129, 0.8)",
+              borderColor: "rgba(16, 185, 129, 1)",
+              borderWidth: 2,
+              borderRadius: 8,
+              borderSkipped: false,
+            },
+            {
+              label: "Absent",
+              data: absentCounts,
+              backgroundColor: "rgba(239, 68, 68, 0.8)",
+              borderColor: "rgba(239, 68, 68, 1)",
+              borderWidth: 2,
+              borderRadius: 8,
+              borderSkipped: false,
+            },
+          ],
+        });
 
-  // Salary Trend Data
+        // Fetch departments and employee counts per department
+        const departments = await fetchDepartments();
+        const employees = await employeeService.fetchEmployees();
+        const deptLabels = departments.map((d) => d.name);
+        const deptCounts = departments.map(
+          (d) => employees.filter((e) => e.organization?.department === d.name).length
+        );
+        
+        setDepartmentData({
+          labels: deptLabels,
+          datasets: [
+            {
+              data: deptCounts,
+              backgroundColor: [
+                "rgba(239, 68, 68, 0.8)",
+                "rgba(59, 130, 246, 0.8)",
+                "rgba(251, 191, 36, 0.8)",
+                "rgba(16, 185, 129, 0.8)",
+                "rgba(139, 92, 246, 0.8)",
+                "rgba(251, 146, 60, 0.8)",
+              ],
+              borderColor: [
+                "rgba(239, 68, 68, 1)",
+                "rgba(59, 130, 246, 1)",
+                "rgba(251, 191, 36, 1)",
+                "rgba(16, 185, 129, 1)",
+                "rgba(139, 92, 246, 1)",
+                "rgba(251, 146, 60, 1)",
+              ],
+              borderWidth: 2,
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Error fetching chart data:", error);
+      }
+    }
+    fetchChartData();
+  }, []);
+
   const salaryData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
     datasets: [
@@ -226,8 +279,7 @@ const DashboardCharts = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-      {/* Attendance Chart */}
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
         <div className="flex items-center mb-6">
           <div className="bg-blue-100 p-2 rounded-xl mr-3">
             <Clock className="h-6 w-6 text-blue-600" />
@@ -284,8 +336,7 @@ const DashboardCharts = () => {
         </div>
       </div>
 
-      {/* Department Distribution Chart */}
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
         <div className="flex items-center mb-6">
           <div className="bg-green-100 p-2 rounded-xl mr-3">
             <Building2 className="h-6 w-6 text-green-600" />
@@ -318,81 +369,24 @@ const DashboardCharts = () => {
         </div>
       </div>
 
-      {/* Salary Trend Chart */}
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 lg:col-span-2">
-        <div className="flex items-center mb-6">
-          <div className="bg-purple-100 p-2 rounded-xl mr-3">
-            <DollarSign className="h-6 w-6 text-purple-600" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">
-            Monthly Salary Trend
-          </h3>
-        </div>
-        <div className="h-80">
-          <Line
-            data={salaryData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: "top",
-                  labels: {
-                    usePointStyle: true,
-                    padding: 20,
-                    font: {
-                      size: 12,
-                      weight: "bold",
-                    },
-                  },
-                },
-              },
-              scales: {
-                y: {
-                  grid: {
-                    color: "rgba(0, 0, 0, 0.1)",
-                  },
-                  ticks: {
-                    callback: function (value) {
-                      return "LKR " + (value / 1000000).toFixed(1) + "M";
-                    },
-                    font: {
-                      size: 11,
-                    },
-                  },
-                },
-                x: {
-                  grid: {
-                    display: false,
-                  },
-                  ticks: {
-                    font: {
-                      size: 11,
-                    },
-                  },
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
+      
     </div>
   );
 };
 
-const QuickActions = () => {
+const QuickActions = ({ setActiveItem }) => {
   const actions = [
     {
       icon: Users,
       label: "Add Employee",
-      action: "employeeAdd",
+      action: "EmployeeMaster",
       color: "from-blue-500 to-blue-600",
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
     },
     {
       icon: Calendar,
-      label: "Leave Approval",
+      label: "Leave",
       action: "leaveMaster",
       color: "from-green-500 to-green-600",
       iconBg: "bg-green-100",
@@ -408,16 +402,16 @@ const QuickActions = () => {
     },
     {
       icon: DollarSign,
-      label: "Process Salary",
-      action: "SalaryProcessPage",
+      label: "Loan",
+      action: "employeeLoan",
       color: "from-purple-500 to-purple-600",
       iconBg: "bg-purple-100",
       iconColor: "text-purple-600",
     },
     {
       icon: PieChart,
-      label: "Reports",
-      action: "reports",
+      label: "Leave Calendar",
+      action: "leavecalendar",
       color: "from-pink-500 to-pink-600",
       iconBg: "bg-pink-100",
       iconColor: "text-pink-600",
@@ -425,12 +419,13 @@ const QuickActions = () => {
   ];
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 mb-8">
+    <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-8">
       <h3 className="text-xl font-bold text-gray-800 mb-6">Quick Actions</h3>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {actions.map((action, index) => (
           <button
             key={index}
+            onClick={() => setActiveItem(action.action)}
             className="group flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-white hover:to-gray-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
           >
             <div
@@ -449,24 +444,43 @@ const QuickActions = () => {
 };
 
 const Dashboard = ({ user, onLogout }) => {
-  // Sidebar state
   const [activeItem, setActiveItem] = useState("dashboard");
   const [isOpen, setIsOpen] = useState(false);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const parts = location.pathname.split("/").filter(Boolean);
+    const section = parts[1] || "dashboard";
+    if (section && section !== activeItem) {
+      setActiveItem(section);
+    }
+  }, [location.pathname]);
+
+  const handleSetActiveItem = (id) => {
+    setActiveItem(id);
+    if (id === "dashboard") navigate("/dashboard", { replace: false });
+    else navigate(`/dashboard/${id}`, { replace: false });
+  };
+
+  // Scroll to top on activeItem change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [activeItem]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex">
-      {/* Sidebar */}
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
         user={user}
         onLogout={onLogout}
         activeItem={activeItem}
-        setActiveItem={setActiveItem}
+        setActiveItem={handleSetActiveItem}
         isOpen={isOpen}
         setIsOpen={setIsOpen}
       />
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
-        <nav className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-white/20">
+        <nav className="bg-white shadow-lg border-b border-gray-200">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center lg:hidden">
@@ -494,7 +508,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                     <Building2 className="h-5 w-5 text-white" />
                   </div>
-                  <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                  <span className="text-xl font-bold text-gray-900">
                     HRM Dashboard
                   </span>
                 </div>
@@ -532,6 +546,8 @@ const Dashboard = ({ user, onLogout }) => {
               <EmployeeAdd />
             ) : activeItem === "show" ? (
               <ShowEmployee />
+            ) : activeItem === "EmployeeMaster" ? (
+              <EmployeeMaster />
             ) : activeItem === "createNewDeduction" ? (
               <CreateNewDeduction />
             ) : activeItem === "shiftTime" ? (
@@ -571,7 +587,7 @@ const Dashboard = ({ user, onLogout }) => {
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900 mb-2">
                     HRM Dashboard
                   </h1>
                   <p className="text-gray-600 text-lg">
@@ -579,15 +595,10 @@ const Dashboard = ({ user, onLogout }) => {
                   </p>
                 </div>
                 <DashboardStats />
-                <QuickActions />
+                <QuickActions setActiveItem={setActiveItem} />
                 <DashboardCharts />
                 <div className="flex justify-center">
-                  <button
-                    onClick={clearForm}
-                    className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-                  >
-                    Clear Form Data
-                  </button>
+                 
                 </div>
               </div>
             )}

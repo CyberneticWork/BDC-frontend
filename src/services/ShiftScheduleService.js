@@ -20,12 +20,7 @@ const ShiftScheduleService = {
         shift_description: shiftData.description,
         start_time: shiftData.startTime,
         end_time: shiftData.endTime,
-        morning_ot_start: shiftData.morningOTStart,
-        special_ot_start: shiftData.specialOTStart,
-        late_deduction: shiftData.lateDeduction,
         midnight_roster: shiftData.midnightRoster,
-        nopay_hour_halfday: shiftData.nightlyHours,
-        break_time: shiftData.breakTime
       });
       return response.data.data;
     } catch (error) {
@@ -42,12 +37,7 @@ const ShiftScheduleService = {
         shift_description: shiftData.description,
         start_time: shiftData.startTime,
         end_time: shiftData.endTime,
-        morning_ot_start: shiftData.morningOTStart,
-        special_ot_start: shiftData.specialOTStart,
-        late_deduction: shiftData.lateDeduction,
         midnight_roster: shiftData.midnightRoster,
-        nopay_hour_halfday: shiftData.nightlyHours,
-        break_time: shiftData.breakTime
       });
       return response.data.data;
     } catch (error) {

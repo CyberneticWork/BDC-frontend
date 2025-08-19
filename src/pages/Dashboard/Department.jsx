@@ -554,9 +554,10 @@ const Department = () => {
                       <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{subdept.employees}</td>
                       <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">-</td>
                       <td className="px-6 py-3 whitespace-nowrap text-sm font-medium">
+                        {/* Hide edit/delete for sub-departments shown inline under departments.
+                            Full edit/delete remains available in the Subdepartments tab. */}
                         <div className="flex items-center space-x-2">
-                          <ActionButton icon={Edit2} onClick={() => {}} />
-                          <ActionButton icon={Trash2} onClick={() => {}} variant="danger" />
+                          <span className="text-sm text-gray-400">-</span>
                         </div>
                       </td>
                     </tr>

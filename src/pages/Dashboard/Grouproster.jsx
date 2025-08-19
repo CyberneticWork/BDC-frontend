@@ -19,6 +19,7 @@ import {
   fetchSubDepartmentsById,
   fetchSubDepartments,
   employeesBySubDepartment,
+  employeesByCompany,
 } from "@services/ApiDataService";
 import Swal from "sweetalert2";
 
@@ -82,6 +83,13 @@ const RosterManagementSystem = () => {
   });
   const [searchedRosters, setSearchedRosters] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // New state: whether a search has been performed and a user-visible message
+  const [rosterSearchPerformed, setRosterSearchPerformed] = useState(false);
+  const [searchMessage, setSearchMessage] = useState("");
+
+  // Add a new state for companyWise checkbox
+  const [isCompanyWise, setIsCompanyWise] = useState(false);
 
   // Set default dates on component mount
   useEffect(() => {
@@ -149,11 +157,22 @@ const RosterManagementSystem = () => {
   const fetchEmployeesData = async () => {
     try {
       setIsLoadingEmployees(true);
-      let data = [];
 
-      if (selectedSubDepartment) {
+      if (isCompanyWise) {
+        // If company-wise is enabled, fetch ALL employees for the company
+        const data = await employeesByCompany(selectedCompany);
+        setEmployees(
+          data.map((emp) => ({
+            id: emp.id,
+            name: emp.full_name || `${emp.first_name} ${emp.last_name}`,
+            empCode: emp.employee_code,
+            department_id: emp.department_id?.toString(),
+            sub_department_id: emp.sub_department_id?.toString(),
+          }))
+        );
+      } else if (selectedSubDepartment) {
         // If sub-department is selected, use employeesBySubDepartment
-        data = await employeesBySubDepartment(selectedSubDepartment);
+        const data = await employeesBySubDepartment(selectedSubDepartment);
         setEmployees(
           data.map((emp) => ({
             id: emp.id,
@@ -161,7 +180,7 @@ const RosterManagementSystem = () => {
           }))
         );
       } else {
-        // Existing code for other cases
+        // Filter by department if selected, otherwise just by company
         const filters = {};
         if (selectedCompany) filters.company_id = selectedCompany;
         if (selectedDepartment) filters.department_id = selectedDepartment;
@@ -226,10 +245,18 @@ const RosterManagementSystem = () => {
 
   // Fetch employees when organizational selection changes
   useEffect(() => {
-    if (selectedCompany || selectedDepartment || selectedSubDepartment) {
+    // Only fetch employees if at least a company is selected
+    if (selectedCompany) {
       fetchEmployeesData();
+    } else {
+      setEmployees([]); // Clear employees if no company selected
     }
-  }, [selectedCompany, selectedDepartment, selectedSubDepartment]);
+  }, [
+    selectedCompany,
+    selectedDepartment,
+    selectedSubDepartment,
+    isCompanyWise,
+  ]);
 
   // Filter departments by company
   const filteredDepartments = useMemo(() => {
@@ -252,11 +279,18 @@ const RosterManagementSystem = () => {
     let filtered = employees;
 
     if (searchTerm) {
-      filtered = filtered.filter(
-        (emp) =>
-          emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          emp.empCode.includes(searchTerm)
-      );
+      filtered = filtered.filter((emp) => {
+        // Check if name exists and includes the search term
+        const nameMatch =
+          emp.name && emp.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+        // Check if empCode exists before trying to use it
+        const codeMatch =
+          emp.empCode &&
+          emp.empCode.toLowerCase().includes(searchTerm.toLowerCase());
+
+        return nameMatch || codeMatch;
+      });
     }
 
     return filtered;
@@ -351,6 +385,28 @@ const RosterManagementSystem = () => {
   const handleAddShift = () => {
     if (selectedShifts.size === 0) return;
 
+    // Check if we have the required fields selected
+    if (!selectedCompany) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing Information",
+        text: "Please select a company",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    // Only validate department and sub-department if not in company-wise mode
+    if (!isCompanyWise && (!selectedDepartment || !selectedSubDepartment)) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing Information",
+        text: "Please select department and sub-department",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
     let employeesToAssign = [];
     if (assignMode === "designation") {
       employeesToAssign = filteredEmployees.map((e) => e.id);
@@ -358,7 +414,15 @@ const RosterManagementSystem = () => {
       employeesToAssign = Array.from(selectedEmployees);
     }
 
-    if (employeesToAssign.length === 0) return;
+    if (employeesToAssign.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "No Employees Selected",
+        text: "Please select at least one employee",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
 
     const shiftsToAssign = shifts.filter((shift) =>
       selectedShifts.has(shift.id)
@@ -366,8 +430,9 @@ const RosterManagementSystem = () => {
 
     const newAssignments = shiftsToAssign.map((shift) => ({
       company: selectedCompany,
-      department: selectedDepartment,
-      subDepartment: selectedSubDepartment,
+      // Use empty string or "0" for department/subdepartment if in company-wise mode
+      department: isCompanyWise ? "0" : selectedDepartment,
+      subDepartment: isCompanyWise ? "0" : selectedSubDepartment,
       employees: employeesToAssign,
       shift: shift,
       dateFrom,
@@ -400,7 +465,16 @@ const RosterManagementSystem = () => {
 
   // Save roster to backend
   const handleSaveRoster = async () => {
-    if (rosterAssignments.length === 0) return;
+    // Show error if no pending assignments
+    if (rosterAssignments.length === 0) {
+      Swal.fire({
+        icon: "error",
+        title: "No Pending Assignments",
+        text: "Please add at least one shift assignment before processing the roster.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -414,12 +488,20 @@ const RosterManagementSystem = () => {
       // Iterate through each assignment and create individual records for each employee
       for (const assignment of rosterAssignments) {
         assignment.employees.forEach((employeeId) => {
+          // Handle the company-wise case by using null or 0 for department/subdepartment
           rosterEntries.push({
             roster_id: rosterId, // Same ID for all entries in this batch
             shift_code: assignment.shift.id,
             company_id: parseInt(assignment.company),
-            department_id: parseInt(assignment.department),
-            sub_department_id: parseInt(assignment.subDepartment),
+            // If company-wise or value is "0", send null (or 0, depending on API requirements)
+            department_id:
+              assignment.department === "0"
+                ? null
+                : parseInt(assignment.department),
+            sub_department_id:
+              assignment.subDepartment === "0"
+                ? null
+                : parseInt(assignment.subDepartment),
             employee_id: parseInt(employeeId),
             is_recurring: false,
             recurrence_pattern: "none",
@@ -430,34 +512,45 @@ const RosterManagementSystem = () => {
         });
       }
 
+      console.log("Sending roster entries:", rosterEntries); // Add this for debugging
+
       // Send all entries in a single API call
       try {
         const response = await RosterService.createRoster(rosterEntries);
-        // Handle success
+        // Success message
+        Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Roster assignments saved successfully",
+          timer: 2000,
+          showConfirmButton: false,
+          position: "top-end",
+          toast: true,
+        });
+
+        // Reset form after successful save
+        setRosterAssignments([]);
+        setSelectedCompany("");
+        setSelectedDepartment("");
+        setSelectedSubDepartment("");
+        setSelectedShifts(new Set());
+        setSelectedEmployees(new Set());
       } catch (error) {
-        // Handle error
-      } finally {
-        setIsSaving(false);
+        console.error("Error response:", error.response?.data); // Log detailed error
+
+        // Show error details from API if available
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to save roster";
+
+        Swal.fire({
+          icon: "error",
+          title: "Error!",
+          text: errorMessage,
+          confirmButtonColor: "#3085d6",
+        });
       }
-
-      // Reset form after successful save
-      setRosterAssignments([]);
-      setSelectedCompany("");
-      setSelectedDepartment("");
-      setSelectedSubDepartment("");
-      setSelectedShifts(new Set());
-      setSelectedEmployees(new Set());
-
-      // Success message
-      Swal.fire({
-        icon: "success",
-        title: "Success!",
-        text: "Roster assignments saved successfully",
-        timer: 2000,
-        showConfirmButton: false,
-        position: "top-end",
-        toast: true,
-      });
     } catch (error) {
       console.error("Error saving roster:", error);
 
@@ -515,7 +608,8 @@ const RosterManagementSystem = () => {
     try {
       const data = await RosterService.getAllRosters();
       console.log("Roster API response:", data);
-      setAllRosters(Array.isArray(data) ? data : []);
+      // Normalize to flat rows for the table
+      setAllRosters(normalizeRosterItems(Array.isArray(data) ? data : []));
     } catch (err) {
       Swal.fire({
         icon: "error",
@@ -529,10 +623,43 @@ const RosterManagementSystem = () => {
     }
   };
 
-  // Add this function to handle roster search
+  // Add: normalize roster API items to a single flat shape (reused by All + Search)
+  const normalizeRosterItems = (items) => {
+    if (!Array.isArray(items)) return [];
+    return items.map((item) => {
+      const rd = item.roster_details || item.roster || {};
+      const org = item.organization_details || {};
+      const emp = item.employee_details || {};
+      const company = org.company || item.company || {};
+      const dept = org.department || item.department || {};
+      const sub =
+        org.sub_department || org.subDepartment || item.sub_department || {};
+
+      return {
+        id: rd.id ?? item.id,
+        roster_id: rd.roster_id ?? item.roster_id ?? rd.id ?? item.id,
+        shift_code:
+          rd.shift_code ?? item.shift_code ?? rd.shift?.shift_code ?? "",
+        company_id: company.id ?? item.company_id ?? null,
+        company_name: company.name ?? item.company_name ?? "",
+        department_id: dept.id ?? item.department_id ?? null,
+        department_name: dept.name ?? item.department_name ?? "",
+        sub_department_id: sub.id ?? item.sub_department_id ?? null,
+        sub_department_name: sub.name ?? item.sub_department_name ?? "",
+        employee_id: emp.id ?? item.employee_id ?? null,
+        employee_name: emp.full_name ?? emp.name ?? item.employee_name ?? "",
+        date_from: rd.date_from ?? item.date_from ?? "",
+        date_to: rd.date_to ?? item.date_to ?? "",
+      };
+    });
+  };
+
+  // Add this to handle roster search
   const handleRosterSearch = async (e) => {
     e.preventDefault();
     setIsSearching(true);
+    setRosterSearchPerformed(true);
+    setSearchMessage(""); // reset any previous message
 
     try {
       // Clean up empty fields to avoid sending them as empty strings
@@ -545,25 +672,21 @@ const RosterManagementSystem = () => {
 
       const data = await RosterService.searchRosters(cleanParams);
 
-      // Extract the roster data from the nested structure returned by the API
-      const flattenedRosters = data.map((item) => ({
-        id: item.roster_details.id,
-        roster_id: item.roster_details.roster_id,
-        shift_code: item.roster_details.shift_code,
-        company_id: item.organization_details.company?.id,
-        company_name: item.organization_details.company?.name,
-        department_id: item.organization_details.department?.id,
-        department_name: item.organization_details.department?.name,
-        sub_department_id: item.organization_details.sub_department?.id,
-        sub_department_name: item.organization_details.sub_department?.name,
-        employee_id: item.employee_details?.id,
-        employee_name: item.employee_details?.full_name,
-        date_from: item.roster_details.date_from,
-        date_to: item.roster_details.date_to,
-      }));
+      // Normalize nested API structure just like "All Rosters"
+      const flattenedRosters = normalizeRosterItems(
+        Array.isArray(data) ? data : []
+      );
 
-      setSearchedRosters(flattenedRosters);
+      if (flattenedRosters.length === 0) {
+        setSearchedRosters([]);
+        setSearchMessage("No roster data matched your search.");
+      } else {
+        setSearchedRosters(flattenedRosters);
+        setSearchMessage("");
+      }
     } catch (err) {
+      setSearchedRosters([]);
+      setSearchMessage("Search failed. Please try again.");
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -586,6 +709,8 @@ const RosterManagementSystem = () => {
       employee_id: "",
     });
     setSearchedRosters([]);
+    setRosterSearchPerformed(false);
+    setSearchMessage("");
   };
 
   return (
@@ -594,9 +719,9 @@ const RosterManagementSystem = () => {
       <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <h1 className="text-xl font-bold">Roster Management System</h1>
         <div className="flex items-center space-x-4">
-          <span className="text-sm bg-blue-700 px-3 py-1 rounded-full">
+          {/* <span className="text-sm bg-blue-700 px-3 py-1 rounded-full">
             Filtering Options
-          </span>
+          </span> */}
           <button
             className="bg-white text-blue-700 px-4 py-2 rounded shadow hover:bg-blue-100 font-semibold"
             onClick={handleViewAllRosters}
@@ -619,8 +744,8 @@ const RosterManagementSystem = () => {
               <input
                 type="date"
                 value={rosterDate}
-                onChange={(e) => setRosterDate(e.target.value)}
-                className="w-full px-3 py-2 border border-orange-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-orange-300 rounded-md text-sm bg-gray-50 cursor-not-allowed"
+                readOnly
               />
             </div>
 
@@ -648,10 +773,6 @@ const RosterManagementSystem = () => {
                 />
               </div>
             </div>
-
-            <button className="w-full mt-4 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200 transform hover:scale-105">
-              Show Details
-            </button>
           </div>
 
           {/* Company/Department/SubDepartment Dropdowns */}
@@ -698,6 +819,7 @@ const RosterManagementSystem = () => {
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Department
+                  {!isCompanyWise && <span className="text-red-500">*</span>}
                 </label>
                 {isLoadingDepartments ? (
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 flex items-center justify-center">
@@ -715,10 +837,20 @@ const RosterManagementSystem = () => {
                       setSelectedDepartment(e.target.value);
                       setSelectedSubDepartment("");
                     }}
-                    disabled={!selectedCompany}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={!selectedCompany || isCompanyWise} // Add isCompanyWise condition here
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm 
+                      focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                      ${
+                        isCompanyWise
+                          ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                          : ""
+                      }`}
                   >
-                    <option value="">Select Department</option>
+                    <option value="">
+                      {isCompanyWise
+                        ? "Not required in company mode"
+                        : "Select Department"}
+                    </option>
                     {filteredDepartments.map((dep) => (
                       <option key={dep.id} value={dep.id}>
                         {dep.name}
@@ -731,6 +863,7 @@ const RosterManagementSystem = () => {
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Sub Department
+                  {!isCompanyWise && <span className="text-red-500">*</span>}
                 </label>
                 {isLoadingSubDepartments ? (
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 flex items-center justify-center">
@@ -745,10 +878,20 @@ const RosterManagementSystem = () => {
                   <select
                     value={selectedSubDepartment}
                     onChange={(e) => setSelectedSubDepartment(e.target.value)}
-                    disabled={!selectedDepartment}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={!selectedDepartment || isCompanyWise} // Add isCompanyWise condition here
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm 
+                      focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                      ${
+                        isCompanyWise
+                          ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                          : ""
+                      }`}
                   >
-                    <option value="">Select Sub Department</option>
+                    <option value="">
+                      {isCompanyWise
+                        ? "Not required in company mode"
+                        : "Select Sub Department"}
+                    </option>
                     {filteredSubDepartments.map((sub) => (
                       <option key={sub.id} value={sub.id}>
                         {sub.name}
@@ -796,186 +939,290 @@ const RosterManagementSystem = () => {
                 </label>
               </div>
             </div>
+
+            {/* Add Company Wise checkbox */}
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="companyWise"
+                  checked={isCompanyWise}
+                  onChange={() => {
+                    // Clear department and sub-department when toggling company-wise mode
+                    if (!isCompanyWise) {
+                      setSelectedDepartment("");
+                      setSelectedSubDepartment("");
+                    }
+                    setIsCompanyWise(!isCompanyWise);
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <label
+                  htmlFor="companyWise"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Company Wise
+                </label>
+                {isCompanyWise && selectedCompany && (
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                    {employees.length} employees
+                  </span>
+                )}
+              </div>
+              {isCompanyWise && (
+                <div className="mt-1 text-xs bg-blue-50 p-2 rounded-md border border-blue-100">
+                  <p className="text-blue-700">
+                    <span className="font-semibold">Company-wise mode:</span>{" "}
+                    Department and Sub-Department selection not required
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Company Wise Toggle - Removed duplicate section */}
         </div>
 
-        {/* Middle Panel - Departments/SubDepartments/Employees */}
-        <div className="w-96 bg-white border-r border-gray-300 flex flex-col shadow-sm">
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            {/* Top: Show current selection as a summary */}
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <span className="text-xs text-gray-500">Selected: </span>
-                <span className="font-semibold text-blue-700">
-                  {selectedCompany && getCompanyName(selectedCompany)}
-                  {selectedDepartment &&
-                    ` > ${getDepartmentName(selectedDepartment)}`}
-                  {selectedSubDepartment &&
-                    ` > ${getSubDepartmentName(selectedSubDepartment)}`}
+        {/* Middle Panel - Show appropriate content based on selection */}
+        <div className="w-[400px] min-w-[400px] max-w-[400px] p-4 border-b border-gray-200 bg-gray-50">
+          {/* Top: Show current selection as a summary */}
+          <div className="flex items-center justify-between mb-2 p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+            <div>
+              <span className="text-xs text-gray-500">Selected: </span>
+              <span className="font-semibold text-blue-700">
+                {selectedCompany && getCompanyName(selectedCompany)}
+                {!isCompanyWise &&
+                  selectedDepartment &&
+                  ` > ${getDepartmentName(selectedDepartment)}`}
+                {!isCompanyWise &&
+                  selectedSubDepartment &&
+                  ` > ${getSubDepartmentName(selectedSubDepartment)}`}
+              </span>
+              {isCompanyWise && selectedCompany && (
+                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  Company-wise
                 </span>
-              </div>
-              {selectedDepartment &&
-                selectedSubDepartment &&
-                filteredEmployees.length > 0 && (
-                  <button
-                    className="flex items-center text-blue-600 hover:underline text-xs"
-                    onClick={() => setShowEmployeeModal(true)}
-                  >
-                    <Eye className="w-4 h-4 mr-1" /> View All (
-                    {filteredEmployees.length})
-                  </button>
-                )}
+              )}
             </div>
-            <h3 className="font-semibold text-sm mb-3 text-gray-800">
-              {selectedCompany && !selectedDepartment && "Departments"}
-              {selectedCompany &&
-                selectedDepartment &&
-                !selectedSubDepartment &&
-                "Sub Departments"}
-              {selectedCompany &&
-                selectedDepartment &&
-                selectedSubDepartment &&
-                "Employees"}
-            </h3>
-            {/* Show departments */}
-            {!selectedDepartment && (
-              <div className="space-y-2">
-                {isLoadingDepartments ? (
-                  <div className="flex items-center justify-center p-4">
-                    <div className="h-6 w-6 mr-2 rounded-full border-2 border-t-blue-500 animate-spin"></div>
-                    <span>Loading departments...</span>
-                  </div>
-                ) : departmentsError ? (
-                  <div className="p-4 text-center text-red-600">
-                    {departmentsError}
-                  </div>
-                ) : filteredDepartments.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
-                    No departments found for this company
-                  </div>
-                ) : (
-                  filteredDepartments.map((dep) => (
-                    <div
-                      key={dep.id}
-                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                        selectedDepartment === dep.id.toString()
-                          ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
-                          : "hover:bg-gray-50 border border-gray-200"
-                      }`}
-                      onClick={() => setSelectedDepartment(dep.id.toString())}
-                    >
-                      <span className="text-sm font-medium text-gray-700">
-                        {dep.name}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-            {/* Show sub departments */}
-            {selectedDepartment && !selectedSubDepartment && (
-              <div className="space-y-2">
-                {isLoadingSubDepartments ? (
-                  <div className="flex items-center justify-center p-4">
-                    <div className="h-6 w-6 mr-2 rounded-full border-2 border-t-blue-500 animate-spin"></div>
-                    <span>Loading sub-departments...</span>
-                  </div>
-                ) : subDepartmentsError ? (
-                  <div className="p-4 text-center text-red-600">
-                    {subDepartmentsError}
-                  </div>
-                ) : filteredSubDepartments.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
-                    No sub-departments found for this department
-                  </div>
-                ) : (
-                  filteredSubDepartments.map((sub) => (
-                    <div
-                      key={sub.id}
-                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                        selectedSubDepartment === sub.id.toString()
-                          ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
-                          : "hover:bg-gray-50 border border-gray-200"
-                      }`}
-                      onClick={() =>
-                        setSelectedSubDepartment(sub.id.toString())
-                      }
-                    >
-                      <span className="text-sm font-medium text-gray-700">
-                        {sub.name}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-            {/* Show employees (preview only 3, rest in modal) */}
-            {selectedDepartment && selectedSubDepartment && (
-              <div>
-                <div className="space-y-2">
-                  {filteredEmployees.slice(0, 3).map((emp) => (
-                    <div
-                      key={emp.id}
-                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                        selectedEmployees.has(emp.id.toString())
-                          ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
-                          : "hover:bg-gray-50 border border-gray-200"
-                      }`}
-                      onClick={() =>
-                        assignMode === "employee" &&
-                        handleEmployeeSelect(emp.id.toString())
-                      }
-                    >
-                      <span className="text-sm font-medium text-gray-700">
-                        {emp.name} - {emp.id}
-                      </span>
-                      {assignMode === "employee" && (
-                        <input
-                          type="checkbox"
-                          checked={selectedEmployees.has(emp.id.toString())}
-                          readOnly
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded"
-                          tabIndex={-1}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
+            {((selectedDepartment && selectedSubDepartment) ||
+              (isCompanyWise && selectedCompany)) &&
+              filteredEmployees.length > 0 && (
+                <button
+                  className="flex items-center text-blue-600 hover:underline text-xs"
+                  onClick={() => setShowEmployeeModal(true)}
+                >
+                  <Eye className="w-4 h-4 mr-1" /> View All (
+                  {filteredEmployees.length})
+                </button>
+              )}
           </div>
-          {/* Show assigned shifts for this selection */}
+
           <div className="p-4">
-            <h4 className="font-semibold text-xs mb-2 text-gray-700">
-              Assigned Shifts
-            </h4>
-            <div className="space-y-2">
-              {rosterAssignments
-                .filter(
-                  (a) =>
-                    a.company === selectedCompany &&
-                    (!selectedDepartment ||
-                      a.department === selectedDepartment) &&
-                    (!selectedSubDepartment ||
-                      a.subDepartment === selectedSubDepartment)
-                )
-                .map((a, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded shadow"
-                  >
-                    <span className="text-xs font-semibold text-blue-800">
-                      {a.shift.shiftName} ({a.shift.shiftStart}-
-                      {a.shift.shiftEnd})
-                    </span>
-                    <button
-                      className="ml-2 text-red-500 hover:text-red-700"
-                      onClick={() => handleRemoveAssignment(idx)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+            <h3 className="font-semibold text-sm mb-3 text-gray-800">
+              {isCompanyWise && selectedCompany
+                ? "Employees"
+                : selectedCompany && !selectedDepartment
+                ? "Departments"
+                : selectedCompany &&
+                  selectedDepartment &&
+                  !selectedSubDepartment
+                ? "Sub Departments"
+                : "Employees"}
+            </h3>
+
+            {/* Fixed height container for scrollable content */}
+            <div className="h-[calc(100vh-280px)] overflow-y-auto">
+              {/* Company-wise employees */}
+              {isCompanyWise && selectedCompany && (
+                <div>
+                  <div className="mb-3 relative sticky top-0 z-10 bg-white pb-2">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search employees..."
+                      className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
-                ))}
+
+                  <div className="space-y-2">
+                    {isLoadingEmployees ? (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="h-6 w-6 mr-2 rounded-full border-2 border-t-blue-500 animate-spin"></div>
+                        <span>Loading employees...</span>
+                      </div>
+                    ) : (
+                      filteredEmployees.slice(0, 15).map((emp) => (
+                        <div
+                          key={emp.id}
+                          className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                            selectedEmployees.has(emp.id.toString())
+                              ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
+                              : "hover:bg-gray-50 border border-gray-200"
+                          }`}
+                          onClick={() =>
+                            assignMode === "employee" &&
+                            handleEmployeeSelect(emp.id.toString())
+                          }
+                        >
+                          <div className="truncate pr-2">
+                            <span className="text-sm font-medium text-gray-700 block truncate">
+                              {emp.name}
+                            </span>
+                            {emp.empCode && (
+                              <span className="text-xs text-gray-500 block truncate">
+                                ID: {emp.empCode}
+                              </span>
+                            )}
+                          </div>
+                          {assignMode === "employee" && (
+                            <input
+                              type="checkbox"
+                              checked={selectedEmployees.has(emp.id.toString())}
+                              readOnly
+                              className="w-4 h-4 flex-shrink-0 text-blue-600 border-gray-300 rounded"
+                              tabIndex={-1}
+                            />
+                          )}
+                        </div>
+                      ))
+                    )}
+
+                    {filteredEmployees.length > 15 && (
+                      <div className="mt-2 text-center sticky bottom-0 pt-2 bg-white">
+                        <button
+                          className="text-blue-600 text-sm hover:underline"
+                          onClick={() => setShowEmployeeModal(true)}
+                        >
+                          View all {filteredEmployees.length} employees
+                        </button>
+                      </div>
+                    )}
+
+                    {filteredEmployees.length === 0 && !isLoadingEmployees && (
+                      <div className="p-4 text-center text-gray-500">
+                        No employees found
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Other content sections - keep existing code with similar fixed sizing */}
+              {!isCompanyWise && selectedCompany && !selectedDepartment && (
+                <div className="space-y-2">
+                  {isLoadingDepartments ? (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="h-6 w-6 mr-2 rounded-full border-2 border-t-blue-500 animate-spin"></div>
+                      <span>Loading departments...</span>
+                    </div>
+                  ) : departmentsError ? (
+                    <div className="p-4 text-center text-red-600">
+                      {departmentsError}
+                    </div>
+                  ) : filteredDepartments.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      No departments found for this company
+                    </div>
+                  ) : (
+                    filteredDepartments.map((dep) => (
+                      <div
+                        key={dep.id}
+                        className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                          selectedDepartment === dep.id.toString()
+                            ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
+                            : "hover:bg-gray-50 border border-gray-200"
+                        }`}
+                        onClick={() => setSelectedDepartment(dep.id.toString())}
+                      >
+                        <span className="text-sm font-medium text-gray-700">
+                          {dep.name}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Keep existing code for sub-departments and normal employee selection */}
+              {!isCompanyWise &&
+                selectedDepartment &&
+                !selectedSubDepartment && (
+                  // Your existing code for showing sub-departments
+                  <div className="space-y-2">
+                    {isLoadingSubDepartments ? (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="h-6 w-6 mr-2 rounded-full border-2 border-t-blue-500 animate-spin"></div>
+                        <span>Loading sub-departments...</span>
+                      </div>
+                    ) : subDepartmentsError ? (
+                      <div className="p-4 text-center text-red-600">
+                        {subDepartmentsError}
+                      </div>
+                    ) : filteredSubDepartments.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        No sub-departments found for this department
+                      </div>
+                    ) : (
+                      filteredSubDepartments.map((sub) => (
+                        <div
+                          key={sub.id}
+                          className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                            selectedSubDepartment === sub.id.toString()
+                              ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
+                              : "hover:bg-gray-50 border border-gray-200"
+                          }`}
+                          onClick={() =>
+                            setSelectedSubDepartment(sub.id.toString())
+                          }
+                        >
+                          <span className="text-sm font-medium text-gray-700">
+                            {sub.name}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+              {/* Show employees (normal mode) */}
+              {!isCompanyWise &&
+                selectedDepartment &&
+                selectedSubDepartment && (
+                  <div>
+                    <div className="space-y-2">
+                      {filteredEmployees.slice(0, 3).map((emp) => (
+                        <div
+                          key={emp.id}
+                          className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                            selectedEmployees.has(emp.id.toString())
+                              ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
+                              : "hover:bg-gray-50 border border-gray-200"
+                          }`}
+                          onClick={() =>
+                            assignMode === "employee" &&
+                            handleEmployeeSelect(emp.id.toString())
+                          }
+                        >
+                          <span className="text-sm font-medium text-gray-700">
+                            {emp.name}
+                          </span>
+                          {assignMode === "employee" && (
+                            <input
+                              type="checkbox"
+                              checked={selectedEmployees.has(emp.id.toString())}
+                              readOnly
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                              tabIndex={-1}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -1204,11 +1451,71 @@ const RosterManagementSystem = () => {
               Add to Roster{" "}
               {selectedShifts.size > 0 && `(${selectedShifts.size} shifts)`}
             </button>
+
+            {/* Pending Assignments (added) */}
+            <div className="mt-4">
+              <h4 className="text-sm font-semibold text-gray-800 mb-2">
+                Pending Assignments
+              </h4>
+              {rosterAssignments.length === 0 ? (
+                <div className="text-xs text-gray-500">
+                  No shifts added yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {rosterAssignments.map((a, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 bg-gray-50 border rounded-md"
+                    >
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-800">
+                          {a.shift.shiftName}{" "}
+                          <span className="text-xs text-gray-500">
+                            ({a.shift.shiftStart} - {a.shift.shiftEnd})
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {getCompanyName(a.company)}
+                          {a.department && a.department !== "0" && (
+                            <> {` > ${getDepartmentName(a.department)}`} </>
+                          )}
+                          {a.subDepartment && a.subDepartment !== "0" && (
+                            <>
+                              {" "}
+                              {` > ${getSubDepartmentName(a.subDepartment)}`}
+                            </>
+                          )}
+                          {" · "} {a.employees.length} employees {" · "}{" "}
+                          {a.dateFrom} → {a.dateTo}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveAssignment(idx)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setRosterAssignments([])}
+                      className="text-xs text-gray-600 hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Save Roster Button */}
             <div className="flex space-x-2 mt-2">
               <button
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200"
-                onClick={handleViewSummary} // You'll need to implement this function
+                onClick={handleViewSummary}
               >
                 View Summary
               </button>
@@ -1217,7 +1524,7 @@ const RosterManagementSystem = () => {
                   isSaving ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 onClick={handleSaveRoster}
-                disabled={rosterAssignments.length === 0 || isSaving}
+                disabled={isSaving} // allow click to show error when no assignments
               >
                 {isSaving ? (
                   <>
@@ -1380,7 +1687,7 @@ const RosterManagementSystem = () => {
                   </select>
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Department
                   </label>
@@ -1424,7 +1731,7 @@ const RosterManagementSystem = () => {
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -1478,64 +1785,75 @@ const RosterManagementSystem = () => {
                   <p className="text-gray-600">Loading rosters...</p>
                 </div>
               ) : (
-                <table className="min-w-full text-sm border">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 border">Roster ID</th>
-                      <th className="px-4 py-2 border">Shift Code</th>
-                      <th className="px-4 py-2 border">Company</th>
-                      <th className="px-4 py-2 border">Department</th>
-                      <th className="px-4 py-2 border">Sub Dept</th>
-                      <th className="px-4 py-2 border">Employee</th>
-                      <th className="px-4 py-2 border">Date From</th>
-                      <th className="px-4 py-2 border">Date To</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(searchedRosters.length > 0
-                      ? searchedRosters
-                      : allRosters
-                    ).map((r, idx) => (
-                      <tr
-                        key={r.id || idx}
-                        className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                      >
-                        <td className="px-4 py-2 border">{r.roster_id}</td>
-                        <td className="px-4 py-2 border">{r.shift_code}</td>
-                        <td className="px-4 py-2 border">
-                          {r.company_name ||
-                            getCompanyName(r.company_id?.toString())}
-                        </td>
-                        <td className="px-4 py-2 border">
-                          {r.department_name ||
-                            getDepartmentName(r.department_id?.toString())}
-                        </td>
-                        <td className="px-4 py-2 border">
-                          {r.sub_department_name ||
-                            getSubDepartmentName(
-                              r.sub_department_id?.toString()
-                            )}
-                        </td>
-                        <td className="px-4 py-2 border">
-                          {r.employee_name || r.employee_id}
-                        </td>
-                        <td className="px-4 py-2 border">{r.date_from}</td>
-                        <td className="px-4 py-2 border">{r.date_to}</td>
+                <>
+                  <table className="min-w-full text-sm border">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-4 py-2 border">Roster ID</th>
+                        <th className="px-4 py-2 border">Shift Code</th>
+                        <th className="px-4 py-2 border">Company</th>
+                        <th className="px-4 py-2 border">Department</th>
+                        <th className="px-4 py-2 border">Sub Dept</th>
+                        <th className="px-4 py-2 border">Employee</th>
+                        <th className="px-4 py-2 border">Date From</th>
+                        <th className="px-4 py-2 border">Date To</th>
                       </tr>
-                    ))}
-                    {searchedRosters.length === 0 &&
-                      allRosters.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan="8"
-                            className="px-4 py-6 border text-center text-gray-500"
-                          >
-                            No roster data found
+                    </thead>
+                    <tbody>
+                      {(
+                        (rosterSearchPerformed
+                          ? searchedRosters
+                          : allRosters) || []
+                      ).map((r, idx) => (
+                        <tr
+                          key={r.id || idx}
+                          className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                        >
+                          <td className="px-4 py-2 border">{r.roster_id}</td>
+                          <td className="px-4 py-2 border">{r.shift_code}</td>
+                          <td className="px-4 py-2 border">
+                            {r.company_name ||
+                              getCompanyName(r.company_id?.toString())}
                           </td>
+                          <td className="px-4 py-2 border">
+                            {r.department_name ||
+                              getDepartmentName(r.department_id?.toString())}
+                          </td>
+                          <td className="px-4 py-2 border">
+                            {r.sub_department_name ||
+                              getSubDepartmentName(
+                                r.sub_department_id?.toString()
+                              )}
+                          </td>
+                          <td className="px-4 py-2 border">
+                            {r.employee_name || r.employee_id}
+                          </td>
+                          <td className="px-4 py-2 border">{r.date_from}</td>
+                          <td className="px-4 py-2 border">{r.date_to}</td>
                         </tr>
-                      )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Show a friendly message when a search was performed but returned no results */}
+                  {rosterSearchPerformed && searchedRosters.length === 0 && (
+                    <div className="p-6 text-center text-gray-600">
+                      <p className="font-medium">
+                        {searchMessage ||
+                          "No roster data found for the given criteria."}
+                      </p>
+                      <p className="text-sm mt-2 text-gray-500">
+                        Adjust your filters or click Reset to show all rosters.
+                      </p>
+                    </div>
+                  )}
+                  {/* If no search performed and no data at all */}
+                  {!rosterSearchPerformed && allRosters.length === 0 && (
+                    <div className="p-6 text-center text-gray-600">
+                      <p className="font-medium">No roster data found.</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

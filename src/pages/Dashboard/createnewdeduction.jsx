@@ -44,7 +44,6 @@ const CreateNewDeduction = () => {
     description: "",
     amount: "",
     status: "active",
-    category: "EPF",
     deduction_type: "fixed",
     startDate: "",
     endDate: "",
@@ -168,7 +167,8 @@ const CreateNewDeduction = () => {
       case "deduction_type":
         return deduction.deduction_type?.toLowerCase().includes(searchLower);
       case "category":
-        return deduction.category?.toLowerCase().includes(searchLower);
+        // Handle potentially undefined category field
+        return deduction.category?.toLowerCase().includes(searchLower) || false;
       default:
         // Search in all fields
         return (
@@ -176,6 +176,7 @@ const CreateNewDeduction = () => {
           deduction.deduction_name?.toLowerCase().includes(searchLower) ||
           deduction.deduction_type?.toLowerCase().includes(searchLower) ||
           deduction.category?.toLowerCase().includes(searchLower) ||
+          false ||
           deduction.description?.toLowerCase().includes(searchLower)
         );
     }
@@ -232,8 +233,6 @@ const CreateNewDeduction = () => {
   const validateForm = () => {
     const errors = {};
     if (!formData.company_id) errors.company_id = "Company is required";
-    if (!formData.department_id)
-      errors.department_id = "Department is required";
     if (!formData.deduction_code)
       errors.deduction_code = "Deduction code is required";
     if (!formData.deduction_name)
@@ -246,8 +245,6 @@ const CreateNewDeduction = () => {
       errors.amount = "Amount must be a number and >= 0";
     if (!["active", "inactive"].includes(formData.status))
       errors.status = "Status must be active or inactive";
-    if (!["EPF", "ETF", "Other"].includes(formData.category))
-      errors.category = "Category must be EPF, ETF, or Other";
     if (!["fixed", "variable"].includes(formData.deduction_type))
       errors.deduction_type = "Deduction type must be fixed or variable";
     if (!formData.startDate) errors.startDate = "Start date is required";
@@ -291,13 +288,15 @@ const CreateNewDeduction = () => {
       // Prepare data for API
       const deductionData = {
         company_id: parseInt(formData.company_id),
-        department_id: parseInt(formData.department_id),
+        department_id: formData.department_id
+          ? parseInt(formData.department_id)
+          : null,
         deduction_code: formData.deduction_code,
         deduction_name: formData.deduction_name,
         description: formData.description,
         amount: parseFloat(formData.amount),
         status: formData.status,
-        category: formData.category,
+        category: "Other", // Add a default category
         deduction_type: formData.deduction_type,
         startDate: formData.startDate,
         endDate:
@@ -311,18 +310,17 @@ const CreateNewDeduction = () => {
       const selectedCompany = companies.find(
         (c) => c.id === parseInt(formData.company_id)
       );
-      const selectedDepartment = departments.find(
-        (d) => d.id === parseInt(formData.department_id)
-      );
+      const selectedDepartment = formData.department_id
+        ? departments.find((d) => d.id === parseInt(formData.department_id))
+        : null;
       setDeductions((prev) => [
         ...prev,
         {
           ...result,
           company: { id: selectedCompany.id, name: selectedCompany.name },
-          department: {
-            id: selectedDepartment.id,
-            name: selectedDepartment.name,
-          },
+          department: selectedDepartment
+            ? { id: selectedDepartment.id, name: selectedDepartment.name }
+            : { id: null, name: "Unknown" },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -375,7 +373,7 @@ const CreateNewDeduction = () => {
       setFormData({
         ...deduction,
         company_id: companyId,
-        department_id: deduction.department.id,
+        department_id: deduction.department?.id || "",
         category: isCustomCategory ? "other" : deduction.category,
         customCategory: isCustomCategory ? deduction.category : "",
       });
@@ -432,7 +430,6 @@ const CreateNewDeduction = () => {
       description: "",
       amount: "",
       status: "active",
-      category: "EPF",
       deduction_type: "fixed",
       startDate: "",
       endDate: "",
@@ -522,12 +519,14 @@ const CreateNewDeduction = () => {
       // Prepare data for API
       const deductionData = {
         company_id: parseInt(formData.company_id),
-        department_id: parseInt(formData.department_id),
+        department_id: formData.department_id
+          ? parseInt(formData.department_id)
+          : null,
         deduction_name: formData.deduction_name,
         description: formData.description,
         amount: parseFloat(formData.amount),
         status: formData.status,
-        category: formData.category,
+        category: formData.category || "Other", // Add this line to keep category
         deduction_type: formData.deduction_type,
         startDate: formData.startDate,
         endDate:
@@ -548,11 +547,14 @@ const CreateNewDeduction = () => {
                   name: companies.find((c) => c.id == formData.company_id)
                     ?.name,
                 },
-                department: {
-                  id: parseInt(formData.department_id),
-                  name: departments.find((d) => d.id == formData.department_id)
-                    ?.name,
-                },
+                department: formData.department_id
+                  ? {
+                      id: parseInt(formData.department_id),
+                      name: departments.find(
+                        (d) => d.id == formData.department_id
+                      )?.name,
+                    }
+                  : { id: null, name: "Unknown" },
                 updated_at: new Date().toISOString(),
               }
             : item
@@ -600,10 +602,22 @@ const CreateNewDeduction = () => {
           </h2>
         </div>
         <div className="flex gap-3">
+          
+          {/* Add New Button */}
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2 shadow-md"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Deductions</span>
+          </button>
           {/* Import Button */}
           <label className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 flex items-center gap-2 shadow-md cursor-pointer">
             <Upload className="w-4 h-4" />
-            <span>Import</span>
+            <span>Import Deductions</span>
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -619,20 +633,9 @@ const CreateNewDeduction = () => {
             className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 flex items-center gap-2 shadow-md"
           >
             <Download className="w-4 h-4" />
-            <span>Export Template</span>
+            <span>Export Deductions Template</span>
           </button>
 
-          {/* Add New Button */}
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2 shadow-md"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add New</span>
-          </button>
         </div>
       </div>
 
@@ -699,9 +702,6 @@ const CreateNewDeduction = () => {
                     Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                     Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
@@ -732,29 +732,30 @@ const CreateNewDeduction = () => {
                         {deduction.description || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {deduction.department.name || "Unknown"}
+                        {deduction.department?.name || "-"}
                       </td>
+                  
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {deduction.company.name || "Unknown"}
+                        {deduction.company.name || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {typeof deduction.amount === "number"
                           ? deduction.amount.toFixed(2)
                           : deduction.amount}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            deduction.category === "EPF"
+                            deduction.deduction_type === "fixed"
                               ? "bg-blue-100 text-blue-800"
-                              : deduction.category === "ETF"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-orange-100 text-orange-800"
+                              : "bg-purple-100 text-purple-800"
                           }`}
                         >
-                          {deduction.category.toUpperCase()}
+                          {deduction.deduction_type
+                            ? deduction.deduction_type.toUpperCase()
+                            : "N/A"}
                         </span>
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -916,7 +917,7 @@ const CreateNewDeduction = () => {
                 {/* Department Field */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Department <span className="text-red-500">*</span>
+                    Department
                   </label>
                   <div className="relative">
                     <Layers
@@ -927,7 +928,6 @@ const CreateNewDeduction = () => {
                       name="department_id"
                       value={formData.department_id}
                       onChange={handleInputChange}
-                      required
                       disabled={!formData.company_id || isLoadingDepartments}
                       className={`w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white ${
                         !formData.company_id || isLoadingDepartments
@@ -1034,29 +1034,6 @@ const CreateNewDeduction = () => {
                     placeholder="Enter deduction description"
                     rows="3"
                   />
-                </div>
-
-                {/* Category with "Other" option */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                  >
-                    <option value="EPF">EPF</option>
-                    <option value="ETF">ETF</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  {validationErrors.category && (
-                    <div className="text-red-500 text-xs mt-1">
-                      {validationErrors.category}
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-2">

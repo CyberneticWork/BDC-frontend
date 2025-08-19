@@ -2,9 +2,15 @@
 // You can remove this file or use it for global providers if needed.
 
 import React from "react";
+import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
-  return <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-100"></div>;
+  return (
+    <>
+      <ScrollToTop />
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-100"></div>
+    </>
+  );
 }
 
 export default App;
