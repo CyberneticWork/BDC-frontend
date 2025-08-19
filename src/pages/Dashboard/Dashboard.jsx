@@ -44,6 +44,9 @@ import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
+import employeeService from "../../services/EmployeeDataService";
+import { fetchDepartments } from "../../services/ApiDataService";
+import timeCardService from "../../services/timeCardService";
 
 import { useLocation, useNavigate } from "react-router-dom"; // << added
 
@@ -66,48 +69,52 @@ const clearForm = () => {
 };
 
 const DashboardStats = () => {
-  const stats = [
-    {
-      name: "Total Employees",
-      value: "2,847",
-      change: "+12%",
-      icon: Users,
-      gradient: "from-blue-500 to-blue-600",
-      lightBg: "bg-blue-50",
-      iconBg: "bg-blue-500",
-      shadowColor: "shadow-blue-200",
-    },
-    {
-      name: "Present Today",
-      value: "2,234",
-      change: "+2.3%",
-      icon: UserCheck,
-      gradient: "from-green-500 to-green-600",
-      lightBg: "bg-green-50",
-      iconBg: "bg-green-500",
-      shadowColor: "shadow-green-200",
-    },
-    {
-      name: "On Leave",
-      value: "89",
-      change: "-5.4%",
-      icon: Calendar,
-      gradient: "from-yellow-500 to-orange-500",
-      lightBg: "bg-yellow-50",
-      iconBg: "bg-yellow-500",
-      shadowColor: "shadow-yellow-200",
-    },
-    {
-      name: "Departments",
-      value: "24",
-      change: "+1",
-      icon: Building2,
-      gradient: "from-purple-500 to-purple-600",
-      lightBg: "bg-purple-50",
-      iconBg: "bg-purple-500",
-      shadowColor: "shadow-purple-200",
-    },
-  ];
+  const [stats, setStats] = useState([
+    { name: "Total Employees", value: "-", change: "-", icon: Users },
+    { name: "Present Today", value: "-", change: "-", icon: UserCheck },
+    { name: "On Leave", value: "-", change: "-", icon: Calendar },
+    { name: "Departments", value: "-", change: "-", icon: Building2 },
+  ]);
+
+  useEffect(() => {
+    async function fetchStats() {
+      // Fetch total employees
+      const employees = await employeeService.fetchEmployees();
+      // Fetch departments
+      const departments = await fetchDepartments();
+      // Fetch today's attendance
+      const today = new Date().toISOString().slice(0, 10);
+      const attendance = await timeCardService.fetchAbsentees({ date: today });
+
+      setStats([
+        {
+          name: "Total Employees",
+          value: employees.length,
+          change: "+12%", // You can calculate change if you have previous data
+          icon: Users,
+        },
+        {
+          name: "Present Today",
+          value: employees.length - attendance.length,
+          change: "+2.3%",
+          icon: UserCheck,
+        },
+        {
+          name: "On Leave",
+          value: attendance.length,
+          change: "-5.4%",
+          icon: Calendar,
+        },
+        {
+          name: "Departments",
+          value: departments.length,
+          change: "+1",
+          icon: Building2,
+        },
+      ]);
+    }
+    fetchStats();
+  }, []);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -145,64 +152,89 @@ const DashboardStats = () => {
 };
 
 const DashboardCharts = () => {
-  // Employee Attendance Data
-  const attendanceData = {
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    datasets: [
-      {
-        label: "Present",
-        data: [2100, 2150, 2200, 2180, 2250, 1800, 800],
-        backgroundColor: "rgba(16, 185, 129, 0.8)",
-        borderColor: "rgba(16, 185, 129, 1)",
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      },
-      {
-        label: "Absent",
-        data: [150, 120, 100, 90, 80, 200, 400],
-        backgroundColor: "rgba(239, 68, 68, 0.8)",
-        borderColor: "rgba(239, 68, 68, 1)",
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      },
-    ],
-  };
+  const [attendanceData, setAttendanceData] = useState({
+    labels: [],
+    datasets: [],
+  });
+  const [departmentData, setDepartmentData] = useState({
+    labels: [],
+    datasets: [],
+  });
 
-  // Department Distribution Data
-  const departmentData = {
-    labels: [
-      "Sales",
-      "Marketing",
-      "Development",
-      "HR",
-      "Finance",
-      "Operations",
-    ],
-    datasets: [
-      {
-        data: [300, 250, 500, 100, 150, 200],
-        backgroundColor: [
-          "rgba(239, 68, 68, 0.8)",
-          "rgba(59, 130, 246, 0.8)",
-          "rgba(251, 191, 36, 0.8)",
-          "rgba(16, 185, 129, 0.8)",
-          "rgba(139, 92, 246, 0.8)",
-          "rgba(251, 146, 60, 0.8)",
+  useEffect(() => {
+    async function fetchChartData() {
+      // Fetch attendance for the last 7 days
+      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      let presentCounts = [];
+      let absentCounts = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - i));
+        const dateStr = date.toISOString().slice(0, 10);
+        const absentees = await timeCardService.fetchAbsentees({ date: dateStr });
+        const employees = await employeeService.fetchEmployees();
+        presentCounts.push(employees.length - absentees.length);
+        absentCounts.push(absentees.length);
+      }
+      setAttendanceData({
+        labels: days,
+        datasets: [
+          {
+            label: "Present",
+            data: presentCounts,
+            backgroundColor: "rgba(16, 185, 129, 0.8)",
+            borderColor: "rgba(16, 185, 129, 1)",
+            borderWidth: 2,
+            borderRadius: 8,
+            borderSkipped: false,
+          },
+          {
+            label: "Absent",
+            data: absentCounts,
+            backgroundColor: "rgba(239, 68, 68, 0.8)",
+            borderColor: "rgba(239, 68, 68, 1)",
+            borderWidth: 2,
+            borderRadius: 8,
+            borderSkipped: false,
+          },
         ],
-        borderColor: [
-          "rgba(239, 68, 68, 1)",
-          "rgba(59, 130, 246, 1)",
-          "rgba(251, 191, 36, 1)",
-          "rgba(16, 185, 129, 1)",
-          "rgba(139, 92, 246, 1)",
-          "rgba(251, 146, 60, 1)",
+      });
+
+      // Fetch departments and employee counts per department
+      const departments = await fetchDepartments();
+      const employees = await employeeService.fetchEmployees();
+      const deptLabels = departments.map((d) => d.name);
+      const deptCounts = departments.map(
+        (d) => employees.filter((e) => e.organization?.department === d.name).length
+      );
+      setDepartmentData({
+        labels: deptLabels,
+        datasets: [
+          {
+            data: deptCounts,
+            backgroundColor: [
+              "rgba(239, 68, 68, 0.8)",
+              "rgba(59, 130, 246, 0.8)",
+              "rgba(251, 191, 36, 0.8)",
+              "rgba(16, 185, 129, 0.8)",
+              "rgba(139, 92, 246, 0.8)",
+              "rgba(251, 146, 60, 0.8)",
+            ],
+            borderColor: [
+              "rgba(239, 68, 68, 1)",
+              "rgba(59, 130, 246, 1)",
+              "rgba(251, 191, 36, 1)",
+              "rgba(16, 185, 129, 1)",
+              "rgba(139, 92, 246, 1)",
+              "rgba(251, 146, 60, 1)",
+            ],
+            borderWidth: 2,
+          },
         ],
-        borderWidth: 2,
-      },
-    ],
-  };
+      });
+    }
+    fetchChartData();
+  }, []);
 
   // Salary Trend Data
   const salaryData = {
@@ -321,14 +353,12 @@ const DashboardCharts = () => {
       </div>
 
       {/* Salary Trend Chart */}
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 lg:col-span-2">
+      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
         <div className="flex items-center mb-6">
           <div className="bg-purple-100 p-2 rounded-xl mr-3">
             <DollarSign className="h-6 w-6 text-purple-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800">
-            Monthly Salary Trend
-          </h3>
+          <h3 className="text-xl font-bold text-gray-800">Salary Trend</h3>
         </div>
         <div className="h-80">
           <Line
@@ -351,12 +381,13 @@ const DashboardCharts = () => {
               },
               scales: {
                 y: {
+                  beginAtZero: true,
                   grid: {
                     color: "rgba(0, 0, 0, 0.1)",
                   },
                   ticks: {
                     callback: function (value) {
-                      return "LKR " + (value / 1000000).toFixed(1) + "M";
+                      return value.toLocaleString();
                     },
                     font: {
                       size: 11,
@@ -382,19 +413,19 @@ const DashboardCharts = () => {
   );
 };
 
-const QuickActions = () => {
+const QuickActions = ({ setActiveItem }) => {
   const actions = [
     {
       icon: Users,
       label: "Add Employee",
-      action: "employeeAdd",
+      action: "EmployeeMaster",
       color: "from-blue-500 to-blue-600",
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
     },
     {
       icon: Calendar,
-      label: "Leave Approval",
+      label: "Leave",
       action: "leaveMaster",
       color: "from-green-500 to-green-600",
       iconBg: "bg-green-100",
@@ -410,16 +441,16 @@ const QuickActions = () => {
     },
     {
       icon: DollarSign,
-      label: "Process Salary",
-      action: "SalaryProcessPage",
+      label: "Loan",
+      action: "employeeLoan", 
       color: "from-purple-500 to-purple-600",
       iconBg: "bg-purple-100",
       iconColor: "text-purple-600",
     },
     {
       icon: PieChart,
-      label: "Reports",
-      action: "reports",
+      label: "Leave Calendar",
+      action: "leavecalendar", 
       color: "from-pink-500 to-pink-600",
       iconBg: "bg-pink-100",
       iconColor: "text-pink-600",
@@ -433,6 +464,7 @@ const QuickActions = () => {
         {actions.map((action, index) => (
           <button
             key={index}
+            onClick={() => setActiveItem(action.action)}
             className="group flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-white hover:to-gray-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
           >
             <div
@@ -557,6 +589,8 @@ const Dashboard = ({ user, onLogout }) => {
               <EmployeeAdd />
             ) : activeItem === "show" ? (
               <ShowEmployee />
+              ) : activeItem === "EmployeeMaster" ? (
+              <EmployeeMaster />
             ) : activeItem === "createNewDeduction" ? (
               <CreateNewDeduction />
             ) : activeItem === "shiftTime" ? (
@@ -605,7 +639,7 @@ const Dashboard = ({ user, onLogout }) => {
                   </p>
                 </div>
                 <DashboardStats />
-                <QuickActions />
+                <QuickActions setActiveItem={setActiveItem} />
                 <DashboardCharts />
                 <div className="flex justify-center">
                   <button
