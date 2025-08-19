@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { addTimeCard, fetchTimeCards } from '../../services/ApiDataService';
 import employeeService from '../../services/EmployeeDataService';
 import timeCardService from '../../services/timeCardService';
@@ -175,6 +175,8 @@ const TimeCard = () => {
     department: '',
     status: '',
   });
+  // Inline validation errors for Add New modal
+  const [addErrors, setAddErrors] = useState({});
 
   // Import Data section toggle state
   const [showImport, setShowImport] = useState(true);
@@ -184,6 +186,11 @@ const TimeCard = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedToDate, setSelectedToDate] = useState('');
   const [excelFile, setExcelFile] = useState(null);
+  // ref to clear the native file input after import
+  const excelInputRef = useRef(null);
+
+  // debounce ref for backend search
+  const searchDebounceRef = useRef(null);
 
   // Fetch data from backend on mount
   useEffect(() => {
@@ -251,6 +258,7 @@ const TimeCard = () => {
     setFilteredData(filterAttendance('Leave'));
   };
 
+  // Cancel handler for filters
   const handleCancel = () => {
     setLocation('');
     setDateFrom('');
@@ -259,6 +267,8 @@ const TimeCard = () => {
     setEmployeeName('');
     setDepartment('');
     setFilterDate('');
+    // clear employee search when cancelling filters
+    setEmployeeSearch('');
     setFilteredData(attendanceData);
   };
 
@@ -350,6 +360,7 @@ const TimeCard = () => {
     }
     setIsLoading(true);
     setNicError('');
+    setAddErrors({}); // reset field errors
 
     let employee;
     try {
@@ -366,8 +377,15 @@ const TimeCard = () => {
       return;
     }
 
-    if (!newRecord.time || !newRecord.date || !newRecord.entry || !newRecord.status) {
-      setNicError('All fields are required');
+    // Validate required fields and show per-field errors
+    const errs = {};
+    if (!newRecord.date) errs.date = 'Date is required';
+    if (!newRecord.status) errs.status = 'Status is required';
+    if (!newRecord.entry) errs.entry = 'Entry will be auto-filled after selecting a Status';
+    if (!newRecord.time) errs.time = 'Time is required';
+
+    if (Object.keys(errs).length > 0) {
+      setAddErrors(errs);
       setIsLoading(false);
       return;
     }
@@ -386,17 +404,7 @@ const TimeCard = () => {
       setAttendanceData(updated);
       setFilteredData(updated);
       setShowAddModal(false);
-      setNewRecord({
-        empNo: '',
-        name: '',
-        time: '',
-        date: '',
-        entry: '',
-        department: '',
-        status: '',
-      });
-      setNic('');
-      setNicError('');
+      clearAddModalFields();
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -420,6 +428,7 @@ const TimeCard = () => {
   const clearAddModalFields = () => {
     setNic('');
     setNicError('');
+    setAddErrors({});
     setNewRecord({
       empNo: '',
       name: '',
@@ -482,55 +491,86 @@ const TimeCard = () => {
   }, [filterOption]);
 
   useEffect(() => {
-    const fetchEmployeeRecords = async () => {
-      // Only handle when "Filter by Employee" is active
-      if (filterOption === 'employee') {
-        setIsLoading(true);
-        try {
-          let data = [];
-
-          // If user typed NIC/EPF, fetch search results; otherwise use full attendanceData as base
-          if (employeeSearch.trim() !== '') {
-            data = await timeCardService.searchEmployeeTimeCards(employeeSearch.trim());
-            if (!Array.isArray(data)) data = [];
-          } else {
-            data = [...attendanceData];
-          }
-
-          // Apply date filters (single date or range) on the fetched results
-          if (filterDate) {
-            data = data.filter((rec) => rec.date === filterDate);
-          }
-          if (dateFrom) {
-            data = data.filter((rec) => rec.date >= dateFrom);
-          }
-          if (dateTo) {
-            data = data.filter((rec) => rec.date <= dateTo);
-          }
-
-          setFilteredData(data);
-        } catch (e) {
-          setFilteredData([]);
-        } finally {
-          setIsLoading(false);
-        }
-      } else if (filterOption === 'all') {
-        // When "All" is selected, still allow date filtering
-        if (filterDate || dateFrom || dateTo) {
-          let data = [...attendanceData];
-          if (filterDate) data = data.filter((rec) => rec.date === filterDate);
-          if (dateFrom) data = data.filter((rec) => rec.date >= dateFrom);
-          if (dateTo) data = data.filter((rec) => rec.date <= dateTo);
-          setFilteredData(data);
-        } else {
-          setFilteredData(attendanceData);
-        }
+    // Only run when "Filter by Employee" is active
+    if (filterOption !== 'employee') {
+      // When switched away, restore attendanceData (but respect date filters)
+      if (filterDate || dateFrom || dateTo) {
+        let data = [...attendanceData];
+        if (filterDate) data = data.filter((rec) => rec.date === filterDate);
+        if (dateFrom) data = data.filter((rec) => rec.date >= dateFrom);
+        if (dateTo) data = data.filter((rec) => rec.date <= dateTo);
+        setFilteredData(data);
       } else {
         setFilteredData(attendanceData);
       }
-    };
+      return;
+    }
 
-    fetchEmployeeRecords();
+    const term = (employeeSearch || '').trim();
+
+    // empty search -> show base attendance data (with date filters applied)
+    if (!term) {
+      let data = [...attendanceData];
+      if (filterDate) data = data.filter((rec) => rec.date === filterDate);
+      if (dateFrom) data = data.filter((rec) => rec.date >= dateFrom);
+      if (dateTo) data = data.filter((rec) => rec.date <= dateTo);
+      setFilteredData(data);
+      setIsLoading(false);
+      return;
+    }
+
+    // If the user types only digits, do immediate client-side filtering (instant number-by-number)
+    if (/^\d+$/.test(term)) {
+      setIsLoading(false);
+      const filtered = attendanceData.filter((rec) => {
+        const empNo = (rec.empNo || '').toString().toLowerCase();
+        const epf = (rec.epf || '').toString().toLowerCase();
+        const nicVal = (rec.nic || '').toLowerCase();
+        return (
+          empNo.includes(term.toLowerCase()) ||
+          epf.includes(term.toLowerCase()) ||
+          nicVal.includes(term.toLowerCase())
+        );
+      }).filter((rec) => {
+        if (filterDate && rec.date !== filterDate) return false;
+        if (dateFrom && rec.date < dateFrom) return false;
+        if (dateTo && rec.date > dateTo) return false;
+        return true;
+      });
+      setFilteredData(filtered);
+      return;
+    }
+
+    // For non-numeric or mixed input, call backend but debounce requests
+    setIsLoading(true);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const data = await timeCardService.searchEmployeeTimeCards(term);
+        let results = Array.isArray(data) ? data : [];
+        // apply local date filters if backend doesn't support them
+        if (filterDate || dateFrom || dateTo) {
+          results = results.filter((rec) => {
+            if (filterDate && rec.date !== filterDate) return false;
+            if (dateFrom && rec.date < dateFrom) return false;
+            if (dateTo && rec.date > dateTo) return false;
+            return true;
+          });
+        }
+        setFilteredData(results);
+      } catch (err) {
+        setFilteredData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
   }, [employeeSearch, filterOption, filterDate, dateFrom, dateTo, attendanceData]);
 
   const handleExcelUpload = (e) => {
@@ -573,6 +613,8 @@ const TimeCard = () => {
       setSelectedDate('');
       setSelectedToDate('');
       setExcelFile(null);
+      // clear the native file input so it visually resets in the UI
+      if (excelInputRef.current) excelInputRef.current.value = '';
     } catch (e) {
       Swal.fire({
         icon: 'error',
@@ -696,6 +738,7 @@ const TimeCard = () => {
                         accept=".xlsx,.xls"
                         className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm"
                         onChange={handleExcelUpload}
+                        ref={excelInputRef}
                       />
                       <button
                         className="mt-3 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg"
@@ -757,13 +800,13 @@ const TimeCard = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {filterOption === 'employee' && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">Search by NIC or EPF Number</label>
+                    <label className="block text-sm font-semibold text-slate-700">Search by NIC/EPF/EMP Attendance Number</label>
                     <input
                       type="text"
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
                       value={employeeSearch}
                       onChange={(e) => setEmployeeSearch(e.target.value)}
-                      placeholder="Enter NIC or EPF number"
+                      placeholder="Enter NIC/EPF/EMP Attendance number"
                     />
                   </div>
                 )}
@@ -838,7 +881,7 @@ const TimeCard = () => {
                   <div className="flex items-center">
                     <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center mr-3">
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2v-6a2 2 0 012-2h2v6z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2v-6a2 2 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                       </svg>
                     </div>
                     <h3 className="text-lg sm:text-xl font-bold text-white">Attendance Records</h3>
@@ -1083,11 +1126,11 @@ const TimeCard = () => {
                 </label>
                 <input
                   type="text"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                  className={`w-full border rounded-lg px-3 py-1.5 text-sm ${nicError ? 'border-red-500' : 'border-gray-300'}`}
                   value={nic}
                   onChange={e => setNic(e.target.value)}
                   onBlur={handleNicBlur}
-                  placeholder="Enter employee NIC number"
+                  placeholder="Enter employee NIC/ EMP Attendance number"
                 />
                 {nicError && <div className="text-red-500 text-xs mt-1">{nicError}</div>}
               </div>
@@ -1136,11 +1179,22 @@ const TimeCard = () => {
                   </label>
                   <input
                     type="date"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 text-sm ${addErrors.date ? 'border-red-500' : 'border-gray-300'}`}
                     value={newRecord.date}
-                    onChange={e => setNewRecord({ ...newRecord, date: e.target.value })}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setNewRecord({ ...newRecord, date: v });
+                      setAddErrors(prev => ({ ...prev, date: v ? undefined : 'Date is required' }));
+                    }}
+                    onBlur={() => {
+                      if (!newRecord.date) {
+                        setAddErrors(prev => ({ ...prev, date: 'Date is required' }));
+                      }
+                    }}
                     max={new Date().toISOString().split('T')[0]}
+                    aria-invalid={!!addErrors.date}
                   />
+                  {addErrors.date && <div className="text-red-500 text-xs mt-1">{addErrors.date}</div>}
                 </div>
                 <div className="mb-3">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1148,10 +1202,21 @@ const TimeCard = () => {
                   </label>
                   <input
                     type="time"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 text-sm ${addErrors.time ? 'border-red-500' : 'border-gray-300'}`}
                     value={newRecord.time}
-                    onChange={e => setNewRecord({ ...newRecord, time: e.target.value })}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setNewRecord({ ...newRecord, time: v });
+                      setAddErrors(prev => ({ ...prev, time: v ? undefined : 'Time is required' }));
+                    }}
+                    onBlur={() => {
+                      if (!newRecord.time) {
+                        setAddErrors(prev => ({ ...prev, time: 'Time is required' }));
+                      }
+                    }}
+                    aria-invalid={!!addErrors.time}
                   />
+                  {addErrors.time && <div className="text-red-500 text-xs mt-1">{addErrors.time}</div>}
                 </div>
               </div>
               
@@ -1161,7 +1226,7 @@ const TimeCard = () => {
                     Status <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 text-sm ${addErrors.status ? 'border-red-500' : 'border-gray-300'}`}
                     value={newRecord.status}
                     onChange={e => {
                       const status = e.target.value;
@@ -1169,28 +1234,42 @@ const TimeCard = () => {
                       if (status === 'IN') entry = '1';
                       else if (status === 'OUT') entry = '2';
                       else if (status === 'Leave') entry = '0';
-                      setNewRecord(prev => ({
+
+                      setNewRecord(prev => ({ ...prev, status, entry }));
+                      setAddErrors(prev => ({
                         ...prev,
-                        status,
-                        entry,
+                        status: status ? undefined : 'Status is required',
+                        entry: status ? undefined : 'Entry will be auto-filled after selecting a Status',
                       }));
                     }}
+                    onBlur={() => {
+                      if (!newRecord.status) {
+                        setAddErrors(prev => ({
+                          ...prev,
+                          status: 'Status is required',
+                          entry: 'Entry will be auto-filled after selecting a Status',
+                        }));
+                      }
+                    }}
+                    aria-invalid={!!addErrors.status}
                   >
                     <option value="">Select Status</option>
                     <option value="IN">IN</option>
                     <option value="OUT">OUT</option>
                     <option value="Leave">Leave</option>
                   </select>
+                  {addErrors.status && <div className="text-red-500 text-xs mt-1">{addErrors.status}</div>}
                 </div>
                 <div className="mb-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Entry Code</label>
                   <input
                     type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-100 text-sm"
+                    className={`w-full border rounded-lg px-3 py-1.5 bg-gray-100 text-sm ${addErrors.entry ? 'border-red-500' : 'border-gray-200'}`}
                     value={newRecord.entry}
                     readOnly
                     placeholder="Auto-filled"
                   />
+                  {addErrors.entry && <div className="text-red-500 text-xs mt-1">{addErrors.entry}</div>}
                 </div>
               </div>
             </div>
@@ -1205,12 +1284,7 @@ const TimeCard = () => {
               <button
                 className="px-4 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition font-semibold shadow text-sm"
                 onClick={handleAddNew}
-                disabled={
-                  !nic ||
-                  !newRecord.time ||
-                  !newRecord.date ||
-                  !newRecord.status
-                }
+                disabled={isLoading} // allow click to trigger validation
               >
                 Add Record
               </button>
@@ -1248,7 +1322,7 @@ const TimeCard = () => {
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                placeholder="Filter by NIC or EPF"
+                placeholder="Filter by NIC/EPF/EMP Attendane no"
                 value={absentSearch}
                 onChange={handleAbsentSearch}
               />
