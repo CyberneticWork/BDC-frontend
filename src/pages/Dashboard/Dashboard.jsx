@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   Users,
@@ -44,6 +44,8 @@ import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
+
+import { useLocation, useNavigate } from "react-router-dom"; // << added
 
 ChartJS.register(
   CategoryScale,
@@ -453,6 +455,29 @@ const Dashboard = ({ user, onLogout }) => {
   const [activeItem, setActiveItem] = useState("dashboard");
   const [isOpen, setIsOpen] = useState(false);
 
+  const location = useLocation(); // << added
+  const navigate = useNavigate(); // << added
+
+  // keep URL <-> activeItem in sync
+  useEffect(() => {
+    // location.pathname e.g. /dashboard/leaveApproval
+    const parts = location.pathname.split("/").filter(Boolean);
+    // if path is /dashboard or /dashboard/ -> default dashboard
+    const section = parts[1] || "dashboard";
+    if (section && section !== activeItem) {
+      setActiveItem(section);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // wrapper to update state AND navigate
+  const handleSetActiveItem = (id) => {
+    setActiveItem(id);
+    // navigate to /dashboard/<id> (for root dashboard use /dashboard)
+    if (id === "dashboard") navigate("/dashboard", { replace: false });
+    else navigate(`/dashboard/${id}`, { replace: false });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex">
       {/* Sidebar */}
@@ -460,7 +485,7 @@ const Dashboard = ({ user, onLogout }) => {
         user={user}
         onLogout={onLogout}
         activeItem={activeItem}
-        setActiveItem={setActiveItem}
+        setActiveItem={handleSetActiveItem} // << pass navigation-aware setter
         isOpen={isOpen}
         setIsOpen={setIsOpen}
       />
@@ -570,6 +595,7 @@ const Dashboard = ({ user, onLogout }) => {
               <Resignation />
             ) : (
               <div className="space-y-8">
+                {/* default dashboard content */}
                 <div className="text-center mb-8">
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
                     HRM Dashboard

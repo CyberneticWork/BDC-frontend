@@ -8,10 +8,13 @@ import {
   setUser as storeUser,
   clearUser,
 } from "../services/UserService";
+import { useNavigate, useLocation } from "react-router-dom"; // << added
 
 // Home Page (Landing + Auth)
 function Home() {
   const [user, setUser] = useState(getUser());
+  const navigate = useNavigate(); // << added
+  const location = useLocation();
 
   // Try to load user on mount (if token exists)
   useEffect(() => {
@@ -20,6 +23,7 @@ function Home() {
         const userData = await loadUser();
         setUser(userData);
         storeUser(userData);
+        navigate("/dashboard", { replace: true }); // <-- redirect when found
       } catch {
         setUser(null);
         clearUser();
@@ -28,6 +32,12 @@ function Home() {
     // Only fetch if not already in localStorage
     if (!user) {
       fetchUser();
+    } else {
+      // only navigate to /dashboard if we're not already on a dashboard route
+      // this prevents clobbering deep links like /dashboard/leaveApproval on refresh
+      if (!location.pathname.startsWith("/dashboard")) {
+        navigate("/dashboard", { replace: true });
+      }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -36,6 +46,10 @@ function Home() {
       const userData = await loadUser();
       setUser(userData);
       storeUser(userData);
+      // After successful login, navigate to previous attempted path if any,
+      // otherwise go to /dashboard
+      const dest = (location.state && location.state.from) || "/dashboard";
+      navigate(dest);
     } catch {
       setUser(null);
       clearUser();
@@ -50,9 +64,11 @@ function Home() {
     }
     clearUser(); // Clear user from localStorage
     setUser(null); // Update state to trigger re-render
+    navigate("/", { replace: true }); // << navigate back to home/login
   };
 
   if (user) {
+    // keep the same Dashboard render so props are preserved
     return <Dashboard user={user} onLogout={handleLogout} />;
   }
 
