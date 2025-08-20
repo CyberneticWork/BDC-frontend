@@ -33,66 +33,95 @@ const Sidebar = ({
     timeAttendance: false,
   });
 
-  // Keep dropdowns open when a descendant item is the active item.
-  // This ensures a page refresh or direct deep link doesn't collapse the
-  // sidebar sections that contain the active page.
+  const menuItems = [
+    { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
+    {
+      id: "hrMaster",
+      name: "HR Master",
+      icon: Users,
+      badge: null,
+      subItems: [
+        { id: "show", name: "Show Employee", icon: UserCheck },
+        { id: "employeeMaster", name: " Add Employee Master" },
+        { id: "departmentMaster", name: "Department Master" },
+        { id: "shiftTime", name: "Shift Time" },
+        { id: "grouproster", name: "Roster" },
+        { id: "resignation", name: "Resignation" },
+        { id: "termination", name: "Termination" },
+        {
+          id: "allowanceDeduction",
+          name: "Compensation",
+          icon: DollarSign,
+          subItems: [
+            { id: "createNewAllowance", name: "Allowance" },
+            { id: "createNewDeduction", name: "Deduction" },
+          ],
+        },
+        {
+          id: "loans",
+          name: "Loans",
+          icon: DollarSign,
+          subItems: [
+            { id: "viewLoans", name: "View Loans" },
+            { id: "employeeLoan", name: "Employee Wise Loan" },
+          ],
+        },
+        {
+          id: "salaryProcess",
+          name: "Salary Process",
+          icon: DollarSign,
+          subItems: [
+            { id: "SalaryProcessPage", name: "Salary Process" },
+            { id: "SalaryPage", name: "View Salary" },
+          ],
+        },
+        {
+          id: "timeAttendance",
+          name: "Time Attendance",
+          icon: UserCheck,
+          subItems: [
+            { id: "TimeCard", name: "Time Card" },
+            { id: "Overtime", name: "Over Time" },
+            { id: "leaveMaster", name: "Leave Master" },
+            { id: "leaveApproval", name: "Leave Approval" },
+            { id: "hrLeaveApproval", name: "HR Leave Approval" },
+            { id: "noPayManagement", name: "NoPay" },
+            { id: "leavecalendar", name: "Leave Calendar" },
+          ],
+        },
+        //add more i needed
+      ],
+    },
+    { id: "reports", name: "Reports", icon: BarChart3, badge: null },
+    { id: "utilities", name: "Utilities", icon: FileText, badge: null },
+  ];
+
+  // NEW: auto-expand nested groups based on the current activeItem (works on reload)
   useEffect(() => {
-    const newExpanded = {
-      hrMaster: false,
-      allowanceDeduction: false,
-      loans: false,
-      salaryProcess: false,
-      timeAttendance: false,
+    const findPath = (items, target) => {
+      for (const item of items) {
+        if (item.id === target) return [item.id];
+        if (item.subItems) {
+          const subPath = findPath(item.subItems, target);
+          if (subPath) return [item.id, ...subPath];
+        }
+      }
+      return null;
     };
 
-    if (activeItem) {
-      // top-level HR Master descendants
-      const hrDescendants = [
-        "show",
-        "employeeMaster",
-        "departmentMaster",
-        "shiftTime",
-        "grouproster",
-        "resignation",
-        "termination",
-        "allowanceDeduction",
-        "loans",
-        "salaryProcess",
-        "timeAttendance",
-      ];
+    const path = findPath(menuItems, activeItem) || [];
 
-      if (hrDescendants.includes(activeItem)) {
-        newExpanded.hrMaster = true;
-      }
-
-      if (["createNewAllowance", "createNewDeduction"].includes(activeItem)) {
-        newExpanded.allowanceDeduction = true;
-      }
-
-      if (["viewLoans", "employeeLoan"].includes(activeItem)) {
-        newExpanded.loans = true;
-      }
-
-      if (["SalaryProcessPage", "SalaryPage"].includes(activeItem)) {
-        newExpanded.salaryProcess = true;
-      }
-
-      if (
-        [
-          "TimeCard",
-          "Overtime",
-          "leaveMaster",
-          "leaveApproval",
-          "hrLeaveApproval",
-          "noPayManagement",
-          "leavecalendar",
-        ].includes(activeItem)
-      ) {
-        newExpanded.timeAttendance = true;
-      }
-    }
-
-    setExpandedItems((prev) => ({ ...prev, ...newExpanded }));
+    setExpandedItems({
+      hrMaster: path.includes("hrMaster"),
+      allowanceDeduction:
+        path.includes("allowanceDeduction") ||
+        activeItem === "allowanceDeduction",
+      loans: path.includes("loans") || activeItem === "loans",
+      salaryProcess:
+        path.includes("salaryProcess") || activeItem === "salaryProcess",
+      timeAttendance:
+        path.includes("timeAttendance") || activeItem === "timeAttendance",
+    });
   }, [activeItem]);
 
   const toggleHrMaster = () => {
@@ -119,88 +148,6 @@ const Sidebar = ({
       timeAttendance: !prev.timeAttendance,
     }));
   };
-
-  const menuItems = [
-    { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
-
-    {
-      id: "hrMaster",
-      name: "HR Master",
-      icon: Users,
-      badge: null,
-      subItems: [
-        { id: "show", name: "Show Employee", icon: UserCheck },
-        { id: "employeeMaster", name: " Add Employee Master" },
-        { id: "departmentMaster", name: "Department Master" },
-        { id: "shiftTime", name: "Shift Time" },
-        { id: "grouproster", name: "Roster" },
-        { id: "resignation", name: "Resignation" },
-        { id: "termination", name: "Termination" },
-        // {
-        //   id: "Allowance",
-        //   name: "Allowance",
-        //   icon: DollarSign,
-        //   subItems: [{ id: "createNewAllowance", name: "View Allowance" }],
-        // },
-        // {
-        //   id: "deduction",
-        //   name: "Deduction",
-        //   icon: DollarSign,
-        //   subItems: [{ id: "createNewDeduction", name: "View Deduction" }],
-        // },
-        {
-          id: "allowanceDeduction",
-          name: "Compensation",
-          icon: DollarSign,
-          subItems: [
-            { id: "createNewAllowance", name: "Allowance" },
-            { id: "createNewDeduction", name: "Deduction" },
-          ],
-        },
-
-        {
-          id: "loans",
-          name: "Loans",
-          icon: DollarSign,
-          subItems: [
-            { id: "viewLoans", name: "View Loans" },
-            { id: "employeeLoan", name: "Employee Wise Loan" },
-            // { id: "loanProcess", name: "Loan Process" },
-          ],
-        },
-        {
-          id: "salaryProcess",
-          name: "Salary Process",
-          icon: DollarSign,
-          subItems: [
-            // { id: "salaryMaster", name: "Salary Master" },
-            { id: "SalaryProcessPage", name: "Salary Process" },
-            { id: "SalaryPage", name: "View Salary" },
-          ],
-        },
-        {
-          id: "timeAttendance",
-          name: "Time Attendance",
-          icon: UserCheck,
-          subItems: [
-            { id: "TimeCard", name: "Time Card" },
-            { id: "Overtime", name: "Over Time" },
-            { id: "leaveMaster", name: "Leave Master" },
-            { id: "leaveApproval", name: "Leave Approval" },
-            { id: "hrLeaveApproval", name: "HR Leave Approval" }, // Add this new line
-            { id: "noPayManagement", name: "NoPay" },
-            { id: "leavecalendar", name: "Leave Calendar" },
-          ],
-        },
-        //add more i needed
-      ],
-    },
-    // { id: "attendance", name: "Attendance", icon: UserCheck, badge: null },
-    // { id: "payroll", name: "Payroll", icon: DollarSign, badge: null },
-    // { id: "calendar", name: "Calendar", icon: Calendar, badge: null },
-    { id: "reports", name: "Reports", icon: BarChart3, badge: null },
-    { id: "utilities", name: "Utilities", icon: FileText, badge: null },
-  ];
 
   return (
     <>
