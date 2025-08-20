@@ -22,6 +22,7 @@ import {
   deleteSalaryRecordAPI,
   fetchSalaryCSV,
 } from "@services/SalaryService";
+import { fetchCompanies as fetchCompaniesAPI } from "@services/ApiDataService";
 
 // Modal Component
 // Fixed Modal Component
@@ -131,6 +132,7 @@ const Modal = ({ isOpen, onClose, children }) => {
 const SalaryPage = () => {
   const [salaryData, setSalaryData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [companies, setCompanies] = useState([]); // <-- new state
   const [selectedCompany, setSelectedCompany] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -377,15 +379,36 @@ const SalaryPage = () => {
     fetchSalaryData();
   }, []);
 
-  // Get unique companies for filter
-  const companies = [
-    ...new Set(salaryData.map((item) => item.company_name)),
-  ].sort();
+  // Load companies from API (all companies in DB)
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const data = await fetchCompaniesAPI();
+        // fetchCompanies may return array of {id,name} or array of names depending on backend
+        // Normalize to array of names to keep existing filter behavior (matches company_name)
+        const normalized = Array.isArray(data)
+          ? data.map((c) => (typeof c === "string" ? c : c.name ?? ""))
+              .filter(Boolean)
+          : [];
+        setCompanies(normalized.sort());
+      } catch (err) {
+        console.error("Failed to load companies:", err);
+      }
+    };
+    loadCompanies();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [expandedRow, setExpandedRow] = useState(null);
 
+  // Refresh handler: clear search + company filter then reload data
+  const handleRefresh = async () => {
+    setSelectedCompany("");
+    setSearchTerm("");
+    await fetchSalaryData();
+  };
+  
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -508,11 +531,12 @@ const SalaryPage = () => {
       {/* Filter Section */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Company
-            </label>
-            <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 md:mr-3 md:mb-0">
+            Filter by Company
+          </label>
+
+          <div className="flex-1 flex items-center gap-3">
+            <div className="relative flex-1">
               <Building2
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
                 size={18}
@@ -520,7 +544,7 @@ const SalaryPage = () => {
               <select
                 value={selectedCompany}
                 onChange={(e) => setSelectedCompany(e.target.value)}
-                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                className="w-full pl-10 pr-8 h-10 border border-gray-300 rounded-lg text-base appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="">All Companies</option>
                 {companies.map((company) => (
@@ -531,23 +555,23 @@ const SalaryPage = () => {
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
-          </div>
-          {/* In your filter section, modify the button container */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchSalaryData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-            >
-              <RefreshCw size={18} className="mr-2" />
-              Refresh
-            </button>
-            <button
-              onClick={handleDownloadCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
-            >
-              <FileText size={18} className="mr-2" />
-              Download CSV
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-2.5 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+              >
+                <RefreshCw size={18} className="mr-2" />
+                Refresh
+              </button>
+              {/* <button
+                onClick={handleDownloadCSV}
+                className="px-4 py-2.5 h-10 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+              >
+                <FileText size={18} className="mr-2" />
+                Download CSV
+              </button> */}
+            </div>
           </div>
         </div>
       </div>
