@@ -1311,7 +1311,7 @@ const SalaryProcessPage = () => {
                 Process Salary
               </button>
               <button
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
+                className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
     ${
       status !== "Processed"
         ? "bg-gray-100 text-gray-400 cursor-not-allowed"

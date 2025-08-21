@@ -211,6 +211,34 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     try {
       const response = await employeeService.fetchEmployeeById(employeeId);
       const apiData = response;
+      // console.log("API Data:", apiData); 
+      const normalizeGender = (gender) => {
+        if (!gender) return "";
+        const lower = gender.toLowerCase();
+        if (lower === "male") return "Male";
+        if (lower === "female") return "Female";
+        if (lower === "other") return "Other";
+        return gender;
+      };
+
+      const normalizeMaritalStatus = (status) => {
+        if (!status) return "";
+        const lower = status.toLowerCase();
+        if (lower === "single") return "Single";
+        if (lower === "married") return "Married";
+        if (lower === "divorced") return "Divorced";
+        if (lower === "widowed") return "Widowed";
+        return status;
+      };
+
+      const normalizeEmploymentStatus = (status) => {
+        if (!status) return "";
+        if (typeof status === "number") return status.toString();
+        return status;
+      };
+
+      // Fix: Get relationship type from spouse.type
+      const relationshipType = apiData.spouse?.type || "";
 
       const transformedData = {
         personal: {
@@ -220,19 +248,23 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
           epfNo: apiData.epf,
           nicNumber: apiData.nic,
           dob: apiData.dob,
-          gender: apiData.gender,
+          gender: normalizeGender(apiData.gender),
           religion: apiData.religion,
           countryOfBirth: apiData.country_of_birth,
           profilePicture: null,
           profilePicturePreview: apiData.profile_photo_path
             ? `${config.apiBaseUrl}/storage/${apiData.profile_photo_path}`
             : null,
-          employmentStatus: apiData.employment_status,
+          employmentStatus: normalizeEmploymentStatus(
+            apiData.employment_type_id
+          ),
           nameWithInitial: apiData.name_with_initials,
           fullName: apiData.full_name,
           displayName: apiData.display_name,
-          maritalStatus: apiData.marital_status,
-          relationshipType: apiData.relationship_type,
+          // FIX: Use apiData.marital_status instead of apiData.employment_type.name
+          maritalStatus: normalizeMaritalStatus(apiData.marital_status),
+          // FIX: Get relationship type from spouse data
+          relationshipType: relationshipType,
           spouseTitle: apiData.spouse?.title,
           spouseName: apiData.spouse?.name,
           spouseAge: apiData.spouse?.age,
