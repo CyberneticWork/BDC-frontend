@@ -165,6 +165,8 @@ const SalaryPage = () => {
   });
   const [allowances, setAllowances] = useState([]);
   const [deductions, setDeductions] = useState([]);
+  const [allowanceErrors, setAllowanceErrors] = useState([]); // { name: '', amount: '' }
+  const [deductionErrors, setDeductionErrors] = useState([]);
 
   // Fetch salary data
   const fetchSalaryData = async () => {
@@ -279,6 +281,12 @@ const SalaryPage = () => {
   // Update the handleSubmit function to ensure stamp is handled consistently
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // run client-side validation for allowances/deductions
+    if (!validateAllowancesDeductions()) {
+      alert("Please fill description and amount for all allowances and deductions.");
+      return;
+    }
 
     try {
       // Show loading indicator
@@ -552,35 +560,46 @@ const SalaryPage = () => {
 
   // Allowance/Deduction helpers (add this block)
   const handleAddAllowance = () => {
-    setAllowances((prev) => [...prev, { name: "", amount: 0 }]);
+    setAllowances((prev) => [...prev, { name: "", amount: "" }]);
+    setAllowanceErrors((prev) => [...prev, { name: "", amount: "" }]);
   };
 
   const handleUpdateAllowance = (index, field, value) => {
     setAllowances((prev) =>
       prev.map((it, i) =>
-        i === index ? { ...it, [field]: field === "amount" ? parseFloat(value || 0) || 0 : value } : it
+        i === index ? { ...it, [field]: field === "amount" ? value : value } : it
       )
+    );
+    // clear corresponding error when user edits
+    setAllowanceErrors((prev) =>
+      prev.map((err, i) => (i === index ? { ...err, [field]: "" } : err))
     );
   };
 
   const handleRemoveAllowance = (index) => {
     setAllowances((prev) => prev.filter((_, i) => i !== index));
+    setAllowanceErrors((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAddDeduction = () => {
-    setDeductions((prev) => [...prev, { name: "", amount: 0 }]);
+    setDeductions((prev) => [...prev, { name: "", amount: "" }]);
+    setDeductionErrors((prev) => [...prev, { name: "", amount: "" }]);
   };
 
   const handleUpdateDeduction = (index, field, value) => {
     setDeductions((prev) =>
       prev.map((it, i) =>
-        i === index ? { ...it, [field]: field === "amount" ? parseFloat(value || 0) || 0 : value } : it
+        i === index ? { ...it, [field]: field === "amount" ? value : value } : it
       )
+    );
+    setDeductionErrors((prev) =>
+      prev.map((err, i) => (i === index ? { ...err, [field]: "" } : err))
     );
   };
 
   const handleRemoveDeduction = (index) => {
     setDeductions((prev) => prev.filter((_, i) => i !== index));
+    setDeductionErrors((prev) => prev.filter((_, i) => i !== index));
   };
 
   const calculateTotalAllowances = () => {
@@ -589,6 +608,30 @@ const SalaryPage = () => {
 
   const calculateTotalDeductions = () => {
     return (deductions || []).reduce((s, d) => s + (parseFloat(d.amount || 0) || 0), 0);
+  };
+
+  // Validate allowances/deductions before submitting
+  const validateAllowancesDeductions = () => {
+    const aErrors = allowances.map((a) => {
+      const err = { name: "", amount: "" };
+      if (!a.name || !String(a.name).trim()) err.name = "Description is required";
+      if (a.amount === "" || a.amount === null || isNaN(parseFloat(a.amount))) err.amount = "Amount is required";
+      return err;
+    });
+
+    const dErrors = deductions.map((d) => {
+      const err = { name: "", amount: "" };
+      if (!d.name || !String(d.name).trim()) err.name = "Description is required";
+      if (d.amount === "" || d.amount === null || isNaN(parseFloat(d.amount))) err.amount = "Amount is required";
+      return err;
+    });
+
+    setAllowanceErrors(aErrors);
+    setDeductionErrors(dErrors);
+
+    const hasAllowanceError = aErrors.some((e) => e.name || e.amount);
+    const hasDeductionError = dErrors.some((e) => e.name || e.amount);
+    return !(hasAllowanceError || hasDeductionError);
   };
 
   return (
@@ -1280,6 +1323,11 @@ const SalaryPage = () => {
                             className="flex-1 px-2 py-1 text-xs border rounded"
                             placeholder="Description"
                           />
+                        {allowanceErrors[index]?.name && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {allowanceErrors[index].name}
+                          </div>
+                        )}
                           <div className="w-24 flex items-center">
                             <span className="text-gray-500 text-xs mr-1">Rs.</span>
                             <input
@@ -1291,6 +1339,11 @@ const SalaryPage = () => {
                               step="0.01"
                             />
                           </div>
+                        {allowanceErrors[index]?.amount && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {allowanceErrors[index].amount}
+                          </div>
+                        )}
                           <button
                             type="button"
                             onClick={() => handleRemoveAllowance(index)}
@@ -1340,6 +1393,11 @@ const SalaryPage = () => {
                             className="flex-1 px-2 py-1 text-xs border rounded"
                             placeholder="Description"
                           />
+                        {deductionErrors[index]?.name && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {deductionErrors[index].name}
+                          </div>
+                        )}
                           <div className="w-24 flex items-center">
                             <span className="text-gray-500 text-xs mr-1">Rs.</span>
                             <input
@@ -1351,6 +1409,11 @@ const SalaryPage = () => {
                               step="0.01"
                             />
                           </div>
+                        {deductionErrors[index]?.amount && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {deductionErrors[index].amount}
+                          </div>
+                        )}
                           <button
                             type="button"
                             onClick={() => handleRemoveDeduction(index)}
