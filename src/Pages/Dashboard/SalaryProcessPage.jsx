@@ -393,7 +393,15 @@ const SalaryProcessPage = () => {
           // doc.text(`0.00`, 170, y, { align: "right" });
           // y += 6;
           doc.text(`Stamp Duty`, 15, y);
-          doc.text(`0.00`, 170, y, { align: "right" });
+          doc.text(
+            `${(emp.salary_breakdown?.stamp || 0).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`,
+            170,
+            y,
+            { align: "right" }
+          );
           y += 6;
         }
 
