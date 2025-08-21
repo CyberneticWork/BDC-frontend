@@ -1,4 +1,16 @@
 import axios from "@utils/axios";
+import { getUser } from "@services/UserService";
+
+// Helper to get user audit information
+const getUserAuditInfo = () => {
+  const currentUser = getUser?.() || null;
+  return currentUser?.id 
+    ? { 
+        user_id: currentUser.id,
+        user_name: currentUser.name || currentUser.username || 'Unknown'
+      } 
+    : {};
+};
 
 export const fetchSalaryDataAPI = async (params = {}) => {
   try {
@@ -12,7 +24,14 @@ export const fetchSalaryDataAPI = async (params = {}) => {
 
 export const updateSalaryAPI = async (id, data) => {
   try {
-    const response = await axios.put(`/salary/${id}`, data);
+    // Attach current logged-in user info for audit
+    const userInfo = getUserAuditInfo();
+    const payload = {
+      ...data,
+      ...userInfo
+    };
+
+    const response = await axios.put(`/salary/${id}`, payload);
     return response.data;
   } catch (error) {
     console.error("Error updating salary record:", error.response?.data?.message || error.message);
@@ -26,7 +45,11 @@ export const updateSalaryAPI = async (id, data) => {
 
 export const deleteSalaryRecordAPI = async (id) => {
   try {
-    const response = await axios.delete(`/salary/${id}`);
+    // Also include user info for delete operations
+    const userInfo = getUserAuditInfo();
+    const response = await axios.delete(`/salary/${id}`, { 
+      data: userInfo  // This sends the data in the request body for DELETE
+    });
     return response.data;
   } catch (error) {
     console.error("Error deleting salary record:", error.response?.data?.message || error.message);

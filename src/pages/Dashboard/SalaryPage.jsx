@@ -15,6 +15,8 @@ import {
   Clock,
   FileText,
   RefreshCw,
+  Plus,
+  Minus,
 } from "lucide-react";
 import {
   fetchSalaryDataAPI,
@@ -22,6 +24,7 @@ import {
   deleteSalaryRecordAPI,
   fetchSalaryCSV,
 } from "@services/SalaryService";
+import { fetchCompanies as fetchCompaniesAPI } from "@services/ApiDataService";
 
 // Modal Component
 // Fixed Modal Component
@@ -131,6 +134,7 @@ const Modal = ({ isOpen, onClose, children }) => {
 const SalaryPage = () => {
   const [salaryData, setSalaryData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [companies, setCompanies] = useState([]); // <-- new state
   const [selectedCompany, setSelectedCompany] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -159,6 +163,10 @@ const SalaryPage = () => {
     stamp: false,
     net_salary: 0,
   });
+  const [allowances, setAllowances] = useState([]);
+  const [deductions, setDeductions] = useState([]);
+  const [allowanceErrors, setAllowanceErrors] = useState([]); // { name: '', amount: '' }
+  const [deductionErrors, setDeductionErrors] = useState([]);
 
   // Fetch salary data
   const fetchSalaryData = async () => {
@@ -214,6 +222,10 @@ const SalaryPage = () => {
     // Normalize various backend formats (0/1, "0"/"1", boolean)
     const bool = (v) => Boolean(v || v === 1 || v === "1");
     const sb = record.salary_breakdown || {};
+
+    // For stamp specifically, check both the boolean field and the breakdown value
+    const stampChecked = bool(record.stamp) || (sb.stamp > 0);
+
     setCurrentRecord(record);
     setFormData({
       basic_salary: record.basic_salary ?? "",
@@ -227,7 +239,8 @@ const SalaryPage = () => {
       enable_epf_etf: bool(record.enable_epf_etf),
       br1: bool(record.br1),
       br2: bool(record.br2),
-      stamp: bool(record.stamp),
+      // Use the combined check for stamp
+      stamp: stampChecked,
       total_loan_amount: record.total_loan_amount ?? "",
       installment_count: record.installment_count ?? "",
       installment_amount: record.installment_amount ?? "",
@@ -238,26 +251,52 @@ const SalaryPage = () => {
       // visible preview value
       net_salary: sb.net_salary ?? 0,
     });
+
+    // Parse allowances and deductions from JSON strings/arrays
+    let parsedAllowances = [];
+    let parsedDeductions = [];
+
+    try {
+      parsedAllowances = Array.isArray(record.allowances)
+        ? record.allowances
+        : (record.allowances ? JSON.parse(record.allowances) : []);
+    } catch (e) {
+      console.error("Error parsing allowances:", e);
+    }
+
+    try {
+      parsedDeductions = Array.isArray(record.deductions)
+        ? record.deductions
+        : (record.deductions ? JSON.parse(record.deductions) : []);
+    } catch (e) {
+      console.error("Error parsing deductions:", e);
+    }
+
+    setAllowances(parsedAllowances);
+    setDeductions(parsedDeductions);
+
     setIsModalOpen(true);
   };
 
-  // Update the handleSubmit function to properly format the data for API
+  // Update the handleSubmit function to ensure stamp is handled consistently
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // run client-side validation for allowances/deductions
+    if (!validateAllowancesDeductions()) {
+      alert("Please fill description and amount for all allowances and deductions.");
+      return;
+    }
+
     try {
       // Show loading indicator
       setIsLoading(true);
-      
+
       // Build salary_breakdown object (editable subset + recalculated fields)
       // preserve allowances/deductions from currentRecord if present
-      const allowances = Array.isArray(currentRecord?.allowances)
-        ? currentRecord.allowances
-        : (currentRecord?.allowances ? JSON.parse(currentRecord.allowances) : []);
-      const deductions = Array.isArray(currentRecord?.deductions)
-        ? currentRecord.deductions
-        : (currentRecord?.deductions ? JSON.parse(currentRecord.deductions) : []);
-      
+      const totalAllowances = calculateTotalAllowances();
+      const totalFixedDeductions = calculateTotalDeductions();
+
       const basicSalaryNum = parseFloat(formData.basic_salary || 0);
       const workingDays = (() => {
         const y = parseInt(formData.year || currentRecord?.year || new Date().getFullYear());
@@ -268,30 +307,27 @@ const SalaryPage = () => {
         }
         return 22;
       })();
-      
+
       const perDaySalary = basicSalaryNum / workingDays;
       const noPayDeduction = (parseInt(formData.approved_no_pay_days || 0) || 0) * perDaySalary;
       const adjustedBasic = basicSalaryNum - noPayDeduction;
-      
-      const totalAllowances = (allowances || []).reduce((s, a) => s + (parseFloat(a.amount || 0) || 0), 0);
-      const totalFixedDeductions = (deductions || []).reduce((s, d) => s + (parseFloat(d.amount || 0) || 0), 0);
-      
+
       const epfBase = adjustedBasic + totalAllowances;
       const epfEmployee = formData.enable_epf_etf ? epfBase * 0.08 : 0;
       const epfEmployer = formData.enable_epf_etf ? epfBase * 0.12 : 0;
       const etfEmployer = formData.enable_epf_etf ? epfBase * 0.03 : 0;
-      
+
       const morningOtVal = formData.ot_morning_enabled ? parseFloat(formData.ot_morning || 0) : 0;
       const eveningOtVal = formData.ot_evening_enabled ? parseFloat(formData.ot_evening || 0) : 0;
-      
+
       const grossSalary = epfBase + morningOtVal + eveningOtVal;
       const totalDeductions = totalFixedDeductions + (parseFloat(formData.installment_amount || 0) || 0) + epfEmployee;
       const stampVal = formData.stamp ? 25 : 0;
       const netSalaryPreview = grossSalary - totalDeductions - stampVal;
-      
+
       const updatedSalaryBreakdown = {
         basic_salary: basicSalaryNum,
-        br_allowance: calculateBRAllowance(), // uses formData.br1/br2
+        br_allowance: calculateBRAllowance(),
         ot_morning_fees: morningOtVal,
         ot_night_fees: eveningOtVal,
         adjusted_basic: adjustedBasic,
@@ -306,10 +342,10 @@ const SalaryPage = () => {
         loan_installment: parseFloat(formData.installment_amount || 0) || 0,
         gross_salary: grossSalary,
         total_deductions: totalDeductions,
-        stamp: stampVal,
+        stamp: stampVal, // Ensure numeric value (25 or 0)
         net_salary: Math.round((netSalaryPreview + Number.EPSILON) * 100) / 100,
       };
-      
+
       const formattedData = {
         basic_salary: parseFloat(formData.basic_salary),
         increment_active: formData.increment_active ? 1 : 0,
@@ -320,7 +356,7 @@ const SalaryPage = () => {
         enable_epf_etf: formData.enable_epf_etf ? 1 : 0,
         br1: formData.br1 ? 1 : 0,
         br2: formData.br2 ? 1 : 0,
-        stamp: formData.stamp ? 1 : 0,
+        stamp: formData.stamp ? 1 : 0, // Boolean field as 1/0
         total_loan_amount: formData.total_loan_amount ? parseFloat(formData.total_loan_amount) : 0,
         installment_count: formData.installment_count ? parseInt(formData.installment_count) : null,
         installment_amount: formData.installment_amount ? parseFloat(formData.installment_amount) : null,
@@ -330,21 +366,23 @@ const SalaryPage = () => {
         year: String(formData.year),
         // send updated salary_breakdown as object (backend will store JSON)
         salary_breakdown: updatedSalaryBreakdown,
+        allowances: allowances,
+        deductions: deductions,
       };
 
       await updateSalaryAPI(currentRecord.id, formattedData);
-      
+
       // Refresh data
       await fetchSalaryData();
-      
+
       // Show success message
       alert("Salary record updated successfully");
-      
+
       // Close modal
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error updating salary record:", error);
-      
+
       // Show validation errors if available
       if (error.response?.data?.errors) {
         const errorMessages = Object.values(error.response?.data?.errors || {})
@@ -377,14 +415,35 @@ const SalaryPage = () => {
     fetchSalaryData();
   }, []);
 
-  // Get unique companies for filter
-  const companies = [
-    ...new Set(salaryData.map((item) => item.company_name)),
-  ].sort();
+  // Load companies from API (all companies in DB)
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const data = await fetchCompaniesAPI();
+        // fetchCompanies may return array of {id,name} or array of names depending on backend
+        // Normalize to array of names to keep existing filter behavior (matches company_name)
+        const normalized = Array.isArray(data)
+          ? data.map((c) => (typeof c === "string" ? c : c.name ?? ""))
+              .filter(Boolean)
+          : [];
+        setCompanies(normalized.sort());
+      } catch (err) {
+        console.error("Failed to load companies:", err);
+      }
+    };
+    loadCompanies();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [expandedRow, setExpandedRow] = useState(null);
+
+  // Refresh handler: clear search + company filter then reload data
+  const handleRefresh = async () => {
+    setSelectedCompany("");
+    setSearchTerm("");
+    await fetchSalaryData();
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
@@ -495,8 +554,84 @@ const SalaryPage = () => {
     const stampDuty = formData.stamp ? 25 : 0;
     const morningOT = formData.ot_morning_enabled ? parseFloat(formData.ot_morning || 0) : 0;
     const eveningOT = formData.ot_evening_enabled ? parseFloat(formData.ot_evening || 0) : 0;
-    
+
     return basicSalary + brAllowance + morningOT + eveningOT - noPayDeduction - epfDeduction - loanInstallment - stampDuty;
+  };
+
+  // Allowance/Deduction helpers (add this block)
+  const handleAddAllowance = () => {
+    setAllowances((prev) => [...prev, { name: "", amount: "" }]);
+    setAllowanceErrors((prev) => [...prev, { name: "", amount: "" }]);
+  };
+
+  const handleUpdateAllowance = (index, field, value) => {
+    setAllowances((prev) =>
+      prev.map((it, i) =>
+        i === index ? { ...it, [field]: field === "amount" ? value : value } : it
+      )
+    );
+    // clear corresponding error when user edits
+    setAllowanceErrors((prev) =>
+      prev.map((err, i) => (i === index ? { ...err, [field]: "" } : err))
+    );
+  };
+
+  const handleRemoveAllowance = (index) => {
+    setAllowances((prev) => prev.filter((_, i) => i !== index));
+    setAllowanceErrors((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddDeduction = () => {
+    setDeductions((prev) => [...prev, { name: "", amount: "" }]);
+    setDeductionErrors((prev) => [...prev, { name: "", amount: "" }]);
+  };
+
+  const handleUpdateDeduction = (index, field, value) => {
+    setDeductions((prev) =>
+      prev.map((it, i) =>
+        i === index ? { ...it, [field]: field === "amount" ? value : value } : it
+      )
+    );
+    setDeductionErrors((prev) =>
+      prev.map((err, i) => (i === index ? { ...err, [field]: "" } : err))
+    );
+  };
+
+  const handleRemoveDeduction = (index) => {
+    setDeductions((prev) => prev.filter((_, i) => i !== index));
+    setDeductionErrors((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const calculateTotalAllowances = () => {
+    return (allowances || []).reduce((s, a) => s + (parseFloat(a.amount || 0) || 0), 0);
+  };
+
+  const calculateTotalDeductions = () => {
+    return (deductions || []).reduce((s, d) => s + (parseFloat(d.amount || 0) || 0), 0);
+  };
+
+  // Validate allowances/deductions before submitting
+  const validateAllowancesDeductions = () => {
+    const aErrors = allowances.map((a) => {
+      const err = { name: "", amount: "" };
+      if (!a.name || !String(a.name).trim()) err.name = "Description is required";
+      if (a.amount === "" || a.amount === null || isNaN(parseFloat(a.amount))) err.amount = "Amount is required";
+      return err;
+    });
+
+    const dErrors = deductions.map((d) => {
+      const err = { name: "", amount: "" };
+      if (!d.name || !String(d.name).trim()) err.name = "Description is required";
+      if (d.amount === "" || d.amount === null || isNaN(parseFloat(d.amount))) err.amount = "Amount is required";
+      return err;
+    });
+
+    setAllowanceErrors(aErrors);
+    setDeductionErrors(dErrors);
+
+    const hasAllowanceError = aErrors.some((e) => e.name || e.amount);
+    const hasDeductionError = dErrors.some((e) => e.name || e.amount);
+    return !(hasAllowanceError || hasDeductionError);
   };
 
   return (
@@ -508,11 +643,12 @@ const SalaryPage = () => {
       {/* Filter Section */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Company
-            </label>
-            <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 md:mr-3 md:mb-0">
+            Filter by Company
+          </label>
+
+          <div className="flex-1 flex items-center gap-3">
+            <div className="relative flex-1">
               <Building2
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
                 size={18}
@@ -520,7 +656,7 @@ const SalaryPage = () => {
               <select
                 value={selectedCompany}
                 onChange={(e) => setSelectedCompany(e.target.value)}
-                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                className="w-full pl-10 pr-8 h-10 border border-gray-300 rounded-lg text-base appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="">All Companies</option>
                 {companies.map((company) => (
@@ -531,23 +667,23 @@ const SalaryPage = () => {
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
-          </div>
-          {/* In your filter section, modify the button container */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchSalaryData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-            >
-              <RefreshCw size={18} className="mr-2" />
-              Refresh
-            </button>
-            <button
-              onClick={handleDownloadCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
-            >
-              <FileText size={18} className="mr-2" />
-              Download CSV
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-2.5 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+              >
+                <RefreshCw size={18} className="mr-2" />
+                Refresh
+              </button>
+              {/* <button
+                onClick={handleDownloadCSV}
+                className="px-4 py-2.5 h-10 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+              >
+                <FileText size={18} className="mr-2" />
+                Download CSV
+              </button> */}
+            </div>
           </div>
         </div>
       </div>
@@ -1050,7 +1186,7 @@ const SalaryPage = () => {
                     </span>
                   </div>
                 )}
-                
+
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Basic Salary:</span>
@@ -1134,6 +1270,170 @@ const SalaryPage = () => {
                         })}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Add these items */}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total Allowances:</span>
+                    <span className="font-medium">
+                      {calculateTotalAllowances().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total Deductions:</span>
+                    <span className="font-medium">
+                      {calculateTotalDeductions().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Allowances & Deductions Panels */}
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Allowances Panel */}
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Allowances</h3>
+                    <button
+                      type="button"
+                      onClick={handleAddAllowance}
+                      className="bg-blue-500 text-white p-1 rounded hover:bg-blue-600"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  
+                  {allowances.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">No allowances</p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {allowances.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2 bg-white p-2 rounded border border-gray-100">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleUpdateAllowance(index, 'name', e.target.value)}
+                            className="flex-1 px-2 py-1 text-xs border rounded"
+                            placeholder="Description"
+                          />
+                        {allowanceErrors[index]?.name && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {allowanceErrors[index].name}
+                          </div>
+                        )}
+                          <div className="w-24 flex items-center">
+                            <span className="text-gray-500 text-xs mr-1">Rs.</span>
+                            <input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleUpdateAllowance(index, 'amount', e.target.value)}
+                              className="w-full px-2 py-1 text-xs border rounded text-right"
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </div>
+                        {allowanceErrors[index]?.amount && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {allowanceErrors[index].amount}
+                          </div>
+                        )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAllowance(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Minus size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 text-sm">
+                    <span className="font-medium">Total:</span>
+                    <span className="font-bold text-blue-700">
+                      {calculateTotalAllowances().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Deductions Panel */}
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Deductions</h3>
+                    <button
+                      type="button"
+                      onClick={handleAddDeduction}
+                      className="bg-blue-500 text-white p-1 rounded hover:bg-blue-600"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  
+                  {deductions.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">No deductions</p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {deductions.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2 bg-white p-2 rounded border border-gray-100">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleUpdateDeduction(index, 'name', e.target.value)}
+                            className="flex-1 px-2 py-1 text-xs border rounded"
+                            placeholder="Description"
+                          />
+                        {deductionErrors[index]?.name && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {deductionErrors[index].name}
+                          </div>
+                        )}
+                          <div className="w-24 flex items-center">
+                            <span className="text-gray-500 text-xs mr-1">Rs.</span>
+                            <input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleUpdateDeduction(index, 'amount', e.target.value)}
+                              className="w-full px-2 py-1 text-xs border rounded text-right"
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </div>
+                        {deductionErrors[index]?.amount && (
+                          <div className="text-red-500 text-xs mt-1 col-span-full">
+                            {deductionErrors[index].amount}
+                          </div>
+                        )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDeduction(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Minus size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 text-sm">
+                    <span className="font-medium">Total:</span>
+                    <span className="font-bold text-red-700">
+                      {calculateTotalDeductions().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
                   </div>
                 </div>
               </div>
