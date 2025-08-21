@@ -216,6 +216,10 @@ const SalaryPage = () => {
     // Normalize various backend formats (0/1, "0"/"1", boolean)
     const bool = (v) => Boolean(v || v === 1 || v === "1");
     const sb = record.salary_breakdown || {};
+    
+    // For stamp specifically, check both the boolean field and the breakdown value
+    const stampChecked = bool(record.stamp) || (sb.stamp > 0);
+    
     setCurrentRecord(record);
     setFormData({
       basic_salary: record.basic_salary ?? "",
@@ -229,7 +233,8 @@ const SalaryPage = () => {
       enable_epf_etf: bool(record.enable_epf_etf),
       br1: bool(record.br1),
       br2: bool(record.br2),
-      stamp: bool(record.stamp),
+      // Use the combined check for stamp
+      stamp: stampChecked,
       total_loan_amount: record.total_loan_amount ?? "",
       installment_count: record.installment_count ?? "",
       installment_amount: record.installment_amount ?? "",
@@ -240,10 +245,11 @@ const SalaryPage = () => {
       // visible preview value
       net_salary: sb.net_salary ?? 0,
     });
+    
     setIsModalOpen(true);
   };
 
-  // Update the handleSubmit function to properly format the data for API
+  // Update the handleSubmit function to ensure stamp is handled consistently
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -293,7 +299,7 @@ const SalaryPage = () => {
       
       const updatedSalaryBreakdown = {
         basic_salary: basicSalaryNum,
-        br_allowance: calculateBRAllowance(), // uses formData.br1/br2
+        br_allowance: calculateBRAllowance(),
         ot_morning_fees: morningOtVal,
         ot_night_fees: eveningOtVal,
         adjusted_basic: adjustedBasic,
@@ -308,7 +314,7 @@ const SalaryPage = () => {
         loan_installment: parseFloat(formData.installment_amount || 0) || 0,
         gross_salary: grossSalary,
         total_deductions: totalDeductions,
-        stamp: stampVal,
+        stamp: stampVal, // Ensure numeric value (25 or 0)
         net_salary: Math.round((netSalaryPreview + Number.EPSILON) * 100) / 100,
       };
       
@@ -322,7 +328,7 @@ const SalaryPage = () => {
         enable_epf_etf: formData.enable_epf_etf ? 1 : 0,
         br1: formData.br1 ? 1 : 0,
         br2: formData.br2 ? 1 : 0,
-        stamp: formData.stamp ? 1 : 0,
+        stamp: formData.stamp ? 1 : 0, // Boolean field as 1/0
         total_loan_amount: formData.total_loan_amount ? parseFloat(formData.total_loan_amount) : 0,
         installment_count: formData.installment_count ? parseInt(formData.installment_count) : null,
         installment_amount: formData.installment_amount ? parseFloat(formData.installment_amount) : null,
