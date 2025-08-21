@@ -759,7 +759,8 @@ const SalaryProcessPage = () => {
       // Create worksheet data
       const worksheetData = employees.map((employee) => {
         const row = {
-          ID: employee.id,
+          // ID: employee.id,
+          EMPLOYEE_NO: employee.attendance_employee_no,
           NIC: employee.nic,
           "Full Name": employee.full_name,
         };
@@ -1710,15 +1711,18 @@ const SalaryProcessPage = () => {
                         <div className="flex justify-between">
                           <span className="text-xs">EPF:</span>
                           <span className="text-yellow-600">
-                            {employee.salary_breakdown
-                              .epf_employer_contribution || "0"}
+                            {employee.salary_breakdown.epf_employer_contribution.toFixed(
+                              2
+                            ) || "0"}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-xs">ETF:</span>
                           <span className="text-yellow-600">
                             {employee.salary_breakdown
-                              .etf_employer_contribution || "0"}
+                              .etf_employer_contribution.toFixed(
+                              2
+                            ) || "0"}
                           </span>
                         </div>
                       </td>
