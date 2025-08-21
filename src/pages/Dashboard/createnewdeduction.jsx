@@ -731,10 +731,11 @@ const CreateNewDeduction = () => {
                         {deduction.description || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {deduction.department.name || "Unknown"}
+                        {deduction.department?.name || "-"}
                       </td>
+                  
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {deduction.company.name || "Unknown"}
+                        {deduction.company.name || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {typeof deduction.amount === "number"

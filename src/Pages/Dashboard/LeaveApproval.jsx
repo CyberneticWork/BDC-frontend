@@ -14,7 +14,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { getAllLeaves, updateLeave } from "../../services/LeaveMaster"; // Import getAllLeaves
+import { getAllLeaves, updateLeaveStatus } from "../../services/LeaveMaster"; // Changed to updateLeaveStatus
 
 const LeaveApproval = () => {
   // State for filtering and search
@@ -125,24 +125,16 @@ const LeaveApproval = () => {
     (req) => req.status === "Manager Approved"
   ).length;
 
-  // Handle approval
+  // Handle approval with email notification
   const handleApprove = async (id) => {
     if (
-      window.confirm("Are you sure you want to approve this leave request?")
+      window.confirm("Are you sure you want to approve this leave request? An email will be sent to the employee.")
     ) {
       try {
-        const leaveRequest = leaveRequests.find((req) => req.id === id);
-        if (!leaveRequest) return;
-
-        // Format the data for the API - Change status to HR_Approved
-        const updateData = {
-          status: "HR_Approved",
-          approved_by: "Current HR Manager", // You might want to get this from user context
-          approved_date: new Date().toISOString().split("T")[0],
-        };
-
-        // Call API to update the leave request
-        await updateLeave(id, updateData);
+        // Use updateLeaveStatus instead of updateLeave for email notifications
+        await updateLeaveStatus(id, { 
+          status: "HR_Approved"
+        });
 
         // Update local state
         setLeaveRequests((prevRequests) =>
@@ -159,7 +151,7 @@ const LeaveApproval = () => {
         );
 
         // Show success message
-        alert("Leave request has been approved successfully.");
+        alert("Leave request has been approved successfully. Email sent to employee.");
 
         // Refresh the data
         fetchLeaveRequests();
@@ -170,27 +162,22 @@ const LeaveApproval = () => {
     }
   };
 
-  // Handle rejection
+  // Handle rejection with email notification
   const handleReject = (id) => {
     setRejectingRequestId(id);
     setRejectionReason("");
     setShowRejectionModal(true);
   };
 
-  // Add this new function to process the rejection once the reason is provided
+  // Process the rejection with email notification
   const confirmReject = async () => {
     if (rejectionReason.trim() && rejectingRequestId) {
       try {
-        // Format the data for the API
-        const updateData = {
+        // Use updateLeaveStatus for email notifications
+        await updateLeaveStatus(rejectingRequestId, {
           status: "Rejected",
-          rejected_by: "Current Manager", // You might want to get this from user context
-          rejected_date: new Date().toISOString().split("T")[0],
-          rejection_reason: rejectionReason,
-        };
-
-        // Call API to update the leave request
-        await updateLeave(rejectingRequestId, updateData);
+          rejection_reason: rejectionReason
+        });
 
         // Update local state
         setLeaveRequests((prevRequests) =>
@@ -211,6 +198,9 @@ const LeaveApproval = () => {
         setShowRejectionModal(false);
         setRejectingRequestId(null);
         setRejectionReason("");
+
+        // Show success message
+        alert("Leave request has been rejected. Email sent to employee.");
 
         // Refresh the data
         fetchLeaveRequests();

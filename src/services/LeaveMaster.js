@@ -33,6 +33,17 @@ export const updateLeave = async (id, data) => {
   }
 };
 
+// Update leave status and send email notification
+export const updateLeaveStatus = async (id, statusData) => {
+  try {
+    const response = await axios.put(`/leave-masters/${id}/status`, statusData);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating leave status:", error);
+    throw error;
+  }
+};
+
 //get leave by ID
 export const getLeaveById = async (id) => {
   try {
@@ -65,5 +76,60 @@ export const getLeaveCountsByEmployee = async (employeeId) => {
       error.response?.data || error
     );
     throw error;
+  }
+};
+
+// Get pending leave records
+export const getPendingLeaves = async () => {
+  try {
+    const response = await axios.get(`/Leave-Master/status/pending`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching pending leaves:", error);
+    return [];
+  }
+};
+
+// Get approved leave records
+export const getApprovedLeaves = async () => {
+  try {
+    const response = await axios.get(`/Leave-Master/status/approved`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching approved leaves:", error);
+    return [];
+  }
+};
+
+// Get HR approved leave records
+export const getHRApprovedLeaves = async () => {
+  try {
+    const response = await axios.get(`/Leave-Master/status/hr-approved`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching HR approved leaves:", error);
+    return [];
+  }
+};
+
+// Get rejected leave records
+export const getRejectedLeaves = async () => {
+  try {
+    const response = await axios.get(`/Leave-Master/status/rejected`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching rejected leaves:", error);
+    return [];
+  }
+};
+
+// Get leaves by employee ID
+export const getLeavesByEmployee = async (employeeId) => {
+  try {
+    const response = await axios.get(`/leave-masters/${employeeId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching employee leaves:", error);
+    return [];
   }
 };
