@@ -14,7 +14,8 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { getAllLeaves, updateLeaveStatus } from "../../services/LeaveMaster"; // Changed to updateLeaveStatus
+import { getAllLeaves, updateLeaveStatus } from "../../services/LeaveMaster";
+import Swal from "sweetalert2"; // Add this import
 
 const LeaveApproval = () => {
   // State for filtering and search
@@ -35,6 +36,9 @@ const LeaveApproval = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Add new state for loading during email sending
+  const [emailSending, setEmailSending] = useState(false);
 
   // Fetch leave requests on component mount
   useEffect(() => {
@@ -127,13 +131,26 @@ const LeaveApproval = () => {
 
   // Handle approval with email notification
   const handleApprove = async (id) => {
-    if (
-      window.confirm("Are you sure you want to approve this leave request? An email will be sent to the employee.")
-    ) {
+    // Use SweetAlert2 for confirmation
+    const result = await Swal.fire({
+      title: "Approve Leave?",
+      text: "An email notification will be sent to the employee",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#4ade80",
+      cancelButtonColor: "#d1d5db",
+      confirmButtonText: "Yes, approve it!",
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
       try {
+        // Show loading animation
+        setEmailSending(true);
+
         // Use updateLeaveStatus instead of updateLeave for email notifications
-        await updateLeaveStatus(id, { 
-          status: "HR_Approved"
+        await updateLeaveStatus(id, {
+          status: "HR_Approved",
         });
 
         // Update local state
@@ -150,14 +167,28 @@ const LeaveApproval = () => {
           )
         );
 
-        // Show success message
-        alert("Leave request has been approved successfully. Email sent to employee.");
+        // Show success message with SweetAlert2
+        Swal.fire({
+          icon: "success",
+          title: "Approved!",
+          text: "Leave request has been approved. Email sent to employee.",
+          confirmButtonColor: "#3b82f6",
+        });
 
         // Refresh the data
         fetchLeaveRequests();
       } catch (error) {
         console.error("Failed to approve leave request:", error);
-        alert("Failed to approve leave request. Please try again.");
+
+        // Show error message with SweetAlert2
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: "Could not approve leave request. Please try again.",
+          confirmButtonColor: "#3b82f6",
+        });
+      } finally {
+        setEmailSending(false);
       }
     }
   };
@@ -173,10 +204,13 @@ const LeaveApproval = () => {
   const confirmReject = async () => {
     if (rejectionReason.trim() && rejectingRequestId) {
       try {
+        // Show loading animation
+        setEmailSending(true);
+
         // Use updateLeaveStatus for email notifications
         await updateLeaveStatus(rejectingRequestId, {
           status: "Rejected",
-          rejection_reason: rejectionReason
+          rejection_reason: rejectionReason,
         });
 
         // Update local state
@@ -199,14 +233,28 @@ const LeaveApproval = () => {
         setRejectingRequestId(null);
         setRejectionReason("");
 
-        // Show success message
-        alert("Leave request has been rejected. Email sent to employee.");
+        // Show success message with SweetAlert2
+        Swal.fire({
+          icon: "success",
+          title: "Rejected!",
+          text: "Leave request has been rejected. Email sent to employee.",
+          confirmButtonColor: "#3b82f6",
+        });
 
         // Refresh the data
         fetchLeaveRequests();
       } catch (error) {
         console.error("Failed to reject leave request:", error);
-        alert("Failed to reject leave request. Please try again.");
+
+        // Show error message with SweetAlert2
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: "Could not reject leave request. Please try again.",
+          confirmButtonColor: "#3b82f6",
+        });
+      } finally {
+        setEmailSending(false);
       }
     }
   };
@@ -321,6 +369,42 @@ const LeaveApproval = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8">
+      {/* Email sending overlay */}
+      {emailSending && (
+        <div className="fixed inset-0 bg-opacity-50 z-[100] flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center">
+            <div className="w-20 h-20 mb-4">
+              <svg
+                className="animate-spin w-full h-full text-blue-600"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            </div>
+            <p className="text-lg font-medium text-gray-700">
+              Sending email notification...
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Please wait, this may take a moment
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
         {/* Header Section */}
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
@@ -439,7 +523,7 @@ const LeaveApproval = () => {
                   </select>
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Department
                   </label>
@@ -455,7 +539,7 @@ const LeaveApproval = () => {
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -558,12 +642,12 @@ const LeaveApproval = () => {
                         >
                           Employee
                         </th>
-                        <th
+                        {/* <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                         >
                           Department
-                        </th>
+                        </th> */}
                         <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -614,11 +698,11 @@ const LeaveApproval = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            {/* <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {request.department}
                               </div>
-                            </td>
+                            </td> */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {request.leaveType}
