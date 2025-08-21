@@ -523,7 +523,7 @@ const LeaveApproval = () => {
                   </select>
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Department
                   </label>
@@ -539,7 +539,7 @@ const LeaveApproval = () => {
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -642,12 +642,12 @@ const LeaveApproval = () => {
                         >
                           Employee
                         </th>
-                        <th
+                        {/* <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                         >
                           Department
-                        </th>
+                        </th> */}
                         <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -698,11 +698,11 @@ const LeaveApproval = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            {/* <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {request.department}
                               </div>
-                            </td>
+                            </td> */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {request.leaveType}

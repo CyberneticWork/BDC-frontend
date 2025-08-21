@@ -474,7 +474,7 @@ const HRLeaveApproval = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Department
                   </label>
@@ -490,7 +490,7 @@ const HRLeaveApproval = () => {
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -593,24 +593,24 @@ const HRLeaveApproval = () => {
                         >
                           Employee
                         </th>
-                        <th
+                        {/* <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                         >
                           Department
-                        </th>
+                        </th> */}
                         <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                         >
                           Leave Type
                         </th>
-                        <th
+                        {/* <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                         >
                           Manager
-                        </th>
+                        </th> */}
                         <th
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -649,11 +649,11 @@ const HRLeaveApproval = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            {/* <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {request.department}
                               </div>
-                            </td>
+                            </td> */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {request.leaveType}
@@ -663,7 +663,7 @@ const HRLeaveApproval = () => {
                                 {formatDate(request.endDate)}
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            {/* <td className="px-6 py-4 whitespace-nowrap">
                               {request.approvedBy ? (
                                 <div className="flex items-center">
                                   <div className="text-sm text-gray-900">
@@ -681,7 +681,7 @@ const HRLeaveApproval = () => {
                                   {formatDate(request.approvedDate)}
                                 </div>
                               )}
-                            </td>
+                            </td> */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
