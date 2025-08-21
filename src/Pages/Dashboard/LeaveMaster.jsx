@@ -55,21 +55,23 @@ const LeaveMaster = () => {
   // Add a new state to store employee data
   const [employeeData, setEmployeeData] = useState(null);
 
-  // Define standard leave entitlements
+  // Define standard leave entitlements - modified to only have Casual Leave available
   const leaveEntitlements = {
-    "Annual Leave": 14,
     "Casual Leave": 7,
-    "Medical Leave": 7,
+    "Annual Leave": 0,
+    "Medical Leave": 0,
     "Unpaid Leave": 0,
-    "Special Leave": 3,
+    "Special Leave": 0,
   };
 
+  // Keep all leave types but make only Casual Leave selectable
   const leaveTypes = [
-    "Annual Leave",
     "Casual Leave",
-    "Medical Leave",
-    "Unpaid Leave",
-    "Special Leave",
+    // Keep these for future use but they won't be selectable in the dropdown
+    // "Annual Leave",
+    // "Medical Leave",
+    // "Unpaid Leave",
+    // "Special Leave",
   ];
 
   // Helper function to get current date in YYYY-MM-DD format
@@ -259,7 +261,7 @@ const LeaveMaster = () => {
     }
   };
 
-  // Function to fetch employee leave counts
+  // Function to fetch employee leave counts - modified to handle half-day calculations and exclude rejected leaves
   const fetchLeaveUsage = async (employeeId) => {
     if (!employeeId) return;
 
@@ -270,21 +272,32 @@ const LeaveMaster = () => {
       if (leaveCounts && Array.isArray(leaveCounts)) {
         const formattedUsage = Object.keys(leaveEntitlements).map(
           (leaveType, index) => {
+            // Find the leave data for this type
             const leaveData = leaveCounts.find(
               (item) => item.leave_type === leaveType
             ) || {
               count: 0,
+              half_days: 0,
+              rejected_count: 0,
+              rejected_half_days: 0,
             };
+
+            // Calculate total used including half days, but excluding rejected leaves
             const total = leaveEntitlements[leaveType];
-            const usage = leaveData.count;
+            // If half_days property exists, use it, otherwise assume all are full days
+            const fullDays =
+              (leaveData.count || 0) - (leaveData.rejected_count || 0);
+            const halfDays =
+              (leaveData.half_days || 0) - (leaveData.rejected_half_days || 0);
+            const usage = fullDays + halfDays * 0.5;
             const balance = total - usage;
 
             return {
               id: index + 1,
               leaveType: leaveType,
               total: total,
-              usage: usage,
-              balance: balance,
+              usage: usage.toFixed(1), // Format to 1 decimal place for better display
+              balance: balance.toFixed(1),
             };
           }
         );
@@ -295,8 +308,8 @@ const LeaveMaster = () => {
             id: index + 1,
             leaveType: leaveType,
             total: leaveEntitlements[leaveType],
-            usage: 0,
-            balance: leaveEntitlements[leaveType],
+            usage: "0.0",
+            balance: leaveEntitlements[leaveType].toFixed(1),
           })
         );
         setLeaveUsageData(defaultUsage);
@@ -308,8 +321,8 @@ const LeaveMaster = () => {
           id: index + 1,
           leaveType: leaveType,
           total: leaveEntitlements[leaveType],
-          usage: 0,
-          balance: leaveEntitlements[leaveType],
+          usage: "0.0",
+          balance: leaveEntitlements[leaveType].toFixed(1),
         })
       );
       setLeaveUsageData(defaultUsage);
@@ -373,7 +386,7 @@ const LeaveMaster = () => {
     }
   };
 
-  // Handle form submission for leave requests
+  // Handle form submission for leave requests - modified to validate leave balance
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError("");
@@ -437,6 +450,50 @@ const LeaveMaster = () => {
         return;
       }
 
+      // Check if employee has sufficient leave balance
+      if (formData.leaveType === "Casual Leave") {
+        const casualLeaveData = leaveUsageData.find(
+          (leave) => leave.leaveType === "Casual Leave"
+        );
+        if (casualLeaveData) {
+          let requiredDays = 0;
+
+          if (formData.leaveDateType === "fullDay") {
+            requiredDays = 1;
+          } else if (formData.leaveDateType === "halfDay") {
+            requiredDays = 0.5;
+          } else if (formData.leaveDateType === "manual") {
+            const fromDate = new Date(formData.leaveDate.from);
+            const toDate = new Date(formData.leaveDate.to);
+            const dayDiff =
+              Math.abs(toDate - fromDate) / (1000 * 60 * 60 * 24) + 1;
+            requiredDays = dayDiff;
+          }
+
+          if (parseFloat(casualLeaveData.balance) < requiredDays) {
+            Swal.fire({
+              icon: "error",
+              title: "Insufficient Leave Balance",
+              html: `
+                <div class="text-left">
+                  <p>You don't have enough Casual Leave balance.</p>
+                  <p class="mt-2">Current balance: <strong>${casualLeaveData.balance} days</strong></p>
+                  <p>Required: <strong>${requiredDays} days</strong></p>
+                </div>
+              `,
+              confirmButtonColor: "#3085d6",
+              confirmButtonText: "Ok",
+              customClass: {
+                popup: "rounded-xl",
+                confirmButton: "rounded-lg text-sm px-5 py-2.5",
+              },
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
       let leaveData = {
         employee_id: parseInt(formData.attendanceNo),
         reporting_date: formData.reportingDate,
@@ -447,23 +504,27 @@ const LeaveMaster = () => {
         leave_from: null,
         leave_to: null,
         period: null,
+        is_half_day: false, // Add this field to track half-day leaves
       };
 
       if (formData.leaveDateType === "fullDay") {
         leaveData.leave_date = formData.leaveDate.single;
+        leaveData.is_half_day = false;
       } else if (formData.leaveDateType === "halfDay") {
         leaveData.leave_date = formData.leaveDate.single;
         leaveData.period =
           formData.halfDayPeriod === "morning" ? "Morning" : "Afternoon";
+        leaveData.is_half_day = true; // Mark as half day
       } else if (formData.leaveDateType === "manual") {
         leaveData.leave_from = formData.leaveDate.from;
         leaveData.leave_to = formData.leaveDate.to;
+        leaveData.is_half_day = false;
       }
 
       const response = await createLeave(leaveData);
 
       await Promise.all([
-        fetchEmployeeLeaves(formData.attendanceNo),
+        fetchEmployeeLeaves(formData.attendanceNo, employeeData),
         fetchLeaveUsage(formData.attendanceNo),
       ]);
 
@@ -499,8 +560,8 @@ const LeaveMaster = () => {
         id: index + 1,
         leaveType: leaveType,
         total: leaveEntitlements[leaveType],
-        usage: 0,
-        balance: leaveEntitlements[leaveType],
+        usage: "0.0",
+        balance: leaveEntitlements[leaveType].toFixed(1),
       })
     );
     setLeaveUsageData(defaultUsage);
