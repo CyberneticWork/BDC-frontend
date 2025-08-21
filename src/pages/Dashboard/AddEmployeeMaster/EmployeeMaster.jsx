@@ -70,8 +70,8 @@ const EmployeeMaster = () => {
           text: "Employee submitted successfully!",
         });
         // Clear form after successful creation if desired
-        // clearForm();
-        // setActiveCategory("personal");
+        clearForm();
+        setActiveCategory("personal");
       }
       return response;
     } catch (error) {
