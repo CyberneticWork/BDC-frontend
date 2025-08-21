@@ -90,21 +90,34 @@ const LeaveMaster = () => {
 
   // Function to format leave record for display
   function formatLeaveRecord(leaveData) {
+    let leaveDateDisplay = "";
+
+    if (leaveData.leave_date) {
+      leaveDateDisplay = formatDate(leaveData.leave_date);
+      if (leaveData.period) {
+        leaveDateDisplay += ` (${leaveData.period})`;
+      }
+    } else if (leaveData.leave_from && leaveData.leave_to) {
+      leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
+        leaveData.leave_to
+      )}`;
+      if (leaveData.leave_duration > 1) {
+        leaveDateDisplay += ` (${leaveData.leave_duration} days)`;
+      }
+    }
+
     return {
       id: leaveData.id,
-      leaveDate: leaveData.leave_date
-        ? formatDate(leaveData.leave_date)
-        : `${formatDate(leaveData.leave_from)} to ${formatDate(
-            leaveData.leave_to
-          )}`,
+      leaveDate: leaveDateDisplay,
       reportDate: formatDate(leaveData.reporting_date),
-      fullHalfDay: leaveData.leave_date
-        ? leaveData.period
-          ? `Half Day (${leaveData.period})`
-          : "Full Day"
-        : "Multiple Days",
+      fullHalfDay: leaveData.is_half_day
+        ? "Half Day"
+        : leaveData.leave_duration > 1
+        ? "Multiple Days"
+        : "Full Day",
       leaveType: leaveData.leave_type,
       status: leaveData.status,
+      duration: leaveData.leave_duration || (leaveData.is_half_day ? 0.5 : 1),
     };
   }
 
@@ -276,20 +289,25 @@ const LeaveMaster = () => {
             const leaveData = leaveCounts.find(
               (item) => item.leave_type === leaveType
             ) || {
-              count: 0,
+              full_days: 0,
               half_days: 0,
-              rejected_count: 0,
+              rejected_full_days: 0,
               rejected_half_days: 0,
             };
 
             // Calculate total used including half days, but excluding rejected leaves
             const total = leaveEntitlements[leaveType];
-            // If half_days property exists, use it, otherwise assume all are full days
-            const fullDays =
-              (leaveData.count || 0) - (leaveData.rejected_count || 0);
-            const halfDays =
+
+            // Calculate approved full days (excluding rejected)
+            const approvedFullDays =
+              (leaveData.full_days || 0) - (leaveData.rejected_full_days || 0);
+
+            // Calculate approved half days (excluding rejected)
+            const approvedHalfDays =
               (leaveData.half_days || 0) - (leaveData.rejected_half_days || 0);
-            const usage = fullDays + halfDays * 0.5;
+
+            // Total usage: full days + half days counted as 0.5
+            const usage = approvedFullDays + approvedHalfDays * 0.5;
             const balance = total - usage;
 
             return {
@@ -410,6 +428,18 @@ const LeaveMaster = () => {
         const fromDate = new Date(formData.leaveDate.from);
         const toDate = new Date(formData.leaveDate.to);
 
+        // Validate date range (to date should be after or equal to from date)
+        if (toDate < fromDate) {
+          Swal.fire({
+            icon: "error",
+            title: "Invalid Date Range",
+            text: "End date cannot be before start date",
+            confirmButtonColor: "#3085d6",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         for (
           let d = new Date(fromDate);
           d <= toDate;
@@ -430,22 +460,18 @@ const LeaveMaster = () => {
           icon: "error",
           title: "Invalid Date Selection",
           html: `
-            <div class="text-left">
-              <p>The following selected dates are not available:</p>
-              <ul class="list-disc pl-5 mt-2">
-                ${invalidDates
-                  .map((d) => `<li>${formatDateForDisplay(d)}</li>`)
-                  .join("")}
-              </ul>
-              <p class="mt-3 text-sm">Please adjust your leave dates and try again.</p>
-            </div>
-          `,
+          <div class="text-left">
+            <p>The following selected dates are not available:</p>
+            <ul class="list-disc pl-5 mt-2">
+              ${invalidDates
+                .map((d) => `<li>${formatDateForDisplay(d)}</li>`)
+                .join("")}
+            </ul>
+            <p class="mt-3 text-sm">Please adjust your leave dates and try again.</p>
+          </div>
+        `,
           confirmButtonColor: "#3085d6",
           confirmButtonText: "Ok, I understand",
-          customClass: {
-            popup: "rounded-xl",
-            confirmButton: "rounded-lg text-sm px-5 py-2.5",
-          },
         });
         return;
       }
@@ -465,8 +491,10 @@ const LeaveMaster = () => {
           } else if (formData.leaveDateType === "manual") {
             const fromDate = new Date(formData.leaveDate.from);
             const toDate = new Date(formData.leaveDate.to);
-            const dayDiff =
-              Math.abs(toDate - fromDate) / (1000 * 60 * 60 * 24) + 1;
+
+            // Calculate number of days in the range (inclusive)
+            const timeDiff = toDate.getTime() - fromDate.getTime();
+            const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
             requiredDays = dayDiff;
           }
 
@@ -475,18 +503,14 @@ const LeaveMaster = () => {
               icon: "error",
               title: "Insufficient Leave Balance",
               html: `
-                <div class="text-left">
-                  <p>You don't have enough Casual Leave balance.</p>
-                  <p class="mt-2">Current balance: <strong>${casualLeaveData.balance} days</strong></p>
-                  <p>Required: <strong>${requiredDays} days</strong></p>
-                </div>
-              `,
+              <div class="text-left">
+                <p>You don't have enough Casual Leave balance.</p>
+                <p class="mt-2">Current balance: <strong>${casualLeaveData.balance} days</strong></p>
+                <p>Required: <strong>${requiredDays} days</strong></p>
+              </div>
+            `,
               confirmButtonColor: "#3085d6",
               confirmButtonText: "Ok",
-              customClass: {
-                popup: "rounded-xl",
-                confirmButton: "rounded-lg text-sm px-5 py-2.5",
-              },
             });
             setIsSubmitting(false);
             return;
@@ -504,25 +528,36 @@ const LeaveMaster = () => {
         leave_from: null,
         leave_to: null,
         period: null,
-        is_half_day: false, // Add this field to track half-day leaves
+        is_half_day: false,
+        leave_duration: 0, // Add duration field
       };
 
       if (formData.leaveDateType === "fullDay") {
         leaveData.leave_date = formData.leaveDate.single;
         leaveData.is_half_day = false;
+        leaveData.leave_duration = 1;
       } else if (formData.leaveDateType === "halfDay") {
         leaveData.leave_date = formData.leaveDate.single;
         leaveData.period =
           formData.halfDayPeriod === "morning" ? "Morning" : "Afternoon";
-        leaveData.is_half_day = true; // Mark as half day
+        leaveData.is_half_day = true;
+        leaveData.leave_duration = 0.5;
       } else if (formData.leaveDateType === "manual") {
         leaveData.leave_from = formData.leaveDate.from;
         leaveData.leave_to = formData.leaveDate.to;
         leaveData.is_half_day = false;
+
+        // Calculate duration for date range
+        const fromDate = new Date(formData.leaveDate.from);
+        const toDate = new Date(formData.leaveDate.to);
+        const timeDiff = toDate.getTime() - fromDate.getTime();
+        const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+        leaveData.leave_duration = dayDiff;
       }
 
       const response = await createLeave(leaveData);
 
+      // Refresh the leave data to show updated balance
       await Promise.all([
         fetchEmployeeLeaves(formData.attendanceNo, employeeData),
         fetchLeaveUsage(formData.attendanceNo),
@@ -1129,10 +1164,13 @@ const LeaveMaster = () => {
                                 Leave Date
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                                Duration
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                                 Report Date
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
-                                Full/Half Day
+                                Type
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                                 Leave Type
@@ -1150,6 +1188,9 @@ const LeaveMaster = () => {
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   {record.leaveDate}
+                                </td>
+                                <td className="px-4 py-3 border text-sm">
+                                  {record.duration} days
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   {record.reportDate}
@@ -1178,7 +1219,7 @@ const LeaveMaster = () => {
                             {leaveRecords.length === 0 && !isLoadingLeaves && (
                               <tr>
                                 <td
-                                  colSpan="6"
+                                  colSpan="7"
                                   className="px-4 py-8 border text-center text-gray-500"
                                 >
                                   {formData.employeeName
