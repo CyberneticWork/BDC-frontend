@@ -15,6 +15,8 @@ import {
   Clock,
   FileText,
   RefreshCw,
+  Plus,
+  Minus,
 } from "lucide-react";
 import {
   fetchSalaryDataAPI,
@@ -161,6 +163,8 @@ const SalaryPage = () => {
     stamp: false,
     net_salary: 0,
   });
+  const [allowances, setAllowances] = useState([]);
+  const [deductions, setDeductions] = useState([]);
 
   // Fetch salary data
   const fetchSalaryData = async () => {
@@ -216,10 +220,10 @@ const SalaryPage = () => {
     // Normalize various backend formats (0/1, "0"/"1", boolean)
     const bool = (v) => Boolean(v || v === 1 || v === "1");
     const sb = record.salary_breakdown || {};
-    
+
     // For stamp specifically, check both the boolean field and the breakdown value
     const stampChecked = bool(record.stamp) || (sb.stamp > 0);
-    
+
     setCurrentRecord(record);
     setFormData({
       basic_salary: record.basic_salary ?? "",
@@ -245,27 +249,46 @@ const SalaryPage = () => {
       // visible preview value
       net_salary: sb.net_salary ?? 0,
     });
-    
+
+    // Parse allowances and deductions from JSON strings/arrays
+    let parsedAllowances = [];
+    let parsedDeductions = [];
+
+    try {
+      parsedAllowances = Array.isArray(record.allowances)
+        ? record.allowances
+        : (record.allowances ? JSON.parse(record.allowances) : []);
+    } catch (e) {
+      console.error("Error parsing allowances:", e);
+    }
+
+    try {
+      parsedDeductions = Array.isArray(record.deductions)
+        ? record.deductions
+        : (record.deductions ? JSON.parse(record.deductions) : []);
+    } catch (e) {
+      console.error("Error parsing deductions:", e);
+    }
+
+    setAllowances(parsedAllowances);
+    setDeductions(parsedDeductions);
+
     setIsModalOpen(true);
   };
 
   // Update the handleSubmit function to ensure stamp is handled consistently
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       // Show loading indicator
       setIsLoading(true);
-      
+
       // Build salary_breakdown object (editable subset + recalculated fields)
       // preserve allowances/deductions from currentRecord if present
-      const allowances = Array.isArray(currentRecord?.allowances)
-        ? currentRecord.allowances
-        : (currentRecord?.allowances ? JSON.parse(currentRecord.allowances) : []);
-      const deductions = Array.isArray(currentRecord?.deductions)
-        ? currentRecord.deductions
-        : (currentRecord?.deductions ? JSON.parse(currentRecord.deductions) : []);
-      
+      const totalAllowances = calculateTotalAllowances();
+      const totalFixedDeductions = calculateTotalDeductions();
+
       const basicSalaryNum = parseFloat(formData.basic_salary || 0);
       const workingDays = (() => {
         const y = parseInt(formData.year || currentRecord?.year || new Date().getFullYear());
@@ -276,27 +299,24 @@ const SalaryPage = () => {
         }
         return 22;
       })();
-      
+
       const perDaySalary = basicSalaryNum / workingDays;
       const noPayDeduction = (parseInt(formData.approved_no_pay_days || 0) || 0) * perDaySalary;
       const adjustedBasic = basicSalaryNum - noPayDeduction;
-      
-      const totalAllowances = (allowances || []).reduce((s, a) => s + (parseFloat(a.amount || 0) || 0), 0);
-      const totalFixedDeductions = (deductions || []).reduce((s, d) => s + (parseFloat(d.amount || 0) || 0), 0);
-      
+
       const epfBase = adjustedBasic + totalAllowances;
       const epfEmployee = formData.enable_epf_etf ? epfBase * 0.08 : 0;
       const epfEmployer = formData.enable_epf_etf ? epfBase * 0.12 : 0;
       const etfEmployer = formData.enable_epf_etf ? epfBase * 0.03 : 0;
-      
+
       const morningOtVal = formData.ot_morning_enabled ? parseFloat(formData.ot_morning || 0) : 0;
       const eveningOtVal = formData.ot_evening_enabled ? parseFloat(formData.ot_evening || 0) : 0;
-      
+
       const grossSalary = epfBase + morningOtVal + eveningOtVal;
       const totalDeductions = totalFixedDeductions + (parseFloat(formData.installment_amount || 0) || 0) + epfEmployee;
       const stampVal = formData.stamp ? 25 : 0;
       const netSalaryPreview = grossSalary - totalDeductions - stampVal;
-      
+
       const updatedSalaryBreakdown = {
         basic_salary: basicSalaryNum,
         br_allowance: calculateBRAllowance(),
@@ -317,7 +337,7 @@ const SalaryPage = () => {
         stamp: stampVal, // Ensure numeric value (25 or 0)
         net_salary: Math.round((netSalaryPreview + Number.EPSILON) * 100) / 100,
       };
-      
+
       const formattedData = {
         basic_salary: parseFloat(formData.basic_salary),
         increment_active: formData.increment_active ? 1 : 0,
@@ -338,21 +358,23 @@ const SalaryPage = () => {
         year: String(formData.year),
         // send updated salary_breakdown as object (backend will store JSON)
         salary_breakdown: updatedSalaryBreakdown,
+        allowances: allowances,
+        deductions: deductions,
       };
 
       await updateSalaryAPI(currentRecord.id, formattedData);
-      
+
       // Refresh data
       await fetchSalaryData();
-      
+
       // Show success message
       alert("Salary record updated successfully");
-      
+
       // Close modal
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error updating salary record:", error);
-      
+
       // Show validation errors if available
       if (error.response?.data?.errors) {
         const errorMessages = Object.values(error.response?.data?.errors || {})
@@ -414,7 +436,7 @@ const SalaryPage = () => {
     setSearchTerm("");
     await fetchSalaryData();
   };
-  
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -524,8 +546,49 @@ const SalaryPage = () => {
     const stampDuty = formData.stamp ? 25 : 0;
     const morningOT = formData.ot_morning_enabled ? parseFloat(formData.ot_morning || 0) : 0;
     const eveningOT = formData.ot_evening_enabled ? parseFloat(formData.ot_evening || 0) : 0;
-    
+
     return basicSalary + brAllowance + morningOT + eveningOT - noPayDeduction - epfDeduction - loanInstallment - stampDuty;
+  };
+
+  // Allowance/Deduction helpers (add this block)
+  const handleAddAllowance = () => {
+    setAllowances((prev) => [...prev, { name: "", amount: 0 }]);
+  };
+
+  const handleUpdateAllowance = (index, field, value) => {
+    setAllowances((prev) =>
+      prev.map((it, i) =>
+        i === index ? { ...it, [field]: field === "amount" ? parseFloat(value || 0) || 0 : value } : it
+      )
+    );
+  };
+
+  const handleRemoveAllowance = (index) => {
+    setAllowances((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddDeduction = () => {
+    setDeductions((prev) => [...prev, { name: "", amount: 0 }]);
+  };
+
+  const handleUpdateDeduction = (index, field, value) => {
+    setDeductions((prev) =>
+      prev.map((it, i) =>
+        i === index ? { ...it, [field]: field === "amount" ? parseFloat(value || 0) || 0 : value } : it
+      )
+    );
+  };
+
+  const handleRemoveDeduction = (index) => {
+    setDeductions((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const calculateTotalAllowances = () => {
+    return (allowances || []).reduce((s, a) => s + (parseFloat(a.amount || 0) || 0), 0);
+  };
+
+  const calculateTotalDeductions = () => {
+    return (deductions || []).reduce((s, d) => s + (parseFloat(d.amount || 0) || 0), 0);
   };
 
   return (
@@ -1080,7 +1143,7 @@ const SalaryPage = () => {
                     </span>
                   </div>
                 )}
-                
+
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Basic Salary:</span>
@@ -1164,6 +1227,150 @@ const SalaryPage = () => {
                         })}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Add these items */}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total Allowances:</span>
+                    <span className="font-medium">
+                      {calculateTotalAllowances().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total Deductions:</span>
+                    <span className="font-medium">
+                      {calculateTotalDeductions().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Allowances & Deductions Panels */}
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Allowances Panel */}
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Allowances</h3>
+                    <button
+                      type="button"
+                      onClick={handleAddAllowance}
+                      className="bg-blue-500 text-white p-1 rounded hover:bg-blue-600"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  
+                  {allowances.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">No allowances</p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {allowances.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2 bg-white p-2 rounded border border-gray-100">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleUpdateAllowance(index, 'name', e.target.value)}
+                            className="flex-1 px-2 py-1 text-xs border rounded"
+                            placeholder="Description"
+                          />
+                          <div className="w-24 flex items-center">
+                            <span className="text-gray-500 text-xs mr-1">Rs.</span>
+                            <input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleUpdateAllowance(index, 'amount', e.target.value)}
+                              className="w-full px-2 py-1 text-xs border rounded text-right"
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAllowance(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Minus size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 text-sm">
+                    <span className="font-medium">Total:</span>
+                    <span className="font-bold text-blue-700">
+                      {calculateTotalAllowances().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Deductions Panel */}
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Deductions</h3>
+                    <button
+                      type="button"
+                      onClick={handleAddDeduction}
+                      className="bg-blue-500 text-white p-1 rounded hover:bg-blue-600"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  
+                  {deductions.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">No deductions</p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {deductions.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2 bg-white p-2 rounded border border-gray-100">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleUpdateDeduction(index, 'name', e.target.value)}
+                            className="flex-1 px-2 py-1 text-xs border rounded"
+                            placeholder="Description"
+                          />
+                          <div className="w-24 flex items-center">
+                            <span className="text-gray-500 text-xs mr-1">Rs.</span>
+                            <input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => handleUpdateDeduction(index, 'amount', e.target.value)}
+                              className="w-full px-2 py-1 text-xs border rounded text-right"
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDeduction(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Minus size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 text-sm">
+                    <span className="font-medium">Total:</span>
+                    <span className="font-bold text-red-700">
+                      {calculateTotalDeductions().toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </span>
                   </div>
                 </div>
               </div>
