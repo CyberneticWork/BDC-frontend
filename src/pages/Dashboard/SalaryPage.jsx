@@ -167,6 +167,9 @@ const SalaryPage = () => {
   const [deductions, setDeductions] = useState([]);
   const [allowanceErrors, setAllowanceErrors] = useState([]); // { name: '', amount: '' }
   const [deductionErrors, setDeductionErrors] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [expandedRow, setExpandedRow] = useState(null);
 
   // Fetch salary data
   const fetchSalaryData = async () => {
@@ -410,6 +413,36 @@ const SalaryPage = () => {
     }
   }, [selectedCompany, salaryData]);
 
+  // Replace the existing filter useEffect with this one that properly handles both filters
+  useEffect(() => {
+    if (!salaryData || !Array.isArray(salaryData)) {
+      setFilteredData([]);
+      return;
+    }
+
+    let filtered = [...salaryData];
+    
+    // Filter by company if selected
+    if (selectedCompany) {
+      filtered = filtered.filter(item => 
+        item.company_name === selectedCompany
+      );
+    }
+    
+    // Filter by employee number or name if search term exists
+    if (searchTerm && searchTerm.trim() !== "") {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(item => 
+        // Check employee_no if it exists
+        (item.employee_no && String(item.employee_no).toLowerCase().includes(term)) || 
+        // Also check full_name as a fallback
+        (item.full_name && item.full_name.toLowerCase().includes(term))
+      );
+    }
+    
+    setFilteredData(filtered);
+  }, [selectedCompany, searchTerm, salaryData]);
+
   // Fetch data on component mount
   useEffect(() => {
     fetchSalaryData();
@@ -434,11 +467,6 @@ const SalaryPage = () => {
     loadCompanies();
   }, []);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-  const [expandedRow, setExpandedRow] = useState(null);
-
-  // Refresh handler: clear search + company filter then reload data
   const handleRefresh = async () => {
     setSelectedCompany("");
     setSearchTerm("");
@@ -644,10 +672,10 @@ const SalaryPage = () => {
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <label className="block text-sm font-medium text-gray-700 md:mr-3 md:mb-0">
-            Filter by Company
+            Filter Records
           </label>
 
-          <div className="flex-1 flex items-center gap-3">
+          <div className="flex-1 flex flex-col md:flex-row items-stretch gap-3">
             <div className="relative flex-1">
               <Building2
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -666,6 +694,21 @@ const SalaryPage = () => {
                 ))}
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            </div>
+
+            {/* Employee Number Search Input */}
+            <div className="relative flex-1">
+              <User
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by employee ID..."
+                className="w-full pl-10 pr-3 h-10 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
 
             <div className="flex items-center gap-2">
