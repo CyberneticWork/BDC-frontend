@@ -35,6 +35,7 @@ const Sidebar = ({
 
   const menuItems = [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
+    { id: "user", name: "Users", icon: User2, badge: null },
     {
       id: "hrMaster",
       name: "HR Master",

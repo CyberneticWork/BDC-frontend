@@ -49,6 +49,31 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
+const handleKeyDown = (e) => {
+  // Allow: backspace, delete, tab, escape, enter, arrows
+  // Allow: digits (0-9), decimal point (.)
+  if (
+    // Navigation keys
+    [46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) || 
+    // Arrow keys
+    (e.keyCode >= 35 && e.keyCode <= 40) ||
+    // Numbers and decimal on main keyboard
+    (e.keyCode >= 48 && e.keyCode <= 57) ||
+    // Numbers on numpad
+    (e.keyCode >= 96 && e.keyCode <= 105) ||
+    // Decimal on numpad
+    e.keyCode === 110 || e.keyCode === 190
+  ) {
+    // Allow only one decimal point
+    if ((e.keyCode === 110 || e.keyCode === 190) && e.target.value.includes('.')) {
+      e.preventDefault();
+    }
+    return;
+  }
+  // Prevent all other keys
+  e.preventDefault();
+};
+
 const EmpPersonalDetails = ({ onNext, activeCategory }) => {
   const {
     formData,
@@ -952,10 +977,11 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </label>
               <input
                 name="spouseAge"
-                type="number"
+                type="text"
                 min="0"
                 value={formData.personal.spouseAge}
                 onChange={handleChange}
+                onKeyDown={handleKeyDown}
                 className={`w-full border ${
                   errors.personal?.spouseAge
                     ? "border-red-500"
@@ -967,13 +993,14 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                DOB <span className="text-red-500">*</span>
+                Date of Birth <span className="text-red-500">*</span>
               </label>
               <input
                 name="spouseDob"
                 type="date"
                 value={formData.personal.spouseDob}
                 onChange={handleChange}
+                max={maxDob}
                 className={`w-full border ${
                   errors.personal?.spouseDob
                     ? "border-red-500"
@@ -1052,11 +1079,12 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                   />
                   <input
                     name="age"
-                    type="number"
+                    type="text"
                     min="0"
                     placeholder="Age"
                     value={child.age}
                     onChange={(e) => handleChildChange(idx, e)}
+                    onKeyDown={handleKeyDown}
                     className={`w-full border ${
                       errors.personal?.children?.[idx]?.age
                         ? "border-red-500"
