@@ -171,6 +171,10 @@ const SalaryPage = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [expandedRow, setExpandedRow] = useState(null);
 
+  // Pagination state: show 9 rows per page
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 9;
+
   // Fetch salary data
   const fetchSalaryData = async () => {
     setIsLoading(true);
@@ -211,6 +215,9 @@ const SalaryPage = () => {
     }
   };
 
+  // Helper to detect issued records
+  const isIssued = (record) => record?.status === "issued";
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -222,6 +229,11 @@ const SalaryPage = () => {
 
   // Handle edit button click
   const handleEdit = (record) => {
+    // Prevent opening edit modal for issued records (UI-only; backend still enforces)
+    if (isIssued(record)) {
+      alert("This salary record cannot be edited because it is already issued.");
+      return;
+    }
     // Normalize various backend formats (0/1, "0"/"1", boolean)
     const bool = (v) => Boolean(v || v === 1 || v === "1");
     const sb = record.salary_breakdown || {};
@@ -443,6 +455,11 @@ const SalaryPage = () => {
     setFilteredData(filtered);
   }, [selectedCompany, searchTerm, salaryData]);
 
+  // Reset current page when filters or data change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCompany, searchTerm, salaryData]);
+
   // Fetch data on component mount
   useEffect(() => {
     fetchSalaryData();
@@ -537,6 +554,12 @@ const SalaryPage = () => {
       alert("Failed to download CSV");
     }
   };
+
+  // Paginated subset derived from filteredData
+  const totalPages = Math.max(1, Math.ceil((filteredData?.length || 0) / rowsPerPage));
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+  const paginatedData = Array.isArray(filteredData) ? filteredData.slice(startIndex, endIndex) : [];
 
   // Add these helper functions for calculations
   const calculateBRAllowance = () => {
@@ -766,7 +789,7 @@ const SalaryPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredData.map((record) => (
+                {paginatedData.map((record) => (
                   <tr key={record.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -817,20 +840,31 @@ const SalaryPage = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {/* Edit button - disabled for issued records */}
                       <button
-                        onClick={() => handleEdit(record)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                        title="Edit"
+                        onClick={() => !isIssued(record) && handleEdit(record)}
+                        className={`${isIssued(record) ? "opacity-50 cursor-not-allowed mr-4" : "text-blue-600 hover:text-blue-900 mr-4"}`}
+                        title={isIssued(record) ? "Cannot edit issued record" : "Edit"}
+                        aria-disabled={isIssued(record)}
+                        type="button"
                       >
                         <Edit size={18} />
                       </button>
+
+                      {/* Delete button - disabled for issued records */}
                       <button
                         onClick={() => {
+                          if (isIssued(record)) {
+                            alert("This salary record cannot be deleted because it is already issued.");
+                            return;
+                          }
                           setCurrentRecord(record);
                           setIsDeleteModalOpen(true);
                         }}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete"
+                        className={`${isIssued(record) ? "opacity-50 cursor-not-allowed" : "text-red-600 hover:text-red-900"}`}
+                        title={isIssued(record) ? "Cannot delete issued record" : "Delete"}
+                        aria-disabled={isIssued(record)}
+                        type="button"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -840,8 +874,47 @@ const SalaryPage = () => {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+          {/* Pagination controls */}
+          {filteredData.length > rowsPerPage && (
+            <div className="px-6 py-4 bg-white border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
+                <span className="font-medium">{endIndex}</span> of{" "}
+                <span className="font-medium">{filteredData.length}</span> records
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded-md border ${currentPage === 1 ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-gray-50 text-gray-700"}`}
+                >
+                  Prev
+                </button>
+
+                {/* Simple page buttons */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    aria-current={p === currentPage ? "page" : undefined}
+                    className={`px-3 py-1 rounded-md border ${p === currentPage ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded-md border ${currentPage === totalPages ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white hover:bg-gray-50 text-gray-700"}`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+         </div>
+       )}
 
       {/* Empty State */}
       {!isLoading && filteredData.length === 0 && (
@@ -1491,19 +1564,21 @@ const SalaryPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                  disabled={currentRecord?.status === "issued"}
+                  title={currentRecord?.status === "issued" ? "Cannot save issued record" : "Save Changes"}
+                  className={`px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center ${currentRecord?.status === "issued" ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <Save size={16} className="mr-1" />
                   Save Changes
                 </button>
-              </div>
-            </form>
-          </div>
-        )}
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
+               </div>
+             </form>
+           </div>
+         )}
+       </Modal>
+ 
+       {/* Delete Confirmation Modal */}
+       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
       >
@@ -1531,15 +1606,23 @@ const SalaryPage = () => {
               Cancel
             </button>
             <button
-              onClick={() => deleteSalaryRecord(currentRecord.id)}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+              onClick={() => {
+                if (currentRecord?.status === "issued") {
+                  alert("This salary record cannot be deleted because it is already issued.");
+                  return;
+                }
+                deleteSalaryRecord(currentRecord.id);
+              }}
+              disabled={currentRecord?.status === "issued"}
+              title={currentRecord?.status === "issued" ? "Cannot delete issued record" : "Delete"}
+              className={`px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center ${currentRecord?.status === "issued" ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <Trash2 size={18} className="mr-2" />
               Delete
             </button>
-          </div>
-        </div>
-      </Modal>
+           </div>
+         </div>
+       </Modal>
     </div>
   );
 };
