@@ -674,9 +674,9 @@ const RosterManagementSystem = () => {
       <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <h1 className="text-xl font-bold">Roster Management System</h1>
         <div className="flex items-center space-x-4">
-          <span className="text-sm bg-blue-700 px-3 py-1 rounded-full">
+          {/* <span className="text-sm bg-blue-700 px-3 py-1 rounded-full">
             Filtering Options
-          </span>
+          </span> */}
           <button
             className="bg-white text-blue-700 px-4 py-2 rounded shadow hover:bg-blue-100 font-semibold"
             onClick={handleViewAllRosters}
