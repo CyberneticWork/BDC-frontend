@@ -880,9 +880,9 @@ const SalaryPage = () => {
                       onChange={handleInputChange}
                       className="block w-full pl-2 pr-8 py-1.5 text-sm border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md"
                     >
-                      {/* <option value="pending">Pending</option>
-                      <option value="processed">Processed</option> */}
-                      <option value="issued">Issued</option>
+                      <option value="pending">Pending</option>
+                      {/* <option value="processed">Processed</option>
+                      <option value="issued">Issued</option> */}
                       <option value="hold">Hold</option>
                     </select>
                   </div>
