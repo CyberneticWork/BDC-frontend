@@ -132,16 +132,18 @@ export const getLeavesByEmployee = async (employeeId) => {
     console.error("Error fetching employee leaves:", error);
     return [];
   }
-  export const getLeaveCountsByEmployee = async (employeeId) => {
-    try {
-      const response = await axios.get(`/leave-masters/${employeeId}/counts`);
-      return response.data;
-    } catch (error) {
-      console.error(
-        "Error fetching leave counts:",
-        error.response?.data || error
-      );
-      throw error;
-    }
-  };
+  
 };
+
+// export const getLeaveCountsByEmployee = async (employeeId) => {
+//     try {
+//       const response = await axios.get(`/leave-masters/${employeeId}/counts`);
+//       return response.data;
+//     } catch (error) {
+//       console.error(
+//         "Error fetching leave counts:",
+//         error.response?.data || error
+//       );
+//       throw error;
+//     }
+//   };
