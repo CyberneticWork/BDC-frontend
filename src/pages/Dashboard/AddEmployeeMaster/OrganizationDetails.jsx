@@ -275,7 +275,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Layers className="text-gray-500" size={16} />
-                Department <span className="text-red-500">*</span>
+                Department 
               </label>
               <div className="relative flex-1">
                 {isLoadingDepartments ? (
@@ -316,7 +316,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Layers className="text-gray-500" size={16} />
-                Sub Department <span className="text-red-500">*</span>
+                Sub Department 
               </label>
               <div className="relative flex-1">
                 {isLoadingSubDepartments ? (
@@ -440,7 +440,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Layers className="text-gray-500" size={16} />
-                Day Off <span className="text-red-500">*</span>
+                Day Off 
               </label>
               <div className="relative">
                 <select

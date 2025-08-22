@@ -767,7 +767,8 @@ const SalaryProcessPage = () => {
       // Create worksheet data
       const worksheetData = employees.map((employee) => {
         const row = {
-          ID: employee.id,
+          // ID: employee.id,
+          EMPLOYEE_NO: employee.attendance_employee_no,
           NIC: employee.nic,
           "Full Name": employee.full_name,
         };
@@ -902,30 +903,138 @@ const SalaryProcessPage = () => {
     const flattenedData = data.map((item) => {
       const flattened = { ...item };
 
-      // If salary_breakdown exists, flatten its properties with a prefix
+      // Process allowances array
+      if (Array.isArray(item.allowances)) {
+        flattened.allowances = item.allowances
+          .map((a) => `${a.name}: $${a.amount}`)
+          .join("; ");
+      } else {
+        flattened.allowances = "";
+      }
+
+      // Process deductions array
+      if (Array.isArray(item.deductions)) {
+        flattened.deductions = item.deductions
+          .map((d) => `${d.name}: $${d.amount}`)
+          .join("; ");
+      } else {
+        flattened.deductions = "";
+      }
+
+      // If salary_breakdown exists, flatten its properties
       if (item.salary_breakdown && typeof item.salary_breakdown === "object") {
         for (const [key, value] of Object.entries(item.salary_breakdown)) {
           flattened[`breakdown_${key}`] = value;
         }
-        delete flattened.salary_breakdown; // Remove the original nested object
+        delete flattened.salary_breakdown;
       }
+
+      // Convert boolean/flag values to Yes/No
+      const yesNoFields = [
+        "increment_active",
+        "ot_morning",
+        "ot_evening",
+        "enable_epf_etf",
+        "br1",
+        "br2",
+      ];
+      yesNoFields.forEach((field) => {
+        if (flattened[field] !== undefined && flattened[field] !== null) {
+          flattened[field] = flattened[field] == 1 ? "Yes" : "No";
+        }
+      });
 
       return flattened;
     });
 
+    // Create user-friendly header mappings
+    const headerMappings = {
+      id: "ID",
+      emp_no: "Employee No",
+      full_name: "Full Name",
+      company_name: "Company",
+      department_name: "Department",
+      sub_department_name: "Sub Department",
+      basic_salary: "Basic Salary",
+      increment_active: "Increment Active",
+      increment_value: "Increment Value",
+      increment_effected_date: "Increment Effective Date",
+      ot_morning: "OT Morning",
+      ot_evening: "OT Evening",
+      enable_epf_etf: "EPF/ETF Enabled",
+      br1: "BR1 Allowance",
+      br2: "BR2 Allowance",
+      ot_morning_rate: "OT Morning Rate",
+      ot_night_rate: "OT Night Rate",
+      stamp: "Stamp Fee",
+      br_status: "BR Status",
+      total_loan_amount: "Total Loan Amount",
+      installment_count: "Installment Count",
+      installment_amount: "Installment Amount",
+      approved_no_pay_days: "Approved No-Pay Days",
+      allowances: "Allowances",
+      deductions: "Deductions",
+      breakdown_basic_salary: "Basic Salary (Adjusted)",
+      breakdown_br_allowance: "BR Allowance",
+      breakdown_ot_morning_fees: "OT Morning Fees",
+      breakdown_ot_night_fees: "OT Night Fees",
+      breakdown_adjusted_basic: "Adjusted Basic",
+      breakdown_per_day_salary: "Per Day Salary",
+      breakdown_no_pay_deduction: "No-Pay Deduction",
+      breakdown_total_allowances: "Total Allowances",
+      breakdown_epf_etf_base: "EPF/ETF Base",
+      breakdown_epf_employee_deduction: "EPF Employee Deduction",
+      breakdown_epf_employer_contribution: "EPF Employer Contribution",
+      breakdown_etf_employer_contribution: "ETF Employer Contribution",
+      breakdown_total_fixed_deductions: "Total Fixed Deductions",
+      breakdown_loan_installment: "Loan Installment",
+      breakdown_gross_salary: "Gross Salary",
+      breakdown_total_deductions: "Total Deductions",
+      breakdown_stamp: "Stamp Fee (Breakdown)",
+      breakdown_net_salary: "Net Salary",
+    };
+
     // Extract headers from the first flattened object
     const headers = Object.keys(flattenedData[0]);
+
+    // Create user-friendly headers
+    const friendlyHeaders = headers.map(
+      (header) =>
+        headerMappings[header] ||
+        header.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+    );
 
     // Create CSV rows
     const rows = flattenedData.map((obj) =>
       headers
         .map((header) => {
-          // Escape quotes and wrap in quotes if contains comma
-          let value = obj[header] !== undefined ? String(obj[header]) : "";
+          // Handle null/undefined values
+          let value =
+            obj[header] !== undefined && obj[header] !== null
+              ? String(obj[header])
+              : "";
+
+          // Format currency values
+          if (
+            header.includes("salary") ||
+            header.includes("amount") ||
+            header.includes("rate") ||
+            header.includes("fee") ||
+            header.includes("deduction") ||
+            header.includes("contribution")
+          ) {
+            // Check if it's already formatted or is a textual description
+            if (!isNaN(parseFloat(value)) && isFinite(value)) {
+              value = parseFloat(value).toFixed(2);
+            }
+          }
+
+          // Escape quotes and wrap in quotes if contains comma or special characters
           if (
             value.includes(",") ||
             value.includes('"') ||
-            value.includes("\n")
+            value.includes("\n") ||
+            value.includes(";")
           ) {
             value = `"${value.replace(/"/g, '""')}"`;
           }
@@ -934,7 +1043,7 @@ const SalaryProcessPage = () => {
         .join(",")
     );
 
-    return [headers.join(","), ...rows].join("\n");
+    return [friendlyHeaders.join(","), ...rows].join("\n");
   }
 
   // Trigger CSV download
@@ -1286,7 +1395,7 @@ const SalaryProcessPage = () => {
                   }
                   try {
                     const savedData = await saveSalaryData(filteredData);
-
+                    // console.log(JSON.stringify(filteredData));
                     // Convert to CSV and download
                     const csvContent = convertToCSV(filteredData);
                     downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
@@ -1610,15 +1719,18 @@ const SalaryProcessPage = () => {
                         <div className="flex justify-between">
                           <span className="text-xs">EPF:</span>
                           <span className="text-yellow-600">
-                            {employee.salary_breakdown
-                              .epf_employer_contribution || "0"}
+                            {employee.salary_breakdown.epf_employer_contribution.toFixed(
+                              2
+                            ) || "0"}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-xs">ETF:</span>
                           <span className="text-yellow-600">
                             {employee.salary_breakdown
-                              .etf_employer_contribution || "0"}
+                              .etf_employer_contribution.toFixed(
+                              2
+                            ) || "0"}
                           </span>
                         </div>
                       </td>

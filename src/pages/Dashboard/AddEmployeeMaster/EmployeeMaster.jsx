@@ -62,6 +62,8 @@ const EmployeeMaster = () => {
           title: "Success!",
           text: "Employee updated successfully!",
         });
+        clearForm();
+        setActiveCategory("personal");
       } else {
         response = await employeeService.submitEmployee(allEmployeeData);
         Swal.fire({
@@ -70,8 +72,8 @@ const EmployeeMaster = () => {
           text: "Employee submitted successfully!",
         });
         // Clear form after successful creation if desired
-        // clearForm();
-        // setActiveCategory("personal");
+        clearForm();
+        setActiveCategory("personal");
       }
       return response;
     } catch (error) {

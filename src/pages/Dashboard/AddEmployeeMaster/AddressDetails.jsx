@@ -1,80 +1,89 @@
 import React from "react";
-import { MapPin, Phone, Mail, User, Building, Globe, Shield } from "lucide-react";
-import { useEmployeeForm } from '@contexts/EmployeeFormContext';
-import ErrorDisplay from '@components/ErrorMessage/ErrorDisplay';
-import FieldError from '@components/ErrorMessage/FieldError';
+import {
+  MapPin,
+  Phone,
+  Mail,
+  User,
+  Building,
+  Globe,
+  Shield,
+} from "lucide-react";
+import { useEmployeeForm } from "@contexts/EmployeeFormContext";
+import ErrorDisplay from "@components/ErrorMessage/ErrorDisplay";
+import FieldError from "@components/ErrorMessage/FieldError";
 
 const provinceData = {
-  "Provinces": [
+  Provinces: [
     {
-      "name": "Central Province",
-      "districts": ["Kandy", "Matale", "Nuwara Eliya"]
+      name: "Central Province",
+      districts: ["Kandy", "Matale", "Nuwara Eliya"],
     },
     {
-      "name": "Eastern Province",
-      "districts": ["Ampara", "Batticaloa", "Trincomalee"]
+      name: "Eastern Province",
+      districts: ["Ampara", "Batticaloa", "Trincomalee"],
     },
     {
-      "name": "Northern Province",
-      "districts": ["Jaffna", "Kilinochchi", "Mannar", "Mullaitivu", "Vavuniya"]
+      name: "Northern Province",
+      districts: ["Jaffna", "Kilinochchi", "Mannar", "Mullaitivu", "Vavuniya"],
     },
     {
-      "name": "North Central Province",
-      "districts": ["Anuradhapura", "Polonnaruwa"]
+      name: "North Central Province",
+      districts: ["Anuradhapura", "Polonnaruwa"],
     },
     {
-      "name": "North Western Province",
-      "districts": ["Kurunegala", "Puttalam"]
+      name: "North Western Province",
+      districts: ["Kurunegala", "Puttalam"],
     },
     {
-      "name": "Sabaragamuwa Province",
-      "districts": ["Kegalle", "Ratnapura"]
+      name: "Sabaragamuwa Province",
+      districts: ["Kegalle", "Ratnapura"],
     },
     {
-      "name": "Southern Province",
-      "districts": ["Galle", "Matara", "Hambantota"]
+      name: "Southern Province",
+      districts: ["Galle", "Matara", "Hambantota"],
     },
     {
-      "name": "Uva Province",
-      "districts": ["Badulla", "Monaragala"]
+      name: "Uva Province",
+      districts: ["Badulla", "Monaragala"],
     },
     {
-      "name": "Western Province",
-      "districts": ["Colombo", "Gampaha", "Kalutara"]
-    }
-  ]
+      name: "Western Province",
+      districts: ["Colombo", "Gampaha", "Kalutara"],
+    },
+  ],
 };
 
 const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
-  const { formData, updateFormData, errors, clearFieldError } = useEmployeeForm();
+  const { formData, updateFormData, errors, clearFieldError } =
+    useEmployeeForm();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     // Clear error for this field when user makes changes
     if (errors.address?.[name]) {
-      clearFieldError('address', name);
+      clearFieldError("address", name);
     }
-    
+
     // If province is changed, reset the district
-    if (name === 'province') {
-      updateFormData('address', { 
+    if (name === "province") {
+      updateFormData("address", {
         [name]: value,
-        district: '' // Reset district when province changes
+        district: "", // Reset district when province changes
       });
     } else {
-      updateFormData('address', { [name]: value });
+      updateFormData("address", { [name]: value });
     }
   };
 
   const handleEmergencyContactChange = (e) => {
     const { name, value } = e.target;
-    
-    // Clear error for this nested field
+
+    // Clear error for this nested field - this should work
     if (errors.address?.emergencyContact?.[name]) {
-      clearFieldError('address', `emergencyContact.${name}`);
+      clearFieldError("address", `emergencyContact.${name}`);
     }
-    
-    updateFormData('address', {
+
+    updateFormData("address", {
       emergencyContact: {
         ...formData.address.emergencyContact,
         [name]: value,
@@ -85,18 +94,19 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
   // Get districts based on selected province
   const getDistrictsForProvince = () => {
     if (!formData.address.province) return [];
-    
+
     const selectedProvince = provinceData.Provinces.find(
-      province => province.name === formData.address.province
+      (province) => province.name === formData.address.province
     );
-    
+
     return selectedProvince ? selectedProvince.districts : [];
   };
 
   return (
-    <div id="address" className="bg-white rounded-2xl shadow-xl overflow-hidden">
-      
-      
+    <div
+      id="address"
+      className="bg-white rounded-2xl shadow-xl overflow-hidden"
+    >
       <div className="bg-white rounded-2xl shadow-xl p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl">
@@ -127,9 +137,9 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     onChange={handleChange}
                     rows="3"
                     className={`w-full border ${
-                      errors.address?.permanentAddress 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.permanentAddress
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
                     placeholder="Enter permanent address"
                   />
@@ -146,9 +156,9 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     onChange={handleChange}
                     rows="3"
                     className={`w-full border ${
-                      errors.address?.temporaryAddress 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.temporaryAddress
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
                     placeholder="Enter temporary address"
                   />
@@ -158,102 +168,112 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
             </div>
 
             {/* Contact Information */}
-<div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6">
-  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-    <Phone className="w-5 h-5 text-green-600" />
-    Contact Information
-  </h3>
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Phone className="w-5 h-5 text-green-600" />
+                Contact Information
+              </h3>
 
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">
-        Email <span className="text-red-500">*</span>
-      </label>
-      <div className="relative">
-        <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-        <input
-          name="email"
-          type="email"
-          value={formData.address.email}
-          onChange={handleChange}
-          className={`w-full border ${
-            errors.address?.email 
-              ? 'border-red-500' 
-              : 'border-gray-300'
-          } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-          placeholder="Enter email address"
-        />
-      </div>
-      <FieldError error={errors.address?.email} />
-    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <input
+                      name="email"
+                      type="email"
+                      value={formData.address.email}
+                      onChange={handleChange}
+                      className={`w-full border ${
+                        errors.address?.email
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                  <FieldError error={errors.address?.email} />
+                </div>
 
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">
-        Land Line
-      </label>
-      <div className="relative">
-        <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-        <input
-          name="landLine"
-          value={formData.address.landLine}
-          onChange={(e) => {
-            // Allow only numbers and limit to 10 digits
-            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-            handleChange({
-              target: {
-                name: 'landLine',
-                value: value
-              }
-            });
-          }}
-          className={`w-full border ${
-            errors.address?.landLine 
-              ? 'border-red-500' 
-              : 'border-gray-300'
-          } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-          placeholder="Enter land line number"
-        />
-      </div>
-      <FieldError error={errors.address?.landLine} />
-      {formData.address.landLine && formData.address.landLine.length !== 10 && (
-        <p className="text-red-500 text-xs mt-1">Land line must be 10 digits</p>
-      )}
-    </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Land Line
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <input
+                      name="landLine"
+                      value={formData.address.landLine}
+                      onChange={(e) => {
+                        // Allow only numbers and limit to 10 digits
+                        const value = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
+                        handleChange({
+                          target: {
+                            name: "landLine",
+                            value: value,
+                          },
+                        });
+                      }}
+                      className={`w-full border ${
+                        errors.address?.landLine
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      placeholder="Enter land line number"
+                    />
+                  </div>
+                  <FieldError error={errors.address?.landLine} />
+                  {formData.address.landLine &&
+                    formData.address.landLine.length !== 10 && (
+                      <p className="text-red-500 text-xs mt-1">
+                        Land line must be 10 digits
+                      </p>
+                    )}
+                </div>
 
-    <div className="space-y-2 sm:col-span-2">
-      <label className="block text-sm font-medium text-gray-700">
-        Mobile Line <span className="text-red-500">*</span>
-      </label>
-      <div className="relative">
-        <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-        <input
-          name="mobileLine"
-          value={formData.address.mobileLine}
-          onChange={(e) => {
-            // Allow only numbers and limit to 10 digits
-            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-            handleChange({
-              target: {
-                name: 'mobileLine',
-                value: value
-              }
-            });
-          }}
-          className={`w-full border ${
-            errors.address?.mobileLine 
-              ? 'border-red-500' 
-              : 'border-gray-300'
-          } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-          placeholder="Enter mobile number"
-        />
-      </div>
-      <FieldError error={errors.address?.mobileLine} />
-      {formData.address.mobileLine && formData.address.mobileLine.length !== 10 && (
-        <p className="text-red-500 text-xs mt-1">Mobile number must be 10 digits</p>
-      )}
-    </div>
-  </div>
-</div>
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Mobile Line <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <input
+                      name="mobileLine"
+                      value={formData.address.mobileLine}
+                      onChange={(e) => {
+                        // Allow only numbers and limit to 10 digits
+                        const value = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
+                        handleChange({
+                          target: {
+                            name: "mobileLine",
+                            value: value,
+                          },
+                        });
+                      }}
+                      className={`w-full border ${
+                        errors.address?.mobileLine
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      placeholder="Enter mobile number"
+                    />
+                  </div>
+                  <FieldError error={errors.address?.mobileLine} />
+                  {formData.address.mobileLine &&
+                    formData.address.mobileLine.length !== 10 && (
+                      <p className="text-red-500 text-xs mt-1">
+                        Mobile number must be 10 digits
+                      </p>
+                    )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Right Column - Location & Emergency */}
@@ -275,9 +295,9 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.province}
                     onChange={handleChange}
                     className={`w-full border ${
-                      errors.address?.province 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.province
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
                   >
                     <option value="">Select Province</option>
@@ -299,9 +319,9 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.electoralDivision}
                     onChange={handleChange}
                     className={`w-full border ${
-                      errors.address?.electoralDivision 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.electoralDivision
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter electoral division"
                   />
@@ -317,9 +337,9 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.gnDivision}
                     onChange={handleChange}
                     className={`w-full border ${
-                      errors.address?.gnDivision 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.gnDivision
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter GN division"
                   />
@@ -335,9 +355,9 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.policeStation}
                     onChange={handleChange}
                     className={`w-full border ${
-                      errors.address?.policeStation 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.policeStation
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter police station"
                   />
@@ -354,11 +374,13 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     onChange={handleChange}
                     disabled={!formData.address.province}
                     className={`w-full border ${
-                      errors.address?.district 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.district
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                      !formData.address.province ? 'opacity-70 cursor-not-allowed' : ''
+                      !formData.address.province
+                        ? "opacity-70 cursor-not-allowed"
+                        : ""
                     }`}
                   >
                     <option value="">Select District</option>
@@ -390,9 +412,9 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.emergencyContact.relationship}
                     onChange={handleEmergencyContactChange}
                     className={`w-full border ${
-                      errors.address?.emergencyContact?.relationship 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.emergencyContact?.relationship
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
                   >
                     <option value="">Select Relationship</option>
@@ -402,7 +424,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <option value="Child">Child</option>
                     <option value="Friend">Friend</option>
                   </select>
-                  <FieldError error={errors.address?.emergencyContact?.relationship} />
+                  <FieldError
+                    error={errors.address?.emergencyContact?.relationship}
+                    
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -414,13 +439,15 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.emergencyContact.contactName}
                     onChange={handleEmergencyContactChange}
                     className={`w-full border ${
-                      errors.address?.emergencyContact?.contactName 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.emergencyContact?.contactName
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter contact name"
                   />
-                  <FieldError error={errors.address?.emergencyContact?.contactName} />
+                  <FieldError
+                    error={errors.address?.emergencyContact?.contactName}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -433,48 +460,57 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     onChange={handleEmergencyContactChange}
                     rows="2"
                     className={`w-full border ${
-                      errors.address?.emergencyContact?.contactAddress 
-                        ? 'border-red-500' 
-                        : 'border-gray-300'
+                      errors.address?.emergencyContact?.contactAddress
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
                     placeholder="Enter contact address"
                   />
-                  <FieldError error={errors.address?.emergencyContact?.contactAddress} />
+                  <FieldError
+                    error={errors.address?.emergencyContact?.contactAddress}
+                  />
                 </div>
 
                 <div className="space-y-2">
-  <label className="block text-sm font-medium text-gray-700">
-    Contact Tel <span className="text-red-500">*</span>
-  </label>
-  <div className="relative">
-    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-    <input
-      name="contactTel"
-      value={formData.address.emergencyContact.contactTel}
-      onChange={(e) => {
-        // Allow only numbers and limit to 10 digits
-        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-        handleEmergencyContactChange({
-          target: {
-            name: 'contactTel',
-            value: value
-          }
-        });
-      }}
-      className={`w-full border ${
-        errors.address?.emergencyContact?.contactTel 
-          ? 'border-red-500' 
-          : 'border-gray-300'
-      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-      placeholder="Enter contact telephone"
-    />
-  </div>
-  <FieldError error={errors.address?.emergencyContact?.contactTel} />
-  {formData.address.emergencyContact.contactTel && 
-   formData.address.emergencyContact.contactTel.length !== 10 && (
-    <p className="text-red-500 text-xs mt-1">Contact number must be 10 digits</p>
-  )}
-</div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Contact Tel <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <input
+                      name="contactTel"
+                      value={formData.address.emergencyContact.contactTel}
+                      onChange={(e) => {
+                        // Allow only numbers and limit to 10 digits
+                        const value = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
+                        handleEmergencyContactChange({
+                          target: {
+                            name: "contactTel",
+                            value: value,
+                          },
+                        });
+                      }}
+                      className={`w-full border ${
+                        errors.address?.emergencyContact?.contactTel
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      placeholder="Enter contact telephone"
+                    />
+                  </div>
+                  <FieldError
+                    error={errors.address?.emergencyContact?.contactTel}
+                  />
+                  {formData.address.emergencyContact.contactTel &&
+                    formData.address.emergencyContact.contactTel.length !==
+                      10 && (
+                      <p className="text-red-500 text-xs mt-1">
+                        Contact number must be 10 digits
+                      </p>
+                    )}
+                </div>
               </div>
             </div>
           </div>
