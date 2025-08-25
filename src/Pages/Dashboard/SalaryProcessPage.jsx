@@ -568,6 +568,18 @@ const SalaryProcessPage = () => {
     setDisplayedData(nonEPFEmployees);
   };
 
+  // NEW: Handle All Employees (show current fetched dataset)
+  const handleAllEmployees = () => {
+    setActiveFilter("All");
+    if (!employeeData || employeeData.length === 0) {
+      notify.info("No Data", "No data loaded yet. Please apply filters first.");
+      return;
+    }
+    setDisplayedData(employeeData);
+    setFilteredData(employeeData);
+    setSearchTerm("");
+  };
+
   // Fetch companies on component mount
   useEffect(() => {
     const loadCompanies = async () => {
@@ -1175,7 +1187,7 @@ const SalaryProcessPage = () => {
                     : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50"
                 }
               `}
-              onClick={resetFilter}
+              onClick={handleAllEmployees} // changed from resetFilter
             >
               All Employees
             </button>
