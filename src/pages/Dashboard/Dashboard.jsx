@@ -369,62 +369,7 @@ const DashboardCharts = () => {
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
-        <div className="flex items-center mb-6">
-          <div className="bg-purple-100 p-2 rounded-xl mr-3">
-            <DollarSign className="h-6 w-6 text-purple-600" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">Salary Trend</h3>
-        </div>
-        <div className="h-80">
-          <Line
-            data={salaryData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: "top",
-                  labels: {
-                    usePointStyle: true,
-                    padding: 20,
-                    font: {
-                      size: 12,
-                      weight: "bold",
-                    },
-                  },
-                },
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  grid: {
-                    color: "rgba(0, 0, 0, 0.1)",
-                  },
-                  ticks: {
-                    callback: function (value) {
-                      return value.toLocaleString();
-                    },
-                    font: {
-                      size: 11,
-                    },
-                  },
-                },
-                x: {
-                  grid: {
-                    display: false,
-                  },
-                  ticks: {
-                    font: {
-                      size: 11,
-                    },
-                  },
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
+      
     </div>
   );
 };
@@ -648,12 +593,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <QuickActions setActiveItem={setActiveItem} />
                 <DashboardCharts />
                 <div className="flex justify-center">
-                  <button
-                    onClick={clearForm}
-                    className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-                  >
-                    Clear Form Data
-                  </button>
+                 
                 </div>
               </div>
             )}
