@@ -465,7 +465,16 @@ const RosterManagementSystem = () => {
 
   // Save roster to backend
   const handleSaveRoster = async () => {
-    if (rosterAssignments.length === 0) return;
+    // Show error if no pending assignments
+    if (rosterAssignments.length === 0) {
+      Swal.fire({
+        icon: "error",
+        title: "No Pending Assignments",
+        text: "Please add at least one shift assignment before processing the roster.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -599,7 +608,8 @@ const RosterManagementSystem = () => {
     try {
       const data = await RosterService.getAllRosters();
       console.log("Roster API response:", data);
-      setAllRosters(Array.isArray(data) ? data : []);
+      // Normalize to flat rows for the table
+      setAllRosters(normalizeRosterItems(Array.isArray(data) ? data : []));
     } catch (err) {
       Swal.fire({
         icon: "error",
@@ -613,7 +623,38 @@ const RosterManagementSystem = () => {
     }
   };
 
-  // Add this function to handle roster search
+  // Add: normalize roster API items to a single flat shape (reused by All + Search)
+  const normalizeRosterItems = (items) => {
+    if (!Array.isArray(items)) return [];
+    return items.map((item) => {
+      const rd = item.roster_details || item.roster || {};
+      const org = item.organization_details || {};
+      const emp = item.employee_details || {};
+      const company = org.company || item.company || {};
+      const dept = org.department || item.department || {};
+      const sub =
+        org.sub_department || org.subDepartment || item.sub_department || {};
+
+      return {
+        id: rd.id ?? item.id,
+        roster_id: rd.roster_id ?? item.roster_id ?? rd.id ?? item.id,
+        shift_code:
+          rd.shift_code ?? item.shift_code ?? rd.shift?.shift_code ?? "",
+        company_id: company.id ?? item.company_id ?? null,
+        company_name: company.name ?? item.company_name ?? "",
+        department_id: dept.id ?? item.department_id ?? null,
+        department_name: dept.name ?? item.department_name ?? "",
+        sub_department_id: sub.id ?? item.sub_department_id ?? null,
+        sub_department_name: sub.name ?? item.sub_department_name ?? "",
+        employee_id: emp.id ?? item.employee_id ?? null,
+        employee_name: emp.full_name ?? emp.name ?? item.employee_name ?? "",
+        date_from: rd.date_from ?? item.date_from ?? "",
+        date_to: rd.date_to ?? item.date_to ?? "",
+      };
+    });
+  };
+
+  // Add this to handle roster search
   const handleRosterSearch = async (e) => {
     e.preventDefault();
     setIsSearching(true);
@@ -631,34 +672,21 @@ const RosterManagementSystem = () => {
 
       const data = await RosterService.searchRosters(cleanParams);
 
-      // Extract the roster data from the nested structure returned by the API
-      const flattenedRosters = data.map((item) => ({
-        id: item.roster_details.id,
-        roster_id: item.roster_details.roster_id,
-        shift_code: item.roster_details.shift_code,
-        company_id: item.organization_details.company?.id,
-        company_name: item.organization_details.company?.name,
-        department_id: item.organization_details.department?.id,
-        department_name: item.organization_details.department?.name,
-        sub_department_id: item.organization_details.sub_department?.id,
-        sub_department_name: item.organization_details.sub_department?.name,
-        employee_id: item.employee_details?.id,
-        employee_name: item.employee_details?.full_name,
-        date_from: item.roster_details.date_from,
-        date_to: item.roster_details.date_to,
-      }));
+      // Normalize nested API structure just like "All Rosters"
+      const flattenedRosters = normalizeRosterItems(
+        Array.isArray(data) ? data : []
+      );
 
-     // If search returns empty, keep searchedRosters as [] but show a message
-     if (!Array.isArray(flattenedRosters) || flattenedRosters.length === 0) {
-       setSearchedRosters([]);
-       setSearchMessage("No roster data matched your search.");
-     } else {
-       setSearchedRosters(flattenedRosters);
-       setSearchMessage("");
-     }
+      if (flattenedRosters.length === 0) {
+        setSearchedRosters([]);
+        setSearchMessage("No roster data matched your search.");
+      } else {
+        setSearchedRosters(flattenedRosters);
+        setSearchMessage("");
+      }
     } catch (err) {
-     setSearchedRosters([]);
-     setSearchMessage("Search failed. Please try again.");
+      setSearchedRosters([]);
+      setSearchMessage("Search failed. Please try again.");
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -1496,7 +1524,7 @@ const RosterManagementSystem = () => {
                   isSaving ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 onClick={handleSaveRoster}
-                disabled={rosterAssignments.length === 0 || isSaving}
+                disabled={isSaving} // allow click to show error when no assignments
               >
                 {isSaving ? (
                   <>
@@ -1772,7 +1800,11 @@ const RosterManagementSystem = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {((rosterSearchPerformed ? searchedRosters : allRosters) || []).map((r, idx) => (
+                      {(
+                        (rosterSearchPerformed
+                          ? searchedRosters
+                          : allRosters) || []
+                      ).map((r, idx) => (
                         <tr
                           key={r.id || idx}
                           className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
@@ -1780,13 +1812,18 @@ const RosterManagementSystem = () => {
                           <td className="px-4 py-2 border">{r.roster_id}</td>
                           <td className="px-4 py-2 border">{r.shift_code}</td>
                           <td className="px-4 py-2 border">
-                            {r.company_name || getCompanyName(r.company_id?.toString())}
+                            {r.company_name ||
+                              getCompanyName(r.company_id?.toString())}
                           </td>
                           <td className="px-4 py-2 border">
-                            {r.department_name || getDepartmentName(r.department_id?.toString())}
+                            {r.department_name ||
+                              getDepartmentName(r.department_id?.toString())}
                           </td>
                           <td className="px-4 py-2 border">
-                            {r.sub_department_name || getSubDepartmentName(r.sub_department_id?.toString())}
+                            {r.sub_department_name ||
+                              getSubDepartmentName(
+                                r.sub_department_id?.toString()
+                              )}
                           </td>
                           <td className="px-4 py-2 border">
                             {r.employee_name || r.employee_id}
@@ -1801,8 +1838,13 @@ const RosterManagementSystem = () => {
                   {/* Show a friendly message when a search was performed but returned no results */}
                   {rosterSearchPerformed && searchedRosters.length === 0 && (
                     <div className="p-6 text-center text-gray-600">
-                      <p className="font-medium">{searchMessage || "No roster data found for the given criteria."}</p>
-                      <p className="text-sm mt-2 text-gray-500">Adjust your filters or click Reset to show all rosters.</p>
+                      <p className="font-medium">
+                        {searchMessage ||
+                          "No roster data found for the given criteria."}
+                      </p>
+                      <p className="text-sm mt-2 text-gray-500">
+                        Adjust your filters or click Reset to show all rosters.
+                      </p>
                     </div>
                   )}
                   {/* If no search performed and no data at all */}
@@ -1812,7 +1854,7 @@ const RosterManagementSystem = () => {
                     </div>
                   )}
                 </>
-               )}
+              )}
             </div>
 
             <div className="flex justify-between items-center mt-4">
