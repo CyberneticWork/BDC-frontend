@@ -28,8 +28,20 @@ import {
 import AllowancesService from "@services/AllowancesService";
 import * as DeductionService from "@services/DeductionService";
 import ImportExcelModal from "@dashboard/ImportExcelModal";
+import Swal from "sweetalert2";
 
 const STORAGE_KEY = "processedSalaryData";
+
+const notify = {
+  success: (title, text) =>
+    Swal.fire({ icon: "success", title, text, confirmButtonColor: "#3085d6" }),
+  error: (title, text) =>
+    Swal.fire({ icon: "error", title, text, confirmButtonColor: "#d33" }),
+  warning: (title, text) =>
+    Swal.fire({ icon: "warning", title, text, confirmButtonColor: "#f59e0b" }),
+  info: (title, text) =>
+    Swal.fire({ icon: "info", title, text, confirmButtonColor: "#3085d6" }),
+};
 
 const SalaryProcessPage = () => {
   // State for filters
@@ -79,17 +91,20 @@ const SalaryProcessPage = () => {
       );
       // Optionally refresh your data after import
       // await fetchSalaryData();
+      notify.success("Imported", "Employee allowances imported successfully");
       return true;
     } catch (error) {
       console.error("Error importing Excel:", error);
-      throw error.response?.data?.message || "Failed to import file";
+      const msg = error.response?.data?.message || "Failed to import file";
+      notify.error("Import Failed", msg);
+      throw msg;
     }
   };
 
   // Add this success handler
   const handleImportSuccess = (message) => {
     setImportSuccessMessage(message);
-    // You might want to refresh your data here
+    notify.success("Import Successful", message || "Data imported");
     fetchSalaryData();
   };
 
@@ -129,9 +144,12 @@ const SalaryProcessPage = () => {
     statusInfo.lastProcessDate = new Date().toISOString().split("T")[0];
     try {
       await updateSlaryStatus("processed");
-      alert("Salary status updated!");
+      notify.success("Status Updated", "Salary status updated!");
     } catch (error) {
-      alert(error);
+      notify.error(
+        "Update Failed",
+        error.response?.data?.message || error.message || "Unknown error"
+      );
     }
     // Save processed data to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(employeeData));
@@ -141,7 +159,7 @@ const SalaryProcessPage = () => {
     // Get processed data from localStorage
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
     if (!data.length) {
-      alert("No processed salary data found.");
+      notify.info("No Data", "No processed salary data found.");
     }
   };
   const handleDownloadAllProcessed = async () => {
@@ -151,7 +169,10 @@ const SalaryProcessPage = () => {
       const processedData = await getProcessedSalaries();
 
       if (!processedData || processedData.length === 0) {
-        alert("No processed salary data found for the selected period.");
+        notify.info(
+          "No Data",
+          "No processed salary data found for the selected period."
+        );
         return;
       }
 
@@ -518,13 +539,16 @@ const SalaryProcessPage = () => {
 
       try {
         await updateSlaryStatus("issued");
-        alert("Salary Issued !");
+        notify.success("Salary Issued", "Salary Issued!");
       } catch (error) {
-        alert(error);
+        notify.error(
+          "Issue Update Failed",
+          error.response?.data?.message || error.message || "Unknown error"
+        );
       }
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Error generating PDF. Please try again.");
+      notify.error("PDF Error", "Error generating PDF. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -586,7 +610,10 @@ const SalaryProcessPage = () => {
   // Fetch salary data when Apply Filters is clicked
   const fetchSalaryData = async () => {
     if (!month || !year || !selectedCompany) {
-      alert("Please select company, month, and year before applying filters");
+      notify.warning(
+        "Missing Filters",
+        "Please select company, month, and year before applying filters"
+      );
       return null;
     }
 
@@ -604,7 +631,10 @@ const SalaryProcessPage = () => {
       return data.data; // Return the data
     } catch (error) {
       console.error("Error fetching salary data:", error);
-      alert("Error fetching salary data. Please try again.");
+      notify.error(
+        "Fetch Failed",
+        "Error fetching salary data. Please try again."
+      );
       return null;
     } finally {
       setIsLoading(false);
@@ -748,7 +778,10 @@ const SalaryProcessPage = () => {
 
   const getExcelData = async () => {
     if (!bulkActionId || selectedEmployees.length === 0) {
-      alert("Please fill all fields and select at least one employee");
+      notify.warning(
+        "Missing Data",
+        "Please fill all fields and select at least one employee"
+      );
       return;
     }
     const payload = {
@@ -805,9 +838,10 @@ const SalaryProcessPage = () => {
 
       // Download the file
       downloadCSV(csvContent, `${filePrefix}_${Date.now()}.csv`);
+      notify.success("Download Ready", "Template downloaded successfully");
     } catch (error) {
       console.error("Error generating Excel data:", error);
-      alert("Failed to generate Excel file");
+      notify.error("Failed", "Failed to generate Excel file");
     }
   };
 
@@ -849,7 +883,10 @@ const SalaryProcessPage = () => {
   // Apply bulk action to selected employees
   const applyBulkAction = async () => {
     if (!bulkActionId || selectedEmployees.length === 0) {
-      alert("Please fill all fields and select at least one employee");
+      notify.warning(
+        "Missing Data",
+        "Please fill all fields and select at least one employee"
+      );
       return;
     }
 
@@ -863,7 +900,8 @@ const SalaryProcessPage = () => {
     try {
       const res = await UpdateAllowances(payload);
       console.log(JSON.stringify(res));
-      alert(
+      notify.success(
+        "Success",
         `Successfully applied ${bulkActionType} to ${selectedEmployees.length} employee(s)`
       );
       // Refresh data after bulk action
@@ -877,7 +915,10 @@ const SalaryProcessPage = () => {
       setBulkActionName("");
     } catch (error) {
       console.log(error);
-      alert(`Error - ${error.response?.data?.message || error.message}`);
+      notify.error(
+        "Error",
+        error.response?.data?.message || error.message || "Operation failed"
+      );
     }
   };
 
@@ -1390,7 +1431,10 @@ const SalaryProcessPage = () => {
                 `}
                 onClick={async () => {
                   if (filteredData.length === 0) {
-                    alert("No data to save. Please apply filters first.");
+                    notify.info(
+                      "No Data",
+                      "No data to save. Please apply filters first."
+                    );
                     return;
                   }
                   try {
@@ -1400,10 +1444,18 @@ const SalaryProcessPage = () => {
                     const csvContent = convertToCSV(filteredData);
                     downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
 
-                    alert("Salary data saved and downloaded successfully!");
+                    notify.success(
+                      "Saved",
+                      "Salary data saved and downloaded successfully!"
+                    );
                   } catch (error) {
                     console.error("Error saving salary data:", error);
-                    alert(error);
+                    notify.error(
+                      "Save Failed",
+                      error.response?.data?.message ||
+                        error.message ||
+                        "Unknown error"
+                    );
                   }
                 }}
                 type="button"
@@ -1727,8 +1779,7 @@ const SalaryProcessPage = () => {
                         <div className="flex justify-between">
                           <span className="text-xs">ETF:</span>
                           <span className="text-yellow-600">
-                            {employee.salary_breakdown
-                              .etf_employer_contribution.toFixed(
+                            {employee.salary_breakdown.etf_employer_contribution.toFixed(
                               2
                             ) || "0"}
                           </span>
