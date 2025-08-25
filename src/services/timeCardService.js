@@ -45,7 +45,10 @@ const timeCardService = {
     const res = await axios.get('/companies');
     return res.data;
   },
-
+async fetchTodayStats() {
+    const response = await axios.get('/dashboard/stats/today');
+    return response.data;
+},
   async fetchAbsentees({ date, search = "" }) {
     const response = await axios.get('/attendance/absentees', {
       params: { date, search }
