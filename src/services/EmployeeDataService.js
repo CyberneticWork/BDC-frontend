@@ -145,9 +145,7 @@ const employeeService = {
 
   async searchByAttendanceNo(searchTerm) {
     try {
-      const response = await axios.get(`/emp/search/empno`, {
-        params: { search: searchTerm },
-      });
+      const response = await axios.get(`/emp/search/empno?attendance_no=${searchTerm}`);
       return response.data;
     } catch (error) {
       console.error("Error fetching employees:", error);
