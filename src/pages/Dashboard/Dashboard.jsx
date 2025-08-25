@@ -171,7 +171,9 @@ const DashboardCharts = () => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - i));
         const dateStr = date.toISOString().slice(0, 10);
-        const absentees = await timeCardService.fetchAbsentees({ date: dateStr });
+        const absentees = await timeCardService.fetchAbsentees({
+          date: dateStr,
+        });
         const employees = await employeeService.fetchEmployees();
         presentCounts.push(employees.length - absentees.length);
         absentCounts.push(absentees.length);
@@ -205,7 +207,8 @@ const DashboardCharts = () => {
       const employees = await employeeService.fetchEmployees();
       const deptLabels = departments.map((d) => d.name);
       const deptCounts = departments.map(
-        (d) => employees.filter((e) => e.organization?.department === d.name).length
+        (d) =>
+          employees.filter((e) => e.organization?.department === d.name).length
       );
       setDepartmentData({
         labels: deptLabels,
@@ -442,7 +445,7 @@ const QuickActions = ({ setActiveItem }) => {
     {
       icon: DollarSign,
       label: "Loan",
-      action: "employeeLoan", 
+      action: "employeeLoan",
       color: "from-purple-500 to-purple-600",
       iconBg: "bg-purple-100",
       iconColor: "text-purple-600",
@@ -450,7 +453,7 @@ const QuickActions = ({ setActiveItem }) => {
     {
       icon: PieChart,
       label: "Leave Calendar",
-      action: "leavecalendar", 
+      action: "leavecalendar",
       color: "from-pink-500 to-pink-600",
       iconBg: "bg-pink-100",
       iconColor: "text-pink-600",
@@ -509,6 +512,11 @@ const Dashboard = ({ user, onLogout }) => {
     if (id === "dashboard") navigate("/dashboard", { replace: false });
     else navigate(`/dashboard/${id}`, { replace: false });
   };
+
+  // Scroll to top on activeItem change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [activeItem]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex">
@@ -589,7 +597,7 @@ const Dashboard = ({ user, onLogout }) => {
               <EmployeeAdd />
             ) : activeItem === "show" ? (
               <ShowEmployee />
-              ) : activeItem === "EmployeeMaster" ? (
+            ) : activeItem === "EmployeeMaster" ? (
               <EmployeeMaster />
             ) : activeItem === "createNewDeduction" ? (
               <CreateNewDeduction />
