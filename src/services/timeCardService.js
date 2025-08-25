@@ -41,6 +41,36 @@ const timeCardService = {
     return response.data;
   },
 
+  // Add this method to process the data client-side
+  async importExcelData(data) {
+    const formData = new FormData();
+    if (data.company_id !== undefined) formData.append('company_id', data.company_id);
+    if (data.from_date !== undefined) formData.append('from_date', data.from_date);
+    if (data.to_date !== undefined) formData.append('to_date', data.to_date);
+    formData.append('records', JSON.stringify(data.records || []));
+    if (data.file) formData.append('file', data.file, data.file.name || 'import.xlsx');
+
+    // Debug log: show records payload being sent
+    try {
+      console.log('importExcelData - records JSON:', JSON.parse(formData.get('records')));
+    } catch (e) {
+      console.log('importExcelData - records (raw):', formData.get('records'));
+    }
+    // Optionally log FormData keys
+    for (const key of formData.keys()) {
+      console.log('FormData key:', key);
+    }
+
+    try {
+      const response = await axios.post('/attendance/import-excel', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   async fetchCompanies() {
     const res = await axios.get('/companies');
     return res.data;
@@ -61,7 +91,13 @@ const timeCardService = {
       if (response.status !== 200 || !response.data) {
         throw new Error('Download failed');
       }
-      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      
+      // IMPORTANT: Explicitly set the MIME type instead of relying on response headers
+      // This fixes the Linux server issue
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
       const link = document.createElement('a');
       link.href = window.URL.createObjectURL(blob);
       link.setAttribute('download', 'attendance_template.xlsx');
