@@ -622,9 +622,19 @@ const TimeCard = () => {
       Swal.fire({ icon: 'error', title: 'Missing From Date', text: 'Please select a From Date.' });
       return;
     }
-    
+    // NEW: require To Date too
+    if (!selectedToDate) {
+      Swal.fire({ icon: 'error', title: 'Missing To Date', text: 'Please select a To Date.' });
+      return;
+    }
+    // Ensure To Date is not before From Date
+    if (selectedToDate < selectedDate) {
+      Swal.fire({ icon: 'error', title: 'Invalid Date Range', text: 'To Date cannot be before From Date.' });
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
       // Read the Excel file client-side using FileReader and SheetJS
       const reader = new FileReader();
@@ -658,19 +668,18 @@ const TimeCard = () => {
             return;
           }
           
-          // Create payload for API - using same endpoint but with JSON data instead of file
+          // Build payload expected by service
           const payload = {
-            company_id: selectedCompany,
+            company_id: selectedCompany || undefined,
             from_date: selectedDate,
-            to_date: selectedToDate || selectedDate,
+            to_date: selectedToDate,
             records: validRecords,
-            // include the original file to satisfy backend 'file' validation (still sends parsed records)
-            file: excelFile,
+            file: excelFile
           };
-          
-          // Call the API with the JSON data instead of FormData
+
+          // Use importExcelData which builds FormData on the service side
           const res = await timeCardService.importExcelData(payload);
-          
+
           Swal.fire({
             icon: 'success',
             title: 'Import Completed',
@@ -678,7 +687,7 @@ const TimeCard = () => {
               <div>
                 <p>Imported: <b>${res.imported}</b></p>
                 <p>Absent: <b>${res.absent}</b></p>
-                ${res.errors.length > 0 ? `<p class="text-red-600">Errors:<br>${res.errors.join('<br>')}</p>` : ''}
+                ${res.errors?.length ? `<p class="text-red-600">Errors:<br>${res.errors.join('<br>')}</p>` : ''}
               </div>
             `
           });
@@ -692,7 +701,6 @@ const TimeCard = () => {
           setSelectedToDate('');
           setExcelFile(null);
           if (excelInputRef.current) excelInputRef.current.value = '';
-          
         } catch (error) {
           console.error("Error parsing Excel file:", error);
           // Prefer backend validation messages when available (422) and show them to user
@@ -799,7 +807,7 @@ const TimeCard = () => {
               <div className="mt-6 p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg shadow-sm">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">Company</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Company</label>
                     <select
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
                       value={selectedCompany}
@@ -812,7 +820,7 @@ const TimeCard = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-4">From Date <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">From Date <span className="text-red-500">*</span></label>
                     <input
                       type="date"
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
@@ -822,13 +830,14 @@ const TimeCard = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">To Date</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">To Date <span className="text-red-500">*</span></label>
                     <input
                       type="date"
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
                       value={selectedToDate}
                       onChange={e => setSelectedToDate(e.target.value)}
-                      min={selectedDate}
+                      min={selectedDate || undefined}
+                      required
                     />
                   </div>
                 </div>
