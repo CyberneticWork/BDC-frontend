@@ -43,30 +43,42 @@ const timeCardService = {
 
   // Add this method to process the data client-side
   async importExcelData(data) {
-    const formData = new FormData();
-    if (data.company_id !== undefined) formData.append('company_id', data.company_id);
-    if (data.from_date !== undefined) formData.append('from_date', data.from_date);
-    if (data.to_date !== undefined) formData.append('to_date', data.to_date);
-    formData.append('records', JSON.stringify(data.records || []));
-    if (data.file) formData.append('file', data.file, data.file.name || 'import.xlsx');
-
-    // Debug log: show records payload being sent
-    try {
-      console.log('importExcelData - records JSON:', JSON.parse(formData.get('records')));
-    } catch (e) {
-      console.log('importExcelData - records (raw):', formData.get('records'));
+    // client-side guard: require from_date & to_date
+    if (!data || !data.from_date || !data.to_date) {
+      throw new Error('Both From Date and To Date are required for import.');
     }
-    // Optionally log FormData keys
-    for (const key of formData.keys()) {
-      console.log('FormData key:', key);
+
+    const formData = new FormData();
+
+    // Add basic fields (ensure strings)
+    formData.append('from_date', String(data.from_date));
+    formData.append('to_date', String(data.to_date));
+    if (data.company_id !== undefined && data.company_id !== '') {
+      formData.append('company_id', String(data.company_id));
+    }
+
+    // If you're sending parsed records, include them
+    if (data.records) {
+      formData.append('records', JSON.stringify(data.records));
+    }
+
+    // Preserve original filename when appending the file
+    if (data.file) {
+      const fileName = data.file.name || 'import.xlsx';
+      formData.append('file', data.file, fileName);
+      formData.append('file_type', data.file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      formData.append('file_ext', fileName.split('.').pop().toLowerCase());
     }
 
     try {
       const response = await axios.post('/attendance/import-excel', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
       });
       return response.data;
     } catch (error) {
+      console.error('Excel import error:', error.response?.data || error.message);
       throw error;
     }
   },
