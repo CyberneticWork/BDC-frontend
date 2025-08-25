@@ -4,6 +4,7 @@ import employeeService from '../../services/EmployeeDataService';
 import timeCardService from '../../services/timeCardService';
 import Swal from 'sweetalert2';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 // Pagination component for better UI/UX
 const Pagination = ({ page, totalPages, onPageChange }) => {
@@ -621,41 +622,120 @@ const TimeCard = () => {
       Swal.fire({ icon: 'error', title: 'Missing From Date', text: 'Please select a From Date.' });
       return;
     }
-    const formData = new FormData();
-    formData.append('file', excelFile);
-    formData.append('company_id', selectedCompany);
-    formData.append('from_date', selectedDate);
-    if (selectedToDate) formData.append('to_date', selectedToDate);
-
+    
+    setIsLoading(true);
+    
     try {
-      const res = await timeCardService.importExcel(formData);
-      Swal.fire({
-        icon: 'success',
-        title: 'Import Completed',
-        html: `
-          <div>
-            <p>Imported: <b>${res.imported}</b></p>
-            <p>Absent: <b>${res.absent}</b></p>
-            ${res.errors.length > 0 ? `<p class="text-red-600">Errors:<br>${res.errors.join('<br>')}</p>` : ''}
-          </div>
-        `
-      });
-      const updated = await fetchTimeCards();
-      setAttendanceData(updated);
-      setFilteredData(updated);
-
-      setSelectedCompany('');
-      setSelectedDate('');
-      setSelectedToDate('');
-      setExcelFile(null);
-      // clear the native file input so it visually resets in the UI
-      if (excelInputRef.current) excelInputRef.current.value = '';
+      // Read the Excel file client-side using FileReader and SheetJS
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        try {
+          const data = e.target.result;
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          
+          // Skip header row and map data to structured format
+          const records = jsonData.slice(1).map(row => ({
+            nic: row[0]?.toString() || '',
+            date: row[1]?.toString() || '',
+            time: row[2]?.toString() || '',
+            entry: row[3]?.toString() || '',
+            status: row[4]?.toString() || '',
+            reason: row[5]?.toString() || ''
+          }));
+          
+          // Filter out empty rows
+          const validRecords = records.filter(r => r.nic && (r.date || r.status === 'Absent'));
+          
+          if (validRecords.length === 0) {
+            Swal.fire({ icon: 'error', title: 'No valid data', text: 'No valid records found in Excel file.' });
+            setIsLoading(false);
+            return;
+          }
+          
+          // Create payload for API - using same endpoint but with JSON data instead of file
+          const payload = {
+            company_id: selectedCompany,
+            from_date: selectedDate,
+            to_date: selectedToDate || selectedDate,
+            records: validRecords,
+            // include the original file to satisfy backend 'file' validation (still sends parsed records)
+            file: excelFile,
+          };
+          
+          // Call the API with the JSON data instead of FormData
+          const res = await timeCardService.importExcelData(payload);
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Import Completed',
+            html: `
+              <div>
+                <p>Imported: <b>${res.imported}</b></p>
+                <p>Absent: <b>${res.absent}</b></p>
+                ${res.errors.length > 0 ? `<p class="text-red-600">Errors:<br>${res.errors.join('<br>')}</p>` : ''}
+              </div>
+            `
+          });
+          
+          const updated = await fetchTimeCards();
+          setAttendanceData(updated);
+          setFilteredData(updated);
+          
+          setSelectedCompany('');
+          setSelectedDate('');
+          setSelectedToDate('');
+          setExcelFile(null);
+          if (excelInputRef.current) excelInputRef.current.value = '';
+          
+        } catch (error) {
+          console.error("Error parsing Excel file:", error);
+          // Prefer backend validation messages when available (422) and show them to user
+          const backendMessage = error?.response?.data?.message;
+          const backendErrors = error?.response?.data?.errors;
+          let message = error.message || 'Import failed';
+          if (backendMessage) {
+            message = backendMessage;
+          } else if (backendErrors) {
+            if (Array.isArray(backendErrors)) message = backendErrors.join('\n');
+            else if (typeof backendErrors === 'object')
+              message = Object.values(backendErrors).flat().join('\n');
+          }
+          Swal.fire({
+            icon: 'error',
+            title: 'Import failed',
+            text: message,
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      reader.onerror = (error) => {
+        console.error("File reading error:", error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Import failed',
+          text: 'Error reading file: ' + error.message
+        });
+        setIsLoading(false);
+      };
+      
+      // Start reading the file
+      reader.readAsArrayBuffer(excelFile);
+      
     } catch (e) {
       Swal.fire({
         icon: 'error',
         title: 'Import failed',
-        text: e.response?.data?.message || 'Excel import failed'
+        text: e.message || 'An unexpected error occurred'
       });
+      setIsLoading(false);
     }
   };
 
@@ -732,7 +812,7 @@ const TimeCard = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">From Date <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-4">From Date <span className="text-red-500">*</span></label>
                     <input
                       type="date"
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
@@ -1157,7 +1237,7 @@ const TimeCard = () => {
             <div className="bg-gray-50 p-3 rounded-lg mb-4 border border-gray-100">
               <div className="mb-3">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  NIC Number <span className="text-red-500">*</span>
+                  NIC/ EMP Attendance Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
