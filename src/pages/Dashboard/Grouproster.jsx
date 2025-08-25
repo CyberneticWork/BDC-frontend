@@ -84,6 +84,10 @@ const RosterManagementSystem = () => {
   const [searchedRosters, setSearchedRosters] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // New state: whether a search has been performed and a user-visible message
+  const [rosterSearchPerformed, setRosterSearchPerformed] = useState(false);
+  const [searchMessage, setSearchMessage] = useState("");
+
   // Add a new state for companyWise checkbox
   const [isCompanyWise, setIsCompanyWise] = useState(false);
 
@@ -613,6 +617,8 @@ const RosterManagementSystem = () => {
   const handleRosterSearch = async (e) => {
     e.preventDefault();
     setIsSearching(true);
+    setRosterSearchPerformed(true);
+    setSearchMessage(""); // reset any previous message
 
     try {
       // Clean up empty fields to avoid sending them as empty strings
@@ -642,8 +648,17 @@ const RosterManagementSystem = () => {
         date_to: item.roster_details.date_to,
       }));
 
-      setSearchedRosters(flattenedRosters);
+     // If search returns empty, keep searchedRosters as [] but show a message
+     if (!Array.isArray(flattenedRosters) || flattenedRosters.length === 0) {
+       setSearchedRosters([]);
+       setSearchMessage("No roster data matched your search.");
+     } else {
+       setSearchedRosters(flattenedRosters);
+       setSearchMessage("");
+     }
     } catch (err) {
+     setSearchedRosters([]);
+     setSearchMessage("Search failed. Please try again.");
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -666,6 +681,8 @@ const RosterManagementSystem = () => {
       employee_id: "",
     });
     setSearchedRosters([]);
+    setRosterSearchPerformed(false);
+    setSearchMessage("");
   };
 
   return (
@@ -1642,7 +1659,7 @@ const RosterManagementSystem = () => {
                   </select>
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Department
                   </label>
@@ -1686,7 +1703,7 @@ const RosterManagementSystem = () => {
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -1740,65 +1757,62 @@ const RosterManagementSystem = () => {
                   <p className="text-gray-600">Loading rosters...</p>
                 </div>
               ) : (
-                <table className="min-w-full text-sm border">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 border">Roster ID</th>
-                      <th className="px-4 py-2 border">Shift Code</th>
-                      <th className="px-4 py-2 border">Company</th>
-                      <th className="px-4 py-2 border">Department</th>
-                      <th className="px-4 py-2 border">Sub Dept</th>
-                      <th className="px-4 py-2 border">Employee</th>
-                      <th className="px-4 py-2 border">Date From</th>
-                      <th className="px-4 py-2 border">Date To</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(searchedRosters.length > 0
-                      ? searchedRosters
-                      : allRosters
-                    ).map((r, idx) => (
-                      <tr
-                        key={r.id || idx}
-                        className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                      >
-                        <td className="px-4 py-2 border">{r.roster_id}</td>
-                        <td className="px-4 py-2 border">{r.shift_code}</td>
-                        <td className="px-4 py-2 border">
-                          {r.company_name ||
-                            getCompanyName(r.company_id?.toString())}
-                        </td>
-                        <td className="px-4 py-2 border">
-                          {r.department_name ||
-                            getDepartmentName(r.department_id?.toString())}
-                        </td>
-                        <td className="px-4 py-2 border">
-                          {r.sub_department_name ||
-                            getSubDepartmentName(
-                              r.sub_department_id?.toString()
-                            )}
-                        </td>
-                        <td className="px-4 py-2 border">
-                          {r.employee_name || r.employee_id}
-                        </td>
-                        <td className="px-4 py-2 border">{r.date_from}</td>
-                        <td className="px-4 py-2 border">{r.date_to}</td>
+                <>
+                  <table className="min-w-full text-sm border">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-4 py-2 border">Roster ID</th>
+                        <th className="px-4 py-2 border">Shift Code</th>
+                        <th className="px-4 py-2 border">Company</th>
+                        <th className="px-4 py-2 border">Department</th>
+                        <th className="px-4 py-2 border">Sub Dept</th>
+                        <th className="px-4 py-2 border">Employee</th>
+                        <th className="px-4 py-2 border">Date From</th>
+                        <th className="px-4 py-2 border">Date To</th>
                       </tr>
-                    ))}
-                    {searchedRosters.length === 0 &&
-                      allRosters.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan="8"
-                            className="px-4 py-6 border text-center text-gray-500"
-                          >
-                            No roster data found
+                    </thead>
+                    <tbody>
+                      {((rosterSearchPerformed ? searchedRosters : allRosters) || []).map((r, idx) => (
+                        <tr
+                          key={r.id || idx}
+                          className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                        >
+                          <td className="px-4 py-2 border">{r.roster_id}</td>
+                          <td className="px-4 py-2 border">{r.shift_code}</td>
+                          <td className="px-4 py-2 border">
+                            {r.company_name || getCompanyName(r.company_id?.toString())}
                           </td>
+                          <td className="px-4 py-2 border">
+                            {r.department_name || getDepartmentName(r.department_id?.toString())}
+                          </td>
+                          <td className="px-4 py-2 border">
+                            {r.sub_department_name || getSubDepartmentName(r.sub_department_id?.toString())}
+                          </td>
+                          <td className="px-4 py-2 border">
+                            {r.employee_name || r.employee_id}
+                          </td>
+                          <td className="px-4 py-2 border">{r.date_from}</td>
+                          <td className="px-4 py-2 border">{r.date_to}</td>
                         </tr>
-                      )}
-                  </tbody>
-                </table>
-              )}
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Show a friendly message when a search was performed but returned no results */}
+                  {rosterSearchPerformed && searchedRosters.length === 0 && (
+                    <div className="p-6 text-center text-gray-600">
+                      <p className="font-medium">{searchMessage || "No roster data found for the given criteria."}</p>
+                      <p className="text-sm mt-2 text-gray-500">Adjust your filters or click Reset to show all rosters.</p>
+                    </div>
+                  )}
+                  {/* If no search performed and no data at all */}
+                  {!rosterSearchPerformed && allRosters.length === 0 && (
+                    <div className="p-6 text-center text-gray-600">
+                      <p className="font-medium">No roster data found.</p>
+                    </div>
+                  )}
+                </>
+               )}
             </div>
 
             <div className="flex justify-between items-center mt-4">
