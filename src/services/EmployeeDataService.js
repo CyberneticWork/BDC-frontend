@@ -143,6 +143,18 @@ const employeeService = {
     }
   },
 
+  async searchByAttendanceNo(searchTerm) {
+    try {
+      const response = await axios.get(`/emp/search/empno`, {
+        params: { search: searchTerm },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      return [];
+    }
+  },
+
   async fetchEmployees() {
     try {
       const response = await axios.get(`/employees`);

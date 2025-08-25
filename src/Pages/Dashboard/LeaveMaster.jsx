@@ -353,7 +353,7 @@ const LeaveMaster = () => {
     setSearchError("");
 
     try {
-      const empData = await employeeService.fetchEmployeeById(
+      const empData = await employeeService.searchByAttendanceNo(
         formData.attendanceNo
       );
 
@@ -605,7 +605,7 @@ const LeaveMaster = () => {
               Leave Master
             </h1>
             <p className="text-slate-300 text-center mt-2 text-sm sm:text-base">
-              Employee Leave Management System
+              Employee Leave Management System 
             </p>
           </div>
           <div className="p-4 sm:p-6 lg:p-8">
