@@ -54,7 +54,7 @@ const handleKeyDown = (e) => {
   // Allow: digits (0-9), decimal point (.)
   if (
     // Navigation keys
-    [46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) || 
+    [46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
     // Arrow keys
     (e.keyCode >= 35 && e.keyCode <= 40) ||
     // Numbers and decimal on main keyboard
@@ -62,10 +62,14 @@ const handleKeyDown = (e) => {
     // Numbers on numpad
     (e.keyCode >= 96 && e.keyCode <= 105) ||
     // Decimal on numpad
-    e.keyCode === 110 || e.keyCode === 190
+    e.keyCode === 110 ||
+    e.keyCode === 190
   ) {
     // Allow only one decimal point
-    if ((e.keyCode === 110 || e.keyCode === 190) && e.target.value.includes('.')) {
+    if (
+      (e.keyCode === 110 || e.keyCode === 190) &&
+      e.target.value.includes(".")
+    ) {
       e.preventDefault();
     }
     return;
@@ -236,7 +240,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     try {
       const response = await employeeService.fetchEmployeeById(employeeId);
       const apiData = response;
-      // console.log("API Data:", apiData); 
+      // console.log("API Data:", apiData);
       const normalizeGender = (gender) => {
         if (!gender) return "";
         const lower = gender.toLowerCase();
@@ -440,7 +444,10 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
       <Modal
         isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
+        onClose={() => {
+          setIsSearchModalOpen(false);
+          setSearchTerm("");
+        }}
         title="Search Employee"
       >
         <div className="space-y-4">
@@ -1094,6 +1101,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                   <input
                     name="dob"
                     type="date"
+                    max={new Date().toISOString().split("T")[0]}
                     value={child.dob}
                     onChange={(e) => handleChildChange(idx, e)}
                     className={`w-full border ${

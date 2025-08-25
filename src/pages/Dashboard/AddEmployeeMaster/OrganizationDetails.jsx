@@ -391,6 +391,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                   type="date"
                   name="dateOfJoined"
                   value={formData.organization.dateOfJoined}
+                  max={new Date().toISOString().split("T")[0]}
                   onChange={handleChange}
                   className={`w-full pl-8 pr-3 py-2 border ${
                     errors.organization?.dateOfJoined
