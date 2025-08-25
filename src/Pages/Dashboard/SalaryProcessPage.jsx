@@ -1207,10 +1207,7 @@ const SalaryProcessPage = () => {
               <Users size={18} strokeWidth={2} />
               Non EPF Employee
             </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg text-base font-semibold text-gray-700 hover:bg-blue-50 transition-colors shadow">
-              <Download size={18} strokeWidth={2} />
-              Export
-            </button>
+            
           </div>
 
           {/* Filter Section */}
