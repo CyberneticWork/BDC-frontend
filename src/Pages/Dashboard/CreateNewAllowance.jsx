@@ -653,7 +653,7 @@ const CreateNewAllowance = () => {
                 ) : (
                   <>
                     <Download size={20} />
-                    <span className="font-medium">Download Template</span>
+                    <span className="font-medium">Export Allowance Template</span>
                   </>
                 )}
               </button>
