@@ -465,7 +465,16 @@ const RosterManagementSystem = () => {
 
   // Save roster to backend
   const handleSaveRoster = async () => {
-    if (rosterAssignments.length === 0) return;
+    // Show error if no pending assignments
+    if (rosterAssignments.length === 0) {
+      Swal.fire({
+        icon: "error",
+        title: "No Pending Assignments",
+        text: "Please add at least one shift assignment before processing the roster.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -648,17 +657,17 @@ const RosterManagementSystem = () => {
         date_to: item.roster_details.date_to,
       }));
 
-     // If search returns empty, keep searchedRosters as [] but show a message
-     if (!Array.isArray(flattenedRosters) || flattenedRosters.length === 0) {
-       setSearchedRosters([]);
-       setSearchMessage("No roster data matched your search.");
-     } else {
-       setSearchedRosters(flattenedRosters);
-       setSearchMessage("");
-     }
+      // If search returns empty, keep searchedRosters as [] but show a message
+      if (!Array.isArray(flattenedRosters) || flattenedRosters.length === 0) {
+        setSearchedRosters([]);
+        setSearchMessage("No roster data matched your search.");
+      } else {
+        setSearchedRosters(flattenedRosters);
+        setSearchMessage("");
+      }
     } catch (err) {
-     setSearchedRosters([]);
-     setSearchMessage("Search failed. Please try again.");
+      setSearchedRosters([]);
+      setSearchMessage("Search failed. Please try again.");
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -1496,7 +1505,7 @@ const RosterManagementSystem = () => {
                   isSaving ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 onClick={handleSaveRoster}
-                disabled={rosterAssignments.length === 0 || isSaving}
+                disabled={isSaving} // allow click to show error when no assignments
               >
                 {isSaving ? (
                   <>
@@ -1772,7 +1781,11 @@ const RosterManagementSystem = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {((rosterSearchPerformed ? searchedRosters : allRosters) || []).map((r, idx) => (
+                      {(
+                        (rosterSearchPerformed
+                          ? searchedRosters
+                          : allRosters) || []
+                      ).map((r, idx) => (
                         <tr
                           key={r.id || idx}
                           className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
@@ -1780,13 +1793,18 @@ const RosterManagementSystem = () => {
                           <td className="px-4 py-2 border">{r.roster_id}</td>
                           <td className="px-4 py-2 border">{r.shift_code}</td>
                           <td className="px-4 py-2 border">
-                            {r.company_name || getCompanyName(r.company_id?.toString())}
+                            {r.company_name ||
+                              getCompanyName(r.company_id?.toString())}
                           </td>
                           <td className="px-4 py-2 border">
-                            {r.department_name || getDepartmentName(r.department_id?.toString())}
+                            {r.department_name ||
+                              getDepartmentName(r.department_id?.toString())}
                           </td>
                           <td className="px-4 py-2 border">
-                            {r.sub_department_name || getSubDepartmentName(r.sub_department_id?.toString())}
+                            {r.sub_department_name ||
+                              getSubDepartmentName(
+                                r.sub_department_id?.toString()
+                              )}
                           </td>
                           <td className="px-4 py-2 border">
                             {r.employee_name || r.employee_id}
@@ -1801,8 +1819,13 @@ const RosterManagementSystem = () => {
                   {/* Show a friendly message when a search was performed but returned no results */}
                   {rosterSearchPerformed && searchedRosters.length === 0 && (
                     <div className="p-6 text-center text-gray-600">
-                      <p className="font-medium">{searchMessage || "No roster data found for the given criteria."}</p>
-                      <p className="text-sm mt-2 text-gray-500">Adjust your filters or click Reset to show all rosters.</p>
+                      <p className="font-medium">
+                        {searchMessage ||
+                          "No roster data found for the given criteria."}
+                      </p>
+                      <p className="text-sm mt-2 text-gray-500">
+                        Adjust your filters or click Reset to show all rosters.
+                      </p>
                     </div>
                   )}
                   {/* If no search performed and no data at all */}
@@ -1812,7 +1835,7 @@ const RosterManagementSystem = () => {
                     </div>
                   )}
                 </>
-               )}
+              )}
             </div>
 
             <div className="flex justify-between items-center mt-4">
