@@ -1219,7 +1219,6 @@ const SalaryProcessPage = () => {
               <Users size={18} strokeWidth={2} />
               Non EPF Employee
             </button>
-            
           </div>
 
           {/* Filter Section */}
@@ -1447,8 +1446,13 @@ const SalaryProcessPage = () => {
                     return;
                   }
                   try {
-                    const savedData = await saveSalaryData(filteredData);
-                    console.log(JSON.stringify(filteredData));
+                    const dataWithMonth = filteredData.map((item) => ({
+                      ...item,
+                      month: month,                     
+                    }));
+
+                    const savedData = await saveSalaryData(dataWithMonth);
+                    console.log(JSON.stringify(dataWithMonth));
                     // Convert to CSV and download
                     const csvContent = convertToCSV(filteredData);
                     downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
