@@ -23,6 +23,7 @@ import { fetchLeaveCalendar } from "../../services/LeaveCalendar";
 const LeaveMaster = () => {
   // State for form fields
   const [formData, setFormData] = useState({
+    emp_id: "",
     attendanceNo: "",
     epfNo: "",
     employeeName: "",
@@ -30,7 +31,7 @@ const LeaveMaster = () => {
     reportingDate: getCurrentDate(),
     leaveType: "",
     leaveDateType: "fullDay",
-    halfDayPeriod: "morning", 
+    halfDayPeriod: "morning",
     leaveDate: {
       single: getCurrentDate(),
       from: getCurrentDate(),
@@ -275,72 +276,73 @@ const LeaveMaster = () => {
   };
 
   // Function to fetch employee leave counts - modified to handle half-day calculations and exclude rejected leaves
- const fetchLeaveUsage = async (employeeId) => {
+  const fetchLeaveUsage = async (employeeId) => {
     if (!employeeId) return;
 
     setIsLoadingUsage(true);
     try {
-        const leaveCounts = await getLeaveCountsByEmployee(employeeId);
+      const leaveCounts = await getLeaveCountsByEmployee(employeeId);
 
-        if (leaveCounts && Array.isArray(leaveCounts)) {
-            const formattedUsage = Object.keys(leaveEntitlements).map(
-                (leaveType, index) => {
-                    // Find the leave data for this type
-                    const leaveData = leaveCounts.find(
-                        (item) => item.leave_type === leaveType
-                    ) || {
-                        approved_full_days: 0,
-                        approved_half_days: 0,
-                        rejected_full_days: 0,
-                        rejected_half_days: 0,
-                    };
+      if (leaveCounts && Array.isArray(leaveCounts)) {
+        const formattedUsage = Object.keys(leaveEntitlements).map(
+          (leaveType, index) => {
+            // Find the leave data for this type
+            const leaveData = leaveCounts.find(
+              (item) => item.leave_type === leaveType
+            ) || {
+              approved_full_days: 0,
+              approved_half_days: 0,
+              rejected_full_days: 0,
+              rejected_half_days: 0,
+            };
 
-                    // Calculate total usage: approved full days + approved half days
-                    const usage = (parseFloat(leaveData.approved_full_days) || 0) + 
-                                 (parseFloat(leaveData.approved_half_days) || 0);
-                    
-                    const total = leaveEntitlements[leaveType];
-                    const balance = total - usage;
+            // Calculate total usage: approved full days + approved half days
+            const usage =
+              (parseFloat(leaveData.approved_full_days) || 0) +
+              (parseFloat(leaveData.approved_half_days) || 0);
 
-                    return {
-                        id: index + 1,
-                        leaveType: leaveType,
-                        total: total,
-                        usage: usage.toFixed(1),
-                        balance: balance.toFixed(1),
-                    };
-                }
-            );
-            setLeaveUsageData(formattedUsage);
-        } else {
-            // Default data if no records found
-            const defaultUsage = Object.keys(leaveEntitlements).map(
-                (leaveType, index) => ({
-                    id: index + 1,
-                    leaveType: leaveType,
-                    total: leaveEntitlements[leaveType],
-                    usage: "0.0",
-                    balance: leaveEntitlements[leaveType].toFixed(1),
-                })
-            );
-            setLeaveUsageData(defaultUsage);
-        }
-    } catch (error) {
-        console.error("Error fetching leave usage data:", error);
+            const total = leaveEntitlements[leaveType];
+            const balance = total - usage;
+
+            return {
+              id: index + 1,
+              leaveType: leaveType,
+              total: total,
+              usage: usage.toFixed(1),
+              balance: balance.toFixed(1),
+            };
+          }
+        );
+        setLeaveUsageData(formattedUsage);
+      } else {
+        // Default data if no records found
         const defaultUsage = Object.keys(leaveEntitlements).map(
-            (leaveType, index) => ({
-                id: index + 1,
-                leaveType: leaveType,
-                total: leaveEntitlements[leaveType],
-                usage: "0.0",
-                balance: leaveEntitlements[leaveType].toFixed(1),
-            })
+          (leaveType, index) => ({
+            id: index + 1,
+            leaveType: leaveType,
+            total: leaveEntitlements[leaveType],
+            usage: "0.0",
+            balance: leaveEntitlements[leaveType].toFixed(1),
+          })
         );
         setLeaveUsageData(defaultUsage);
+      }
+    } catch (error) {
+      console.error("Error fetching leave usage data:", error);
+      const defaultUsage = Object.keys(leaveEntitlements).map(
+        (leaveType, index) => ({
+          id: index + 1,
+          leaveType: leaveType,
+          total: leaveEntitlements[leaveType],
+          usage: "0.0",
+          balance: leaveEntitlements[leaveType].toFixed(1),
+        })
+      );
+      setLeaveUsageData(defaultUsage);
     } finally {
-        setIsLoadingUsage(false);
+      setIsLoadingUsage(false);
     }
-};
+  };
 
   // Function to fetch employee details using the API
   const fetchEmployeeDetails = async () => {
@@ -353,7 +355,7 @@ const LeaveMaster = () => {
     setSearchError("");
 
     try {
-      const empData = await employeeService.fetchEmployeeById(
+      const empData = await employeeService.searchByAttendanceNo(
         formData.attendanceNo
       );
 
@@ -363,6 +365,7 @@ const LeaveMaster = () => {
 
         setFormData({
           ...formData,
+          emp_id: empData.id || "",
           epfNo: empData.epf || "",
           employeeName: empData.name_with_initials || "",
           department: empData.organization_assignment?.department?.name || "",
@@ -512,7 +515,7 @@ const LeaveMaster = () => {
       }
 
       let leaveData = {
-        employee_id: parseInt(formData.attendanceNo),
+        employee_id: parseInt(formData.emp_id),
         reporting_date: formData.reportingDate,
         leave_type: formData.leaveType,
         reason: formData.reason,
@@ -522,7 +525,7 @@ const LeaveMaster = () => {
         leave_to: null,
         period: null,
         is_half_day: false,
-        leave_duration: 0 // Add duration field
+        leave_duration: 0, // Add duration field
       };
 
       if (formData.leaveDateType === "fullDay") {
@@ -605,7 +608,8 @@ const LeaveMaster = () => {
               Leave Master
             </h1>
             <p className="text-slate-300 text-center mt-2 text-sm sm:text-base">
-              Employee Leave Management System
+              Employee Leave Management System{" "}
+              {formData.attendanceNo && `- EMP No: ${formData.attendanceNo}`}
             </p>
           </div>
           <div className="p-4 sm:p-6 lg:p-8">

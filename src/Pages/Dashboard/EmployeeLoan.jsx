@@ -140,7 +140,6 @@ const EmployeeLoan = () => {
       } else {
         setEmployeeName("");
         setEmployeeIdd("");
-
       }
     };
     fetchName();
@@ -163,80 +162,116 @@ const EmployeeLoan = () => {
       return;
     }
 
+    const round2 = (v) => Math.round((Number(v) + Number.EPSILON) * 100) / 100;
+
     const principal = parseFloat(loanAmount);
-    const rate =
-      interestType === "withInterest" ? parseFloat(interestRate) / 100 / 12 : 0;
+    const ratePercent =
+      interestType === "withInterest" ? parseFloat(interestRate) : 0;
+
+    if (isNaN(principal) || principal <= 0) {
+      showErrorMessage("Invalid Amount", "Please enter a valid loan amount");
+      return;
+    }
+    if (
+      interestType === "withInterest" &&
+      (isNaN(ratePercent) || ratePercent < 0)
+    ) {
+      showErrorMessage("Invalid Rate", "Please enter a valid interest rate");
+      return;
+    }
+
+    // Flat interest model
+    const totalInterest = round2(principal * (ratePercent / 100));
+    const totalRepayable = round2(principal + totalInterest);
+
     let numberOfInstallments;
     let installmentAmt;
 
-    // Calculate based on selected method
     if (calculationType === "byCount") {
-      numberOfInstallments = parseInt(installmentCount);
-      // Calculate installment amount including interest
-      if (interestType === "withInterest") {
-        // Using loan amortization formula: PMT = P[r(1+r)^n]/[(1+r)^n-1]
-        const ratePerPeriod = rate;
-        const numerator =
-          ratePerPeriod * Math.pow(1 + ratePerPeriod, numberOfInstallments);
-        const denominator =
-          Math.pow(1 + ratePerPeriod, numberOfInstallments) - 1;
-        installmentAmt = principal * (numerator / denominator);
-      } else {
-        // Simple division for non-interest loans
-        installmentAmt = principal / numberOfInstallments;
+      numberOfInstallments = parseInt(installmentCount, 10);
+      if (!numberOfInstallments || numberOfInstallments <= 0) {
+        showErrorMessage(
+          "Invalid Count",
+          "Installment count must be a positive integer"
+        );
+        return;
       }
+      const baseInstallment = totalRepayable / numberOfInstallments;
+      installmentAmt = round2(baseInstallment);
       setInstallmentAmount(installmentAmt.toFixed(2));
     } else {
       installmentAmt = parseFloat(installmentAmount);
-      // Calculate number of installments
-      if (interestType === "withInterest") {
-        // Iteratively calculate the number of payments needed
-        let remaining = principal;
-        let count = 0;
-        while (remaining > 0 && count < 1000) {
-          // limit to prevent infinite loop
-          const interest = remaining * rate;
-          const principalPayment = installmentAmt - interest;
-          remaining -= principalPayment;
-          count++;
-        }
-        numberOfInstallments = count;
-      } else {
-        numberOfInstallments = Math.ceil(principal / installmentAmt);
+      if (isNaN(installmentAmt) || installmentAmt <= 0) {
+        showErrorMessage(
+          "Invalid Installment",
+          "Installment amount must be greater than 0"
+        );
+        return;
       }
+      numberOfInstallments = Math.ceil(totalRepayable / installmentAmt);
       setInstallmentCount(numberOfInstallments.toString());
     }
 
-    // Generate loan details
+    // Build schedule with evenly distributed interest; last row adjusts for rounding
     const details = [];
-    let remaining = principal;
+    let principalRemaining = principal;
+    let sumInstallments = 0;
+    let sumInterest = 0;
+
+    const baseInterestPerInst =
+      numberOfInstallments > 0 ? totalInterest / numberOfInstallments : 0;
 
     for (let i = 1; i <= numberOfInstallments; i++) {
-      const interest = remaining * rate;
-      let principalPayment = installmentAmt - interest;
-
-      // Adjust final payment if needed
-      if (i === numberOfInstallments) {
-        if (principalPayment > remaining) {
-          principalPayment = remaining;
+      // Installment amount for this row
+      let thisInstallment;
+      if (calculationType === "byCount") {
+        // Equal installments, adjust last for rounding
+        if (i < numberOfInstallments) {
+          thisInstallment = round2(totalRepayable / numberOfInstallments);
+        } else {
+          thisInstallment = round2(totalRepayable - sumInstallments);
+        }
+      } else {
+        // By fixed amount, last one is the remainder
+        if (i < numberOfInstallments) {
+          thisInstallment = round2(installmentAmt);
+        } else {
+          thisInstallment = round2(totalRepayable - sumInstallments);
         }
       }
 
-      remaining -= principalPayment;
+      // Interest for this row (evenly distributed), adjust last for rounding
+      let thisInterest;
+      if (i < numberOfInstallments) {
+        thisInterest = round2(baseInterestPerInst);
+      } else {
+        thisInterest = round2(totalInterest - sumInterest);
+      }
 
-      // Ensure we don't have negative remaining due to rounding
-      if (remaining < 0.01) remaining = 0;
+      // Principal portion
+      let thisPrincipal = round2(thisInstallment - thisInterest);
+      if (thisPrincipal < 0) {
+        // Guard against tiny rounding issues
+        thisInterest = thisInstallment;
+        thisPrincipal = 0;
+      }
+
+      principalRemaining = round2(principalRemaining - thisPrincipal);
+      if (principalRemaining < 0.01) principalRemaining = 0;
 
       details.push({
         no: i,
         dueDate: calculateDueDate(startDate, i),
         days: 30,
-        capitalOutstanding: remaining,
-        capitalRepayment: principalPayment,
-        interestPayment: interest,
-        installmentAmount: principalPayment + interest,
-        dueBalance: remaining,
+        capitalOutstanding: principalRemaining,
+        capitalRepayment: thisPrincipal,
+        interestPayment: thisInterest,
+        installmentAmount: thisInstallment,
+        dueBalance: principalRemaining,
       });
+
+      sumInstallments = round2(sumInstallments + thisInstallment);
+      sumInterest = round2(sumInterest + thisInterest);
     }
 
     setLoanDetails(details);
