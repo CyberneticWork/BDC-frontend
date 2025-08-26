@@ -275,7 +275,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Layers className="text-gray-500" size={16} />
-                Department 
+                Department
               </label>
               <div className="relative flex-1">
                 {isLoadingDepartments ? (
@@ -316,7 +316,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Layers className="text-gray-500" size={16} />
-                Sub Department 
+                Sub Department
               </label>
               <div className="relative flex-1">
                 {isLoadingSubDepartments ? (
@@ -441,7 +441,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Layers className="text-gray-500" size={16} />
-                Day Off 
+                Day Off
               </label>
               <div className="relative">
                 <select
@@ -519,6 +519,8 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                       name="probationFrom"
                       value={formData.organization.probationFrom}
                       onChange={handleChange}
+                      min={formData.organization.dateOfJoined || ""}
+                      max={formData.organization.probationTo || ""}
                       disabled={!formData.organization.probationPeriod}
                       className={`w-full pl-8 pr-3 py-2 border ${
                         !formData.organization.probationPeriod
@@ -547,6 +549,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                       name="probationTo"
                       value={formData.organization.probationTo}
                       onChange={handleChange}
+                      min={formData.organization.probationFrom || ""}
                       disabled={!formData.organization.probationPeriod}
                       className={`w-full pl-8 pr-3 py-2 border ${
                         !formData.organization.probationPeriod
@@ -607,6 +610,8 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                       name="trainingFrom"
                       value={formData.organization.trainingFrom}
                       onChange={handleChange}
+                      min={formData.organization.dateOfJoined || ""}
+                      max={formData.organization.trainingTo || ""}
                       disabled={!formData.organization.trainingPeriod}
                       className={`w-full pl-8 pr-3 py-2 border ${
                         !formData.organization.trainingPeriod
@@ -635,6 +640,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                       name="trainingTo"
                       value={formData.organization.trainingTo}
                       onChange={handleChange}
+                      min={formData.organization.trainingFrom || ""}
                       disabled={!formData.organization.trainingPeriod}
                       className={`w-full pl-8 pr-3 py-2 border ${
                         !formData.organization.trainingPeriod
@@ -695,6 +701,8 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                       name="contractFrom"
                       value={formData.organization.contractFrom}
                       onChange={handleChange}
+                      min={formData.organization.dateOfJoined || ""}
+                      max={formData.organization.contractTo || ""}
                       disabled={!formData.organization.contractPeriod}
                       className={`w-full pl-8 pr-3 py-2 border ${
                         !formData.organization.contractPeriod
@@ -723,6 +731,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                       name="contractTo"
                       value={formData.organization.contractTo}
                       onChange={handleChange}
+                      min={formData.organization.contractFrom || ""}
                       disabled={!formData.organization.contractPeriod}
                       className={`w-full pl-8 pr-3 py-2 border ${
                         !formData.organization.contractPeriod

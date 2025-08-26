@@ -48,7 +48,7 @@ import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
 
-import { useLocation, useNavigate } from "react-router-dom"; // << added
+import { useLocation, useNavigate } from "react-router-dom";
 
 ChartJS.register(
   CategoryScale,
@@ -78,40 +78,43 @@ const DashboardStats = () => {
 
   useEffect(() => {
     async function fetchStats() {
-      // Fetch total employees
-      const employees = await employeeService.fetchEmployees();
-      // Fetch departments
-      const departments = await fetchDepartments();
-      // Fetch today's attendance
-      const today = new Date().toISOString().slice(0, 10);
-      const attendance = await timeCardService.fetchAbsentees({ date: today });
+      try {
+        // Fetch total employees
+        const employees = await employeeService.fetchEmployees();
+        // Fetch departments
+        const departments = await fetchDepartments();
+        // Fetch today's stats
+        const todayStats = await timeCardService.fetchTodayStats();
 
-      setStats([
-        {
-          name: "Total Employees",
-          value: employees.length,
-          change: "+12%", // You can calculate change if you have previous data
-          icon: Users,
-        },
-        {
-          name: "Present Today",
-          value: employees.length - attendance.length,
-          change: "+2.3%",
-          icon: UserCheck,
-        },
-        {
-          name: "On Leave",
-          value: attendance.length,
-          change: "-5.4%",
-          icon: Calendar,
-        },
-        {
-          name: "Departments",
-          value: departments.length,
-          change: "+1",
-          icon: Building2,
-        },
-      ]);
+        setStats([
+          {
+            name: "Total Employees",
+            value: employees.length,
+            change: "+12%",
+            icon: Users,
+          },
+          {
+            name: "Present Today",
+            value: todayStats.present,
+            change: "+2.3%",
+            icon: UserCheck,
+          },
+          {
+            name: "On Leave",
+            value: todayStats.on_leave,
+            change: "-5.4%",
+            icon: Calendar,
+          },
+          {
+            name: "Departments",
+            value: departments.length,
+            change: "+1",
+            icon: Building2,
+          },
+        ]);
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      }
     }
     fetchStats();
   }, []);
@@ -121,7 +124,7 @@ const DashboardStats = () => {
       {stats.map((stat, index) => (
         <div
           key={index}
-          className={`${stat.lightBg} rounded-2xl shadow-lg ${stat.shadowColor} p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 border border-white/50 backdrop-blur-sm`}
+          className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 border border-gray-100"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -141,8 +144,8 @@ const DashboardStats = () => {
                 {stat.change} from last month
               </p>
             </div>
-            <div className={`${stat.iconBg} p-4 rounded-2xl shadow-lg`}>
-              <stat.icon className="h-8 w-8 text-white" />
+            <div className="bg-blue-100 p-4 rounded-2xl shadow-lg">
+              <stat.icon className="h-8 w-8 text-blue-600" />
             </div>
           </div>
         </div>
@@ -163,83 +166,96 @@ const DashboardCharts = () => {
 
   useEffect(() => {
     async function fetchChartData() {
-      // Fetch attendance for the last 7 days
-      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-      let presentCounts = [];
-      let absentCounts = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - i));
-        const dateStr = date.toISOString().slice(0, 10);
-        const absentees = await timeCardService.fetchAbsentees({
-          date: dateStr,
+      try {
+        // Fetch attendance for the last 7 days
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        let presentCounts = [];
+        let absentCounts = [];
+        
+        for (let i = 0; i < 7; i++) {
+          const date = new Date();
+          date.setDate(date.getDate() - (6 - i));
+          const dateStr = date.toISOString().slice(0, 10);
+          
+          // Get present count for this date
+          const timeCards = await timeCardService.getTimeCardsByDate(dateStr);
+          const presentEmployees = new Set();
+          
+          timeCards.forEach(card => {
+            if (card.status === 'IN') {
+              presentEmployees.add(card.employee_id);
+            }
+          });
+          
+          const employees = await employeeService.fetchEmployees();
+          presentCounts.push(presentEmployees.size);
+          absentCounts.push(employees.length - presentEmployees.size);
+        }
+        
+        setAttendanceData({
+          labels: days,
+          datasets: [
+            {
+              label: "Present",
+              data: presentCounts,
+              backgroundColor: "rgba(16, 185, 129, 0.8)",
+              borderColor: "rgba(16, 185, 129, 1)",
+              borderWidth: 2,
+              borderRadius: 8,
+              borderSkipped: false,
+            },
+            {
+              label: "Absent",
+              data: absentCounts,
+              backgroundColor: "rgba(239, 68, 68, 0.8)",
+              borderColor: "rgba(239, 68, 68, 1)",
+              borderWidth: 2,
+              borderRadius: 8,
+              borderSkipped: false,
+            },
+          ],
         });
-        const employees = await employeeService.fetchEmployees();
-        presentCounts.push(employees.length - absentees.length);
-        absentCounts.push(absentees.length);
-      }
-      setAttendanceData({
-        labels: days,
-        datasets: [
-          {
-            label: "Present",
-            data: presentCounts,
-            backgroundColor: "rgba(16, 185, 129, 0.8)",
-            borderColor: "rgba(16, 185, 129, 1)",
-            borderWidth: 2,
-            borderRadius: 8,
-            borderSkipped: false,
-          },
-          {
-            label: "Absent",
-            data: absentCounts,
-            backgroundColor: "rgba(239, 68, 68, 0.8)",
-            borderColor: "rgba(239, 68, 68, 1)",
-            borderWidth: 2,
-            borderRadius: 8,
-            borderSkipped: false,
-          },
-        ],
-      });
 
-      // Fetch departments and employee counts per department
-      const departments = await fetchDepartments();
-      const employees = await employeeService.fetchEmployees();
-      const deptLabels = departments.map((d) => d.name);
-      const deptCounts = departments.map(
-        (d) =>
-          employees.filter((e) => e.organization?.department === d.name).length
-      );
-      setDepartmentData({
-        labels: deptLabels,
-        datasets: [
-          {
-            data: deptCounts,
-            backgroundColor: [
-              "rgba(239, 68, 68, 0.8)",
-              "rgba(59, 130, 246, 0.8)",
-              "rgba(251, 191, 36, 0.8)",
-              "rgba(16, 185, 129, 0.8)",
-              "rgba(139, 92, 246, 0.8)",
-              "rgba(251, 146, 60, 0.8)",
-            ],
-            borderColor: [
-              "rgba(239, 68, 68, 1)",
-              "rgba(59, 130, 246, 1)",
-              "rgba(251, 191, 36, 1)",
-              "rgba(16, 185, 129, 1)",
-              "rgba(139, 92, 246, 1)",
-              "rgba(251, 146, 60, 1)",
-            ],
-            borderWidth: 2,
-          },
-        ],
-      });
+        // Fetch departments and employee counts per department
+        const departments = await fetchDepartments();
+        const employees = await employeeService.fetchEmployees();
+        const deptLabels = departments.map((d) => d.name);
+        const deptCounts = departments.map(
+          (d) => employees.filter((e) => e.organization?.department === d.name).length
+        );
+        
+        setDepartmentData({
+          labels: deptLabels,
+          datasets: [
+            {
+              data: deptCounts,
+              backgroundColor: [
+                "rgba(239, 68, 68, 0.8)",
+                "rgba(59, 130, 246, 0.8)",
+                "rgba(251, 191, 36, 0.8)",
+                "rgba(16, 185, 129, 0.8)",
+                "rgba(139, 92, 246, 0.8)",
+                "rgba(251, 146, 60, 0.8)",
+              ],
+              borderColor: [
+                "rgba(239, 68, 68, 1)",
+                "rgba(59, 130, 246, 1)",
+                "rgba(251, 191, 36, 1)",
+                "rgba(16, 185, 129, 1)",
+                "rgba(139, 92, 246, 1)",
+                "rgba(251, 146, 60, 1)",
+              ],
+              borderWidth: 2,
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Error fetching chart data:", error);
+      }
     }
     fetchChartData();
   }, []);
 
-  // Salary Trend Data
   const salaryData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
     datasets: [
@@ -263,8 +279,7 @@ const DashboardCharts = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-      {/* Attendance Chart */}
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
         <div className="flex items-center mb-6">
           <div className="bg-blue-100 p-2 rounded-xl mr-3">
             <Clock className="h-6 w-6 text-blue-600" />
@@ -321,8 +336,7 @@ const DashboardCharts = () => {
         </div>
       </div>
 
-      {/* Department Distribution Chart */}
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
         <div className="flex items-center mb-6">
           <div className="bg-green-100 p-2 rounded-xl mr-3">
             <Building2 className="h-6 w-6 text-green-600" />
@@ -355,63 +369,7 @@ const DashboardCharts = () => {
         </div>
       </div>
 
-      {/* Salary Trend Chart */}
-      <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
-        <div className="flex items-center mb-6">
-          <div className="bg-purple-100 p-2 rounded-xl mr-3">
-            <DollarSign className="h-6 w-6 text-purple-600" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">Salary Trend</h3>
-        </div>
-        <div className="h-80">
-          <Line
-            data={salaryData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: "top",
-                  labels: {
-                    usePointStyle: true,
-                    padding: 20,
-                    font: {
-                      size: 12,
-                      weight: "bold",
-                    },
-                  },
-                },
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  grid: {
-                    color: "rgba(0, 0, 0, 0.1)",
-                  },
-                  ticks: {
-                    callback: function (value) {
-                      return value.toLocaleString();
-                    },
-                    font: {
-                      size: 11,
-                    },
-                  },
-                },
-                x: {
-                  grid: {
-                    display: false,
-                  },
-                  ticks: {
-                    font: {
-                      size: 11,
-                    },
-                  },
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
+      
     </div>
   );
 };
@@ -461,7 +419,7 @@ const QuickActions = ({ setActiveItem }) => {
   ];
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 mb-8">
+    <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-8">
       <h3 className="text-xl font-bold text-gray-800 mb-6">Quick Actions</h3>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {actions.map((action, index) => (
@@ -486,29 +444,22 @@ const QuickActions = ({ setActiveItem }) => {
 };
 
 const Dashboard = ({ user, onLogout }) => {
-  // Sidebar state
   const [activeItem, setActiveItem] = useState("dashboard");
   const [isOpen, setIsOpen] = useState(false);
 
-  const location = useLocation(); // << added
-  const navigate = useNavigate(); // << added
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // keep URL <-> activeItem in sync
   useEffect(() => {
-    // location.pathname e.g. /dashboard/leaveApproval
     const parts = location.pathname.split("/").filter(Boolean);
-    // if path is /dashboard or /dashboard/ -> default dashboard
     const section = parts[1] || "dashboard";
     if (section && section !== activeItem) {
       setActiveItem(section);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
-  // wrapper to update state AND navigate
   const handleSetActiveItem = (id) => {
     setActiveItem(id);
-    // navigate to /dashboard/<id> (for root dashboard use /dashboard)
     if (id === "dashboard") navigate("/dashboard", { replace: false });
     else navigate(`/dashboard/${id}`, { replace: false });
   };
@@ -519,19 +470,17 @@ const Dashboard = ({ user, onLogout }) => {
   }, [activeItem]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex">
-      {/* Sidebar */}
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
         user={user}
         onLogout={onLogout}
         activeItem={activeItem}
-        setActiveItem={handleSetActiveItem} // << pass navigation-aware setter
+        setActiveItem={handleSetActiveItem}
         isOpen={isOpen}
         setIsOpen={setIsOpen}
       />
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
-        <nav className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-white/20">
+        <nav className="bg-white shadow-lg border-b border-gray-200">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center lg:hidden">
@@ -559,7 +508,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                     <Building2 className="h-5 w-5 text-white" />
                   </div>
-                  <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                  <span className="text-xl font-bold text-gray-900">
                     HRM Dashboard
                   </span>
                 </div>
@@ -637,9 +586,8 @@ const Dashboard = ({ user, onLogout }) => {
               <Resignation />
             ) : (
               <div className="space-y-8">
-                {/* default dashboard content */}
                 <div className="text-center mb-8">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900 mb-2">
                     HRM Dashboard
                   </h1>
                   <p className="text-gray-600 text-lg">
@@ -650,12 +598,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <QuickActions setActiveItem={setActiveItem} />
                 <DashboardCharts />
                 <div className="flex justify-center">
-                  <button
-                    onClick={clearForm}
-                    className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105"
-                  >
-                    Clear Form Data
-                  </button>
+                 
                 </div>
               </div>
             )}

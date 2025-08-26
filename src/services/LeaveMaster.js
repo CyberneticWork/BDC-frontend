@@ -22,6 +22,23 @@ export const createLeave = async (data) => {
   }
 };
 
+// Create leave request with force_continue flag
+export const createLeaveWithOverride = async (data) => {
+  try {
+    // Clone the data and add force_continue flag
+    const overrideData = {
+      ...data,
+      force_continue: true,
+    };
+
+    const response = await axios.post(`/leave-masters`, overrideData);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating leave with override:", error);
+    throw error;
+  }
+};
+
 //update the leave master
 export const updateLeave = async (id, data) => {
   try {
@@ -132,7 +149,6 @@ export const getLeavesByEmployee = async (employeeId) => {
     console.error("Error fetching employee leaves:", error);
     return [];
   }
-  
 };
 
 // export const getLeaveCountsByEmployee = async (employeeId) => {
