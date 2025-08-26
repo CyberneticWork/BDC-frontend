@@ -269,6 +269,12 @@ const LeaveMaster = () => {
       }
     } catch (error) {
       console.error("Error fetching employee leaves:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Data Fetch Error",
+        text: "Failed to fetch leave records. Please try again.",
+        confirmButtonColor: "#3085d6",
+      });
       setLeaveRecords([]);
     } finally {
       setIsLoadingLeaves(false);
@@ -329,6 +335,12 @@ const LeaveMaster = () => {
       }
     } catch (error) {
       console.error("Error fetching leave usage data:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Data Fetch Error",
+        text: "Failed to fetch leave usage data. Please try again.",
+        confirmButtonColor: "#3085d6",
+      });
       const defaultUsage = Object.keys(leaveEntitlements).map(
         (leaveType, index) => ({
           id: index + 1,
@@ -347,7 +359,12 @@ const LeaveMaster = () => {
   // Function to fetch employee details using the API
   const fetchEmployeeDetails = async () => {
     if (!formData.attendanceNo) {
-      setSearchError("Please enter an employee number");
+      Swal.fire({
+        icon: "error",
+        title: "Input Required",
+        text: "Please enter an employee number",
+        confirmButtonColor: "#3085d6",
+      });
       return;
     }
 
@@ -376,7 +393,12 @@ const LeaveMaster = () => {
           fetchLeaveUsage(formData.attendanceNo),
         ]);
       } else {
-        setSearchError("Employee not found");
+        Swal.fire({
+          icon: "error",
+          title: "Employee Not Found",
+          text: "No employee found with the provided number",
+          confirmButtonColor: "#3085d6",
+        });
         setLeaveRecords([]);
         setEmployeeData(null);
         const defaultUsage = Object.keys(leaveEntitlements).map(
@@ -392,12 +414,54 @@ const LeaveMaster = () => {
       }
     } catch (error) {
       console.error("Error fetching employee data:", error);
-      setSearchError("Failed to retrieve employee data. Please try again.");
+
+      if (error.response?.data?.message) {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: error.response.data.message,
+          confirmButtonColor: "#3085d6",
+        });
+      } else if (error.response?.data) {
+        showValidationErrors(error.response.data);
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Failed to retrieve employee data. Please try again.",
+          confirmButtonColor: "#3085d6",
+        });
+      }
       setLeaveRecords([]);
       setEmployeeData(null);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add this function at the top level of your component
+  const showValidationErrors = (errors) => {
+    const errorList = Object.values(errors)
+      .map((error) => `<li class="text-left">${error}</li>`)
+      .join("");
+
+    Swal.fire({
+      icon: "error",
+      title: "Limitation exceeded",
+      html: `
+        <div>
+          <ul class="list-disc pl-4 mt-2">
+            ${errorList}
+          </ul>
+        </div>
+      `,
+      confirmButtonColor: "#3085d6",
+      customClass: {
+        container: "font-sans",
+        popup: "rounded-xl",
+        confirmButton: "rounded-lg text-sm px-5 py-2.5",
+      },
+    });
   };
 
   // Handle form submission for leave requests - modified to validate leave balance
@@ -553,6 +617,14 @@ const LeaveMaster = () => {
 
       const response = await createLeave(leaveData);
 
+      // Show success message
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Leave request submitted successfully!",
+        confirmButtonColor: "#3085d6",
+      });
+
       // Refresh the leave data to show updated balance
       await Promise.all([
         fetchEmployeeLeaves(formData.attendanceNo, employeeData),
@@ -578,7 +650,27 @@ const LeaveMaster = () => {
       });
     } catch (error) {
       console.error("Error submitting leave request:", error);
-      setSubmitError("Failed to submit leave request. Please try again.");
+
+      // Check if the error response contains validation errors
+      if (error.response?.status === 422) {
+        showValidationErrors(error.response.data);
+      } else if (error.response?.data?.message) {
+        // Show specific error message from the server
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: error.response.data.message,
+          confirmButtonColor: "#3085d6",
+        });
+      } else {
+        // Show generic error message
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Failed to submit leave request. Please try again.",
+          confirmButtonColor: "#3085d6",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
