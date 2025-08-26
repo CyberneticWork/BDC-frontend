@@ -1452,7 +1452,7 @@ const SalaryProcessPage = () => {
                     }));
 
                     const savedData = await saveSalaryData(dataWithMonth);
-                    console.log(JSON.stringify(dataWithMonth));
+                    // console.log(JSON.stringify(dataWithMonth));
                     // Convert to CSV and download
                     const csvContent = convertToCSV(filteredData);
                     downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
