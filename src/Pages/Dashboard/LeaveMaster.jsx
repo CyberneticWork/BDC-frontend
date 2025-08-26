@@ -15,6 +15,7 @@ import Swal from "sweetalert2";
 import employeeService from "../../services/EmployeeDataService";
 import {
   createLeave,
+  createLeaveWithOverride, // Add this import
   getLeaveById,
   getLeaveCountsByEmployee,
 } from "../../services/LeaveMaster";
@@ -107,6 +108,9 @@ const LeaveMaster = () => {
       }
     }
 
+    // Check for over-limit leave
+    const hasOverLimit = leaveData.over_limit && leaveData.over_limit > 0;
+
     return {
       id: leaveData.id,
       leaveDate: leaveDateDisplay,
@@ -119,6 +123,8 @@ const LeaveMaster = () => {
       leaveType: leaveData.leave_type,
       status: leaveData.status,
       duration: leaveData.leave_duration || (leaveData.is_half_day ? 0.5 : 1),
+      hasOverLimit: hasOverLimit,
+      overLimit: hasOverLimit ? leaveData.over_limit : 0,
     };
   }
 
@@ -536,48 +542,6 @@ const LeaveMaster = () => {
         return;
       }
 
-      // Check if employee has sufficient leave balance
-      if (formData.leaveType === "Casual Leave") {
-        const casualLeaveData = leaveUsageData.find(
-          (leave) => leave.leaveType === "Casual Leave"
-        );
-        if (casualLeaveData) {
-          let requiredDays = 0;
-
-          if (formData.leaveDateType === "fullDay") {
-            requiredDays = 1;
-          } else if (formData.leaveDateType === "halfDay") {
-            requiredDays = 0.5;
-          } else if (formData.leaveDateType === "manual") {
-            const fromDate = new Date(formData.leaveDate.from);
-            const toDate = new Date(formData.leaveDate.to);
-
-            // Calculate number of days in the range (inclusive)
-            const timeDiff = toDate.getTime() - fromDate.getTime();
-            const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-            requiredDays = dayDiff;
-          }
-
-          if (parseFloat(casualLeaveData.balance) < requiredDays) {
-            Swal.fire({
-              icon: "error",
-              title: "Insufficient Leave Balance",
-              html: `
-              <div class="text-left">
-                <p>You don't have enough Casual Leave balance.</p>
-                <p class="mt-2">Current balance: <strong>${casualLeaveData.balance} days</strong></p>
-                <p>Required: <strong>${requiredDays} days</strong></p>
-              </div>
-            `,
-              confirmButtonColor: "#3085d6",
-              confirmButtonText: "Ok",
-            });
-            setIsSubmitting(false);
-            return;
-          }
-        }
-      }
-
       let leaveData = {
         employee_id: parseInt(formData.emp_id),
         reporting_date: formData.reportingDate,
@@ -615,65 +579,130 @@ const LeaveMaster = () => {
         leaveData.leave_duration = dayDiff;
       }
 
-      const response = await createLeave(leaveData);
+      try {
+        const response = await createLeave(leaveData);
 
-      // Show success message
+        // Show success message
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Leave request submitted successfully!",
+          confirmButtonColor: "#3085d6",
+        });
+
+        await handleSubmitSuccess();
+      } catch (error) {
+        // Check if this is a limit exceeded error that allows continuation
+        if (
+          error.response?.status === 422 &&
+          error.response?.data?.limit_exceeded &&
+          error.response?.data?.continue_allowed
+        ) {
+          // Show warning with continue option
+          const result = await Swal.fire({
+            icon: "warning",
+            title: "Leave Limitation",
+            html: `
+              <div class="text-left">
+                <p>${error.response.data.message}</p>
+                <p class="mt-3">Do you want to continue with this request anyway?</p>
+                <p class="mt-2 text-xs text-gray-500">
+                  Note: Continuing will mark this leave with an override status
+                </p>
+              </div>
+            `,
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Continue Anyway",
+            cancelButtonText: "Cancel Request",
+          });
+
+          if (result.isConfirmed) {
+            // User wants to continue - resubmit with force_continue flag
+            try {
+              const forceResponse = await createLeaveWithOverride(leaveData);
+
+              Swal.fire({
+                icon: "success",
+                title: "Leave Request Submitted",
+                text: "Your leave request has been submitted with the noted limitation.",
+                confirmButtonColor: "#3085d6",
+              });
+
+              await handleSubmitSuccess();
+            } catch (innerError) {
+              handleSubmitError(innerError);
+            }
+          } else {
+            // User canceled the request
+            setIsSubmitting(false);
+          }
+          return;
+        }
+
+        // Handle other errors
+        handleSubmitError(error);
+      }
+    } catch (error) {
+      handleSubmitError(error);
+    }
+  };
+
+  // Add these helper functions for cleaner code
+  const handleSubmitSuccess = async () => {
+    // Refresh the leave data to show updated balance
+    await Promise.all([
+      fetchEmployeeLeaves(formData.attendanceNo, employeeData),
+      fetchLeaveUsage(formData.attendanceNo),
+    ]);
+
+    setSubmitSuccess(true);
+    setFormData({
+      ...formData,
+      reportingDate: getCurrentDate(),
+      leaveType: "",
+      leaveDateType: "fullDay",
+      halfDayPeriod: "morning",
+      leaveDate: {
+        single: getCurrentDate(),
+        from: getCurrentDate(),
+        to: getCurrentDate(),
+      },
+      reason: "",
+    });
+
+    setIsSubmitting(false);
+  };
+
+  const handleSubmitError = (error) => {
+    console.error("Error submitting leave request:", error);
+
+    // Check if the error response contains validation errors
+    if (
+      error.response?.status === 422 &&
+      !error.response?.data?.limit_exceeded
+    ) {
+      showValidationErrors(error.response.data);
+    } else if (error.response?.data?.message) {
+      // Show specific error message from the server
       Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: "Leave request submitted successfully!",
+        icon: "error",
+        title: "Error",
+        text: error.response.data.message,
         confirmButtonColor: "#3085d6",
       });
-
-      // Refresh the leave data to show updated balance
-      await Promise.all([
-        fetchEmployeeLeaves(formData.attendanceNo, employeeData),
-        fetchLeaveUsage(formData.attendanceNo),
-      ]);
-
-      setSubmitSuccess(true);
-      setFormData({
-        attendanceNo: formData.attendanceNo,
-        epfNo: formData.epfNo,
-        employeeName: formData.employeeName,
-        department: formData.department,
-        reportingDate: getCurrentDate(),
-        leaveType: "",
-        leaveDateType: "fullDay",
-        halfDayPeriod: "morning",
-        leaveDate: {
-          single: getCurrentDate(),
-          from: getCurrentDate(),
-          to: getCurrentDate(),
-        },
-        reason: "",
+    } else {
+      // Show generic error message
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to submit leave request. Please try again.",
+        confirmButtonColor: "#3085d6",
       });
-    } catch (error) {
-      console.error("Error submitting leave request:", error);
-
-      // Check if the error response contains validation errors
-      if (error.response?.status === 422) {
-        showValidationErrors(error.response.data);
-      } else if (error.response?.data?.message) {
-        // Show specific error message from the server
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: error.response.data.message,
-          confirmButtonColor: "#3085d6",
-        });
-      } else {
-        // Show generic error message
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Failed to submit leave request. Please try again.",
-          confirmButtonColor: "#3085d6",
-        });
-      }
-    } finally {
-      setIsSubmitting(false);
     }
+
+    setIsSubmitting(false);
   };
 
   // Initialize default leave usage data when component mounts
@@ -1267,6 +1296,9 @@ const LeaveMaster = () => {
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                                 Status
                               </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                                Limit
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1303,12 +1335,23 @@ const LeaveMaster = () => {
                                     {record.status}
                                   </span>
                                 </td>
+                                <td className="px-4 py-3 border text-sm">
+                                  {record.hasOverLimit ? (
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                      Over limit: {record.overLimit}
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Within limit
+                                    </span>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                             {leaveRecords.length === 0 && !isLoadingLeaves && (
                               <tr>
                                 <td
-                                  colSpan="7"
+                                  colSpan="8"
                                   className="px-4 py-8 border text-center text-gray-500"
                                 >
                                   {formData.employeeName
