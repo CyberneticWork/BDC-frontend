@@ -59,6 +59,7 @@ function Home() {
   const handleLogout = async () => {
     try {
       await logout(); // Clear token on backend and localStorage
+      localStorage.removeItem("employeeFormData");
     } catch (e) {
       // Optionally handle error
     }
