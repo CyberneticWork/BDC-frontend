@@ -1901,6 +1901,25 @@ const SalaryProcessPage = () => {
                                 {employee.salary_breakdown.per_day_salary?.toLocaleString()}
                               </span>
                             </div>
+
+                            {/* New: show probation over limit days and deduction */}
+                            {employee.salary_breakdown.probation_over_limit_days !== undefined && (
+                              <div className="flex justify-between">
+                                <span className="text-xs">Probation Over Limit (days):</span>
+                                <span>
+                                  {Number(employee.salary_breakdown.probation_over_limit_days).toString()}
+                                </span>
+                              </div>
+                            )}
+                            {employee.salary_breakdown.probation_deduction !== undefined && (
+                              <div className="flex justify-between">
+                                <span className="text-xs">Probation Deduction:</span>
+                                <span>
+                                  {Number(employee.salary_breakdown.probation_deduction).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+
                             <div className="flex justify-between">
                               <span className="text-xs">Loan:</span>
                               <span>
@@ -1910,8 +1929,7 @@ const SalaryProcessPage = () => {
                             <div className="flex justify-between">
                               <span className="text-xs">No Pay Days:</span>
                               <span>
-                                {employee.salary_breakdown.no_pay_deduction ||
-                                  "0"}
+                                {employee.salary_breakdown.no_pay_deduction || "0"}
                               </span>
                             </div>
                             <div className="flex justify-between">
