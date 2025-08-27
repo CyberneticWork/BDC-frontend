@@ -395,8 +395,8 @@ const LeaveMaster = () => {
         });
 
         await Promise.all([
-          fetchEmployeeLeaves(formData.attendanceNo, empData),
-          fetchLeaveUsage(formData.attendanceNo),
+          fetchEmployeeLeaves(empData.id, empData),
+          fetchLeaveUsage(empData.id),
         ]);
       } else {
         Swal.fire({
@@ -543,7 +543,7 @@ const LeaveMaster = () => {
       }
 
       let leaveData = {
-        employee_id: parseInt(formData.emp_id),
+        employee_id: parseInt(employeeData.id),
         reporting_date: formData.reportingDate,
         leave_type: formData.leaveType,
         reason: formData.reason,
@@ -653,8 +653,8 @@ const LeaveMaster = () => {
   const handleSubmitSuccess = async () => {
     // Refresh the leave data to show updated balance
     await Promise.all([
-      fetchEmployeeLeaves(formData.attendanceNo, employeeData),
-      fetchLeaveUsage(formData.attendanceNo),
+      fetchEmployeeLeaves(employeeData.id, employeeData),
+      fetchLeaveUsage(employeeData.id),
     ]);
 
     setSubmitSuccess(true);
