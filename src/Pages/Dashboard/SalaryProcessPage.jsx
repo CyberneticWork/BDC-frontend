@@ -1219,7 +1219,6 @@ const SalaryProcessPage = () => {
               <Users size={18} strokeWidth={2} />
               Non EPF Employee
             </button>
-            
           </div>
 
           {/* Filter Section */}
@@ -1877,19 +1876,34 @@ const SalaryProcessPage = () => {
                             </div>
 
                             {/* New: show probation over limit days and deduction */}
-                            {employee.salary_breakdown.probation_over_limit_days !== undefined && (
+                            {employee.salary_breakdown
+                              .probation_over_limit_days !== undefined && (
                               <div className="flex justify-between">
-                                <span className="text-xs">Probation Over Limit (days):</span>
+                                <span className="text-xs">
+                                  Probation Over Limit (days):
+                                </span>
                                 <span>
-                                  {Number(employee.salary_breakdown.probation_over_limit_days).toString()}
+                                  {Number(
+                                    employee.salary_breakdown
+                                      .probation_over_limit_days
+                                  ).toString()}
                                 </span>
                               </div>
                             )}
-                            {employee.salary_breakdown.probation_deduction !== undefined && (
+                            {employee.salary_breakdown.probation_deduction !==
+                              undefined && (
                               <div className="flex justify-between">
-                                <span className="text-xs">Probation Deduction:</span>
+                                <span className="text-xs">
+                                  Probation Deduction:
+                                </span>
                                 <span>
-                                  {Number(employee.salary_breakdown.probation_deduction).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  {Number(
+                                    employee.salary_breakdown
+                                      .probation_deduction
+                                  ).toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
                                 </span>
                               </div>
                             )}
@@ -1903,7 +1917,8 @@ const SalaryProcessPage = () => {
                             <div className="flex justify-between">
                               <span className="text-xs">No Pay Days:</span>
                               <span>
-                                {employee.salary_breakdown.no_pay_deduction || "0"}
+                                {employee.salary_breakdown.no_pay_deduction ||
+                                  "0"}
                               </span>
                             </div>
                             <div className="flex justify-between">
