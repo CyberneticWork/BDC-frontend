@@ -537,23 +537,6 @@ const SalaryPage = () => {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
-  const handleDownloadCSV = async () => {
-    try {
-      const response = await fetchSalaryCSV();
-
-      const blob = await response;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "salary_records.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert("Failed to download CSV");
-    }
-  };
 
   // Paginated subset derived from filteredData
   const totalPages = Math.max(1, Math.ceil((filteredData?.length || 0) / rowsPerPage));

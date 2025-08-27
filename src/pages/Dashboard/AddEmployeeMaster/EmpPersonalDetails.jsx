@@ -491,7 +491,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                       {employee.full_name}
                     </div>
                     <div className="text-sm text-gray-500">
-                      EPF: {employee.epf} | NIC: {employee.nic}
+                      No: {employee.attendance_employee_no} | NIC: {employee.nic}
                     </div>
                   </div>
                 </div>
