@@ -15,6 +15,11 @@ import {
   X,
   User2,
   UserPlus,
+  Star,
+  Target,
+  Award,
+  ClipboardCheck,
+  PieChart,
 } from "lucide-react";
 
 const Sidebar = ({
@@ -31,6 +36,7 @@ const Sidebar = ({
     loans: false,
     salaryProcess: false,
     timeAttendance: false,
+    pms: false,
   });
 
   const menuItems = [
@@ -93,6 +99,25 @@ const Sidebar = ({
         //add more i needed
       ],
     },
+    {
+      id: "pms",
+      name: "PMS",
+      icon: Star,
+      badge: null,
+      subItems: [
+        { id: "pmsDashboard", name: "PMS Dashboard", icon: Home },
+        { id: "performanceReviews", name: "Performance Reviews", icon: ClipboardCheck },
+        { id: "goals", name: "Goals & OKRs", icon: Target },
+        { id: "kpis", name: "KPIs", icon: PieChart },
+        { id: "360feedback", name: "360 Feedback", icon: Users },
+        { id: "appraisals", name: "Appraisals", icon: Award },
+        { id: "competency", name: "Competency Library", icon: ClipboardCheck },
+        { id: "developmentPlans", name: "Development / Learning Plans", icon: FileText },
+        { id: "succession", name: "Succession Planning", icon: Star },
+        { id: "calibration", name: "Calibration", icon: Target },
+        { id: "reports", name: "Performance Reports", icon: BarChart3 },
+      ],
+    },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
   ];
@@ -122,6 +147,7 @@ const Sidebar = ({
         path.includes("salaryProcess") || activeItem === "salaryProcess",
       timeAttendance:
         path.includes("timeAttendance") || activeItem === "timeAttendance",
+      pms: path.includes("pms") || activeItem === "pms",
     });
   }, [activeItem]);
 
@@ -148,6 +174,9 @@ const Sidebar = ({
       ...prev,
       timeAttendance: !prev.timeAttendance,
     }));
+  };
+  const togglePMS = () => {
+    setExpandedItems((prev) => ({ ...prev, pms: !prev.pms }));
   };
 
   return (
@@ -217,164 +246,180 @@ const Sidebar = ({
               <li key={item.id}>
                 {item.subItems ? (
                   <>
-                    <button
-                      onClick={toggleHrMaster}
-                      className={`
-                        w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                        transition-all duration-200 group
-                        ${
-                          activeItem === item.id ||
-                          item.subItems.some(
-                            (subItem) => activeItem === subItem.id
-                          )
-                            ? "bg-indigo-50 text-indigo-700"
-                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                        }
-                      `}
-                    >
-                      <div className="flex items-center gap-3">
-                        <item.icon
-                          className={`h-5 w-5 ${
-                            activeItem === item.id ||
-                            item.subItems.some(
-                              (subItem) => activeItem === subItem.id
-                            )
-                              ? "text-indigo-600"
-                              : "text-gray-400 group-hover:text-gray-600"
-                          }`}
-                        />
-                        <span>{item.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {item.badge && (
-                          <span
-                            className={`
-                              px-2 py-0.5 text-xs rounded-full font-medium
-                              ${
-                                activeItem === item.id ||
-                                item.subItems.some(
-                                  (subItem) => activeItem === subItem.id
-                                )
-                                  ? "bg-indigo-100 text-indigo-700"
-                                  : "bg-gray-100 text-gray-600"
-                              }
-                            `}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
-                        {expandedItems.hrMaster ? (
-                          <ChevronDown className="h-4 w-4 text-gray-500" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-gray-500" />
-                        )}
-                      </div>
-                    </button>
+                    {/* support multiple top-level dropdowns dynamically */}
+                    {(() => {
+                      const topDropdowns = {
+                        hrMaster: { toggle: toggleHrMaster, expanded: expandedItems.hrMaster },
+                        pms: { toggle: togglePMS, expanded: expandedItems.pms },
+                      };
+                      const top = topDropdowns[item.id] || { toggle: () => {}, expanded: false };
 
-                    {expandedItems.hrMaster && (
-                      <ul className="ml-4 mt-1 space-y-1">
-                        {item.subItems.map((subItem) => {
-                          // Map subItem.id to its toggle and expanded state
-                          const subDropdowns = {
-                            allowanceDeduction: {
-                              toggle: toggleAllowanceDeduction,
-                              expanded: expandedItems.allowanceDeduction,
-                            },
-                            loans: {
-                              toggle: toggleLoans,
-                              expanded: expandedItems.loans,
-                            },
-                            salaryProcess: {
-                              toggle: toggleSalaryProcess,
-                              expanded: expandedItems.salaryProcess,
-                            },
-                            timeAttendance: {
-                              toggle: toggleTimeAttendance,
-                              expanded: expandedItems.timeAttendance,
-                            },
-                          };
+                      return (
+                        <button
+                          onClick={top.toggle}
+                           className={`
+                             w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                             transition-all duration-200 group
+                             ${
+                               activeItem === item.id ||
+                               item.subItems.some(
+                                 (subItem) => activeItem === subItem.id
+                               )
+                                 ? "bg-indigo-50 text-indigo-700"
+                                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                             }
+                           `}
+                         >
+                           <div className="flex items-center gap-3">
+                             <item.icon
+                               className={`h-5 w-5 ${
+                                 activeItem === item.id ||
+                                 item.subItems.some(
+                                   (subItem) => activeItem === subItem.id
+                                 )
+                                   ? "text-indigo-600"
+                                   : "text-gray-400 group-hover:text-gray-600"
+                               }`}
+                             />
+                             <span>{item.name}</span>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             {item.badge && (
+                               <span
+                                 className={`
+                                   px-2 py-0.5 text-xs rounded-full font-medium
+                                   ${
+                                     activeItem === item.id ||
+                                     item.subItems.some(
+                                       (subItem) => activeItem === subItem.id
+                                     )
+                                       ? "bg-indigo-100 text-indigo-700"
+                                       : "bg-gray-100 text-gray-600"
+                                   }
+                                 `}
+                               >
+                                 {item.badge}
+                               </span>
+                             )}
+                            {top.expanded ? (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                            )}
+                           </div>
+                         </button>
+                      );
+                    })()}
 
-                          if (subItem.subItems) {
-                            const dropdown = subDropdowns[subItem.id] || {};
-                            return (
-                              <li key={subItem.id}>
-                                <button
-                                  onClick={dropdown.toggle}
-                                  className={`
-                                    w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium
-                                    transition-all duration-200
-                                    ${
-                                      activeItem === subItem.id ||
-                                      subItem.subItems.some(
-                                        (s) => activeItem === s.id
-                                      )
-                                        ? "bg-indigo-50 text-indigo-700"
-                                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                    }
-                                  `}
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                                    {subItem.name}
-                                  </span>
-                                  {dropdown.expanded ? (
-                                    <ChevronDown className="h-4 w-4 text-gray-500" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-gray-500" />
-                                  )}
-                                </button>
-                                {dropdown.expanded && (
-                                  <ul className="ml-4 mt-1 space-y-1">
-                                    {subItem.subItems.map((subSubItem) => (
-                                      <li key={subSubItem.id}>
-                                        <button
-                                          onClick={() =>
-                                            setActiveItem(subSubItem.id)
-                                          }
-                                          className={`
-                                            w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
-                                            transition-all duration-200
-                                            ${
-                                              activeItem === subSubItem.id
-                                                ? "bg-indigo-50 text-indigo-700"
-                                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                            }
-                                          `}
-                                        >
-                                          <span className="w-2 h-2 rounded-full bg-gray-300"></span>
-                                          <span>{subSubItem.name}</span>
-                                        </button>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </li>
-                            );
-                          }
-                          return (
-                            <li key={subItem.id}>
-                              <button
-                                onClick={() => setActiveItem(subItem.id)}
-                                className={`
-                                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
-                                  transition-all duration-200
-                                  ${
-                                    activeItem === subItem.id
-                                      ? "bg-indigo-50 text-indigo-700"
-                                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                  }
-                                `}
-                              >
-                                <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                                <span>{subItem.name}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </>
-                ) : (
+                    {/* use top-expanded state to render children */}
+                    {(() => {
+                      const topExpanded = item.id === "hrMaster" ? expandedItems.hrMaster : item.id === "pms" ? expandedItems.pms : false;
+                      if (!topExpanded) return null;
+                      return (
+                       <ul className="ml-4 mt-1 space-y-1">
+                         {item.subItems.map((subItem) => {
+                           // Map subItem.id to its toggle and expanded state
+                           const subDropdowns = {
+                             allowanceDeduction: {
+                               toggle: toggleAllowanceDeduction,
+                               expanded: expandedItems.allowanceDeduction,
+                             },
+                             loans: {
+                               toggle: toggleLoans,
+                               expanded: expandedItems.loans,
+                             },
+                             salaryProcess: {
+                               toggle: toggleSalaryProcess,
+                               expanded: expandedItems.salaryProcess,
+                             },
+                             timeAttendance: {
+                               toggle: toggleTimeAttendance,
+                               expanded: expandedItems.timeAttendance,
+                             },
+                           };
+
+                           if (subItem.subItems) {
+                             const dropdown = subDropdowns[subItem.id] || {};
+                             return (
+                               <li key={subItem.id}>
+                                 <button
+                                   onClick={dropdown.toggle}
+                                   className={`
+                                     w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium
+                                     transition-all duration-200
+                                     ${
+                                       activeItem === subItem.id ||
+                                       subItem.subItems.some(
+                                         (s) => activeItem === s.id
+                                       )
+                                         ? "bg-indigo-50 text-indigo-700"
+                                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                     }
+                                   `}
+                                 >
+                                   <span className="flex items-center gap-2">
+                                     <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                                     {subItem.name}
+                                   </span>
+                                   {dropdown.expanded ? (
+                                     <ChevronDown className="h-4 w-4 text-gray-500" />
+                                   ) : (
+                                     <ChevronRight className="h-4 w-4 text-gray-500" />
+                                   )}
+                                 </button>
+                                 {dropdown.expanded && (
+                                   <ul className="ml-4 mt-1 space-y-1">
+                                     {subItem.subItems.map((subSubItem) => (
+                                       <li key={subSubItem.id}>
+                                         <button
+                                           onClick={() =>
+                                             setActiveItem(subSubItem.id)
+                                           }
+                                           className={`
+                                             w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+                                             transition-all duration-200
+                                             ${
+                                               activeItem === subSubItem.id
+                                                 ? "bg-indigo-50 text-indigo-700"
+                                                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                             }
+                                           `}
+                                         >
+                                           <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+                                           <span>{subSubItem.name}</span>
+                                         </button>
+                                       </li>
+                                     ))}
+                                   </ul>
+                                 )}
+                               </li>
+                             );
+                           }
+                           return (
+                             <li key={subItem.id}>
+                               <button
+                                 onClick={() => setActiveItem(subItem.id)}
+                                 className={`
+                                   w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+                                   transition-all duration-200
+                                   ${
+                                     activeItem === subItem.id
+                                       ? "bg-indigo-50 text-indigo-700"
+                                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                   }
+                                 `}
+                               >
+                                 <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                                 <span>{subItem.name}</span>
+                               </button>
+                             </li>
+                           );
+                         })}
+                       </ul>
+                      );
+                    })()}
+                   </>
+                 ) : (
                   <button
                     onClick={() => setActiveItem(item.id)}
                     className={`

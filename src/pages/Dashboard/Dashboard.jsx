@@ -44,6 +44,9 @@ import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
+// Import PMS components
+import { PMSDashboard, PerformanceReviews } from "../PMS";
+
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
@@ -584,6 +587,10 @@ const Dashboard = ({ user, onLogout }) => {
               <SalaryPage />
             ) : activeItem === "resignation" ? (
               <Resignation />
+            ) : activeItem === "pmsDashboard" ? (
+              <PMSDashboard />
+            ) : activeItem === "performanceReviews" ? (
+              <PerformanceReviews />
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">
