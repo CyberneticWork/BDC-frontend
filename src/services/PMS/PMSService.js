@@ -1,4 +1,5 @@
-import axios from "../axios";
+import axios from "@utils/axios";
+
 
 class PMSService {
   // Performance Reviews
@@ -85,7 +86,7 @@ class PMSService {
 
   async getKpiPerformance() {
     try {
-      const response = await axios.get('/pms/dashboard/kpi-performance');
+      const response = await axios.get('/pms/dashboard/KPIs');
       return response.data;
     } catch (error) {
       console.error("Error fetching KPI performance:", error);

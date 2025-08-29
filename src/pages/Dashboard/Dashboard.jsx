@@ -45,7 +45,7 @@ import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 // Import PMS components
-import { PMSDashboard, PerformanceReviews } from "../PMS";
+import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -591,6 +591,8 @@ const Dashboard = ({ user, onLogout }) => {
               <PMSDashboard />
             ) : activeItem === "performanceReviews" ? (
               <PerformanceReviews />
+            ) : activeItem === "kpis" ? (
+              <KPIs />
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">
