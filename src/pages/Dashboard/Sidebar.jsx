@@ -15,6 +15,7 @@ import {
   X,
   User2,
   UserPlus,
+  User, // <-- add this
   Star,
   Target,
   Award,
@@ -108,6 +109,7 @@ const Sidebar = ({
         { id: "pmsDashboard", name: "PMS Dashboard", icon: Home },
         { id: "performanceReviews", name: "Performance Reviews", icon: ClipboardCheck },
         { id: "kpis", name: "KPIs", icon: PieChart },
+        { id: "myKPIs", name: "My KPI Tasks", icon: User },
         // { id: "goals", name: "Goals & OKRs", icon: Target },
         // { id: "360feedback", name: "360 Feedback", icon: Users },
         // { id: "appraisals", name: "Appraisals", icon: Award },

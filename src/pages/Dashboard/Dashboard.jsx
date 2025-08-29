@@ -46,6 +46,7 @@ import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 // Import PMS components
 import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
+import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -593,6 +594,8 @@ const Dashboard = ({ user, onLogout }) => {
               <PerformanceReviews />
             ) : activeItem === "kpis" ? (
               <KPIs />
+            ) : activeItem === "myKPIs" ? (
+              <EmployeeKPIView />
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">
