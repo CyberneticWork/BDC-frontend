@@ -11,8 +11,385 @@ import {
   FileText,
   Edit,
   MoreHorizontal,
-  ArrowDownUp
+  ArrowDownUp,
+  X,
+  Check,
+  Users,
+  PieChart,
+  ListChecks,
+  Award,
+  Loader2
 } from 'lucide-react';
+
+// Progress Review Modal Component
+const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
+  const [progress, setProgress] = useState(review?.progress || 0);
+  const [grade, setGrade] = useState(review?.grade || '');
+  const [comments, setComments] = useState(review?.supervisorComments || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen || !review) return null;
+
+  // keep only the grades you mentioned
+  const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      // In a real app, you would make an API call here
+      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
+      
+      onSave({
+        ...review,
+        progress,
+        grade,
+        supervisorComments: comments,
+        lastUpdated: new Date().toISOString()
+      });
+      
+      onClose();
+    } catch (error) {
+      console.error("Error saving review:", error);
+      alert("Failed to save review");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Review Progress</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">{review.employeeName}</span> • {review.position}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Progress Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Completion Progress
+            </label>
+            <div className="flex items-center gap-4">
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={progress} 
+                onChange={(e) => setProgress(parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <span className="text-sm font-medium text-gray-700 w-12">{progress}%</span>
+            </div>
+            <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className={`h-2.5 rounded-full ${
+                  progress < 30 ? 'bg-red-500' : 
+                  progress < 70 ? 'bg-yellow-500' : 
+                  'bg-green-500'
+                }`}
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Grade Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Performance Grade
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {gradeOptions.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGrade(g)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    grade === g 
+                      ? 'bg-indigo-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Comments Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Supervisor Comments
+            </label>
+            <textarea
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              rows="4"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Provide feedback on performance, areas of strength, and opportunities for improvement..."
+            ></textarea>
+          </div>
+
+          {/* Details Section */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Review Details</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Review Type</p>
+                <p className="font-medium">{review.type}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Review Period</p>
+                <p className="font-medium">{review.cycle}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Start Date</p>
+                <p className="font-medium">{new Date(review.startDate).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Due Date</p>
+                <p className="font-medium">{new Date(review.dueDate).toLocaleDateString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 mr-3"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span>Save Review</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Performance Review Details Modal
+const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
+  if (!isOpen || !review) return null;
+
+  // Helper function to get grade color
+  const getGradeColor = (grade) => {
+    if (!grade) return 'bg-gray-100 text-gray-600';
+    
+    if (grade.startsWith('A')) return 'bg-green-100 text-green-800';
+    if (grade.startsWith('B')) return 'bg-blue-100 text-blue-800';
+    if (grade.startsWith('C')) return 'bg-yellow-100 text-yellow-700';
+    if (grade.startsWith('D')) return 'bg-orange-100 text-orange-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Performance Review Details</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">{review.employeeName}</span> • {review.position}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Status and Progress Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`p-2 rounded-lg ${
+                  review.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                  review.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                  review.status.includes('Pending') ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {review.status === 'Completed' ? <CheckSquare className="h-5 w-5" /> :
+                   review.status === 'In Progress' ? <Clock className="h-5 w-5" /> :
+                   review.status.includes('Pending') ? <Users className="h-5 w-5" /> :
+                   <FileText className="h-5 w-5" />}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Status</p>
+                  <p className="font-medium text-gray-900">{review.status}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+                  <PieChart className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Progress</p>
+                  <p className="font-medium text-gray-900">{review.progress || 0}% Complete</p>
+                </div>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                <div 
+                  className={`h-2.5 rounded-full ${
+                    (review.progress || 0) < 30 ? 'bg-red-500' : 
+                    (review.progress || 0) < 70 ? 'bg-yellow-500' : 
+                    'bg-green-500'
+                  }`}
+                  style={{ width: `${review.progress || 0}%` }}
+                ></div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                  <Award className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Grade</p>
+                  {review.grade ? (
+                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${getGradeColor(review.grade)}`}>
+                      {review.grade}
+                    </div>
+                  ) : (
+                    <p className="font-medium text-gray-500">Not graded</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Review Info Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Review Information</h3>
+              <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                <div>
+                  <p className="text-xs text-gray-500">Review Type</p>
+                  <p className="font-medium text-gray-900">{review.type}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Review Cycle</p>
+                  <p className="font-medium text-gray-900">{review.cycle}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Department</p>
+                  <p className="font-medium text-gray-900">{review.department}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Manager</p>
+                  <p className="font-medium text-gray-900">{review.manager}</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Timeline</h3>
+              <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                <div>
+                  <p className="text-xs text-gray-500">Start Date</p>
+                  <p className="font-medium text-gray-900">{new Date(review.startDate).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Due Date</p>
+                  <p className="font-medium text-gray-900">{new Date(review.dueDate).toLocaleDateString()}</p>
+                </div>
+                {review.completedDate && (
+                  <div>
+                    <p className="text-xs text-gray-500">Completion Date</p>
+                    <p className="font-medium text-gray-900">{new Date(review.completedDate).toLocaleDateString()}</p>
+                  </div>
+                )}
+                {review.lastUpdated && (
+                  <div>
+                    <p className="text-xs text-gray-500">Last Updated</p>
+                    <p className="font-medium text-gray-900">{new Date(review.lastUpdated).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Supervisor Comments */}
+          {review.supervisorComments && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Supervisor Comments</h3>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-gray-700 whitespace-pre-line">{review.supervisorComments}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Rating Section */}
+          {review.overallRating && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Performance Rating</h3>
+              <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                <div className="flex items-center">
+                  {[...Array(5)].map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className={`w-5 h-5 ${i < Math.floor(review.overallRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`}
+                      fill={i < Math.floor(review.overallRating) ? 'currentColor' : 'none'}
+                    />
+                  ))}
+                </div>
+                <span className="text-lg font-bold text-gray-900">{review.overallRating}</span>
+                <span className="text-sm text-gray-500">out of 5</span>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end pt-4 border-t border-gray-100">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PerformanceReviews = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -25,8 +402,13 @@ const PerformanceReviews = () => {
     period: '',
   });
 
-  // Sample review data
-  const reviewData = [
+  // State for modals
+  const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedReview, setSelectedReview] = useState(null);
+  
+  // Enhanced sample review data with progress and grade fields
+  const [reviewData, setReviewData] = useState([
     {
       id: 1,
       employeeName: "John Smith",
@@ -41,6 +423,10 @@ const PerformanceReviews = () => {
       completedDate: "2025-08-12",
       overallRating: 4.2,
       cycle: "2025 Annual",
+      progress: 100,
+      grade: "A-",
+      supervisorComments: "John has shown exceptional skill in problem-solving and technical implementation. His code quality is excellent and he consistently meets deadlines. Could improve on documentation and knowledge sharing with junior team members.",
+      lastUpdated: "2025-08-12T10:30:00Z"
     },
     {
       id: 2,
@@ -56,6 +442,10 @@ const PerformanceReviews = () => {
       completedDate: null,
       overallRating: null,
       cycle: "2025 Q3",
+      progress: 65,
+      grade: "B+",
+      supervisorComments: "Sarah is performing well on her campaign management tasks. Her creative input has been valuable and she's responsive to feedback. Need to focus more on analytics and data-driven decision making.",
+      lastUpdated: "2025-08-20T14:15:00Z"
     },
     {
       id: 3,
@@ -71,6 +461,10 @@ const PerformanceReviews = () => {
       completedDate: null,
       overallRating: null,
       cycle: "2025 Annual",
+      progress: 80,
+      grade: null,
+      supervisorComments: null,
+      lastUpdated: null
     },
     {
       id: 4,
@@ -86,6 +480,10 @@ const PerformanceReviews = () => {
       completedDate: null,
       overallRating: null,
       cycle: "2025 Q3",
+      progress: 25,
+      grade: null,
+      supervisorComments: null,
+      lastUpdated: null
     },
     {
       id: 5,
@@ -101,6 +499,10 @@ const PerformanceReviews = () => {
       completedDate: "2025-08-10",
       overallRating: 4.7,
       cycle: "2025 Annual",
+      progress: 100,
+      grade: "A+",
+      supervisorComments: "James has exceeded expectations in all areas. His product launches have been highly successful, and he manages cross-functional teams with ease. His strategic vision and execution are exemplary.",
+      lastUpdated: "2025-08-10T16:45:00Z"
     },
     {
       id: 6,
@@ -116,8 +518,33 @@ const PerformanceReviews = () => {
       completedDate: null,
       overallRating: null,
       cycle: "2025 Q3",
+      progress: 50,
+      grade: "C+",
+      supervisorComments: "Linda needs improvement in response time and ticket resolution. Communication with customers is good, but follow-through on complex issues needs work.",
+      lastUpdated: "2025-08-18T11:20:00Z"
     },
-  ];
+  ]);
+
+  // Handle opening progress review modal
+  const openProgressModal = (review) => {
+    setSelectedReview(review);
+    setIsProgressModalOpen(true);
+  };
+
+  // Handle opening details modal
+  const openDetailsModal = (review) => {
+    setSelectedReview(review);
+    setIsDetailsModalOpen(true);
+  };
+
+  // Handle saving progress review
+  const handleSaveProgressReview = (updatedReview) => {
+    setReviewData(prevData => 
+      prevData.map(review => 
+        review.id === updatedReview.id ? updatedReview : review
+      )
+    );
+  };
 
   // Filter reviews based on active tab and search query
   const filteredReviews = reviewData.filter(review => {
@@ -166,6 +593,17 @@ const PerformanceReviews = () => {
     }
   };
 
+  // Get grade badge color
+  const getGradeBadgeClass = (grade) => {
+    if (!grade) return 'bg-gray-100 text-gray-600';
+    
+    if (grade.startsWith('A')) return 'bg-green-100 text-green-800';
+    if (grade.startsWith('B')) return 'bg-blue-100 text-blue-800';
+    if (grade.startsWith('C')) return 'bg-yellow-100 text-yellow-700';
+    if (grade.startsWith('D')) return 'bg-orange-100 text-orange-800';
+    return 'bg-red-100 text-red-800';
+  };
+
   // Handle filter changes
   const handleFilterChange = (filterType, value) => {
     setSelectedFilters(prev => {
@@ -197,6 +635,21 @@ const PerformanceReviews = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Progress Review Modal */}
+      <ProgressReviewModal 
+        isOpen={isProgressModalOpen}
+        onClose={() => setIsProgressModalOpen(false)}
+        review={selectedReview}
+        onSave={handleSaveProgressReview}
+      />
+
+      {/* Review Details Modal */}
+      <ReviewDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        review={selectedReview}
+      />
+
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Performance Reviews</h1>
@@ -206,6 +659,27 @@ const PerformanceReviews = () => {
           <Plus className="h-4 w-4" />
           <span>New Review</span>
         </button>
+      </div>
+
+      {/* Grade Legend */}
+      <div className="mb-6 bg-white rounded-xl p-3 border border-gray-100 flex gap-3 items-center">
+        <div className="text-sm font-medium text-gray-700">Grades:</div>
+        {['A+','A','B','C','C-'].map(g => (
+          <div key={g} className="flex items-center gap-2">
+            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${getGradeBadgeClass(g)}`}>
+              {g}
+            </span>
+            <span className="text-xs text-gray-500">
+              {
+                // short description mapping
+                g.startsWith('A') ? 'Excellent' :
+                g.startsWith('B') ? 'Good' :
+                g === 'C' ? 'Satisfactory' :
+                g === 'C-' ? 'Needs Improvement' : 'Satisfactory'
+              }
+            </span>
+          </div>
+        ))}
       </div>
 
       {/* Tabs and Search Section */}
@@ -392,7 +866,7 @@ const PerformanceReviews = () => {
           </div>
         )}
 
-        {/* Reviews Table */}
+        {/* Reviews Table - Enhanced with Progress and Grade */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -411,19 +885,7 @@ const PerformanceReviews = () => {
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
-                    Review Type
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Cycle
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Due Date
+                    Progress
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
@@ -435,7 +897,13 @@ const PerformanceReviews = () => {
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
-                    Rating
+                    Grade
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Due Date
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
@@ -458,14 +926,22 @@ const PerformanceReviews = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {review.department}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {review.type}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {review.cycle}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {new Date(review.dueDate).toLocaleDateString()}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-1 mr-4">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                review.progress < 30 ? 'bg-red-500' : 
+                                review.progress < 70 ? 'bg-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${review.progress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">{review.progress}%</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(review.status)}`}>
@@ -473,25 +949,35 @@ const PerformanceReviews = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {review.overallRating ? (
-                        <div className="flex items-center">
-                          <Star className="h-4 w-4 text-yellow-500 mr-1 fill-current" fill="currentColor" />
-                          <span className="text-sm font-medium text-gray-800">{review.overallRating}</span>
-                        </div>
+                      {review.grade ? (
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getGradeBadgeClass(review.grade)}`}>
+                          {review.grade}
+                        </span>
                       ) : (
-                        <span className="text-sm text-gray-400">Pending</span>
+                        <span className="text-xs text-gray-400">Not graded</span>
                       )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {new Date(review.dueDate).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button className="text-indigo-600 hover:text-indigo-900 p-1">
+                        <button 
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          onClick={() => openDetailsModal(review)}
+                          title="View Details"
+                        >
                           <FileText className="h-4 w-4" />
                         </button>
-                        <button className="text-green-600 hover:text-green-900 p-1">
-                          <Edit className="h-4 w-4" />
+                        <button 
+                          className="text-indigo-600 hover:text-indigo-900 p-1"
+                          onClick={() => openProgressModal(review)}
+                          title="Update Progress"
+                        >
+                          <ListChecks className="h-4 w-4" />
                         </button>
-                        <button className="text-gray-500 hover:text-gray-700 p-1">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
+                          <Edit className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -499,7 +985,7 @@ const PerformanceReviews = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan="7" className="px-6 py-10 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <Search className="h-10 w-10 text-gray-300 mb-2" />
                       <p className="text-lg font-medium text-gray-600">No reviews found</p>
@@ -512,7 +998,7 @@ const PerformanceReviews = () => {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - Same as before */}
         <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
           <div className="flex-1 flex justify-between sm:hidden">
             <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -554,7 +1040,7 @@ const PerformanceReviews = () => {
         </div>
       </div>
 
-      {/* Status Summary Cards */}
+      {/* Status Summary Cards - Same as before */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center">
