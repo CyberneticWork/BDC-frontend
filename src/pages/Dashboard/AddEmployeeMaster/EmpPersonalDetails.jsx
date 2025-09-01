@@ -444,10 +444,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
 
       <Modal
         isOpen={isSearchModalOpen}
-        onClose={() => {
-          setIsSearchModalOpen(false);
-          setSearchTerm("");
-        }}
+        onClose={() => setIsSearchModalOpen(false)}
         title="Search Employee"
       >
         <div className="space-y-4">
@@ -494,7 +491,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                       {employee.full_name}
                     </div>
                     <div className="text-sm text-gray-500">
-                      EPF: {employee.epf} | NIC: {employee.nic}
+                      No: {employee.attendance_employee_no} | NIC: {employee.nic}
                     </div>
                   </div>
                 </div>
@@ -511,64 +508,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
       </Modal>
 
       <div className="space-y-6">
-        {/* Employee Image Upload Section */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-2 rounded-lg">
-              <Camera className="w-5 h-5 text-white" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-800">
-              Employee Photo
-            </h2>
-          </div>
-
-          <div className="flex flex-col items-center space-y-4">
-            {/* Image Preview */}
-            <div className="relative">
-              {imagePreview || form.employeeImage ? (
-                <div className="relative">
-                  <img
-                    src={imagePreview || form.employeeImage}
-                    alt="Employee"
-                    className="w-32 h-32 object-cover rounded-full border-4 border-gray-200 shadow-lg"
-                  />
-                  <button
-                    onClick={removeImage}
-                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-colors duration-200"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center border-4 border-dashed border-gray-300">
-                  <Camera className="w-8 h-8 text-gray-400" />
-                </div>
-              )}
-            </div>
-
-            {/* Upload Button */}
-            <div className="flex flex-col items-center space-y-2">
-              <label
-                htmlFor="imageUpload"
-                className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-2 rounded-lg font-medium cursor-pointer hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-              >
-                <Upload className="w-4 h-4" />
-                {imagePreview || form.employeeImage ? 'Change Photo' : 'Upload Photo'}
-              </label>
-              <input
-                id="imageUpload"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <p className="text-sm text-gray-500">
-                Maximum file size: 5MB. Supported formats: JPG, PNG, GIF
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Basic Information */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -1159,7 +1098,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                   <input
                     name="dob"
                     type="date"
-                    max={new Date().toISOString().split("T")[0]}
                     value={child.dob}
                     onChange={(e) => handleChildChange(idx, e)}
                     className={`w-full border ${

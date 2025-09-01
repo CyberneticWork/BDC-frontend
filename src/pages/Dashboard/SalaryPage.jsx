@@ -537,23 +537,6 @@ const SalaryPage = () => {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
-  const handleDownloadCSV = async () => {
-    try {
-      const response = await fetchSalaryCSV();
-
-      const blob = await response;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "salary_records.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert("Failed to download CSV");
-    }
-  };
 
   // Paginated subset derived from filteredData
   const totalPages = Math.max(1, Math.ceil((filteredData?.length || 0) / rowsPerPage));
@@ -1365,6 +1348,32 @@ const SalaryPage = () => {
                       {parseFloat(formData.installment_amount || 0).toLocaleString("en-LK", {
                         style: "currency",
                         currency: "LKR",
+                      })}
+                    </span>
+                  </div>
+
+                  {/* Probation fields from salary_breakdown */}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Probation Over-limit Days:</span>
+                    <span className="font-medium">
+                      {(
+                        parseFloat(
+                          currentRecord?.salary_breakdown?.probation_over_limit_days ??
+                            currentRecord?.salary_breakdown?.probation_over_limit ??
+                            0
+                        ) || 0
+                      ).toLocaleString("en-LK", { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Probation Deduction:</span>
+                    <span className="font-medium">
+                      {(
+                        parseFloat(currentRecord?.salary_breakdown?.probation_deduction ?? 0) || 0
+                      ).toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                        minimumFractionDigits: 2,
                       })}
                     </span>
                   </div>

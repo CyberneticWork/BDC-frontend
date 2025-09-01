@@ -25,6 +25,7 @@ import {
   fetchExcelData,
   importExcelData,
 } from "@services/SalaryProcessService";
+import { fetchSalaryCSV } from "@services/SalaryService";
 import AllowancesService from "@services/AllowancesService";
 import * as DeductionService from "@services/DeductionService";
 import ImportExcelModal from "@dashboard/ImportExcelModal";
@@ -98,6 +99,24 @@ const SalaryProcessPage = () => {
       const msg = error.response?.data?.message || "Failed to import file";
       notify.error("Import Failed", msg);
       throw msg;
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    try {
+      const response = await fetchSalaryCSV();
+
+      const blob = await response;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "salary_records.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Failed to download CSV");
     }
   };
 
@@ -1446,8 +1465,13 @@ const SalaryProcessPage = () => {
                     return;
                   }
                   try {
-                    const savedData = await saveSalaryData(filteredData);
-                    console.log(JSON.stringify(filteredData));
+                    const dataWithMonth = filteredData.map((item) => ({
+                      ...item,
+                      month: month,
+                    }));
+
+                    const savedData = await saveSalaryData(dataWithMonth);
+                    // console.log(JSON.stringify(dataWithMonth));
                     // Convert to CSV and download
                     const csvContent = convertToCSV(filteredData);
                     downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
@@ -1494,7 +1518,10 @@ const SalaryProcessPage = () => {
         ? "bg-gray-100 text-gray-400 cursor-not-allowed"
         : "bg-purple-600 text-white hover:bg-purple-700 shadow"
     }`}
-                onClick={handleDownloadAllProcessed}
+                onClick={() => {
+                  handleDownloadAllProcessed();
+                  handleDownloadCSV();
+                }}
                 disabled={status !== "Processed"}
               >
                 <Download size={18} strokeWidth={2} />
