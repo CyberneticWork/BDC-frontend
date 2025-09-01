@@ -48,6 +48,7 @@ import UserManagement from "@dashboard/UserManagement";
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
+import ProtectedComponent from "../../components/ProtectedComponent";
 
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -542,51 +543,97 @@ const Dashboard = ({ user, onLogout }) => {
         <div className="py-6 sm:px-6 lg:px-8 flex-1">
           <div className="px-4 py-6 sm:px-0 h-full">
             {activeItem === "employeeMaster" ? (
-              <EmployeeMaster />
+              <ProtectedComponent module="employeeMaster" action="view">
+                <EmployeeMaster />
+              </ProtectedComponent>
             ) : activeItem === "employeeAdd" ? (
-              <EmployeeAdd />
+              <ProtectedComponent module="employeeAdd" action="view">
+                <EmployeeAdd />
+              </ProtectedComponent>
             ) : activeItem === "show" ? (
-              <ShowEmployee />
+              <ProtectedComponent module="show" action="view">
+                <ShowEmployee />
+              </ProtectedComponent>
             ) : activeItem === "EmployeeMaster" ? (
-              <EmployeeMaster />
+              <ProtectedComponent module="EmployeeMaster" action="view">
+                <EmployeeMaster />
+              </ProtectedComponent>
             ) : activeItem === "createNewDeduction" ? (
-              <CreateNewDeduction />
+              <ProtectedComponent module="createNewDeduction" action="view">
+                <CreateNewDeduction />
+              </ProtectedComponent>
             ) : activeItem === "shiftTime" ? (
-              <ShiftSchedule />
+              <ProtectedComponent module="shiftTime" action="view">
+                <ShiftSchedule />
+              </ProtectedComponent>
             ) : activeItem === "createNewAllowance" ? (
-              <CreateNewAllowance />
+              <ProtectedComponent module="createNewAllowance" action="view">
+                <CreateNewAllowance />
+              </ProtectedComponent>
             ) : activeItem === "employeeLoan" ? (
-              <EmployeeLoan />
+              <ProtectedComponent module="employeeLoan" action="view">
+                <EmployeeLoan />
+              </ProtectedComponent>
             ) : activeItem === "viewLoans" ? (
-              <ViewLoans />
+              <ProtectedComponent module="viewLoans" action="view">
+                <ViewLoans />
+              </ProtectedComponent>
             ) : activeItem === "noPayManagement" ? (
-              <NoPayManagement />
+              <ProtectedComponent module="noPayManagement" action="view">
+                <NoPayManagement />
+              </ProtectedComponent>
             ) : activeItem === "hrLeaveApproval" ? (
-              <HRLeaveApproval />
+              <ProtectedComponent module="hrLeaveApproval" action="view">
+                <HRLeaveApproval />
+              </ProtectedComponent>
             ) : activeItem === "leaveApproval" ? (
-              <LeaveApproval />
+              <ProtectedComponent module="leaveApproval" action="view">
+                <LeaveApproval />
+              </ProtectedComponent>
             ) : activeItem === "leaveMaster" ? (
-              <LeaveMaster />
+              <ProtectedComponent module="leaveMaster" action="view">
+                <LeaveMaster />
+              </ProtectedComponent>
             ) : activeItem === "TimeCard" ? (
-              <TimeCard />
+              <ProtectedComponent module="TimeCard" action="view">
+                <TimeCard />
+              </ProtectedComponent>
             ) : activeItem === "Overtime" ? (
-              <Overtime />
+              <ProtectedComponent module="Overtime" action="view">
+                <Overtime />
+              </ProtectedComponent>
             ) : activeItem === "departmentMaster" ? (
-              <Department />
+              <ProtectedComponent module="departmentMaster" action="view">
+                <Department />
+              </ProtectedComponent>
             ) : activeItem === "grouproster" ? (
-              <Grouproster />
+              <ProtectedComponent module="grouproster" action="view">
+                <Grouproster />
+              </ProtectedComponent>
             ) : activeItem === "leavecalendar" ? (
-              <LeaveCalendar />
+              <ProtectedComponent module="leavecalendar" action="view">
+                <LeaveCalendar />
+              </ProtectedComponent>
             ) : activeItem === "SalaryProcessPage" ? (
-              <SalaryProcessPage />
+              <ProtectedComponent module="SalaryProcessPage" action="view">
+                <SalaryProcessPage />
+              </ProtectedComponent>
             ) : activeItem === "termination" ? (
-              <Termination />
+              <ProtectedComponent module="termination" action="view">
+                <Termination />
+              </ProtectedComponent>
             ) : activeItem === "SalaryPage" ? (
-              <SalaryPage />
+              <ProtectedComponent module="SalaryPage" action="view">
+                <SalaryPage />
+              </ProtectedComponent>
             ) : activeItem === "resignation" ? (
-              <Resignation />
+              <ProtectedComponent module="resignation" action="view">
+                <Resignation />
+              </ProtectedComponent>
             ) : activeItem === "userManagement" ? (
-              <UserManagement />
+              <ProtectedComponent module="userManagement" action="view">
+                <UserManagement />
+              </ProtectedComponent>
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">

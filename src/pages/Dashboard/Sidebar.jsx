@@ -16,6 +16,7 @@ import {
   User2,
   UserPlus,
 } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
 const Sidebar = ({
   user,
@@ -25,6 +26,8 @@ const Sidebar = ({
   isOpen,
   setIsOpen,
 }) => {
+  const { hasPermission } = useAuth();
+
   const [expandedItems, setExpandedItems] = useState({
     hrMaster: false,
     allowanceDeduction: false, // Replace allowance and deduction with this
@@ -151,6 +154,25 @@ const Sidebar = ({
     }));
   };
 
+  // Recursive function to filter menu items based on permissions
+  const filterMenuItems = (items) => {
+    return items
+      .map((item) => {
+        if (item.subItems) {
+          const filteredSubItems = filterMenuItems(item.subItems);
+          if (filteredSubItems.length > 0 && hasPermission(item.id, "view")) {
+            return { ...item, subItems: filteredSubItems };
+          }
+        } else if (hasPermission(item.id, "view")) {
+          return item;
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
+  const filteredMenuItems = filterMenuItems(menuItems);
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -214,7 +236,7 @@ const Sidebar = ({
         {/* Navigation Menu */}
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <li key={item.id}>
                 {item.subItems ? (
                   <>
