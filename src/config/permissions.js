@@ -35,7 +35,7 @@ export const permissions = {
     kpis: { view: true, edit: true },
     myKPIs: { view: true },
   },
-  manager: {
+  supervisor: {
     dashboard: { view: true },
     hrMaster: { view: true },
     show: { view: true },
@@ -51,7 +51,15 @@ export const permissions = {
     kpis: { view: true, edit: true },
     myKPIs: { view: true },
   },
-  employee: {
+  hr: {
+    dashboard: { view: true },
+    hrMaster: { view: true },
+    show: { view: true },
+    leaveMaster: { view: true, edit: true },
+    leavecalendar: { view: true },
+    myKPIs: { view: true },
+  },
+  user: {
     dashboard: { view: true },
     hrMaster: { view: true },
     show: { view: true },
