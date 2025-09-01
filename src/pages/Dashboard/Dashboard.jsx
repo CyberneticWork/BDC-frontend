@@ -44,6 +44,7 @@ import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
+import UserManagement from "@dashboard/UserManagement";
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
@@ -171,27 +172,27 @@ const DashboardCharts = () => {
         const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         let presentCounts = [];
         let absentCounts = [];
-        
+
         for (let i = 0; i < 7; i++) {
           const date = new Date();
           date.setDate(date.getDate() - (6 - i));
           const dateStr = date.toISOString().slice(0, 10);
-          
+
           // Get present count for this date
           const timeCards = await timeCardService.getTimeCardsByDate(dateStr);
           const presentEmployees = new Set();
-          
-          timeCards.forEach(card => {
-            if (card.status === 'IN') {
+
+          timeCards.forEach((card) => {
+            if (card.status === "IN") {
               presentEmployees.add(card.employee_id);
             }
           });
-          
+
           const employees = await employeeService.fetchEmployees();
           presentCounts.push(presentEmployees.size);
           absentCounts.push(employees.length - presentEmployees.size);
         }
-        
+
         setAttendanceData({
           labels: days,
           datasets: [
@@ -221,9 +222,11 @@ const DashboardCharts = () => {
         const employees = await employeeService.fetchEmployees();
         const deptLabels = departments.map((d) => d.name);
         const deptCounts = departments.map(
-          (d) => employees.filter((e) => e.organization?.department === d.name).length
+          (d) =>
+            employees.filter((e) => e.organization?.department === d.name)
+              .length
         );
-        
+
         setDepartmentData({
           labels: deptLabels,
           datasets: [
@@ -368,8 +371,6 @@ const DashboardCharts = () => {
           />
         </div>
       </div>
-
-      
     </div>
   );
 };
@@ -584,6 +585,8 @@ const Dashboard = ({ user, onLogout }) => {
               <SalaryPage />
             ) : activeItem === "resignation" ? (
               <Resignation />
+            ) : activeItem === "userManagement" ? (
+              <UserManagement />
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">
@@ -597,9 +600,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <DashboardStats />
                 <QuickActions setActiveItem={setActiveItem} />
                 <DashboardCharts />
-                <div className="flex justify-center">
-                 
-                </div>
+                <div className="flex justify-center"></div>
               </div>
             )}
           </div>

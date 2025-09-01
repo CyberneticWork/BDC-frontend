@@ -49,6 +49,7 @@ const Sidebar = ({
         { id: "grouproster", name: "Roster" },
         { id: "resignation", name: "Resignation" },
         { id: "termination", name: "Termination" },
+        { id: "userManagement", name: "User Management", icon: Users },
         {
           id: "allowanceDeduction",
           name: "Compensation",
