@@ -626,7 +626,7 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
                 )}
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Department:</span>
-                  <span className="text-sm font-medium text-gray-900">{kpi.department}</span>
+                  <span className="text-sm font-medium text-gray-900">{kpi.departmentName || kpi.department}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Frequency:</span>
@@ -1443,7 +1443,7 @@ const KPIs = () => {
                         )}
                       </div>
                       <div className="text-sm text-gray-500">{kpi.description}</div>
-                      <div className="text-xs text-gray-400">{kpi.department}</div>
+                      <div className="text-xs text-gray-400">{kpi.departmentName || kpi.department}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
