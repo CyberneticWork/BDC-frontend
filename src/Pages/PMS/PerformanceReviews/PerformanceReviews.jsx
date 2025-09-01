@@ -20,6 +20,7 @@ import {
   Award,
   Loader2
 } from 'lucide-react';
+import NewReviewModal from "./NewReviewModal";
 
 // Progress Review Modal Component
 const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
@@ -405,6 +406,7 @@ const PerformanceReviews = () => {
   // State for modals
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isNewReviewModalOpen, setIsNewReviewModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   
   // Enhanced sample review data with progress and grade fields
@@ -546,6 +548,37 @@ const PerformanceReviews = () => {
     );
   };
 
+  // Handle creating new review
+  const handleCreateReview = (reviewData) => {
+    // Add the new review to the existing reviews
+    setReviewData(prev => [
+      {
+        id: Math.max(...prev.map(r => r.id)) + 1, // Generate a new ID
+        employeeName: reviewData.employeeName,
+        employeeId: reviewData.employeeId,
+        position: reviewData.employeePosition,
+        department: reviewData.employeeDepartment,
+        manager: reviewData.supervisorName,
+        type: reviewData.reviewType === "performance" ? "Performance Review" : 
+              reviewData.reviewType === "quarterly" ? "Quarterly Review" :
+              reviewData.reviewType === "annual" ? "Annual Review" :
+              reviewData.reviewType === "probation" ? "Probation Review" : 
+              "Progress Check-in",
+        status: "Draft",
+        startDate: reviewData.startDate,
+        dueDate: reviewData.dueDate,
+        completedDate: null,
+        overallRating: null,
+        cycle: reviewData.reviewCycle.replace('_', ' '),
+        progress: 0,
+        grade: null,
+        supervisorComments: reviewData.reviewNotes,
+        lastUpdated: new Date().toISOString()
+      },
+      ...prev
+    ]);
+  };
+
   // Filter reviews based on active tab and search query
   const filteredReviews = reviewData.filter(review => {
     const matchesTab = 
@@ -650,15 +683,25 @@ const PerformanceReviews = () => {
         review={selectedReview}
       />
 
+      {/* New Review Modal */}
+      <NewReviewModal
+        isOpen={isNewReviewModalOpen}
+        onClose={() => setIsNewReviewModalOpen(false)}
+        onSubmit={handleCreateReview}
+      />
+
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Performance Reviews</h1>
           <p className="text-gray-600">Manage and track employee performance evaluations</p>
         </div>
-        <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm">
+        {/* <button 
+          onClick={() => setIsNewReviewModalOpen(true)} 
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+        >
           <Plus className="h-4 w-4" />
           <span>New Review</span>
-        </button>
+        </button> */}
       </div>
 
       {/* Grade Legend */}

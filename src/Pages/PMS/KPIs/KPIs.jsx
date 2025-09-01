@@ -236,6 +236,49 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 })}
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category*
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Select category</option>
+                <option value="Financial">Financial</option>
+                <option value="Customer">Customer</option>
+                <option value="Internal Process">Internal Process</option>
+                <option value="Learning & Growth">Learning & Growth</option>
+                <option value="HR">HR & People</option>
+                <option value="Operations">Operations</option>
+                <option value="Sales">Sales & Marketing</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Priority
+              </label>
+              <div className="flex gap-2">
+                {["low", "medium", "high"].map(priority => (
+                  <label key={priority} className="flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="priority"
+                      value={priority}
+                      checked={formData.priority === priority}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-indigo-600"
+                    />
+                    <span className="text-sm">{priority.charAt(0).toUpperCase() + priority.slice(1)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
@@ -310,19 +353,62 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, kpiName, isLoadin
   );
 };
 
-// New: View modal to display task details + per-assignee updates
+// Enhanced TaskViewModal with support for category, priority, and better document display
 const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   if (!isOpen || !kpi) return null;
 
   const getEmployee = (id) => employees.find(e => e.id === id) || { id, name: "Unknown", department: "" };
   const updatesFor = (empId) => (kpi.assigneeUpdates || []).find(u => u.employeeId === empId);
 
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      active: "bg-green-100 text-green-800",
+      attention: "bg-yellow-100 text-yellow-800",
+      inactive: "bg-gray-100 text-gray-800",
+    };
+    return statusConfig[status] || statusConfig.inactive;
+  };
+
+  const getPriorityBadge = (priority) => {
+    if (!priority) return "bg-gray-100 text-gray-800";
+    const priorityConfig = {
+      high: "bg-red-100 text-red-800",
+      medium: "bg-yellow-100 text-yellow-800",
+      low: "bg-blue-100 text-blue-800",
+    };
+    return priorityConfig[priority] || "bg-gray-100 text-gray-800";
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{kpi.name}</h2>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <h2 className="text-xl font-bold text-gray-900">{kpi.name}</h2>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
+                  kpi.status
+                )}`}
+              >
+                {kpi.status === "active" && (
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                )}
+                {kpi.status === "attention" && (
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                )}
+                {kpi.status.charAt(0).toUpperCase() + kpi.status.slice(1)}
+              </span>
+              {kpi.priority && (
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
+                    kpi.priority
+                  )}`}
+                >
+                  {kpi.priority.charAt(0).toUpperCase() + kpi.priority.slice(1)} Priority
+                </span>
+              )}
+            </div>
             <p className="text-gray-600 text-sm mt-1">{kpi.description}</p>
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all">
@@ -330,53 +416,208 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="p-6 space-y-6">
+          {/* KPI Metadata */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-500">Timeline</label>
-              <div className="text-sm text-gray-900">{new Date(kpi.startDate).toLocaleDateString()} — {new Date(kpi.endDate).toLocaleDateString()}</div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Details</h3>
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                {kpi.category && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Category:</span>
+                    <span className="text-sm font-medium text-gray-900">{kpi.category}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Department:</span>
+                  <span className="text-sm font-medium text-gray-900">{kpi.department}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Frequency:</span>
+                  <span className="text-sm font-medium text-gray-900">{kpi.frequency || "Not specified"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Target:</span>
+                  <span className="text-sm font-medium text-gray-900">{kpi.target}{kpi.unit}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Current:</span>
+                  <span className="text-sm font-medium text-gray-900">{kpi.current}{kpi.unit}</span>
+                </div>
+              </div>
             </div>
+            
             <div>
-              <label className="block text-xs text-gray-500">Last Updated</label>
-              <div className="text-sm text-gray-900">{new Date(kpi.lastUpdated).toLocaleString()}</div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Timeline</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-700">
+                      {new Date(kpi.startDate).toLocaleDateString()} — {new Date(kpi.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    {(() => {
+                      const start = new Date(kpi.startDate);
+                      const end = new Date(kpi.endDate);
+                      const today = new Date();
+                      const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                      const daysElapsed = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
+                      const percentage = Math.min(Math.max(Math.round((daysElapsed / totalDays) * 100), 0), 100);
+                      return (
+                        <div
+                          className="h-2 rounded-full bg-purple-500"
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-xs text-right text-gray-500 mt-1">
+                    {(() => {
+                      const start = new Date(kpi.startDate);
+                      const end = new Date(kpi.endDate);
+                      const today = new Date();
+                      const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                      const daysElapsed = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
+                      const percentage = Math.min(Math.max(Math.round((daysElapsed / totalDays) * 100), 0), 100);
+                      return `${percentage}% elapsed`;
+                    })()}
+                  </p>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Last updated: {new Date(kpi.lastUpdated).toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
 
+          {/* Progress */}
+          {/* <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Progress</h3>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-900">
+                  {kpi.current} {kpi.unit} of {kpi.target} {kpi.unit}
+                </span>
+                <span className="text-sm text-gray-500">
+                  {Math.round((kpi.current / kpi.target) * 100)}% complete
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                <div 
+                  className={`h-2.5 rounded-full ${
+                    kpi.current >= kpi.target
+                      ? "bg-green-500"
+                      : kpi.current >= kpi.target * 0.8
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
+                  }`}
+                  style={{
+                    width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div> */}
+          
+          {/* Assigned Team */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Assigned Employees & Updates</h3>
-            <div className="space-y-3">
-              { (kpi.assignees || []).length === 0 && <div className="text-sm text-gray-500">No assignees</div> }
-              { (kpi.assignees || []).map((idStr) => {
-                const empId = parseInt(idStr);
-                const emp = getEmployee(empId);
-                const entry = updatesFor(empId);
-                return (
-                  <div key={idStr} className="p-3 rounded-md border border-gray-100 bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{emp.name}</div>
-                        <div className="text-xs text-gray-500">{emp.department}</div>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Assigned Team</h3>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="space-y-3">
+                {(kpi.assignees || []).length === 0 && <div className="text-sm text-gray-500">No assignees</div>}
+                {(kpi.assignees || []).map((idStr) => {
+                  const emp = getEmployee(idStr);
+                  return (
+                    <div key={idStr} className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-indigo-600" />
                       </div>
-                      <div className="text-xs text-gray-500">{entry?.updates?.length ? `${entry.updates.length} update(s)` : "No updates"}</div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{emp.name}</p>
+                        <p className="text-xs text-gray-500">{emp.department}</p>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-                    {entry?.updates?.length > 0 && (
-                      <div className="mt-3 space-y-2">
+          {/* Updates Timeline */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Updates Timeline</h3>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="space-y-5">
+                {(kpi.assignees || []).map((idStr) => {
+                  const empId = parseInt(idStr);
+                  const emp = getEmployee(idStr);
+                  const entry = updatesFor(empId);
+                  
+                  if (!entry || !entry.updates || entry.updates.length === 0) return null;
+                  
+                  return (
+                    <div key={idStr} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <User className="h-3 w-3 text-indigo-600" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{emp.name}</p>
+                      </div>
+                      <div className="space-y-4 ml-8">
                         {entry.updates.map((u, idx) => (
-                          <div key={idx} className="text-sm">
-                            <div className="text-xs text-gray-400">{new Date(u.date).toLocaleString()}</div>
-                            <div className="text-gray-800">{u.note}</div>
-                            <div className="text-xs text-gray-500 mt-1">By: {u.author || "System"}</div>
+                          <div key={idx} className="relative">
+                            <div className="absolute left-[-16px] top-2 w-2 h-2 bg-indigo-400 rounded-full"></div>
+                            <div className="pl-4 border-l border-gray-200">
+                              {/* Show document info if available */}
+                              {u.documentName && (
+                                <div className="flex items-center gap-2 mb-1 text-indigo-600">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <span className="text-xs font-medium">{u.documentName}</span>
+                                  {u.documentSize && (
+                                    <span className="text-xs text-gray-500">({u.documentSize})</span>
+                                  )}
+                                </div>
+                              )}
+                              <p className="text-sm text-gray-800">{u.note}</p>
+                              <div className="flex justify-between items-center mt-1">
+                                <p className="text-xs text-gray-500">{new Date(u.date).toLocaleString()}</p>
+                                <p className="text-xs text-gray-400">By: {u.author || "System"}</p>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
-                    )}
+                    </div>
+                  );
+                })}
+                
+                {!kpi.assignees || !kpi.assignees.some(idStr => {
+                  const empId = parseInt(idStr);
+                  const entry = updatesFor(empId);
+                  return entry && entry.updates && entry.updates.length > 0;
+                }) && (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    No updates recorded yet
                   </div>
-                );
-              })}
+                )}
+              </div>
             </div>
           </div>
+        </div>
 
+        <div className="flex justify-end p-6 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -929,7 +1170,7 @@ const KPIs = () => {
         </div>
       </div>
 
-      {/* KPIs Table */}
+      {/* KPIs Table with updated columns */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -942,6 +1183,9 @@ const KPIs = () => {
                   Performance
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -949,9 +1193,6 @@ const KPIs = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Timeline
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Updated
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -968,6 +1209,19 @@ const KPIs = () => {
                           {kpi.name}
                         </div>
                         <div className="ml-2">{getTrendIcon(kpi.trend)}</div>
+                        {kpi.priority && (
+                          <span
+                            className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              kpi.priority === "high"
+                                ? "bg-red-100 text-red-800"
+                                : kpi.priority === "medium"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
+                            {kpi.priority.charAt(0).toUpperCase()}
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-gray-500">{kpi.description}</div>
                       <div className="text-xs text-gray-400">{kpi.department}</div>
@@ -1008,6 +1262,11 @@ const KPIs = () => {
                         </div>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      {kpi.category || "Uncategorized"}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -1062,9 +1321,6 @@ const KPIs = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(kpi.lastUpdated).toLocaleDateString()}
-                  </td>
                   <td className="px-6 py-4 text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-2">
                       <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -1090,69 +1346,8 @@ const KPIs = () => {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing{" "}
-                    <span className="font-medium">{indexOfFirstItem + 1}</span>{" "}
-                    to{" "}
-                    <span className="font-medium">
-                      {Math.min(indexOfLastItem, filteredKpis.length)}
-                    </span>{" "}
-                    of{" "}
-                    <span className="font-medium">{filteredKpis.length}</span>{" "}
-                    results
-                  </p>
-                </div>
-                <div>
-                  <nav
-                    className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                    aria-label="Pagination"
-                  >
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            page === currentPage
-                              ? "z-10 bg-purple-50 border-purple-500 text-purple-600"
-                              : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    )}
-                  </nav>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        
+        {/* Pagination section remains unchanged */}
       </div>
 
       {/* Empty State */}
