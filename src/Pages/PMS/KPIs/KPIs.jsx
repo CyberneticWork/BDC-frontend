@@ -32,11 +32,87 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     description: "",
     startDate: "",
     endDate: "",
-    assignees: [], // array of assignee ids (strings)
+    assignees: [],
+    company: "",
+    department: "",
+    category: "",
+    priority: "medium",
     ...initialData,
   });
 
   const [empSearch, setEmpSearch] = useState("");
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+
+  // Fetch companies on component mount
+  useEffect(() => {
+    const fetchCompaniesData = async () => {
+      setIsLoadingCompanies(true);
+      try {
+        // In a real implementation, you would fetch from API
+        // const response = await PMSService.getCompanies();
+        // For demo, using dummy data
+        const dummyCompanies = [
+          { id: "1", name: "Acme Corporation" },
+          { id: "2", name: "Globex Industries" },
+          { id: "3", name: "Wayne Enterprises" }
+        ];
+        setCompanies(dummyCompanies);
+      } catch (error) {
+        console.error("Error fetching companies:", error);
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    };
+    
+    fetchCompaniesData();
+  }, []);
+
+  // Fetch departments when company changes
+  useEffect(() => {
+    const fetchDepartmentsData = async () => {
+      if (!formData.company) {
+        setDepartments([]);
+        return;
+      }
+
+      setIsLoadingDepartments(true);
+      try {
+        // In a real implementation, you would fetch from API
+        // const response = await PMSService.getDepartmentsByCompany(formData.company);
+        // For demo, using dummy data
+        let dummyDepartments = [];
+        if (formData.company === "1") {
+          dummyDepartments = [
+            { id: "101", name: "Sales" },
+            { id: "102", name: "Customer Service" },
+            { id: "103", name: "Engineering" }
+          ];
+        } else if (formData.company === "2") {
+          dummyDepartments = [
+            { id: "201", name: "Marketing" },
+            { id: "202", name: "HR" },
+            { id: "203", name: "Operations" }
+          ];
+        } else if (formData.company === "3") {
+          dummyDepartments = [
+            { id: "301", name: "Research & Development" },
+            { id: "302", name: "Finance" },
+            { id: "303", name: "IT" }
+          ];
+        }
+        setDepartments(dummyDepartments);
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+    
+    fetchDepartmentsData();
+  }, [formData.company]);
 
   useEffect(() => {
     // Reset form when modal opens with new data
@@ -46,6 +122,10 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       startDate: "",
       endDate: "",
       assignees: initialData.assignees ? [...initialData.assignees] : [],
+      company: initialData.company || "",
+      department: initialData.department || "",
+      category: initialData.category || "",
+      priority: initialData.priority || "medium",
       ...initialData
     });
     setEmpSearch("");
@@ -57,7 +137,37 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       ...prev,
       [name]: value
     }));
+
+    // Reset department if company changes
+    if (name === "company") {
+      setFormData(prev => ({
+        ...prev,
+        department: ""
+      }));
+    }
   };
+
+  // Filter employees based on selected company and department
+  const filteredEmployees = employees.filter(emp => {
+    // Only include employees that match the search term
+    const matchesSearch = 
+      emp.name.toLowerCase().includes(empSearch.toLowerCase()) ||
+      emp.department.toLowerCase().includes(empSearch.toLowerCase());
+    
+    // If no company is selected, just filter by search term
+    if (!formData.company) return matchesSearch;
+    
+    // For demo, we'll map employees to companies based on ID
+    const empCompany = emp.id <= 2 ? "1" : emp.id <= 4 ? "2" : "3";
+    
+    // If no department is selected, filter by company and search term
+    if (!formData.department) return empCompany === formData.company && matchesSearch;
+    
+    // Otherwise, filter by company, department, and search term
+    // For demo, we'll check if department name matches employee department
+    const deptName = departments.find(d => d.id === formData.department)?.name;
+    return empCompany === formData.company && emp.department === deptName && matchesSearch;
+  });
 
   const addEmployee = (employee) => {
     setFormData(prev => {
@@ -76,17 +186,22 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     }));
   };
 
-  const filteredEmployees = employees.filter(emp =>
-    emp.name.toLowerCase().includes(empSearch.toLowerCase()) ||
-    emp.department.toLowerCase().includes(empSearch.toLowerCase())
-  );
-
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
   if (!isOpen) return null;
+
+  // Get company name from ID
+  const getCompanyName = (id) => {
+    return companies.find(c => c.id === id)?.name || "Unknown Company";
+  };
+
+  // Get department name from ID
+  const getDepartmentName = (id) => {
+    return departments.find(d => d.id === id)?.name || "Unknown Department";
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -139,6 +254,67 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               />
             </div>
 
+            {/* Company Selection - NEW */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company*
+              </label>
+              <div className="relative">
+                <select
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
+                  disabled={isLoadingCompanies}
+                >
+                  <option value="">Select Company</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+                {isLoadingCompanies && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Department Selection - NEW */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Department*
+              </label>
+              <div className="relative">
+                <select
+                  name="department"
+                  value={formData.department}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
+                  disabled={!formData.company || isLoadingDepartments}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map(department => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+                {isLoadingDepartments && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                  </div>
+                )}
+              </div>
+              {!formData.company && (
+                <p className="text-xs text-gray-500 mt-1">Please select a company first</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -186,6 +362,15 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 Employee Assignee*
               </label>
 
+              {/* Show company and department info above search */}
+              {formData.company && formData.department && (
+                <div className="mb-2 p-2 bg-indigo-50 rounded-lg text-sm">
+                  <p className="text-indigo-700">
+                    Filtering employees from: <span className="font-medium">{getCompanyName(formData.company)}</span> / <span className="font-medium">{getDepartmentName(formData.department)}</span>
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -193,11 +378,16 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   onChange={(e) => setEmpSearch(e.target.value)}
                   placeholder="Search employees by name or department..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  disabled={!formData.department}
                 />
               </div>
 
+              {!formData.department && (
+                <p className="text-xs text-amber-600 mt-1">Please select both company and department to search employees</p>
+              )}
+
               {/* Search results */}
-              {empSearch && filteredEmployees.length > 0 && (
+              {empSearch && filteredEmployees.length > 0 && formData.department && (
                 <div className="mt-2 max-h-40 overflow-auto border border-gray-100 rounded-lg bg-white shadow-sm">
                   {filteredEmployees.map(emp => (
                     <div key={emp.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
@@ -214,6 +404,12 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                       </button>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {empSearch && filteredEmployees.length === 0 && formData.department && (
+                <div className="mt-2 p-3 text-center text-sm text-gray-500 border border-gray-100 rounded-lg">
+                  No employees found matching your search criteria
                 </div>
               )}
 
@@ -237,7 +433,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               </div>
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Category*
               </label>
@@ -257,7 +453,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 <option value="Operations">Operations</option>
                 <option value="Sales">Sales & Marketing</option>
               </select>
-            </div>
+            </div> */}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -665,7 +861,13 @@ const KPIs = () => {
       unit: "%",
       trend: "up",
       status: "active",
+      // keep human-friendly department name for table display
       department: "Customer Service",
+      // new fields for modal prefill (company id and department id)
+      company: "1",
+      departmentId: "101",
+      companyName: "Acme Corporation",
+      departmentName: "Customer Service",
       owner: "Sarah Johnson",
       assignees: ["1"],
       assigneeUpdates: [
@@ -693,6 +895,10 @@ const KPIs = () => {
       trend: "up",
       status: "active",
       department: "Sales",
+      company: "2",
+      departmentId: "201",
+      companyName: "Globex Industries",
+      departmentName: "Sales",
       owner: "Mike Chen",
       assignees: ["2","4"],
       assigneeUpdates: [
@@ -721,6 +927,10 @@ const KPIs = () => {
       trend: "down",
       status: "attention",
       department: "HR",
+      company: "3",
+      departmentId: "301",
+      companyName: "Wayne Enterprises",
+      departmentName: "HR",
       owner: "Emma Davis",
       assignees: ["3"],
       assigneeUpdates: [
@@ -748,6 +958,10 @@ const KPIs = () => {
       trend: "up",
       status: "active",
       department: "Operations",
+      company: "1",
+      departmentId: "103",
+      companyName: "Acme Corporation",
+      departmentName: "Operations",
       owner: "John Smith",
       assignees: ["4"],
       assigneeUpdates: [
@@ -1024,7 +1238,12 @@ const KPIs = () => {
           description: currentKpi.description,
           startDate: currentKpi.startDate,
           endDate: currentKpi.endDate,
-          assignees: currentKpi.assignees ? [...currentKpi.assignees] : []
+          assignees: currentKpi.assignees ? [...currentKpi.assignees] : [],
+          // ensure company & department IDs are passed to modal for prefill
+          company: currentKpi.company || currentKpi.companyName || "",
+          department: currentKpi.departmentId || currentKpi.department || "",
+          category: currentKpi.category || "",
+          priority: currentKpi.priority || "medium",
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}
