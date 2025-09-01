@@ -45,7 +45,7 @@ const Sidebar = ({
 
   const menuItems = [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
-    // { id: "user", name: "Users", icon: User2, badge: null },
+    { id: "userManagement", name: "User Management", icon: User2, badge: null },
     {
       id: "hrMaster",
       name: "HR Master",
@@ -59,7 +59,7 @@ const Sidebar = ({
         { id: "grouproster", name: "Roster" },
         { id: "resignation", name: "Resignation" },
         { id: "termination", name: "Termination" },
-        { id: "userManagement", name: "User Management", icon: Users },
+        // { id: "userManagement", name: "User Management", icon: Users },
         {
           id: "allowanceDeduction",
           name: "Compensation",
