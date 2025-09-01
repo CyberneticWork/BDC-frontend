@@ -2,6 +2,7 @@
 export const permissions = {
   admin: {
     dashboard: { view: true, edit: true },
+    userManagement: { view: true, edit: true, delete: true },
     hrMaster: { view: true },
     show: { view: true, edit: true },
     employeeMaster: { view: true, edit: true, delete: true },
@@ -10,7 +11,6 @@ export const permissions = {
     grouproster: { view: true, edit: true },
     resignation: { view: true, edit: true },
     termination: { view: true, edit: true },
-    userManagement: { view: true, edit: true, delete: true },
     allowanceDeduction: { view: true },
     createNewAllowance: { view: true, edit: true },
     createNewDeduction: { view: true, edit: true },
