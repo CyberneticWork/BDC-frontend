@@ -477,6 +477,24 @@ const LeaveMaster = () => {
     setSubmitSuccess(false);
     setIsSubmitting(true);
 
+    // If all main identifying fields are empty, show same error as for missing employee number
+    const allEmpty =
+      !formData.attendanceNo &&
+      !formData.epfNo &&
+      !formData.employeeName &&
+      !formData.department;
+
+    if (allEmpty) {
+      Swal.fire({
+        icon: "error",
+        title: "Input Required",
+        text: "Please enter an employee number",
+        confirmButtonColor: "#3085d6",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       // First validate all selected dates
       let invalidDates = [];
@@ -1156,7 +1174,7 @@ const LeaveMaster = () => {
                     <button
                       type="submit"
                       className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md hover:shadow-lg flex items-center justify-center min-w-[150px]"
-                      disabled={isSubmitting || !formData.attendanceNo}
+                      disabled={isSubmitting}
                     >
                       {isSubmitting ? (
                         <>
