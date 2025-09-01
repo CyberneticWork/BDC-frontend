@@ -45,6 +45,10 @@ import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 import UserManagement from "@dashboard/UserManagement";
+// Import PMS components
+import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
+import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
+
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
@@ -633,6 +637,22 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "userManagement" ? (
               <ProtectedComponent module="userManagement" action="view">
                 <UserManagement />
+              </ProtectedComponent>
+            ) : activeItem === "pmsDashboard" ? (
+              <ProtectedComponent module="pmsDashboard" action="view">
+                <PMSDashboard />
+              </ProtectedComponent>
+            ) : activeItem === "performanceReviews" ? (
+              <ProtectedComponent module="performanceReviews" action="view">
+                <PerformanceReviews />
+              </ProtectedComponent>
+            ) : activeItem === "kpis" ? (
+              <ProtectedComponent module="kpis" action="view">
+                <KPIs />
+              </ProtectedComponent>
+            ) : activeItem === "myKPIs" ? (
+              <ProtectedComponent module="myKPIs" action="view">
+                <EmployeeKPIView />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">
