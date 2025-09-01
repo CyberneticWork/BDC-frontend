@@ -17,6 +17,7 @@ import FieldError from "@components/ErrorMessage/FieldError";
 import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
 import config from "@src/config";
+import { getUser } from "@services/UserService";
 
 const relationshipOptions = [
   { value: "", label: "Select Relationship Type" },
@@ -415,6 +416,8 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     }
   };
 
+  const [user, setUser] = useState(getUser());
+
   return (
     <div className="rounded-2xl overflow-hidden">
       <div className="bg-white rounded-2xl shadow-xl mb-6 p-6">
@@ -432,13 +435,15 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setIsSearchModalOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" />
-            <span>Edit Employee</span>
-          </button>
+          {user.role == "admin" && (
+            <button
+              onClick={() => setIsSearchModalOpen(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Edit Employee</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -491,7 +496,8 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                       {employee.full_name}
                     </div>
                     <div className="text-sm text-gray-500">
-                      No: {employee.attendance_employee_no} | NIC: {employee.nic}
+                      No: {employee.attendance_employee_no} | NIC:{" "}
+                      {employee.nic}
                     </div>
                   </div>
                 </div>
@@ -559,6 +565,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                     : "border-gray-300"
                 } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter employee number"
+                disabled={!!formData.personal.id}
                 required
               />
               <FieldError error={errors.personal?.attendanceEmpNo} />
@@ -577,6 +584,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                   errors.personal?.epfNo ? "border-red-500" : "border-gray-300"
                 } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter EPF number"
+                disabled={!!formData.personal.epfNo}
                 required
               />
               <FieldError error={errors.personal?.epfNo} />
