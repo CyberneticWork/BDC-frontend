@@ -30,6 +30,10 @@ export const permissions = {
     leavecalendar: { view: true },
     reports: { view: true },
     utilities: { view: true },
+    pmsDashboard: { view: true },
+    performanceReviews: { view: true, edit: true },
+    kpis: { view: true, edit: true },
+    myKPIs: { view: true },
   },
   manager: {
     dashboard: { view: true },
@@ -42,6 +46,10 @@ export const permissions = {
     leaveMaster: { view: true },
     leavecalendar: { view: true },
     reports: { view: true },
+    pmsDashboard: { view: true },
+    performanceReviews: { view: true, edit: true },
+    kpis: { view: true, edit: true },
+    myKPIs: { view: true },
   },
   employee: {
     dashboard: { view: true },
@@ -49,5 +57,6 @@ export const permissions = {
     show: { view: true },
     leaveMaster: { view: true, edit: true },
     leavecalendar: { view: true },
+    myKPIs: { view: true },
   },
 };
