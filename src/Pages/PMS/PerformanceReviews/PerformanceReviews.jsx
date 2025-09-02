@@ -18,7 +18,8 @@ import {
   PieChart,
   ListChecks,
   Award,
-  Loader2
+  Loader2,
+  BarChart // added for self-reported progress display
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
 
@@ -39,21 +40,27 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     setIsSubmitting(true);
     
     try {
-      // In a real app, you would make an API call here
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      onSave({
+      // Create updated review object
+      const updatedReview = {
         ...review,
-        progress,
-        grade,
+        progress: progress,
+        grade: grade,
         supervisorComments: comments,
         lastUpdated: new Date().toISOString()
-      });
+      };
       
+      // In a real app, you would also update the corresponding KPI task
+      // For example:
+      // await PMSService.updateKpiProgress(review.kpiId, progress);
+      
+      onSave(updatedReview);
       onClose();
     } catch (error) {
-      console.error("Error saving review:", error);
-      alert("Failed to save review");
+      console.error("Error updating review:", error);
+      alert("Failed to update review");
     } finally {
       setIsSubmitting(false);
     }
@@ -261,7 +268,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
                   <PieChart className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Progress</p>
+                  <p className="text-xs text-gray-500">Progress (Supervisor)</p>
                   <p className="font-medium text-gray-900">{review.progress || 0}% Complete</p>
                 </div>
               </div>
@@ -275,6 +282,39 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
                   style={{ width: `${review.progress || 0}%` }}
                 ></div>
               </div>
+
+              {/* NEW: Self-Reported Progress (if available) */}
+              {typeof review.selfReportedProgress === 'number' && (
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
+                      <BarChart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Self-Reported Progress</p>
+                      <p className="font-medium text-indigo-900">{review.selfReportedProgress}%</p>
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full ${
+                        review.selfReportedProgress < 30 ? 'bg-red-500' :
+                        review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${review.selfReportedProgress}%` }}
+                    ></div>
+                  </div>
+
+                  {review.selfReportedLastUpdated && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Last reported on {new Date(review.selfReportedLastUpdated).toLocaleString()}
+                      {review.selfReportedAuthor ? ` by ${review.selfReportedAuthor}` : ''}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="bg-gray-50 p-4 rounded-xl">
@@ -428,7 +468,11 @@ const PerformanceReviews = () => {
       progress: 100,
       grade: "A-",
       supervisorComments: "John has shown exceptional skill in problem-solving and technical implementation. His code quality is excellent and he consistently meets deadlines. Could improve on documentation and knowledge sharing with junior team members.",
-      lastUpdated: "2025-08-12T10:30:00Z"
+      lastUpdated: "2025-08-12T10:30:00Z",
+      // self-reported fields added
+      selfReportedProgress: 100,
+      selfReportedLastUpdated: "2025-08-12T09:45:00Z",
+      selfReportedAuthor: "John Smith"
     },
     {
       id: 2,
@@ -447,7 +491,10 @@ const PerformanceReviews = () => {
       progress: 65,
       grade: "B+",
       supervisorComments: "Sarah is performing well on her campaign management tasks. Her creative input has been valuable and she's responsive to feedback. Need to focus more on analytics and data-driven decision making.",
-      lastUpdated: "2025-08-20T14:15:00Z"
+      lastUpdated: "2025-08-20T14:15:00Z",
+      selfReportedProgress: 60,
+      selfReportedLastUpdated: "2025-08-19T16:10:00Z",
+      selfReportedAuthor: "Sarah Johnson"
     },
     {
       id: 3,
@@ -467,6 +514,7 @@ const PerformanceReviews = () => {
       grade: null,
       supervisorComments: null,
       lastUpdated: null
+      // no self-reported data yet
     },
     {
       id: 4,
@@ -485,7 +533,10 @@ const PerformanceReviews = () => {
       progress: 25,
       grade: null,
       supervisorComments: null,
-      lastUpdated: null
+      lastUpdated: null,
+      selfReportedProgress: 10,
+      selfReportedLastUpdated: "2025-08-05T09:00:00Z",
+      selfReportedAuthor: "Emily Davis"
     },
     {
       id: 5,
@@ -504,7 +555,10 @@ const PerformanceReviews = () => {
       progress: 100,
       grade: "A+",
       supervisorComments: "James has exceeded expectations in all areas. His product launches have been highly successful, and he manages cross-functional teams with ease. His strategic vision and execution are exemplary.",
-      lastUpdated: "2025-08-10T16:45:00Z"
+      lastUpdated: "2025-08-10T16:45:00Z",
+      selfReportedProgress: 100,
+      selfReportedLastUpdated: "2025-08-09T18:20:00Z",
+      selfReportedAuthor: "James Wilson"
     },
     {
       id: 6,
@@ -523,7 +577,10 @@ const PerformanceReviews = () => {
       progress: 50,
       grade: "C+",
       supervisorComments: "Linda needs improvement in response time and ticket resolution. Communication with customers is good, but follow-through on complex issues needs work.",
-      lastUpdated: "2025-08-18T11:20:00Z"
+      lastUpdated: "2025-08-18T11:20:00Z",
+      selfReportedProgress: 45,
+      selfReportedLastUpdated: "2025-08-17T13:05:00Z",
+      selfReportedAuthor: "Linda Martinez"
     },
   ]);
 
@@ -926,6 +983,15 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+
+                {/* NEW: Self-Reported Progress column */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Self-Reported Progress
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
+
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Progress
@@ -969,6 +1035,30 @@ const PerformanceReviews = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {review.department}
                     </td>
+
+                    {/* NEW: Self-Reported Progress cell */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {typeof review.selfReportedProgress === 'number' ? (
+                        <div className="flex items-center">
+                          <div className="flex-1 mr-3">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${
+                                  review.selfReportedProgress < 30 ? 'bg-red-500' :
+                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${review.selfReportedProgress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-1 mr-4">

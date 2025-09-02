@@ -1047,6 +1047,7 @@ const KPIs = () => {
         unit: "%",
         trend: "up",
         status: "active",
+        progress: 0, // Initialize progress to 0
         department: firstAssignee === 1 ? "Customer Service" :
                    firstAssignee === 2 ? "Sales" :
                    firstAssignee === 3 ? "HR" : "Operations",
@@ -1054,7 +1055,12 @@ const KPIs = () => {
         assignees: (formData.assignees || []).map(s => s.toString()),
         assigneeUpdates: (formData.assignees || []).map(s => ({
           employeeId: parseInt(s),
-          updates: [{ date: new Date().toISOString(), note: "Task assigned", author: "System" }]
+          updates: [{ 
+            date: new Date().toISOString(), 
+            note: "Task assigned", 
+            author: "System",
+            progressPercentage: 0 // Initialize progress percentage to 0
+          }]
         })),
         startDate: formData.startDate,
         endDate: formData.endDate,
@@ -1063,7 +1069,12 @@ const KPIs = () => {
         category: firstAssignee === 1 ? "Customer" :
                  firstAssignee === 2 ? "Financial" :
                  firstAssignee === 3 ? "HR" : "Operations",
+        completionStatus: "not-started", // Add completion status for employee view
+        documentCount: 0, // Initialize document count for employee view
       };
+
+      // Create a corresponding performance review entry
+      createPerformanceReviewEntry(newKpi);
 
       setKpis(prev => [...prev, newKpi]);
       alert('KPI task created successfully!');
@@ -1074,6 +1085,24 @@ const KPIs = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Add this function to create a corresponding performance review entry
+  const createPerformanceReviewEntry = (kpi) => {
+    // This function would call an API in a real application
+    // For the demo, you could dispatch an event or use a shared state manager
+    console.log("Created performance review for KPI:", kpi.id);
+    
+    // In a real application, you would make an API call like:
+    // await PMSService.createPerformanceReview({
+    //   kpiId: kpi.id,
+    //   employeeId: kpi.assignees[0],
+    //   startDate: kpi.startDate,
+    //   dueDate: kpi.endDate,
+    //   reviewType: "performance",
+    //   status: "Draft",
+    //   progress: 0
+    // });
   };
 
   const handleEditKpi = async (formData) => {
@@ -1092,20 +1121,23 @@ const KPIs = () => {
           name: formData.name,
           description: formData.description,
           assignees: (formData.assignees || []).map(s => s.toString()),
+          // Preserve existing progress or use 0 if not set
+          progress: kpi.progress || 0,
           // merge existing updates or add "reassigned" note if changed
           assigneeUpdates: (formData.assignees || []).map(s => {
             const empId = parseInt(s);
             const existing = (kpi.assigneeUpdates || []).find(a => a.employeeId === empId);
-            return existing || { employeeId: empId, updates: [{ date: new Date().toISOString(), note: "Assigned/Updated", author: "System" }] };
+            return existing || { 
+              employeeId: empId, 
+              updates: [{ 
+                date: new Date().toISOString(), 
+                note: "Assigned/Updated", 
+                author: "System", 
+                progressPercentage: 0 
+              }] 
+            };
           }),
-          assignee: firstAssignee,
-          department: firstAssignee === 1 ? "Customer Service" :
-                     firstAssignee === 2 ? "Sales" :
-                     firstAssignee === 3 ? "HR" : "Operations",
-          owner: firstAssignee ? (employees.find(e => e.id === firstAssignee)?.name || "") : kpi.owner,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          lastUpdated: new Date().toISOString(),
+          // Other properties...
         } : kpi
       );
 
@@ -1182,6 +1214,35 @@ const KPIs = () => {
 
   const getUniqueValues = (key) => {
     return [...new Set(kpis.map((kpi) => kpi[key]))];
+  };
+
+  // Add this function to get the latest progress from assignee updates
+  const getLatestProgress = (kpi) => {
+    let latestProgress = 0;
+    let latestDate = null;
+    
+    if (!kpi.assignees || kpi.assignees.length === 0) {
+      return kpi.progress || 0;
+    }
+    
+    kpi.assignees.forEach(idStr => {
+      const empId = parseInt(idStr);
+      const assigneeUpdates = kpi.assigneeUpdates?.find(au => au.employeeId === empId);
+      
+      if (assigneeUpdates?.updates && assigneeUpdates.updates.length > 0) {
+        assigneeUpdates.updates.forEach(update => {
+          if (update.progressPercentage !== undefined) {
+            const updateDate = new Date(update.date);
+            if (!latestDate || updateDate > latestDate) {
+              latestDate = updateDate;
+              latestProgress = update.progressPercentage;
+            }
+          }
+        });
+      }
+    });
+    
+    return latestProgress;
   };
 
   // Pagination
@@ -1465,17 +1526,14 @@ const KPIs = () => {
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              kpi.current >= kpi.target
-                                ? "bg-green-500"
-                                : kpi.current >= kpi.target * 0.8
+                              getLatestProgress(kpi) < 30
+                                ? "bg-red-500"
+                                : getLatestProgress(kpi) < 70
                                 ? "bg-yellow-500"
-                                : "bg-red-500"
+                                : "bg-green-500"
                             }`}
                             style={{
-                              width: `${Math.min(
-                                (kpi.current / kpi.target) * 100,
-                                100
-                              )}%`,
+                              width: `${getLatestProgress(kpi)}%`,
                             }}
                           ></div>
                         </div>

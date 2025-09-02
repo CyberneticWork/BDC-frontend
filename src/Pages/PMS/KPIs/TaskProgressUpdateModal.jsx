@@ -72,7 +72,8 @@ export const TaskProgressUpdateModal = ({
       const now = new Date().toISOString();
       
       // In a real implementation, you'd upload the file to a server here
-      await onSubmit({
+      // Also update the corresponding performance review
+      const progressData = {
         note: progressNote,
         employeeId,
         date: now,
@@ -80,7 +81,13 @@ export const TaskProgressUpdateModal = ({
         documentSize: (selectedFile.size / 1024).toFixed(1) + " KB",
         documentType: selectedFile.type,
         progressPercentage, // Add the manual progress percentage
-      });
+      };
+      
+      await onSubmit(progressData);
+      
+      // In a real app, you would also update the corresponding performance review
+      // For example:
+      // await PMSService.updatePerformanceReviewProgress(task.id, progressPercentage);
       
       setProgressNote("");
       setSelectedFile(null);
