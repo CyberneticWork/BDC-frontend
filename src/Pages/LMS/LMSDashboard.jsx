@@ -7,6 +7,8 @@ import {
   CheckCircle,
   Play,
   Settings,
+  FileText,
+  Target,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
 
@@ -14,13 +16,17 @@ const LMSDashboard = ({
   onViewCourse,
   onViewProgress,
   onViewManageCourses,
+  onTakeExam,
+  onManageExams,
 }) => {
   const [courses, setCourses] = useState([]);
+  const [exams, setExams] = useState([]);
   const [userProgress, setUserProgress] = useState({});
   const [enrolledCourses, setEnrolledCourses] = useState([]);
 
   useEffect(() => {
     setCourses(LMSService.getCourses());
+    setExams(LMSService.getExams());
     setUserProgress(LMSService.getUserProgress());
     setEnrolledCourses(LMSService.getEnrolledCourses());
   }, []);
@@ -51,13 +57,22 @@ const LMSDashboard = ({
             Enhance your skills with our comprehensive training courses
           </p>
         </div>
-        <button
-          onClick={onViewManageCourses}
-          className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
-        >
-          <Settings className="h-5 w-5 mr-2" />
-          Manage Courses
-        </button>
+        <div className="flex space-x-4">
+          <button
+            onClick={onManageExams}
+            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+          >
+            <FileText className="h-5 w-5 mr-2" />
+            Manage Exams
+          </button>
+          <button
+            onClick={onViewManageCourses}
+            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+          >
+            <Settings className="h-5 w-5 mr-2" />
+            Manage Courses
+          </button>
+        </div>
       </div>
 
       {/* Progress Overview */}
@@ -230,6 +245,71 @@ const LMSDashboard = ({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Available Exams */}
+      <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+        <h3 className="text-xl font-bold text-gray-900 mb-6">
+          Available Exams
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {exams.map((exam) => (
+            <div
+              key={exam.id}
+              className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300"
+            >
+              <div className="flex items-center mb-4">
+                <Target className="h-8 w-8 text-green-600 mr-3" />
+                <h4 className="text-lg font-semibold text-gray-900">
+                  {exam.title}
+                </h4>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                {exam.description}
+              </p>
+
+              <div className="flex items-center text-sm text-gray-500 mb-4">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>{exam.duration}</span>
+                <span className="mx-2">•</span>
+                <span>{exam.totalQuestions} questions</span>
+              </div>
+
+              <div className="text-xs text-gray-400 mb-4">
+                Passing Score: {exam.passingScore}%
+                {exam.courseId && (
+                  <span className="ml-2">
+                    • Related to:{" "}
+                    {courses.find((c) => c.id === exam.courseId)?.title ||
+                      "Unknown Course"}
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => onTakeExam(exam.id)}
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+              >
+                <Target className="h-4 w-4 mr-2" />
+                Take Exam
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {exams.length === 0 && (
+          <div className="text-center py-8">
+            <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 mb-4">No exams available yet</p>
+            <button
+              onClick={onManageExams}
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              Manage Exams
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

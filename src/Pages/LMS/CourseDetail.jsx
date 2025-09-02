@@ -9,6 +9,7 @@ import {
   Video,
   Download,
   BookOpen,
+  Target,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
 
@@ -16,6 +17,7 @@ const CourseDetail = ({ courseId, onBack }) => {
   const [course, setCourse] = useState(null);
   const [currentModule, setCurrentModule] = useState(null);
   const [showCertificate, setShowCertificate] = useState(false);
+  const [relatedExams, setRelatedExams] = useState([]);
 
   useEffect(() => {
     const courseData = LMSService.getCourseById(courseId);
@@ -23,6 +25,8 @@ const CourseDetail = ({ courseId, onBack }) => {
     if (courseData && courseData.modules.length > 0) {
       setCurrentModule(courseData.modules[0]);
     }
+    // Load related exams
+    setRelatedExams(LMSService.getExamsByCourse(courseId));
   }, [courseId]);
 
   const handleModuleComplete = (moduleId) => {
@@ -250,6 +254,52 @@ const CourseDetail = ({ courseId, onBack }) => {
                 >
                   <Download className="h-4 w-4 mr-2" />
                   {attachment.type === "pdf" ? "View PDF" : "Watch Video"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Related Exams */}
+      {relatedExams.length > 0 && (
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Related Exams
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {relatedExams.map((exam) => (
+              <div
+                key={exam.id}
+                className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
+              >
+                <div className="flex items-center mb-3">
+                  <Target className="h-8 w-8 text-blue-600 mr-3" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 text-sm">
+                      {exam.title}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {exam.totalQuestions} questions
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                  {exam.description}
+                </p>
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                  <span>Duration: {exam.duration}</span>
+                  <span>Passing: {exam.passingScore}%</span>
+                </div>
+                <button
+                  onClick={() => {
+                    // In a real app, this would navigate to take exam
+                    alert(`Take exam: ${exam.title}`);
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center text-sm"
+                >
+                  <Target className="h-4 w-4 mr-2" />
+                  Take Exam
                 </button>
               </div>
             ))}
