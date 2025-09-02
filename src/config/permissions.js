@@ -35,6 +35,7 @@ export const permissions = {
     performanceReviews: { view: true, edit: true },
     kpis: { view: true, edit: true },
     myKPIs: { view: true },
+    lms: { view: true },
   },
   hr: {
     dashboard: { view: true, edit: true },
@@ -71,6 +72,7 @@ export const permissions = {
     performanceReviews: { view: true, edit: true },
     kpis: { view: true, edit: true },
     myKPIs: { view: true },
+    lms: { view: true },
   },
   supervisor: {
     dashboard: { view: true },
@@ -88,6 +90,7 @@ export const permissions = {
     performanceReviews: { view: true, edit: true },
     kpis: { view: true, edit: true },
     myKPIs: { view: true },
+    lms: { view: true },
   },
   user: {
     dashboard: { view: true },
@@ -96,5 +99,6 @@ export const permissions = {
     leaveMaster: { view: true, edit: true },
     leavecalendar: { view: true },
     myKPIs: { view: true },
+    lms: { view: true },
   },
 };

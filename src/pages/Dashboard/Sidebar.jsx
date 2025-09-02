@@ -21,6 +21,7 @@ import {
   Award,
   ClipboardCheck,
   PieChart,
+  BookOpen, // Add for LMS
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -128,6 +129,12 @@ const Sidebar = ({
         // { id: "calibration", name: "Calibration", icon: Target },
         // { id: "reports", name: "Performance Reports", icon: BarChart3 },
       ],
+    },
+    {
+      id: "lms",
+      name: "Learning Management",
+      icon: BookOpen,
+      badge: null,
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
