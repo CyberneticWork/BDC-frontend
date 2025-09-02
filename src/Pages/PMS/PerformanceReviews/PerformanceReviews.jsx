@@ -785,6 +785,65 @@ const PerformanceReviews = () => {
         </button> */}
       </div>
 
+      {/* Status Summary Cards - moved here (below header, above table) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-blue-100 text-blue-600 mr-4">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">In Progress</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'In Progress').length}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-yellow-100 text-yellow-600 mr-4">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">Pending Approval</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'Pending Manager' || r.status === 'Pending Employee').length}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-green-100 text-green-600 mr-4">
+              <CheckSquare className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">Completed</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'Completed').length}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-gray-100 text-gray-600 mr-4">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">Draft</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'Draft').length}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Grade Legend */}
       <div className="mb-6 bg-white rounded-xl p-3 border border-gray-100 flex gap-3 items-center">
         <div className="text-sm font-medium text-gray-700">Grades:</div>
@@ -1200,7 +1259,7 @@ const PerformanceReviews = () => {
       </div>
 
       {/* Status Summary Cards - Same as before */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-blue-100 text-blue-600 mr-4">
@@ -1256,7 +1315,7 @@ const PerformanceReviews = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };
