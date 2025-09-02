@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Filter, 
@@ -28,33 +28,45 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   const [progress, setProgress] = useState(review?.progress || 0);
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
+  const [statusState, setStatusState] = useState(review?.status || 'In Progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  if (!isOpen || !review) return null;
 
   // keep only the grades you mentioned
   const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
-  
+  const statusOptions = ['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'];
+
+  // sync local state when review prop changes (modal reopened with different review)
+  useEffect(() => {
+    if (review) {
+      setProgress(review.progress || 0);
+      setGrade(review.grade || '');
+      setComments(review.supervisorComments || '');
+      setStatusState(review.status || 'In Progress');
+    }
+  }, [review]);
+
+  if (!isOpen || !review) return null;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Create updated review object
+      // Create updated review object including supervisor-selected status
       const updatedReview = {
         ...review,
         progress: progress,
         grade: grade,
         supervisorComments: comments,
+        status: statusState,
         lastUpdated: new Date().toISOString()
       };
       
-      // In a real app, you would also update the corresponding KPI task
-      // For example:
-      // await PMSService.updateKpiProgress(review.kpiId, progress);
+      // In a real app, update review on server and optionally update KPI status:
+      // await PMSService.updateReview(review.id, updatedReview);
       
       onSave(updatedReview);
       onClose();
@@ -111,6 +123,18 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
+          </div>
+
+          {/* Supervisor selected status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Review Status (Supervisor)</label>
+            <select
+              value={statusState}
+              onChange={(e) => setStatusState(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            >
+              {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
 
           {/* Grade Section */}
@@ -1040,10 +1064,11 @@ const PerformanceReviews = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {typeof review.selfReportedProgress === 'number' ? (
                         <div className="flex items-center">
-                          <div className="flex-1 mr-3">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
+                          {/* fixed width so both columns render bars the same size */}
+                          <div className="w-38 md:w-50 flex-shrink-0 mr-3">
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                               <div
-                                className={`h-2 rounded-full ${
+                                className={`h-1.5 rounded-full ${
                                   review.selfReportedProgress < 30 ? 'bg-red-500' :
                                   review.selfReportedProgress < 70 ? 'bg-yellow-500' :
                                   'bg-green-500'
@@ -1059,12 +1084,13 @@ const PerformanceReviews = () => {
                       )}
                     </td>
 
+                    {/* Progress (Supervisor) cell - match sizing */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-1 mr-4">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-38 md:w-50 flex-shrink-0 mr-4">
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                             <div 
-                              className={`h-2 rounded-full ${
+                              className={`h-1.5 rounded-full ${
                                 review.progress < 30 ? 'bg-red-500' : 
                                 review.progress < 70 ? 'bg-yellow-500' : 
                                 'bg-green-500'
