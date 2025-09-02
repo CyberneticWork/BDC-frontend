@@ -661,6 +661,22 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="lms" action="view">
                 <LMS />
               </ProtectedComponent>
+            ) : activeItem === "lmsDashboard" ? (
+              <ProtectedComponent module="lms" action="view">
+                <LMS initialView="dashboard" />
+              </ProtectedComponent>
+            ) : activeItem === "manageExams" ? (
+              <ProtectedComponent module="manageExams" action="view">
+                <LMS initialView="exams" />
+              </ProtectedComponent>
+            ) : activeItem === "manageCourses" ? (
+              <ProtectedComponent module="manageCourses" action="view">
+                <LMS initialView="manage" />
+              </ProtectedComponent>
+            ) : activeItem === "myProgress" ? (
+              <ProtectedComponent module="myProgress" action="view">
+                <LMS initialView="progress" />
+              </ProtectedComponent>
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">

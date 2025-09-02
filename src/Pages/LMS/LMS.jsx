@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BookOpen,
   Award,
@@ -14,10 +14,17 @@ import ManageCourses from "./ManageCourses";
 import ExamManagement from "./ExamManagement";
 import TakeExam from "./TakeExam";
 
-const LMS = () => {
-  const [currentView, setCurrentView] = useState("dashboard"); // 'dashboard', 'course', 'progress', 'manage', 'exams', 'takeExam'
+const LMS = ({ initialView }) => {
+  const [currentView, setCurrentView] = useState(initialView || "dashboard"); // 'dashboard', 'course', 'progress', 'manage', 'exams', 'takeExam'
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [selectedExamId, setSelectedExamId] = useState(null);
+
+  // Update currentView when initialView prop changes
+  useEffect(() => {
+    if (initialView) {
+      setCurrentView(initialView);
+    }
+  }, [initialView]);
 
   const handleViewCourse = (courseId) => {
     setSelectedCourseId(courseId);
