@@ -22,12 +22,36 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
+  // Keep permissions in sync if user's role changes (e.g., after re-login)
+  useEffect(() => {
+    if (user && user.role) {
+      setUserPermissions(permissions[user.role] || {});
+    } else {
+      setUserPermissions({});
+    }
+  }, [user?.role]);
+
+  // Allow app code to push a new user into context after login/register
+  const setAuthUser = (newUser) => {
+    setUser(newUser);
+    const role = newUser?.role;
+    setUserPermissions(role ? permissions[role] || {} : {});
+  };
+
+  // Clear auth state on logout
+  const clearAuth = () => {
+    setUser(null);
+    setUserPermissions({});
+  };
+
   const hasPermission = (module, action) => {
     return userPermissions[module]?.[action] || false;
   };
 
   return (
-    <AuthContext.Provider value={{ user, userPermissions, hasPermission }}>
+    <AuthContext.Provider
+      value={{ user, userPermissions, hasPermission, setAuthUser, clearAuth }}
+    >
       {children}
     </AuthContext.Provider>
   );

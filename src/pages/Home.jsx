@@ -9,12 +9,14 @@ import {
   clearUser,
 } from "../services/UserService";
 import { useNavigate, useLocation } from "react-router-dom"; // << added
+import { useAuth } from "../contexts/AuthContext";
 
 // Home Page (Landing + Auth)
 function Home() {
   const [user, setUser] = useState(getUser());
   const navigate = useNavigate(); // << added
   const location = useLocation();
+  const { setAuthUser, clearAuth } = useAuth();
 
   // Try to load user on mount (if token exists)
   useEffect(() => {
@@ -46,6 +48,8 @@ function Home() {
       const userData = await loadUser();
       setUser(userData);
       storeUser(userData);
+      // also update AuthContext so permissions recalc without a full refresh
+      setAuthUser(userData);
       // After successful login, navigate to previous attempted path if any,
       // otherwise go to /dashboard
       const dest = (location.state && location.state.from) || "/dashboard";
@@ -53,6 +57,7 @@ function Home() {
     } catch {
       setUser(null);
       clearUser();
+      clearAuth();
     }
   };
 
@@ -65,6 +70,7 @@ function Home() {
     }
     clearUser(); // Clear user from localStorage
     setUser(null); // Update state to trigger re-render
+    clearAuth(); // Clear user and permissions in context
     navigate("/", { replace: true }); // << navigate back to home/login
   };
 
