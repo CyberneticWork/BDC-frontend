@@ -244,7 +244,8 @@ const UserManagement = () => {
   // Updated roles to match backend structure
   const [roles, setRoles] = useState([
     { id: "admin", name: "Administrator" },
-    { id: "employee", name: "Employee" },
+    { id: "supervisor", name: "Supervisor" },
+    { id: "hr", name: "HR" },
     { id: "user", name: "User" },
   ]);
 
@@ -313,7 +314,7 @@ const UserManagement = () => {
       setErrors(validationErrors);
       return;
     }
-
+console.log("Submitting form data:", currentUser, formData);
     try {
       if (currentUser) {
         // Update existing user
