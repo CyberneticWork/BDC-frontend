@@ -182,7 +182,8 @@ const EmployeeKPIView = () => {
                     author: currentEmployee.name,
                     documentName: progressData.documentName,
                     documentSize: progressData.documentSize,
-                    documentType: progressData.documentType
+                    documentType: progressData.documentType,
+                    progressPercentage: progressData.progressPercentage // Add this line
                   }
                 ]
               };
@@ -516,6 +517,29 @@ const EmployeeKPIView = () => {
                                   </span>
                                 </div>
                               )}
+                              
+                              {/* Add self-reported progress visualization here */}
+                              {latestUpdate.progressPercentage !== undefined && (
+                                <div className="mt-1 mb-2">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-600 font-medium flex items-center gap-1">
+                                      <BarChart3 className="h-3 w-3 text-gray-500" />
+                                      Self-reported progress: {latestUpdate.progressPercentage}%
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                    <div 
+                                      className={`h-1.5 rounded-full ${
+                                        latestUpdate.progressPercentage < 30 ? 'bg-red-500' : 
+                                        latestUpdate.progressPercentage < 70 ? 'bg-yellow-500' : 
+                                        'bg-green-500'
+                                      }`}
+                                      style={{ width: `${latestUpdate.progressPercentage}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )}
+                              
                               <p className="text-sm text-gray-800">{latestUpdate.note}</p>
                               <p className="text-xs text-gray-500 mt-1">
                                 {new Date(latestUpdate.date).toLocaleString()}

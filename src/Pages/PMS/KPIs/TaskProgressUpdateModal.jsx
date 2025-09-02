@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { X, Loader2, Upload, File, AlertCircle, Clock, Calendar } from "lucide-react";
+import { X, Loader2, Upload, File, AlertCircle, Clock, Calendar, BarChart } from "lucide-react";
 
 export const TaskProgressUpdateModal = ({ 
   isOpen, 
@@ -13,6 +13,7 @@ export const TaskProgressUpdateModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [progressPercentage, setProgressPercentage] = useState(0); // New state for manual progress
   const fileInputRef = useRef(null);
 
   if (!isOpen || !task) return null;
@@ -78,10 +79,12 @@ export const TaskProgressUpdateModal = ({
         documentName: selectedFile.name,
         documentSize: (selectedFile.size / 1024).toFixed(1) + " KB",
         documentType: selectedFile.type,
+        progressPercentage, // Add the manual progress percentage
       });
       
       setProgressNote("");
       setSelectedFile(null);
+      setProgressPercentage(0); // Reset progress percentage
       onClose();
     } catch (error) {
       console.error("Error updating progress:", error);
@@ -214,6 +217,44 @@ export const TaskProgressUpdateModal = ({
                 )}
               </div>
             </div>
+            
+            {/* Manual Progress Input (NEW) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <BarChart className="h-4 w-4 text-gray-500" />
+                Your Task Progress
+              </label>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Indicate your progress on this task:</span>
+                  <span className="text-sm font-bold text-indigo-600">{progressPercentage}%</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={progressPercentage}
+                    onChange={(e) => setProgressPercentage(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                  <div 
+                    className={`h-2.5 rounded-full ${
+                      progressPercentage < 30 ? 'bg-red-500' : 
+                      progressPercentage < 70 ? 'bg-yellow-500' : 
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${progressPercentage}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Drag the slider to indicate your estimated completion percentage for this task.
+                </p>
+              </div>
+            </div>
 
             {/* Progress note */}
             <div>
@@ -256,6 +297,26 @@ export const TaskProgressUpdateModal = ({
                               </span>
                             </div>
                           )}
+                          
+                          {/* Show progress percentage if available */}
+                          {update.progressPercentage !== undefined && (
+                            <div className="mt-1 mb-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500">Progress: {update.progressPercentage}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                <div 
+                                  className={`h-1.5 rounded-full ${
+                                    update.progressPercentage < 30 ? 'bg-red-500' : 
+                                    update.progressPercentage < 70 ? 'bg-yellow-500' : 
+                                    'bg-green-500'
+                                  }`}
+                                  style={{ width: `${update.progressPercentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                          
                           <p className="text-sm text-gray-800 mt-1">{update.note}</p>
                           <p className="text-xs text-gray-500 mt-1">
                             {new Date(update.date).toLocaleString()}
