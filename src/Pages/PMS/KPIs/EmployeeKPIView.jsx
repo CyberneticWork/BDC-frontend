@@ -551,6 +551,31 @@ const EmployeeKPIView = () => {
                         return <p className="text-sm text-gray-600">No documents submitted yet</p>;
                       }
                     })()}
+                    
+                    {/* Performance Metrics Highlights - new section */}
+                    {myUpdates.length > 0 && myUpdates[myUpdates.length - 1].performanceMetrics && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                          {/* Show top 4 metrics */}
+                          {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 4)
+                            .map(([key, value]) => {
+                              // Convert camelCase to display format
+                              const displayName = key.replace(/([A-Z])/g, ' $1')
+                                .replace(/^./, str => str.toUpperCase());
+                                
+                              return (
+                                <div key={key} className="flex justify-between">
+                                  <span className="text-xs text-gray-600">{displayName}:</span>
+                                  <span className="text-xs font-medium text-gray-900">{value}%</span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
