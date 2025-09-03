@@ -21,6 +21,7 @@ import {
   Award,
   ClipboardCheck,
   PieChart,
+  BookOpen, // Add for LMS
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -41,6 +42,7 @@ const Sidebar = ({
     salaryProcess: false,
     timeAttendance: false,
     pms: false,
+    lms: false,
   });
 
   const menuItems = [
@@ -129,6 +131,18 @@ const Sidebar = ({
         // { id: "reports", name: "Performance Reports", icon: BarChart3 },
       ],
     },
+    {
+      id: "lms",
+      name: "Learning Management",
+      icon: BookOpen,
+      badge: null,
+      subItems: [
+        { id: "lmsDashboard", name: "LMS Dashboard", icon: Home },
+        { id: "manageExams", name: "Manage Exams", icon: FileText },
+        { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
+        { id: "myProgress", name: "My Progress", icon: BarChart3 },
+      ],
+    },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
   ];
@@ -188,6 +202,9 @@ const Sidebar = ({
   };
   const togglePMS = () => {
     setExpandedItems((prev) => ({ ...prev, pms: !prev.pms }));
+  };
+  const toggleLMS = () => {
+    setExpandedItems((prev) => ({ ...prev, lms: !prev.lms }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -284,6 +301,7 @@ const Sidebar = ({
                           expanded: expandedItems.hrMaster,
                         },
                         pms: { toggle: togglePMS, expanded: expandedItems.pms },
+                        lms: { toggle: toggleLMS, expanded: expandedItems.lms },
                       };
                       const top = topDropdowns[item.id] || {
                         toggle: () => {},
@@ -354,6 +372,8 @@ const Sidebar = ({
                           ? expandedItems.hrMaster
                           : item.id === "pms"
                           ? expandedItems.pms
+                          : item.id === "lms"
+                          ? expandedItems.lms
                           : false;
                       if (!topExpanded) return null;
                       return (

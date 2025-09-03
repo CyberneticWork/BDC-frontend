@@ -49,6 +49,9 @@ import UserManagement from "@dashboard/UserManagement";
 import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
 import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
 
+// Import LMS components
+import LMS from "../LMS/LMS";
+
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
@@ -653,6 +656,26 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "myKPIs" ? (
               <ProtectedComponent module="myKPIs" action="view">
                 <EmployeeKPIView />
+              </ProtectedComponent>
+            ) : activeItem === "lms" ? (
+              <ProtectedComponent module="lms" action="view">
+                <LMS />
+              </ProtectedComponent>
+            ) : activeItem === "lmsDashboard" ? (
+              <ProtectedComponent module="lms" action="view">
+                <LMS initialView="dashboard" />
+              </ProtectedComponent>
+            ) : activeItem === "manageExams" ? (
+              <ProtectedComponent module="manageExams" action="view">
+                <LMS initialView="exams" />
+              </ProtectedComponent>
+            ) : activeItem === "manageCourses" ? (
+              <ProtectedComponent module="manageCourses" action="view">
+                <LMS initialView="manage" />
+              </ProtectedComponent>
+            ) : activeItem === "myProgress" ? (
+              <ProtectedComponent module="myProgress" action="view">
+                <LMS initialView="progress" />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">
