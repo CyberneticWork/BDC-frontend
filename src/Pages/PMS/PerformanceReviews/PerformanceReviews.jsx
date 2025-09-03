@@ -5,7 +5,8 @@ import {
   Plus, 
   Search, 
   Star, 
-  ChevronDown, 
+  ChevronDown,
+  ChevronUp, // added missing import
   CheckSquare, 
   Clock,
   FileText,
@@ -30,10 +31,34 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   const [comments, setComments] = useState(review?.supervisorComments || '');
   const [statusState, setStatusState] = useState(review?.status || 'In Progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+  
+  // Add performance metrics state
+  const [performanceMetrics, setPerformanceMetrics] = useState({
+    jobKnowledge: 0,
+    qualityOfWork: 0,
+    productivity: 0,
+    communicationSkills: 0,
+    teamwork: 0,
+    behaviorAtWork: 0,
+    problemSolving: 0,
+    attendance: 0,
+    adaptability: 0,
+    selfDevelopment: 0,
+    discipline: 0,
+    adherenceToGuidelines: 0
+  });
 
   // keep only the grades you mentioned
   const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
   const statusOptions = ['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'];
+
+  // Calculate overall progress from the performance metrics
+  const calculateOverallProgress = () => {
+    const values = Object.values(performanceMetrics);
+    const sum = values.reduce((acc, val) => acc + val, 0);
+    return Math.round(sum / values.length);
+  };
 
   // sync local state when review prop changes (modal reopened with different review)
   useEffect(() => {
@@ -42,8 +67,95 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       setGrade(review.grade || '');
       setComments(review.supervisorComments || '');
       setStatusState(review.status || 'In Progress');
+      
+      // Load performance metrics if they exist
+      if (review.performanceMetrics) {
+        setPerformanceMetrics(review.performanceMetrics);
+      } else {
+        // Reset metrics if not present
+        setPerformanceMetrics({
+          jobKnowledge: 0,
+          qualityOfWork: 0,
+          productivity: 0,
+          communicationSkills: 0,
+          teamwork: 0,
+          behaviorAtWork: 0,
+          problemSolving: 0,
+          attendance: 0,
+          adaptability: 0,
+          selfDevelopment: 0,
+          discipline: 0,
+          adherenceToGuidelines: 0
+        });
+      }
     }
   }, [review]);
+
+  // Handle individual metric changes
+  const handleMetricChange = (metric, value) => {
+    setPerformanceMetrics(prev => {
+      const updated = {
+        ...prev,
+        [metric]: parseInt(value, 10)
+      };
+      
+      // Calculate overall progress immediately from updated metrics
+      const vals = Object.values(updated);
+      const sum = vals.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0);
+      const overall = vals.length ? Math.round(sum / vals.length) : 0;
+      setProgress(overall);
+
+      return updated;
+    });
+  };
+
+  // Reset metrics helper
+  const resetMetrics = () => {
+    const zeroed = {
+      jobKnowledge: 0,
+      qualityOfWork: 0,
+      productivity: 0,
+      communicationSkills: 0,
+      teamwork: 0,
+      behaviorAtWork: 0,
+      problemSolving: 0,
+      attendance: 0,
+      adaptability: 0,
+      selfDevelopment: 0,
+      discipline: 0,
+      adherenceToGuidelines: 0
+    };
+    setPerformanceMetrics(zeroed);
+    setProgress(0);
+  };
+
+  // Apply self-reported metrics from the review (if present)
+  const applySelfReportedMetrics = () => {
+    if (review?.performanceMetrics) {
+      setPerformanceMetrics(review.performanceMetrics);
+      // calculate overall and set immediately
+      const vals = Object.values(review.performanceMetrics);
+      const sum = vals.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0);
+      setProgress(vals.length ? Math.round(sum / vals.length) : 0);
+      setShowCategoryDetails(true);
+    } else {
+      alert("No self-reported performance metrics available for this review.");
+    }
+  };
+
+  const handleHeaderKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setShowCategoryDetails(prev => !prev);
+    }
+  };
+
+  // ensure dropdown is closed when modal opens freshly
+  useEffect(() => {
+    if (isOpen) {
+      setShowCategoryDetails(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen || !review) return null;
 
@@ -62,7 +174,8 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         grade: grade,
         supervisorComments: comments,
         status: statusState,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        performanceMetrics: performanceMetrics // Include performance metrics
       };
       
       // In a real app, update review on server and optionally update KPI status:
@@ -90,6 +203,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close review modal"
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
           >
             <X size={20} />
@@ -99,31 +213,291 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Progress Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Completion Progress
-            </label>
-            <div className="flex items-center gap-4">
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={progress} 
-                onChange={(e) => setProgress(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <span className="text-sm font-medium text-gray-700 w-12">{progress}%</span>
+            {/* Accessible header toggle + quick actions */}
+            <div className="flex items-center justify-between mb-3">
+              <button
+                type="button"
+                onClick={() => setShowCategoryDetails(prev => !prev)}
+                onKeyDown={handleHeaderKeyDown}
+                aria-expanded={showCategoryDetails}
+                className="flex items-center gap-2 text-sm font-medium text-gray-700 px-2 py-1 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                title="Toggle performance metrics"
+              >
+                <BarChart className="h-4 w-4 text-gray-500" />
+                Performance Metrics
+                <span className="ml-2 text-sm font-bold text-indigo-600">{progress}%</span>
+                {showCategoryDetails ? (
+                  <ChevronUp className="h-5 w-5 text-gray-500" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-gray-500" />
+                )}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={applySelfReportedMetrics}
+                  className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100"
+                  title="Load employee's self-reported metrics (if available)"
+                >
+                  Use Self-Reported
+                </button>
+                <button
+                  type="button"
+                  onClick={resetMetrics}
+                  className="text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
+                  title="Reset all metrics to 0"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
-            <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className={`h-2.5 rounded-full ${
-                  progress < 30 ? 'bg-red-500' : 
-                  progress < 70 ? 'bg-yellow-500' : 
-                  'bg-green-500'
-                }`}
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
+ 
+             <div className="bg-gray-50 p-4 rounded-lg">
+               <div className="flex items-center justify-between mb-2">
+                 <span className="text-sm font-medium text-gray-700">Overall Performance Progress:</span>
+               </div>
+               <div className="flex items-center gap-4">
+                 <div className="w-full bg-gray-200 rounded-full h-2.5">
+                   <div 
+                     className={`h-2.5 rounded-full ${
+                       progress < 30 ? 'bg-red-500' : 
+                       progress < 70 ? 'bg-yellow-500' : 
+                       'bg-green-500'
+                     }`}
+                     style={{ width: `${progress}%` }}
+                   ></div>
+                 </div>
+                 <span className="text-sm font-medium text-gray-700 w-12">{progress}%</span>
+               </div>
+
+               {showCategoryDetails && (
+                 <div className="space-y-4 pt-4 border-t border-gray-200 mt-4">
+                   <p className="text-sm text-gray-600 mb-2">
+                     Rate employee performance in each category (0-100%):
+                   </p>
+ 
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {/* Job Knowledge and Skills */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Job Knowledge and Skills: {performanceMetrics.jobKnowledge}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.jobKnowledge}
+                         onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Job Knowledge and Skills"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Quality of Work */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Quality of Work: {performanceMetrics.qualityOfWork}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.qualityOfWork}
+                         onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Quality of Work"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Productivity */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Productivity: {performanceMetrics.productivity}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.productivity}
+                         onChange={(e) => handleMetricChange('productivity', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Productivity"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Communication Skills */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Communication Skills: {performanceMetrics.communicationSkills}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.communicationSkills}
+                         onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Communication Skills"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Teamwork and Collaboration */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Teamwork and Collaboration: {performanceMetrics.teamwork}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.teamwork}
+                         onChange={(e) => handleMetricChange('teamwork', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Teamwork and Collaboration"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Behavior at work */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Behavior at Work: {performanceMetrics.behaviorAtWork}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.behaviorAtWork}
+                         onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Behavior at Work"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Problem-Solving and Decision-Making */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Problem-Solving: {performanceMetrics.problemSolving}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.problemSolving}
+                         onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Problem-Solving and Decision-Making"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Attendance and Punctuality */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Attendance and Punctuality: {performanceMetrics.attendance}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.attendance}
+                         onChange={(e) => handleMetricChange('attendance', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Attendance and Punctuality"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Adaptability and Flexibility */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Adaptability and Flexibility: {performanceMetrics.adaptability}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.adaptability}
+                         onChange={(e) => handleMetricChange('adaptability', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Adaptability and Flexibility"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Self-Development */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Self-Development: {performanceMetrics.selfDevelopment}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.selfDevelopment}
+                         onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Self-Development"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Discipline and conduct at work */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Discipline and Conduct: {performanceMetrics.discipline}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.discipline}
+                         onChange={(e) => handleMetricChange('discipline', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Discipline and conduct at work"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+
+                     {/* Adherence to the given Guidelines */}
+                     <div>
+                       <label className="block text-xs font-medium text-gray-700 mb-1">
+                         Adherence to Guidelines: {performanceMetrics.adherenceToGuidelines}%
+                       </label>
+                       <input
+                         type="range"
+                         min="0"
+                         max="100"
+                         step="5"
+                         value={performanceMetrics.adherenceToGuidelines}
+                         onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
+                         aria-label="Adherence to the given Guidelines"
+                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                       />
+                     </div>
+                   </div>
+                 </div>
+               )}
+             </div>
+           </div>
 
           {/* Supervisor selected status */}
           <div>
@@ -172,29 +546,6 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Provide feedback on performance, areas of strength, and opportunities for improvement..."
             ></textarea>
-          </div>
-
-          {/* Details Section */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Review Details</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Review Type</p>
-                <p className="font-medium">{review.type}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Review Period</p>
-                <p className="font-medium">{review.cycle}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Start Date</p>
-                <p className="font-medium">{new Date(review.startDate).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Due Date</p>
-                <p className="font-medium">{new Date(review.dueDate).toLocaleDateString()}</p>
-              </div>
-            </div>
           </div>
 
           {/* Submit Button */}

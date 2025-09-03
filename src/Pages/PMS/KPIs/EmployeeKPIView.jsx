@@ -402,13 +402,19 @@ const EmployeeKPIView = () => {
       {/* Tasks List */}
       <div className="space-y-4">
         {filteredTasks.length > 0 ? (
-          filteredTasks.map((task) => (
+          filteredTasks.map((task) => {
+            // ensure myUpdates is available to all sub-sections in this task card
+            const myUpdates = task.assigneeUpdates.find(
+              (au) => au.employeeId === parseInt(currentEmployeeId)
+            )?.updates || [];
+
+            return (
             <div
               key={task.id}
               className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
             >
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div className="flex-1">
+               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
                     <span
@@ -492,12 +498,8 @@ const EmployeeKPIView = () => {
                   {/* Latest update with document */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-xs text-gray-500 mb-2">Latest Submission</p>
-                    {(() => {
-                      const myUpdates = task.assigneeUpdates.find(
-                        au => au.employeeId === parseInt(currentEmployeeId)
-                      )?.updates || [];
-                      
-                      if (myUpdates.length > 0) {
+                    {myUpdates.length > 0 ? (
+                      (() => {
                         const latestUpdate = myUpdates[myUpdates.length - 1];
                         return (
                           <div className="flex items-start gap-3">
@@ -517,7 +519,6 @@ const EmployeeKPIView = () => {
                                   </span>
                                 </div>
                               )}
-                              
                               {/* Add self-reported progress visualization here */}
                               {latestUpdate.progressPercentage !== undefined && (
                                 <div className="mt-1 mb-2">
@@ -539,7 +540,6 @@ const EmployeeKPIView = () => {
                                   </div>
                                 </div>
                               )}
-                              
                               <p className="text-sm text-gray-800">{latestUpdate.note}</p>
                               <p className="text-xs text-gray-500 mt-1">
                                 {new Date(latestUpdate.date).toLocaleString()}
@@ -547,39 +547,39 @@ const EmployeeKPIView = () => {
                             </div>
                           </div>
                         );
-                      } else {
-                        return <p className="text-sm text-gray-600">No documents submitted yet</p>;
-                      }
-                    })()}
+                      })()
+                    ) : (
+                      <p className="text-sm text-gray-600">No documents submitted yet</p>
+                    )}
                     
                     {/* Performance Metrics Highlights - new section */}
                     {myUpdates.length > 0 && myUpdates[myUpdates.length - 1].performanceMetrics && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                          {/* Show top 4 metrics */}
-                          {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
-                            .sort((a, b) => b[1] - a[1])
-                            .slice(0, 4)
-                            .map(([key, value]) => {
-                              // Convert camelCase to display format
-                              const displayName = key.replace(/([A-Z])/g, ' $1')
-                                .replace(/^./, str => str.toUpperCase());
+                       <div className="mt-3 pt-3 border-t border-gray-200">
+                         <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
+                         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                           {/* Show top 4 metrics */}
+                           {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
+                             .sort((a, b) => b[1] - a[1])
+                             .slice(0, 4)
+                             .map(([key, value]) => {
+                               // Convert camelCase to display format
+                               const displayName = key.replace(/([A-Z])/g, ' $1')
+                                 .replace(/^./, str => str.toUpperCase());
                                 
-                              return (
-                                <div key={key} className="flex justify-between">
-                                  <span className="text-xs text-gray-600">{displayName}:</span>
-                                  <span className="text-xs font-medium text-gray-900">{value}%</span>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
+                               return (
+                                 <div key={key} className="flex justify-between">
+                                   <span className="text-xs text-gray-600">{displayName}:</span>
+                                   <span className="text-xs font-medium text-gray-900">{value}%</span>
+                                 </div>
+                               );
+                             })}
+                         </div>
+                       </div>
+                     )}
                   </div>
-                </div>
-                
-                <div className="flex flex-row lg:flex-col gap-2">
+                 </div>
+                 
+                 <div className="flex flex-row lg:flex-col gap-2">
                   <button
                     onClick={() => handleOpenViewModal(task)}
                     className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
@@ -597,18 +597,19 @@ const EmployeeKPIView = () => {
                 </div>
               </div>
             </div>
-          ))
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-            <p className="text-gray-600 mb-6">
-              {searchTerm || statusFilter !== "all"
-                ? "Try adjusting your search criteria or filters"
-                : "You don't have any assigned KPI tasks yet"}
-            </p>
-          </div>
-        )}
+            );
+          })
+         ) : (
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+             <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+             <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+             <p className="text-gray-600 mb-6">
+               {searchTerm || statusFilter !== "all"
+                 ? "Try adjusting your search criteria or filters"
+                 : "You don't have any assigned KPI tasks yet"}
+             </p>
+           </div>
+         )}
       </div>
     </div>
   );
