@@ -6,7 +6,7 @@ import {
   Search, 
   Star, 
   ChevronDown,
-  ChevronUp, // added missing import
+  ChevronUp,
   CheckSquare, 
   Clock,
   FileText,
@@ -20,7 +20,9 @@ import {
   ListChecks,
   Award,
   Loader2,
-  BarChart // added for self-reported progress display
+  BarChart,
+  User, // Add this import
+  RefreshCw // Add this import
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
 
@@ -213,291 +215,369 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Progress Section */}
           <div>
-            {/* Accessible header toggle + quick actions */}
-            <div className="flex items-center justify-between mb-3">
-              <button
-                type="button"
-                onClick={() => setShowCategoryDetails(prev => !prev)}
-                onKeyDown={handleHeaderKeyDown}
-                aria-expanded={showCategoryDetails}
-                className="flex items-center gap-2 text-sm font-medium text-gray-700 px-2 py-1 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                title="Toggle performance metrics"
-              >
-                <BarChart className="h-4 w-4 text-gray-500" />
-                Performance Metrics
-                <span className="ml-2 text-sm font-bold text-indigo-600">{progress}%</span>
-                {showCategoryDetails ? (
-                  <ChevronUp className="h-5 w-5 text-gray-500" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-gray-500" />
-                )}
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={applySelfReportedMetrics}
-                  className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100"
-                  title="Load employee's self-reported metrics (if available)"
-                >
-                  Use Self-Reported
-                </button>
-                <button
-                  type="button"
-                  onClick={resetMetrics}
-                  className="text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                  title="Reset all metrics to 0"
-                >
-                  Reset
-                </button>
+            {/* Enhanced Performance Metrics Header */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <BarChart className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Performance Metrics</h3>
+                    <p className="text-sm text-gray-600">Rate employee performance across key areas</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {/* Current Progress Display */}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-indigo-600">{progress}%</div>
+                    <div className="text-xs text-gray-500">Overall Score</div>
+                  </div>
+                  
+                  {/* Enhanced Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryDetails(prev => !prev)}
+                    onKeyDown={handleHeaderKeyDown}
+                    aria-expanded={showCategoryDetails}
+                    aria-controls="performance-metrics-panel"
+                    className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                    title={showCategoryDetails ? "Hide detailed metrics" : "Show detailed metrics"}
+                  >
+                    <span className="text-sm font-medium text-gray-700">
+                      {showCategoryDetails ? "Hide Details" : "Rate Performance"}
+                    </span>
+                    <div className={`transform transition-transform duration-200 ${showCategoryDetails ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="h-4 w-4 text-indigo-600" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Quick Actions Row */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-indigo-200">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={applySelfReportedMetrics}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-md hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    title="Load employee's self-reported metrics (if available)"
+                  >
+                    <User className="h-4 w-4" />
+                    Use Self-Reported
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetMetrics}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                    title="Reset all metrics to 0"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Reset
+                  </button>
+                </div>
+                
+                {/* Progress Bar Preview */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600">Progress:</span>
+                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        progress < 30 ? 'bg-red-500' : 
+                        progress < 70 ? 'bg-yellow-500' : 
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
- 
-             <div className="bg-gray-50 p-4 rounded-lg">
-               <div className="flex items-center justify-between mb-2">
-                 <span className="text-sm font-medium text-gray-700">Overall Performance Progress:</span>
-               </div>
-               <div className="flex items-center gap-4">
-                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                   <div 
-                     className={`h-2.5 rounded-full ${
-                       progress < 30 ? 'bg-red-500' : 
-                       progress < 70 ? 'bg-yellow-500' : 
-                       'bg-green-500'
-                     }`}
-                     style={{ width: `${progress}%` }}
-                   ></div>
-                 </div>
-                 <span className="text-sm font-medium text-gray-700 w-12">{progress}%</span>
-               </div>
 
-               {showCategoryDetails && (
-                 <div className="space-y-4 pt-4 border-t border-gray-200 mt-4">
-                   <p className="text-sm text-gray-600 mb-2">
-                     Rate employee performance in each category (0-100%):
-                   </p>
- 
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {/* Job Knowledge and Skills */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Job Knowledge and Skills: {performanceMetrics.jobKnowledge}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.jobKnowledge}
-                         onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Job Knowledge and Skills"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+            {/* Collapsible Metrics Panel */}
+            <div 
+              id="performance-metrics-panel"
+              className={`bg-gray-50 rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 ${
+                showCategoryDetails ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="p-6">
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-2">Detailed Performance Categories</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Adjust the sliders below to rate the employee's performance in each category (0-100%):
+                  </p>
+                </div>
 
-                     {/* Quality of Work */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Quality of Work: {performanceMetrics.qualityOfWork}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.qualityOfWork}
-                         onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Quality of Work"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Job Knowledge and Skills */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Job Knowledge and Skills: <span className="font-bold text-indigo-600">{performanceMetrics.jobKnowledge}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.jobKnowledge}
+                      onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Job Knowledge and Skills"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
 
-                     {/* Productivity */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Productivity: {performanceMetrics.productivity}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.productivity}
-                         onChange={(e) => handleMetricChange('productivity', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Productivity"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Quality of Work */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Quality of Work: <span className="font-bold text-indigo-600">{performanceMetrics.qualityOfWork}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.qualityOfWork}
+                      onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Quality of Work"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
 
-                     {/* Communication Skills */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Communication Skills: {performanceMetrics.communicationSkills}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.communicationSkills}
-                         onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Communication Skills"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Productivity */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Productivity: <span className="font-bold text-indigo-600">{performanceMetrics.productivity}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.productivity}
+                      onChange={(e) => handleMetricChange('productivity', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Productivity"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
 
-                     {/* Teamwork and Collaboration */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Teamwork and Collaboration: {performanceMetrics.teamwork}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.teamwork}
-                         onChange={(e) => handleMetricChange('teamwork', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Teamwork and Collaboration"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Communication Skills */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Communication Skills: <span className="font-bold text-indigo-600">{performanceMetrics.communicationSkills}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.communicationSkills}
+                      onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Communication Skills"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
 
-                     {/* Behavior at work */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Behavior at Work: {performanceMetrics.behaviorAtWork}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.behaviorAtWork}
-                         onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Behavior at Work"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Teamwork and Collaboration */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Teamwork and Collaboration: <span className="font-bold text-indigo-600">{performanceMetrics.teamwork}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.teamwork}
+                      onChange={(e) => handleMetricChange('teamwork', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Teamwork and Collaboration"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
 
-                     {/* Problem-Solving and Decision-Making */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Problem-Solving: {performanceMetrics.problemSolving}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.problemSolving}
-                         onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Problem-Solving and Decision-Making"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Behavior at work */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Behavior at Work: <span className="font-bold text-indigo-600">{performanceMetrics.behaviorAtWork}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.behaviorAtWork}
+                      onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Behavior at Work"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
 
-                     {/* Attendance and Punctuality */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Attendance and Punctuality: {performanceMetrics.attendance}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.attendance}
-                         onChange={(e) => handleMetricChange('attendance', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Attendance and Punctuality"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Problem-Solving and Decision-Making */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Problem-Solving: <span className="font-bold text-indigo-600">{performanceMetrics.problemSolving}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.problemSolving}
+                      onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Problem-Solving and Decision-Making"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
 
-                     {/* Adaptability and Flexibility */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Adaptability and Flexibility: {performanceMetrics.adaptability}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.adaptability}
-                         onChange={(e) => handleMetricChange('adaptability', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Adaptability and Flexibility"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Attendance and Punctuality */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Attendance and Punctuality: <span className="font-bold text-indigo-600">{performanceMetrics.attendance}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.attendance}
+                      onChange={(e) => handleMetricChange('attendance', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Attendance and Punctuality"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
 
-                     {/* Self-Development */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Self-Development: {performanceMetrics.selfDevelopment}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.selfDevelopment}
-                         onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Self-Development"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Adaptability and Flexibility */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Adaptability and Flexibility: <span className="font-bold text-indigo-600">{performanceMetrics.adaptability}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.adaptability}
+                      onChange={(e) => handleMetricChange('adaptability', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Adaptability and Flexibility"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
 
-                     {/* Discipline and conduct at work */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Discipline and Conduct: {performanceMetrics.discipline}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.discipline}
-                         onChange={(e) => handleMetricChange('discipline', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Discipline and conduct at work"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
+                  {/* Self-Development */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Self-Development: <span className="font-bold text-indigo-600">{performanceMetrics.selfDevelopment}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.selfDevelopment}
+                      onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Self-Development"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
 
-                     {/* Adherence to the given Guidelines */}
-                     <div>
-                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                         Adherence to Guidelines: {performanceMetrics.adherenceToGuidelines}%
-                       </label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="100"
-                         step="5"
-                         value={performanceMetrics.adherenceToGuidelines}
-                         onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
-                         onClick={(e) => e.stopPropagation()}
-                         aria-label="Adherence to the given Guidelines"
-                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                       />
-                     </div>
-                   </div>
-                 </div>
-               )}
-             </div>
-           </div>
+                  {/* Discipline and conduct at work */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Discipline and Conduct: <span className="font-bold text-indigo-600">{performanceMetrics.discipline}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.discipline}
+                      onChange={(e) => handleMetricChange('discipline', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Discipline and conduct at work"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Adherence to the given Guidelines */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Adherence to Guidelines: <span className="font-bold text-indigo-600">{performanceMetrics.adherenceToGuidelines}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.adherenceToGuidelines}
+                      onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Adherence to the given Guidelines"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Supervisor selected status */}
           <div>
