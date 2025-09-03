@@ -37,6 +37,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     department: "",
     category: "",
     priority: "medium",
+    creatorRole: "", // New field for creator role
     ...initialData,
   });
 
@@ -253,6 +254,29 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
+
+             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Creator Role*
+              </label>
+              <select
+                name="creatorRole"
+                value={formData.creatorRole}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
+              >
+                <option value="">Select Creator Role</option>
+                <option value="Management">Management</option>
+                <option value="Senior Management">Senior Management</option>
+                <option value="Executive">Executive</option>
+                <option value="Team Lead">Team Lead</option>
+                <option value="Supervisor">Supervisor</option>
+                <option value="Department Head">Department Head</option>
+                <option value="Director">Director</option>
+              </select>
+            </div>
+          </div>
 
             {/* Company Selection - NEW */}
             <div>
@@ -475,7 +499,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 ))}
               </div>
             </div>
-          </div>
+
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
             <button
@@ -553,7 +577,14 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, kpiName, isLoadin
 const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   if (!isOpen || !kpi) return null;
 
-  const getEmployee = (id) => employees.find(e => e.id === id) || { id, name: "Unknown", department: "" };
+  const getEmployee = (id) => {
+    const normalizedId = typeof id === "string" ? parseInt(id, 10) : id;
+    // try numeric match first, then fallback to string match
+    return (
+      employees.find(e => e.id === normalizedId || String(e.id) === String(id)) ||
+      { id: normalizedId, name: "Unknown", department: "" }
+    );
+  };
   const updatesFor = (empId) => (kpi.assigneeUpdates || []).find(u => u.employeeId === empId);
 
   const getStatusBadge = (status) => {
@@ -861,21 +892,21 @@ const KPIs = () => {
       unit: "%",
       trend: "up",
       status: "active",
-      // keep human-friendly department name for table display
+      progress: 25,
       department: "Customer Service",
-      // new fields for modal prefill (company id and department id)
       company: "1",
       departmentId: "101",
       companyName: "Acme Corporation",
       departmentName: "Customer Service",
-      owner: "Sarah Johnson",
+      owner: "", // owner cleared — UI shows creator role instead
+      creator: { name: "Sarah Johnson", role: "Team Lead", date: "2024-01-01T09:00:00Z" },
       assignees: ["1"],
       assigneeUpdates: [
         {
           employeeId: 1,
           updates: [
-            { date: "2024-01-05T09:00:00Z", note: "Initial assignment", author: "Manager" },
-            { date: "2024-02-01T14:30:00Z", note: "Submitted first draft of report", author: "Sarah Johnson" },
+            { date: "2024-01-05T09:00:00Z", note: "Initial assignment", author: "Manager", progressPercentage: 0 },
+            { date: "2024-02-01T14:30:00Z", note: "Submitted first draft of report", author: "Sarah Johnson", progressPercentage: 20 },
           ]
         }
       ],
@@ -894,21 +925,27 @@ const KPIs = () => {
       unit: "%",
       trend: "up",
       status: "active",
+      progress: 45,
       department: "Sales",
       company: "2",
       departmentId: "201",
       companyName: "Globex Industries",
       departmentName: "Sales",
-      owner: "Mike Chen",
+      owner: "Executive",
+      creator: { name: "Mike Chen", role: "Supervisor", date: "2024-01-10T11:00:00Z" },
       assignees: ["2","4"],
       assigneeUpdates: [
         {
           employeeId: 2,
-          updates: [{ date: "2024-01-12T11:00:00Z", note: "Provided Q4 numbers", author: "Mike Chen" }]
+          updates: [
+            { date: "2024-01-12T11:00:00Z", note: "Provided Q4 numbers", author: "Mike Chen", progressPercentage: 40 }
+          ]
         },
         {
           employeeId: 4,
-          updates: [{ date: "2024-01-15T10:00:00Z", note: "Assisted with data cleanup", author: "John Smith" }]
+          updates: [
+            { date: "2024-01-15T10:00:00Z", note: "Assisted with data cleanup", author: "John Smith", progressPercentage: 10 }
+          ]
         }
       ],
       startDate: "2023-11-01",
@@ -926,19 +963,21 @@ const KPIs = () => {
       unit: "%",
       trend: "down",
       status: "attention",
+      progress: 10,
       department: "HR",
       company: "3",
       departmentId: "301",
       companyName: "Wayne Enterprises",
       departmentName: "HR",
-      owner: "Emma Davis",
+      owner: "",
+      creator: { name: "Emma Davis", role: "Department Head", date: "2024-01-08T09:00:00Z" },
       assignees: ["3"],
       assigneeUpdates: [
         {
           employeeId: 3,
           updates: [
-            { date: "2024-01-10T09:00:00Z", note: "Reviewed exit interviews", author: "Emma Davis" },
-            { date: "2024-02-01T14:30:00Z", note: "Identified trends in departures", author: "Emma Davis" },
+            { date: "2024-01-10T09:00:00Z", note: "Reviewed exit interviews", author: "Emma Davis", progressPercentage: 5 },
+            { date: "2024-02-01T14:30:00Z", note: "Identified trends in departures", author: "Emma Davis", progressPercentage: 10 },
           ]
         }
       ],
@@ -957,19 +996,21 @@ const KPIs = () => {
       unit: "%",
       trend: "up",
       status: "active",
+      progress: 80,
       department: "Operations",
       company: "1",
       departmentId: "103",
       companyName: "Acme Corporation",
       departmentName: "Operations",
-      owner: "John Smith",
+      owner: "Supervisor",
+      creator: { name: "John Smith", role: "Supervisor", date: "2024-01-02T10:00:00Z" },
       assignees: ["4"],
       assigneeUpdates: [
         {
           employeeId: 4,
           updates: [
-            { date: "2024-01-15T10:00:00Z", note: "Project A completed", author: "John Smith" },
-            { date: "2024-01-20T10:00:00Z", note: "Project B on track", author: "John Smith" },
+            { date: "2024-01-15T10:00:00Z", note: "Project A completed", author: "John Smith", progressPercentage: 60 },
+            { date: "2024-01-20T10:00:00Z", note: "Project B on track", author: "John Smith", progressPercentage: 80 },
           ]
         }
       ],
@@ -978,6 +1019,32 @@ const KPIs = () => {
       lastUpdated: "2024-01-20T10:00:00Z",
       frequency: "Weekly",
       category: "Operations",
+    },
+    // Example new KPI with zero-initialized progress
+    {
+      id: 5,
+      name: "New Product Adoption",
+      description: "Track adoption of the new product feature",
+      target: 1000,
+      current: 0,
+      unit: "%",
+      trend: "up",
+      status: "active",
+      progress: 0,
+      department: "Product",
+      company: "2",
+      departmentId: "202",
+      companyName: "Globex Industries",
+      departmentName: "Product",
+      owner: "",
+      creator: { name: "Linda Perez", role: "Product Manager", date: new Date().toISOString() },
+      assignees: [],
+      assigneeUpdates: [],
+      startDate: new Date().toISOString().slice(0,10),
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().slice(0,10),
+      lastUpdated: new Date().toISOString(),
+      frequency: "Monthly",
+      category: "Product",
     },
   ];
 
@@ -1047,14 +1114,27 @@ const KPIs = () => {
         unit: "%",
         trend: "up",
         status: "active",
+        progress: 0, // Initialize progress to 0
         department: firstAssignee === 1 ? "Customer Service" :
                    firstAssignee === 2 ? "Sales" :
                    firstAssignee === 3 ? "HR" : "Operations",
-        owner: firstAssignee ? (employees.find(e => e.id === firstAssignee)?.name || "") : "",
+        // Do not store a username in owner column; show creator.role instead
+        owner: "",
+        // store creator role from the modal select
+        creator: {
+          name: "", // keep name empty if you only want to display role
+          role: formData.creatorRole || "",
+          date: new Date().toISOString()
+        },
         assignees: (formData.assignees || []).map(s => s.toString()),
         assigneeUpdates: (formData.assignees || []).map(s => ({
           employeeId: parseInt(s),
-          updates: [{ date: new Date().toISOString(), note: "Task assigned", author: "System" }]
+          updates: [{ 
+            date: new Date().toISOString(), 
+            note: "Task assigned", 
+            author: "System",
+            progressPercentage: 0 // Initialize progress percentage to 0
+          }]
         })),
         startDate: formData.startDate,
         endDate: formData.endDate,
@@ -1063,7 +1143,12 @@ const KPIs = () => {
         category: firstAssignee === 1 ? "Customer" :
                  firstAssignee === 2 ? "Financial" :
                  firstAssignee === 3 ? "HR" : "Operations",
+        completionStatus: "not-started", // Add completion status for employee view
+        documentCount: 0, // Initialize document count for employee view
       };
+
+      // Create a corresponding performance review entry
+      createPerformanceReviewEntry(newKpi);
 
       setKpis(prev => [...prev, newKpi]);
       alert('KPI task created successfully!');
@@ -1074,6 +1159,24 @@ const KPIs = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Add this function to create a corresponding performance review entry
+  const createPerformanceReviewEntry = (kpi) => {
+    // This function would call an API in a real application
+    // For the demo, you could dispatch an event or use a shared state manager
+    console.log("Created performance review for KPI:", kpi.id);
+    
+    // In a real application, you would make an API call like:
+    // await PMSService.createPerformanceReview({
+    //   kpiId: kpi.id,
+    //   employeeId: kpi.assignees[0],
+    //   startDate: kpi.startDate,
+    //   dueDate: kpi.endDate,
+    //   reviewType: "performance",
+    //   status: "Draft",
+    //   progress: 0
+    // });
   };
 
   const handleEditKpi = async (formData) => {
@@ -1091,21 +1194,19 @@ const KPIs = () => {
           ...kpi,
           name: formData.name,
           description: formData.description,
+          // Update creator role if changed
+          creator: kpi.creator ? {
+            ...kpi.creator,
+            role: formData.creatorRole || kpi.creator.role
+          } : {
+            name: "",
+            role: formData.creatorRole || "",
+            date: new Date().toISOString()
+          },
           assignees: (formData.assignees || []).map(s => s.toString()),
-          // merge existing updates or add "reassigned" note if changed
-          assigneeUpdates: (formData.assignees || []).map(s => {
-            const empId = parseInt(s);
-            const existing = (kpi.assigneeUpdates || []).find(a => a.employeeId === empId);
-            return existing || { employeeId: empId, updates: [{ date: new Date().toISOString(), note: "Assigned/Updated", author: "System" }] };
-          }),
-          assignee: firstAssignee,
-          department: firstAssignee === 1 ? "Customer Service" :
-                     firstAssignee === 2 ? "Sales" :
-                     firstAssignee === 3 ? "HR" : "Operations",
-          owner: firstAssignee ? (employees.find(e => e.id === firstAssignee)?.name || "") : kpi.owner,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          lastUpdated: new Date().toISOString(),
+          // Preserve existing progress or use 0 if not set
+          progress: kpi.progress || 0,
+          // ...rest of the properties
         } : kpi
       );
 
@@ -1184,6 +1285,35 @@ const KPIs = () => {
     return [...new Set(kpis.map((kpi) => kpi[key]))];
   };
 
+  // Add this function to get the latest progress from assignee updates
+  const getLatestProgress = (kpi) => {
+    let latestProgress = 0;
+    let latestDate = null;
+    
+    if (!kpi.assignees || kpi.assignees.length === 0) {
+      return kpi.progress || 0;
+    }
+    
+    kpi.assignees.forEach(idStr => {
+      const empId = parseInt(idStr);
+      const assigneeUpdates = kpi.assigneeUpdates?.find(au => au.employeeId === empId);
+      
+      if (assigneeUpdates?.updates && assigneeUpdates.updates.length > 0) {
+        assigneeUpdates.updates.forEach(update => {
+          if (update.progressPercentage !== undefined) {
+            const updateDate = new Date(update.date);
+            if (!latestDate || updateDate > latestDate) {
+              latestDate = updateDate;
+              latestProgress = update.progressPercentage;
+            }
+          }
+        });
+      }
+    });
+    
+    return latestProgress;
+  };
+
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -1244,6 +1374,8 @@ const KPIs = () => {
           department: currentKpi.departmentId || currentKpi.department || "",
           category: currentKpi.category || "",
           priority: currentKpi.priority || "medium",
+          // pass creatorRole so modal shows existing value
+          creatorRole: currentKpi.creator?.role || currentKpi.creatorRole || "",
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}
@@ -1465,17 +1597,14 @@ const KPIs = () => {
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              kpi.current >= kpi.target
-                                ? "bg-green-500"
-                                : kpi.current >= kpi.target * 0.8
+                              getLatestProgress(kpi) < 30
+                                ? "bg-red-500"
+                                : getLatestProgress(kpi) < 70
                                 ? "bg-yellow-500"
-                                : "bg-red-500"
+                                : "bg-green-500"
                             }`}
                             style={{
-                              width: `${Math.min(
-                                (kpi.current / kpi.target) * 100,
-                                100
-                              )}%`,
+                              width: `${getLatestProgress(kpi)}%`,
                             }}
                           ></div>
                         </div>
@@ -1506,15 +1635,14 @@ const KPIs = () => {
                     <div className="flex items-center">
                       <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="text-xs font-medium text-gray-600">
-                          {kpi.owner
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
+                          {kpi.creator?.role
+                            ? kpi.creator.role.split(" ").map((w) => w[0]).join("").toUpperCase()
+                            : (kpi.owner ? kpi.owner.split(" ").map((w) => w[0]).join("").toUpperCase() : "--")}
                         </span>
                       </div>
                       <div className="ml-3">
                         <div className="text-sm font-medium text-gray-900">
-                          {kpi.owner}
+                          {kpi.creator?.role || "—"}
                         </div>
                       </div>
                     </div>
