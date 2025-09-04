@@ -12,79 +12,19 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 
 const PMSDashboard = () => {
-  // Sample data for KPI summary chart
+  // Replace local hard-coded arrays with store pulls
+  const recentReviews = PMSDummyDataStore.getRecentReviews();
+  const upcomingDeadlines = PMSDummyDataStore.getUpcomingDeadlines();
+
+  // Derive KPI summary (dummy, can compute from tasks if needed)
   const kpiData = [
     { category: "Exceeded", percentage: 22 },
     { category: "Met", percentage: 58 },
     { category: "Partially Met", percentage: 15 },
     { category: "Not Met", percentage: 5 },
-  ];
-
-  // Sample data for recent performance reviews
-  const recentReviews = [
-    {
-      id: 1,
-      employeeName: "John Smith",
-      position: "Software Developer",
-      reviewType: "Annual",
-      date: "2025-08-15",
-      status: "Completed",
-      rating: 4.2,
-    },
-    {
-      id: 2,
-      employeeName: "Sarah Johnson",
-      position: "Marketing Specialist",
-      reviewType: "Quarterly",
-      date: "2025-08-20",
-      status: "Pending Manager",
-      rating: null,
-    },
-    {
-      id: 3,
-      employeeName: "Michael Wong",
-      position: "Project Manager",
-      reviewType: "Annual",
-      date: "2025-08-12",
-      status: "Completed",
-      rating: 4.7,
-    },
-    {
-      id: 4,
-      employeeName: "Emma Davis",
-      position: "UX Designer",
-      reviewType: "Quarterly",
-      date: "2025-08-22",
-      status: "In Progress",
-      rating: null,
-    },
-  ];
-
-  // Sample data for upcoming deadlines
-  const upcomingDeadlines = [
-    {
-      id: 1,
-      name: "Q3 Performance Reviews",
-      deadline: "2025-09-15",
-      daysLeft: 18,
-      type: "review",
-    },
-    {
-      id: 2,
-      name: "Annual Goal Setting",
-      deadline: "2025-09-10",
-      daysLeft: 13,
-      type: "goals",
-    },
-    {
-      id: 3,
-      name: "Leadership Calibration",
-      deadline: "2025-09-22",
-      daysLeft: 25,
-      type: "calibration",
-    },
   ];
 
   // PMS modules quick access cards

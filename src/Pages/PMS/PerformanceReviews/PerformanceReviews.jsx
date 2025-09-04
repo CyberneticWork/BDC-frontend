@@ -22,9 +22,13 @@ import {
   Loader2,
   BarChart,
   User, // Add this import
-  RefreshCw // Add this import
+  RefreshCw, // Add this import
+  File, 
+  Download, 
+  Upload 
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
+import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 
 // Progress Review Modal Component
 const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
@@ -887,6 +891,212 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
   );
 };
 
+// Employee Documents Modal Component
+const EmployeeDocumentsModal = ({ isOpen, onClose, review }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  
+  if (!isOpen || !review) return null;
+
+  // Get the linked task ID to find documents
+  const linkedTaskId = review.taskId;
+  
+  // Get employee updates from the linked task (if available)
+  const getEmployeeDocuments = () => {
+    if (!linkedTaskId) return [];
+    
+    // Try to get the task from the dummy store
+    const task = PMSDummyDataStore.getTaskById(linkedTaskId);
+    if (!task) return [];
+    
+    // Get all updates from all assignees that have documents
+    const allDocuments = [];
+    
+    task.assigneeUpdates?.forEach(assignee => {
+      assignee.updates.forEach(update => {
+        if (update.documentName) {
+          allDocuments.push({
+            ...update,
+            employeeId: assignee.employeeId,
+            employeeName: update.author || 'Employee',
+            taskId: task.id,
+            taskName: task.name
+          });
+        }
+      });
+    });
+    
+    return allDocuments.sort((a, b) => new Date(b.date) - new Date(a.date));
+  };
+
+  const documents = getEmployeeDocuments();
+
+  // Helper to get file icon based on file type
+  const getFileIcon = (fileType) => {
+    if (fileType?.includes('image')) return '📷';
+    if (fileType?.includes('pdf')) return '📄';
+    if (fileType?.includes('spreadsheet') || fileType?.includes('excel')) return '📊';
+    if (fileType?.includes('word') || fileType?.includes('document')) return '📝';
+    return '📁';
+  };
+
+  // Mock download function
+  const handleDownload = (document) => {
+    setIsLoading(true);
+    setTimeout(() => {
+      alert(`Downloading ${document.documentName}`);
+      setIsLoading(false);
+    }, 1000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Submitted Documents</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">{review.employeeName}</span> • {review.position}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6">
+          {linkedTaskId ? (
+            <>
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <FileText className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Linked Task Information</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Documents submitted as part of KPI task progress updates
+                    </p>
+                    {review.selfReportedLastUpdated && (
+                      <p className="text-xs text-indigo-600 mt-2">
+                        Last progress update: {new Date(review.selfReportedLastUpdated).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {documents.length > 0 ? (
+                <div className="space-y-4">
+                  {documents.map((doc, index) => (
+                    <div 
+                      key={index}
+                      className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-200">
+                          <span className="text-2xl">{getFileIcon(doc.documentType)}</span>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium text-gray-900 truncate">{doc.documentName}</h4>
+                              <p className="text-sm text-gray-500">{doc.documentSize}</p>
+                            </div>
+                            <button
+                              onClick={() => handleDownload(doc)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <div className="animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+                              ) : (
+                                <Download className="h-5 w-5" />
+                              )}
+                            </button>
+                          </div>
+                          
+                          <div className="mt-2 text-sm text-gray-600">
+                            <div className="flex items-center gap-1 mb-1">
+                              <User className="h-3.5 w-3.5 text-gray-400" />
+                              <span>Submitted by {doc.author}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                              <span>{new Date(doc.date).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {doc.note && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-sm text-gray-700">{doc.note}</p>
+                        </div>
+                      )}
+                      
+                      {doc.progressPercentage !== undefined && (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-gray-600">Progress at submission:</span>
+                            <span className="font-medium text-indigo-600">{doc.progressPercentage}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className={`h-1.5 rounded-full ${
+                                doc.progressPercentage < 30 ? 'bg-red-500' : 
+                                doc.progressPercentage < 70 ? 'bg-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${doc.progressPercentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <File className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900">No documents found</h3>
+                  <p className="text-gray-500 mt-2">
+                    No documents have been submitted for this review yet.
+                  </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <FileText className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No linked task</h3>
+              <p className="text-gray-500 mt-2">
+                This review is not linked to a specific KPI task.
+              </p>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex justify-end p-6 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PerformanceReviews = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -902,142 +1112,21 @@ const PerformanceReviews = () => {
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isNewReviewModalOpen, setIsNewReviewModalOpen] = useState(false);
+  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   
   // Enhanced sample review data with progress and grade fields
-  const [reviewData, setReviewData] = useState([
-    {
-      id: 1,
-      employeeName: "John Smith",
-      employeeId: "EMP001",
-      position: "Software Developer",
-      department: "Engineering",
-      manager: "Michael Wong",
-      type: "Annual Performance Review",
-      status: "Completed",
-      startDate: "2025-07-15",
-      dueDate: "2025-08-15",
-      completedDate: "2025-08-12",
-      overallRating: 4.2,
-      cycle: "2025 Annual",
-      progress: 100,
-      grade: "A-",
-      supervisorComments: "John has shown exceptional skill in problem-solving and technical implementation. His code quality is excellent and he consistently meets deadlines. Could improve on documentation and knowledge sharing with junior team members.",
-      lastUpdated: "2025-08-12T10:30:00Z",
-      // self-reported fields added
-      selfReportedProgress: 100,
-      selfReportedLastUpdated: "2025-08-12T09:45:00Z",
-      selfReportedAuthor: "John Smith"
-    },
-    {
-      id: 2,
-      employeeName: "Sarah Johnson",
-      employeeId: "EMP025",
-      position: "Marketing Specialist",
-      department: "Marketing",
-      manager: "Lisa Chen",
-      type: "Quarterly Review",
-      status: "In Progress",
-      startDate: "2025-08-01",
-      dueDate: "2025-08-31",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Q3",
-      progress: 65,
-      grade: "B+",
-      supervisorComments: "Sarah is performing well on her campaign management tasks. Her creative input has been valuable and she's responsive to feedback. Need to focus more on analytics and data-driven decision making.",
-      lastUpdated: "2025-08-20T14:15:00Z",
-      selfReportedProgress: 60,
-      selfReportedLastUpdated: "2025-08-19T16:10:00Z",
-      selfReportedAuthor: "Sarah Johnson"
-    },
-    {
-      id: 3,
-      employeeName: "David Rodriguez",
-      employeeId: "EMP014",
-      position: "Sales Representative",
-      department: "Sales",
-      manager: "Robert Johnson",
-      type: "Annual Performance Review",
-      status: "Pending Manager",
-      startDate: "2025-07-15",
-      dueDate: "2025-08-15",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Annual",
-      progress: 80,
-      grade: null,
-      supervisorComments: null,
-      lastUpdated: null
-      // no self-reported data yet
-    },
-    {
-      id: 4,
-      employeeName: "Emily Davis",
-      employeeId: "EMP032",
-      position: "UX Designer",
-      department: "Design",
-      manager: "Michael Wong",
-      type: "Quarterly Review",
-      status: "Draft",
-      startDate: "2025-08-01",
-      dueDate: "2025-08-31",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Q3",
-      progress: 25,
-      grade: null,
-      supervisorComments: null,
-      lastUpdated: null,
-      selfReportedProgress: 10,
-      selfReportedLastUpdated: "2025-08-05T09:00:00Z",
-      selfReportedAuthor: "Emily Davis"
-    },
-    {
-      id: 5,
-      employeeName: "James Wilson",
-      employeeId: "EMP017",
-      position: "Product Manager",
-      department: "Product",
-      manager: "Lisa Chen",
-      type: "Annual Performance Review",
-      status: "Completed",
-      startDate: "2025-07-15",
-      dueDate: "2025-08-15",
-      completedDate: "2025-08-10",
-      overallRating: 4.7,
-      cycle: "2025 Annual",
-      progress: 100,
-      grade: "A+",
-      supervisorComments: "James has exceeded expectations in all areas. His product launches have been highly successful, and he manages cross-functional teams with ease. His strategic vision and execution are exemplary.",
-      lastUpdated: "2025-08-10T16:45:00Z",
-      selfReportedProgress: 100,
-      selfReportedLastUpdated: "2025-08-09T18:20:00Z",
-      selfReportedAuthor: "James Wilson"
-    },
-    {
-      id: 6,
-      employeeName: "Linda Martinez",
-      employeeId: "EMP028",
-      position: "Customer Support Specialist",
-      department: "Support",
-      manager: "Robert Johnson",
-      type: "Quarterly Review",
-      status: "Pending Employee",
-      startDate: "2025-08-01",
-      dueDate: "2025-08-31",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Q3",
-      progress: 50,
-      grade: "C+",
-      supervisorComments: "Linda needs improvement in response time and ticket resolution. Communication with customers is good, but follow-through on complex issues needs work.",
-      lastUpdated: "2025-08-18T11:20:00Z",
-      selfReportedProgress: 45,
-      selfReportedLastUpdated: "2025-08-17T13:05:00Z",
-      selfReportedAuthor: "Linda Martinez"
-    },
-  ]);
+  const [reviewData, setReviewData] = useState(() => PMSDummyDataStore.getPerformanceReviews());
+
+  // Subscribe to store updates so this view refreshes automatically
+  useEffect(() => {
+    const unsubscribe = PMSDummyDataStore.subscribe(() => {
+      setReviewData(PMSDummyDataStore.getPerformanceReviews());
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Handle opening progress review modal
   const openProgressModal = (review) => {
@@ -1051,44 +1140,49 @@ const PerformanceReviews = () => {
     setIsDetailsModalOpen(true);
   };
 
+  // Handle opening documents modal
+  const openDocumentsModal = (review) => {
+    setSelectedReview(review);
+    setIsDocumentsModalOpen(true);
+  };
+
   // Handle saving progress review
   const handleSaveProgressReview = (updatedReview) => {
-    setReviewData(prevData => 
-      prevData.map(review => 
-        review.id === updatedReview.id ? updatedReview : review
-      )
-    );
+    PMSDummyDataStore.updatePerformanceReview(updatedReview.id, updatedReview);
+    setReviewData(PMSDummyDataStore.getPerformanceReviews());
   };
 
   // Handle creating new review
-  const handleCreateReview = (reviewData) => {
-    // Add the new review to the existing reviews
-    setReviewData(prev => [
-      {
-        id: Math.max(...prev.map(r => r.id)) + 1, // Generate a new ID
-        employeeName: reviewData.employeeName,
-        employeeId: reviewData.employeeId,
-        position: reviewData.employeePosition,
-        department: reviewData.employeeDepartment,
-        manager: reviewData.supervisorName,
-        type: reviewData.reviewType === "performance" ? "Performance Review" : 
-              reviewData.reviewType === "quarterly" ? "Quarterly Review" :
-              reviewData.reviewType === "annual" ? "Annual Review" :
-              reviewData.reviewType === "probation" ? "Probation Review" : 
-              "Progress Check-in",
-        status: "Draft",
-        startDate: reviewData.startDate,
-        dueDate: reviewData.dueDate,
-        completedDate: null,
-        overallRating: null,
-        cycle: reviewData.reviewCycle.replace('_', ' '),
-        progress: 0,
-        grade: null,
-        supervisorComments: reviewData.reviewNotes,
-        lastUpdated: new Date().toISOString()
-      },
-      ...prev
-    ]);
+  const handleCreateReview = (reviewDataForm) => {
+    const newReview = {
+      id: Date.now(),
+      employeeName: reviewDataForm.employeeName,
+      employeeId: reviewDataForm.employeeId,
+      position: reviewDataForm.employeePosition,
+      department: reviewDataForm.employeeDepartment,
+      manager: reviewDataForm.supervisorName,
+      type: reviewDataForm.reviewType === "performance" ? "Performance Review" :
+            reviewDataForm.reviewType === "quarterly" ? "Quarterly Review" :
+            reviewDataForm.reviewType === "annual" ? "Annual Review" :
+            reviewDataForm.reviewType === "probation" ? "Probation Review" : "Progress Check-in",
+      status: "Draft",
+      startDate: reviewDataForm.startDate,
+      dueDate: reviewDataForm.dueDate,
+      completedDate: null,
+      overallRating: null,
+      cycle: reviewDataForm.reviewCycle.replace('_',' '),
+      progress: 0,
+      grade: null,
+      supervisorComments: reviewDataForm.reviewNotes,
+      lastUpdated: new Date().toISOString(),
+      selfReportedProgress: 0,
+      selfReportedLastUpdated: null,
+      selfReportedAuthor: null,
+      taskId: reviewDataForm.taskId || null,
+      performanceMetrics: null
+    };
+    PMSDummyDataStore.addPerformanceReview(newReview);
+    setReviewData(PMSDummyDataStore.getPerformanceReviews());
   };
 
   // Filter reviews based on active tab and search query
@@ -1200,6 +1294,13 @@ const PerformanceReviews = () => {
         isOpen={isNewReviewModalOpen}
         onClose={() => setIsNewReviewModalOpen(false)}
         onSubmit={handleCreateReview}
+      />
+
+      {/* Employee Documents Modal */}
+      <EmployeeDocumentsModal
+        isOpen={isDocumentsModalOpen}
+        onClose={() => setIsDocumentsModalOpen(false)}
+        review={selectedReview}
       />
 
       <div className="mb-6 flex justify-between items-center">
@@ -1624,6 +1725,13 @@ const PerformanceReviews = () => {
                           title="Update Progress"
                         >
                           <ListChecks className="h-4 w-4" />
+                        </button>
+                        <button 
+                          className="text-amber-600 hover:text-amber-900 p-1"
+                          onClick={() => openDocumentsModal(review)}
+                          title="View Documents"
+                        >
+                          <File className="h-4 w-4" />
                         </button>
                         <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
                           <Edit className="h-4 w-4" />

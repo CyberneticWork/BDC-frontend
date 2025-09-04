@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
+import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 import { TaskProgressUpdateModal } from "./TaskProgressUpdateModal";
 import { TaskViewModal } from "./TaskViewModal";
 
@@ -40,97 +41,38 @@ const EmployeeKPIView = () => {
     position: "Customer Service Lead"
   };
 
-  useEffect(() => {
-    fetchMyTasks();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [myTasks, searchTerm, statusFilter]);
-
+  // fetchMyTasks stays as-is
   const fetchMyTasks = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      // Replace with actual API call to get employee's tasks
-      // const response = await PMSService.getEmployeeKpis(currentEmployeeId);
-      
-      // For now, using sample data
-      const sampleTasks = [
-        {
-          id: 1,
-          name: "Customer Satisfaction Score Report",
-          description: "Compile monthly report on customer satisfaction metrics including survey results and feedback analysis",
-          status: "active",
-          department: "Customer Service",
-          owner: "Sarah Johnson",
-          assignees: ["1"],
-          assigneeUpdates: [
-            {
-              employeeId: 1,
-              updates: [
-                { 
-                  date: "2024-01-05T09:00:00Z", 
-                  note: "Initial assignment", 
-                  author: "Manager",
-                },
-                { 
-                  date: "2024-02-01T14:30:00Z", 
-                  note: "Submitted first draft of report with survey data analysis", 
-                  author: "Sarah Johnson",
-                  documentName: "CSAT_Report_Draft.pdf",
-                  documentSize: "1.2 MB",
-                  documentType: "application/pdf"
-                },
-              ]
-            }
-          ],
-          startDate: "2023-12-01",
-          endDate: "2024-03-31",
-          lastUpdated: "2024-02-01T14:30:00Z",
-          priority: "high",
-          completionStatus: "in-progress", // new field for document-based status
-          documentCount: 1,
-        },
-        {
-          id: 3,
-          name: "Support Process Improvement Plan",
-          description: "Develop and implement a plan to reduce ticket resolution time by optimizing support workflows",
-          status: "attention",
-          department: "Customer Service",
-          owner: "Sarah Johnson",
-          assignees: ["1", "3"],
-          assigneeUpdates: [
-            {
-              employeeId: 1,
-              updates: [
-                { 
-                  date: "2024-01-10T09:00:00Z", 
-                  note: "Started analyzing current processes and bottlenecks", 
-                  author: "Sarah Johnson",
-                  documentName: "Process_Analysis.xlsx",
-                  documentSize: "843 KB", 
-                  documentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                }
-              ]
-            }
-          ],
-          startDate: "2024-01-15",
-          endDate: "2024-04-15",
-          lastUpdated: "2024-01-10T09:00:00Z",
-          priority: "medium",
-          completionStatus: "pending", // new field for document-based status
-          documentCount: 1,
-        }
-      ];
-      
-      setMyTasks(sampleTasks);
-      setFilteredTasks(sampleTasks);
-    } catch (error) {
-      console.error("Error fetching assigned KPIs:", error);
+      const tasks = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
+      setMyTasks(tasks);
+      setFilteredTasks(tasks);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Replace initial mount effect with a subscription so this view refreshes
+  useEffect(() => {
+    // initial load
+    fetchMyTasks();
+
+    // subscribe to store changes (PMSDummyDataStore.subscribe returns an unsubscribe fn)
+    const unsubscribe = PMSDummyDataStore.subscribe(() => {
+      // re-fetch tasks when store notifies
+      fetchMyTasks();
+    });
+
+    return () => {
+      // cleanup subscription on unmount
+      unsubscribe();
+    };
+  }, [currentEmployeeId]); // refetch if employee id changes
+
+  useEffect(() => {
+    applyFilters();
+  }, [myTasks, searchTerm, statusFilter]);
 
   const applyFilters = () => {
     let filtered = myTasks;
@@ -162,61 +104,15 @@ const EmployeeKPIView = () => {
 
   const handleProgressUpdate = async (taskId, progressData) => {
     try {
-      // In real app, call API to update task progress
-      // await PMSService.updateTaskProgress(taskId, progressData);
-
-      // For demo, update the tasks in state
-      const updatedTasks = myTasks.map(task => {
-        if (task.id === taskId) {
-          const now = new Date().toISOString();
-          // Add new update to assigneeUpdates
-          const updatedAssigneeUpdates = task.assigneeUpdates.map(au => {
-            if (au.employeeId === parseInt(currentEmployeeId)) {
-              return {
-                ...au,
-                updates: [
-                  ...au.updates,
-                  { 
-                    date: now, 
-                    note: progressData.note, 
-                    author: currentEmployee.name,
-                    documentName: progressData.documentName,
-                    documentSize: progressData.documentSize,
-                    documentType: progressData.documentType,
-                    progressPercentage: progressData.progressPercentage // Add this line
-                  }
-                ]
-              };
-            }
-            return au;
-          });
-          
-          // Update document count
-          const documentCount = (task.documentCount || 0) + 1;
-          
-          // Update completion status based on document count
-          let completionStatus = task.completionStatus;
-          if (documentCount >= 3) {
-            completionStatus = "completed";
-          } else if (documentCount >= 1) {
-            completionStatus = "in-progress";
-          }
-          
-          return {
-            ...task,
-            lastUpdated: now,
-            assigneeUpdates: updatedAssigneeUpdates,
-            documentCount,
-            completionStatus
-          };
-        }
-        return task;
+      PMSDummyDataStore.updateTaskProgress(taskId, currentEmployeeId, {
+        ...progressData,
+        author: currentEmployee.name,
       });
-      
-      setMyTasks(updatedTasks);
+      const refreshed = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
+      setMyTasks(refreshed);
       setIsProgressModalOpen(false);
-    } catch (error) {
-      console.error("Error updating task progress:", error);
+    } catch (e) {
+      console.error("Error updating task progress:", e);
     }
   };
 
