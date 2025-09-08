@@ -21,14 +21,15 @@ import {
   Award,
   Loader2,
   BarChart,
-  User, // Add this import
-  RefreshCw, // Add this import
+  User,
+  RefreshCw,
   File, 
   Download, 
   Upload 
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
 import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+import EmployeeDocumentsModal from './EmployeeDocumentsModal';
 
 // Progress Review Modal Component
 const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
@@ -891,212 +892,6 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
   );
 };
 
-// Employee Documents Modal Component
-const EmployeeDocumentsModal = ({ isOpen, onClose, review }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  
-  if (!isOpen || !review) return null;
-
-  // Get the linked task ID to find documents
-  const linkedTaskId = review.taskId;
-  
-  // Get employee updates from the linked task (if available)
-  const getEmployeeDocuments = () => {
-    if (!linkedTaskId) return [];
-    
-    // Try to get the task from the dummy store
-    const task = PMSDummyDataStore.getTaskById(linkedTaskId);
-    if (!task) return [];
-    
-    // Get all updates from all assignees that have documents
-    const allDocuments = [];
-    
-    task.assigneeUpdates?.forEach(assignee => {
-      assignee.updates.forEach(update => {
-        if (update.documentName) {
-          allDocuments.push({
-            ...update,
-            employeeId: assignee.employeeId,
-            employeeName: update.author || 'Employee',
-            taskId: task.id,
-            taskName: task.name
-          });
-        }
-      });
-    });
-    
-    return allDocuments.sort((a, b) => new Date(b.date) - new Date(a.date));
-  };
-
-  const documents = getEmployeeDocuments();
-
-  // Helper to get file icon based on file type
-  const getFileIcon = (fileType) => {
-    if (fileType?.includes('image')) return '📷';
-    if (fileType?.includes('pdf')) return '📄';
-    if (fileType?.includes('spreadsheet') || fileType?.includes('excel')) return '📊';
-    if (fileType?.includes('word') || fileType?.includes('document')) return '📝';
-    return '📁';
-  };
-
-  // Mock download function
-  const handleDownload = (document) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      alert(`Downloading ${document.documentName}`);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Submitted Documents</h2>
-            <div className="text-sm text-gray-600 mt-1">
-              <span className="font-medium">{review.employeeName}</span> • {review.position}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6">
-          {linkedTaskId ? (
-            <>
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <FileText className="h-5 w-5 text-indigo-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">Linked Task Information</h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Documents submitted as part of KPI task progress updates
-                    </p>
-                    {review.selfReportedLastUpdated && (
-                      <p className="text-xs text-indigo-600 mt-2">
-                        Last progress update: {new Date(review.selfReportedLastUpdated).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {documents.length > 0 ? (
-                <div className="space-y-4">
-                  {documents.map((doc, index) => (
-                    <div 
-                      key={index}
-                      className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-200">
-                          <span className="text-2xl">{getFileIcon(doc.documentType)}</span>
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium text-gray-900 truncate">{doc.documentName}</h4>
-                              <p className="text-sm text-gray-500">{doc.documentSize}</p>
-                            </div>
-                            <button
-                              onClick={() => handleDownload(doc)}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
-                              disabled={isLoading}
-                            >
-                              {isLoading ? (
-                                <div className="animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
-                              ) : (
-                                <Download className="h-5 w-5" />
-                              )}
-                            </button>
-                          </div>
-                          
-                          <div className="mt-2 text-sm text-gray-600">
-                            <div className="flex items-center gap-1 mb-1">
-                              <User className="h-3.5 w-3.5 text-gray-400" />
-                              <span>Submitted by {doc.author}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                              <span>{new Date(doc.date).toLocaleString()}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {doc.note && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <p className="text-sm text-gray-700">{doc.note}</p>
-                        </div>
-                      )}
-                      
-                      {doc.progressPercentage !== undefined && (
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-gray-600">Progress at submission:</span>
-                            <span className="font-medium text-indigo-600">{doc.progressPercentage}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div 
-                              className={`h-1.5 rounded-full ${
-                                doc.progressPercentage < 30 ? 'bg-red-500' : 
-                                doc.progressPercentage < 70 ? 'bg-yellow-500' : 
-                                'bg-green-500'
-                              }`}
-                              style={{ width: `${doc.progressPercentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                    <File className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900">No documents found</h3>
-                  <p className="text-gray-500 mt-2">
-                    No documents have been submitted for this review yet.
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <FileText className="h-8 w-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">No linked task</h3>
-              <p className="text-gray-500 mt-2">
-                This review is not linked to a specific KPI task.
-              </p>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex justify-end p-6 border-t border-gray-100">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const PerformanceReviews = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1742,7 +1537,7 @@ const PerformanceReviews = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-10 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <Search className="h-10 w-10 text-gray-300 mb-2" />
                       <p className="text-lg font-medium text-gray-600">No reviews found</p>

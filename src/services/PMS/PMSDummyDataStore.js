@@ -168,6 +168,9 @@ const PMSDummyDataStore = {
       return assigned || hasUpdates;
     }).map(clone);
   },
+  getTaskById: (taskId) => {
+    return kpiTasks.find(task => task.id === taskId) || null;
+  },
   
   // add subscription API
   subscribe(cb) {
