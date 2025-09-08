@@ -74,43 +74,36 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   // Fetch departments when company changes
   useEffect(() => {
-    const fetchDepartmentsData = async () => {
+    const fetchDepartmentsData = () => {
       if (!formData.company) {
         setDepartments([]);
         return;
       }
 
       setIsLoadingDepartments(true);
-      try {
-        // In a real implementation, you would fetch from API
-        // const response = await PMSService.getDepartmentsByCompany(formData.company);
-        // For demo, using dummy data
-        let dummyDepartments = [];
-        if (formData.company === "1") {
-          dummyDepartments = [
-            { id: "101", name: "Sales" },
-            { id: "102", name: "Customer Service" },
-            { id: "103", name: "Engineering" }
-          ];
-        } else if (formData.company === "2") {
-          dummyDepartments = [
-            { id: "201", name: "Marketing" },
-            { id: "202", name: "HR" },
-            { id: "203", name: "Operations" }
-          ];
-        } else if (formData.company === "3") {
-          dummyDepartments = [
-            { id: "301", name: "Research & Development" },
-            { id: "302", name: "Finance" },
-            { id: "303", name: "IT" }
-          ];
-        }
-        setDepartments(dummyDepartments);
-      } catch (error) {
-        console.error("Error fetching departments:", error);
-      } finally {
-        setIsLoadingDepartments(false);
+      // Synchronous fetch for dummy data
+      let dummyDepartments = [];
+      if (formData.company === "1") {
+        dummyDepartments = [
+          { id: "101", name: "Sales" },
+          { id: "102", name: "Customer Service" },
+          { id: "103", name: "Engineering" }
+        ];
+      } else if (formData.company === "2") {
+        dummyDepartments = [
+          { id: "201", name: "Marketing" },
+          { id: "202", name: "HR" },
+          { id: "203", name: "Operations" }
+        ];
+      } else if (formData.company === "3") {
+        dummyDepartments = [
+          { id: "301", name: "Research & Development" },
+          { id: "302", name: "Finance" },
+          { id: "303", name: "IT" }
+        ];
       }
+      setDepartments(dummyDepartments);
+      setIsLoadingDepartments(false);
     };
     
     fetchDepartmentsData();
@@ -119,16 +112,17 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   useEffect(() => {
     // Reset form when modal opens with new data
     setFormData({
-      name: "",
-      description: "",
-      startDate: "",
-      endDate: "",
+      name: initialData.name || "",
+      description: initialData.description || "",
+      startDate: initialData.startDate || "",
+      endDate: initialData.endDate || "",
       assignees: initialData.assignees ? [...initialData.assignees] : [],
+      // Ensure we use the right property names for company and department
       company: initialData.company || "",
-      department: initialData.department || "",
+      department: initialData.departmentId || initialData.department || "",
       category: initialData.category || "",
       priority: initialData.priority || "medium",
-      ...initialData
+      creatorRole: initialData.creator?.role || initialData.creatorRole || "",
     });
     setEmpSearch("");
   }, [initialData, isOpen]);
@@ -878,9 +872,27 @@ const KPIs = () => {
     { id: 4, name: "John Smith", department: "Operations" },
   ]);
 
-  // New view modal state
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [viewKpi, setViewKpi] = useState(null);
+  // Change this to match the employee ID you're assigning tasks to
+  const [currentEmployeeId, setCurrentEmployeeId] = useState("2"); // Or whichever ID you're using
+
+  // Add these maps for company and department names (matching TaskModal)
+  const companyMap = {
+    "1": "Acme Corporation",
+    "2": "Globex Industries",
+    "3": "Wayne Enterprises"
+  };
+
+  const departmentMap = {
+    "101": "Sales",
+    "102": "Customer Service",
+    "103": "Engineering",
+    "201": "Marketing",
+    "202": "HR",
+    "203": "Operations",
+    "301": "Research & Development",
+    "302": "Finance",
+    "303": "IT"
+  };
 
   // Sample data (replace with actual API call)
   const sampleKpis = [
@@ -1098,6 +1110,12 @@ const KPIs = () => {
   const handleAddKpi = async (formData) => {
     setIsSubmitting(true);
     try {
+      if (!formData.assignees || formData.assignees.length === 0) {
+  alert("Please add at least one assignee before creating the KPI task.");
+  setIsSubmitting(false);
+  return;
+}
+
       await new Promise(r => setTimeout(r, 500)); // simulate
       const firstAssignee = formData.assignees?.length ? parseInt(formData.assignees[0]) : null;
       const newKpi = {
@@ -1109,14 +1127,17 @@ const KPIs = () => {
         trend: "up",
         status: "active",
         progress: 0,
-        department: firstAssignee === 1 ? "Customer Service" :
-                    firstAssignee === 2 ? "Sales" :
-                    firstAssignee === 3 ? "HR" : "Operations",
+        // Add company/department fields from formData
+        company: formData.company,
+        departmentId: formData.department,
+        companyName: companyMap[formData.company] || "",
+        departmentName: departmentMap[formData.department] || "",
+        department: departmentMap[formData.department] || "", // Keep as name for consistency with existing data
         owner: "",
         creator: {
           name: "",
-            role: formData.creatorRole || "",
-            date: new Date().toISOString()
+          role: formData.creatorRole || "",
+          date: new Date().toISOString()
         },
         assignees: (formData.assignees || []).map(a => a.toString()),
         assigneeUpdates: (formData.assignees || []).map(a => ({
@@ -1163,6 +1184,12 @@ const KPIs = () => {
         startDate: formData.startDate,
         endDate: formData.endDate,
         priority: formData.priority,
+        // Add company/department fields from formData
+        company: formData.company,
+        departmentId: formData.department,
+        companyName: companyMap[formData.company] || "",
+        departmentName: departmentMap[formData.department] || "",
+        department: departmentMap[formData.department] || "", // Keep as name for consistency
         creator: {
           ...(currentKpi.creator || {}),
           role: formData.creatorRole || currentKpi.creator?.role || ""
@@ -1270,6 +1297,9 @@ const KPIs = () => {
   const currentItems = filteredKpis.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredKpis.length / itemsPerPage);
 
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewKpi, setViewKpi] = useState(null);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1319,13 +1349,12 @@ const KPIs = () => {
           startDate: currentKpi.startDate,
           endDate: currentKpi.endDate,
           assignees: currentKpi.assignees ? [...currentKpi.assignees] : [],
-          // ensure company & department IDs are passed to modal for prefill
-          company: currentKpi.company || currentKpi.companyName || "",
-          department: currentKpi.departmentId || currentKpi.department || "",
+          company: currentKpi.company || "",
+          departmentId: currentKpi.departmentId || "",
+          companyName: currentKpi.companyName || "",  // Add this for display/logging
           category: currentKpi.category || "",
           priority: currentKpi.priority || "medium",
-          // pass creatorRole so modal shows existing value
-          creatorRole: currentKpi.creator?.role || currentKpi.creatorRole || "",
+          creatorRole: currentKpi.creator?.role || "",
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}

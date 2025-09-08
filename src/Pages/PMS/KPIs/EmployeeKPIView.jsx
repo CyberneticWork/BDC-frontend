@@ -32,6 +32,13 @@ const EmployeeKPIView = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [currentEmployeeId, setCurrentEmployeeId] = useState("1"); // Should come from auth context
+  // DEBUG: temporary employee switcher
+  const employeeOptions = [
+    { id: "1", name: "Sarah Johnson" },
+    { id: "2", name: "Mike Chen" },
+    { id: "3", name: "Emma Davis" },
+    { id: "4", name: "John Smith" },
+  ];
 
   // Mock employee data - replace with context or API call
   const currentEmployee = {
@@ -45,7 +52,16 @@ const EmployeeKPIView = () => {
   const fetchMyTasks = async () => {
     setIsLoading(true);
     try {
+      const all = PMSDummyDataStore.getAllKpiTasks
+        ? PMSDummyDataStore.getAllKpiTasks()
+        : [];
+      console.log("All tasks in store:", all.map(t => ({
+        id: t.id,
+        assignees: t.assignees,
+        updates: t.assigneeUpdates?.map(u => ({ emp: u.employeeId, count: u.updates.length }))
+      })));
       const tasks = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
+      console.log('Fetched tasks for employee', currentEmployeeId, ':', tasks.map(t=>t.id));
       setMyTasks(tasks);
       setFilteredTasks(tasks);
     } finally {
@@ -213,6 +229,26 @@ const EmployeeKPIView = () => {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* DEBUG: Employee switcher and reload button */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="text-xs text-gray-500">Viewing as:</div>
+        <select
+          value={currentEmployeeId}
+          onChange={(e)=>setCurrentEmployeeId(e.target.value)}
+          className="px-2 py-1 text-sm border border-gray-300 rounded-lg"
+        >
+          {employeeOptions.map(emp => (
+            <option key={emp.id} value={emp.id}>{emp.name} (ID {emp.id})</option>
+          ))}
+        </select>
+        <button
+          onClick={fetchMyTasks}
+          className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-md"
+        >
+          Reload
+        </button>
       </div>
 
       {/* Stats Cards */}

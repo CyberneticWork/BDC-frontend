@@ -160,7 +160,13 @@ const PMSDummyDataStore = {
   // KPI Tasks
   getAllKpiTasks() { return clone(kpiTasks); },
   getEmployeeTasks(employeeId) {
-    return clone(kpiTasks.filter(t => (t.assignees || []).some(a => String(a) === String(employeeId))));
+    const idStr = String(employeeId);
+    const idNum = parseInt(employeeId, 10);
+    return kpiTasks.filter(t => {
+      const assigned = (t.assignees || []).some(a => String(a) === idStr);
+      const hasUpdates = (t.assigneeUpdates || []).some(au => au.employeeId === idNum);
+      return assigned || hasUpdates;
+    }).map(clone);
   },
   
   // add subscription API
@@ -179,11 +185,15 @@ const PMSDummyDataStore = {
     const newTask = { 
       ...task, 
       id: task.id || kpiIdCounter++, 
-      assignees: (task.assignees || []).map(a => String(a)) 
+      assignees: (task.assignees || []).map(a => String(a)),
+      // Initialize assigneeUpdates for each assignee to ensure consistency
+      assigneeUpdates: (task.assignees || []).map(assigneeId => ({
+        employeeId: parseInt(assigneeId),
+        updates: []
+      }))
     };
     kpiTasks.push(newTask);
     
-    // Don't create performance reviews yet - wait for progress updates
     console.log('New KPI task added:', newTask);
     
     // notify listeners that data changed
