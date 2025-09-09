@@ -23,6 +23,7 @@ import {
   Plus,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService";
+import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -73,43 +74,36 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   // Fetch departments when company changes
   useEffect(() => {
-    const fetchDepartmentsData = async () => {
+    const fetchDepartmentsData = () => {
       if (!formData.company) {
         setDepartments([]);
         return;
       }
 
       setIsLoadingDepartments(true);
-      try {
-        // In a real implementation, you would fetch from API
-        // const response = await PMSService.getDepartmentsByCompany(formData.company);
-        // For demo, using dummy data
-        let dummyDepartments = [];
-        if (formData.company === "1") {
-          dummyDepartments = [
-            { id: "101", name: "Sales" },
-            { id: "102", name: "Customer Service" },
-            { id: "103", name: "Engineering" }
-          ];
-        } else if (formData.company === "2") {
-          dummyDepartments = [
-            { id: "201", name: "Marketing" },
-            { id: "202", name: "HR" },
-            { id: "203", name: "Operations" }
-          ];
-        } else if (formData.company === "3") {
-          dummyDepartments = [
-            { id: "301", name: "Research & Development" },
-            { id: "302", name: "Finance" },
-            { id: "303", name: "IT" }
-          ];
-        }
-        setDepartments(dummyDepartments);
-      } catch (error) {
-        console.error("Error fetching departments:", error);
-      } finally {
-        setIsLoadingDepartments(false);
+      // Synchronous fetch for dummy data
+      let dummyDepartments = [];
+      if (formData.company === "1") {
+        dummyDepartments = [
+          { id: "101", name: "Sales" },
+          { id: "102", name: "Customer Service" },
+          { id: "103", name: "Engineering" }
+        ];
+      } else if (formData.company === "2") {
+        dummyDepartments = [
+          { id: "201", name: "Marketing" },
+          { id: "202", name: "HR" },
+          { id: "203", name: "Operations" }
+        ];
+      } else if (formData.company === "3") {
+        dummyDepartments = [
+          { id: "301", name: "Research & Development" },
+          { id: "302", name: "Finance" },
+          { id: "303", name: "IT" }
+        ];
       }
+      setDepartments(dummyDepartments);
+      setIsLoadingDepartments(false);
     };
     
     fetchDepartmentsData();
@@ -118,16 +112,17 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   useEffect(() => {
     // Reset form when modal opens with new data
     setFormData({
-      name: "",
-      description: "",
-      startDate: "",
-      endDate: "",
+      name: initialData.name || "",
+      description: initialData.description || "",
+      startDate: initialData.startDate || "",
+      endDate: initialData.endDate || "",
       assignees: initialData.assignees ? [...initialData.assignees] : [],
+      // Ensure we use the right property names for company and department
       company: initialData.company || "",
-      department: initialData.department || "",
+      department: initialData.departmentId || initialData.department || "",
       category: initialData.category || "",
       priority: initialData.priority || "medium",
-      ...initialData
+      creatorRole: initialData.creator?.role || initialData.creatorRole || "",
     });
     setEmpSearch("");
   }, [initialData, isOpen]);
@@ -877,9 +872,27 @@ const KPIs = () => {
     { id: 4, name: "John Smith", department: "Operations" },
   ]);
 
-  // New view modal state
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [viewKpi, setViewKpi] = useState(null);
+  // Change this to match the employee ID you're assigning tasks to
+  const [currentEmployeeId, setCurrentEmployeeId] = useState("2"); // Or whichever ID you're using
+
+  // Add these maps for company and department names (matching TaskModal)
+  const companyMap = {
+    "1": "Acme Corporation",
+    "2": "Globex Industries",
+    "3": "Wayne Enterprises"
+  };
+
+  const departmentMap = {
+    "101": "Sales",
+    "102": "Customer Service",
+    "103": "Engineering",
+    "201": "Marketing",
+    "202": "HR",
+    "203": "Operations",
+    "301": "Research & Development",
+    "302": "Finance",
+    "303": "IT"
+  };
 
   // Sample data (replace with actual API call)
   const sampleKpis = [
@@ -1025,8 +1038,8 @@ const KPIs = () => {
       id: 5,
       name: "New Product Adoption",
       description: "Track adoption of the new product feature",
-      target: 1000,
-      current: 0,
+      target: 100,
+      current: 100,
       unit: "%",
       trend: "up",
       status: "active",
@@ -1052,23 +1065,22 @@ const KPIs = () => {
     fetchKpis();
   }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [kpis, searchTerm, statusFilter, departmentFilter]);
-
-  const fetchKpis = async () => {
+  const fetchKpis = () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      // For now, using sample data
-      // const data = await PMSService.getKpis();
-      setKpis(sampleKpis);
-    } catch (err) {
+      const all = PMSDummyDataStore.getAllKpiTasks();
+      setKpis(all);
+    } catch (e) {
       setError("Failed to fetch KPIs");
-      console.error("Error fetching KPIs:", err);
+      console.error(e);
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    applyFilters();
+  }, [kpis, searchTerm, statusFilter, departmentFilter]);
 
   const applyFilters = () => {
     let filtered = kpis;
@@ -1098,15 +1110,15 @@ const KPIs = () => {
   const handleAddKpi = async (formData) => {
     setIsSubmitting(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!formData.assignees || formData.assignees.length === 0) {
+  alert("Please add at least one assignee before creating the KPI task.");
+  setIsSubmitting(false);
+  return;
+}
 
-      const firstAssignee = formData.assignees && formData.assignees.length > 0
-        ? parseInt(formData.assignees[0])
-        : null;
-
+      await new Promise(r => setTimeout(r, 500)); // simulate
+      const firstAssignee = formData.assignees?.length ? parseInt(formData.assignees[0]) : null;
       const newKpi = {
-        id: kpis.length + 1,
         name: formData.name,
         description: formData.description,
         target: 0,
@@ -1114,26 +1126,27 @@ const KPIs = () => {
         unit: "%",
         trend: "up",
         status: "active",
-        progress: 0, // Initialize progress to 0
-        department: firstAssignee === 1 ? "Customer Service" :
-                   firstAssignee === 2 ? "Sales" :
-                   firstAssignee === 3 ? "HR" : "Operations",
-        // Do not store a username in owner column; show creator.role instead
+        progress: 0,
+        // Add company/department fields from formData
+        company: formData.company,
+        departmentId: formData.department,
+        companyName: companyMap[formData.company] || "",
+        departmentName: departmentMap[formData.department] || "",
+        department: departmentMap[formData.department] || "", // Keep as name for consistency with existing data
         owner: "",
-        // store creator role from the modal select
         creator: {
-          name: "", // keep name empty if you only want to display role
+          name: "",
           role: formData.creatorRole || "",
           date: new Date().toISOString()
         },
-        assignees: (formData.assignees || []).map(s => s.toString()),
-        assigneeUpdates: (formData.assignees || []).map(s => ({
-          employeeId: parseInt(s),
-          updates: [{ 
-            date: new Date().toISOString(), 
-            note: "Task assigned", 
+        assignees: (formData.assignees || []).map(a => a.toString()),
+        assigneeUpdates: (formData.assignees || []).map(a => ({
+          employeeId: parseInt(a),
+          updates: [{
+            date: new Date().toISOString(),
+            note: "Task assigned",
             author: "System",
-            progressPercentage: 0 // Initialize progress percentage to 0
+            progressPercentage: 0
           }]
         })),
         startDate: formData.startDate,
@@ -1141,81 +1154,53 @@ const KPIs = () => {
         lastUpdated: new Date().toISOString(),
         frequency: "Monthly",
         category: firstAssignee === 1 ? "Customer" :
-                 firstAssignee === 2 ? "Financial" :
-                 firstAssignee === 3 ? "HR" : "Operations",
-        completionStatus: "not-started", // Add completion status for employee view
-        documentCount: 0, // Initialize document count for employee view
+                  firstAssignee === 2 ? "Financial" :
+                  firstAssignee === 3 ? "HR" : "Operations",
+        completionStatus: "not-started",
+        documentCount: 0,
+        priority: formData.priority || "medium"
       };
 
-      // Create a corresponding performance review entry
-      createPerformanceReviewEntry(newKpi);
-
-      setKpis(prev => [...prev, newKpi]);
-      alert('KPI task created successfully!');
+      PMSDummyDataStore.addKpiTask(newKpi);
+      setKpis(PMSDummyDataStore.getAllKpiTasks());
       setIsAddModalOpen(false);
-    } catch (error) {
-      console.error("Error creating KPI:", error);
-      alert('Failed to create KPI task');
+      alert("KPI task created & performance reviews generated.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to create KPI task");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Add this function to create a corresponding performance review entry
-  const createPerformanceReviewEntry = (kpi) => {
-    // This function would call an API in a real application
-    // For the demo, you could dispatch an event or use a shared state manager
-    console.log("Created performance review for KPI:", kpi.id);
-    
-    // In a real application, you would make an API call like:
-    // await PMSService.createPerformanceReview({
-    //   kpiId: kpi.id,
-    //   employeeId: kpi.assignees[0],
-    //   startDate: kpi.startDate,
-    //   dueDate: kpi.endDate,
-    //   reviewType: "performance",
-    //   status: "Draft",
-    //   progress: 0
-    // });
-  };
-
   const handleEditKpi = async (formData) => {
     setIsSubmitting(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const firstAssignee = formData.assignees && formData.assignees.length > 0
-        ? parseInt(formData.assignees[0])
-        : null;
-
-      const updatedKpis = kpis.map(kpi =>
-        kpi.id === currentKpi.id ? {
-          ...kpi,
-          name: formData.name,
-          description: formData.description,
-          // Update creator role if changed
-          creator: kpi.creator ? {
-            ...kpi.creator,
-            role: formData.creatorRole || kpi.creator.role
-          } : {
-            name: "",
-            role: formData.creatorRole || "",
-            date: new Date().toISOString()
-          },
-          assignees: (formData.assignees || []).map(s => s.toString()),
-          // Preserve existing progress or use 0 if not set
-          progress: kpi.progress || 0,
-          // ...rest of the properties
-        } : kpi
-      );
-
-      setKpis(updatedKpis);
-      alert('KPI task updated successfully!');
+      await new Promise(r => setTimeout(r, 400));
+      PMSDummyDataStore.updateKpiTask(currentKpi.id, {
+        name: formData.name,
+        description: formData.description,
+        assignees: (formData.assignees || []).map(a => a.toString()),
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        priority: formData.priority,
+        // Add company/department fields from formData
+        company: formData.company,
+        departmentId: formData.department,
+        companyName: companyMap[formData.company] || "",
+        departmentName: departmentMap[formData.department] || "",
+        department: departmentMap[formData.department] || "", // Keep as name for consistency
+        creator: {
+          ...(currentKpi.creator || {}),
+          role: formData.creatorRole || currentKpi.creator?.role || ""
+        }
+      });
+      setKpis(PMSDummyDataStore.getAllKpiTasks());
       setIsEditModalOpen(false);
-    } catch (error) {
-      console.error("Error updating KPI:", error);
-      alert('Failed to update KPI task');
+      alert("KPI task updated.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update KPI task");
     } finally {
       setIsSubmitting(false);
     }
@@ -1224,22 +1209,14 @@ const KPIs = () => {
   const handleDeleteKpi = async () => {
     setIsSubmitting(true);
     try {
-      // In a real app, this would be an API call:
-      // await PMSService.deleteKpi(currentKpi.id);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Remove KPI from state
-      const updatedKpis = kpis.filter(kpi => kpi.id !== currentKpi.id);
-      setKpis(updatedKpis);
+      await new Promise(r => setTimeout(r, 400));
+      PMSDummyDataStore.deleteKpiTask(currentKpi.id);
+      setKpis(PMSDummyDataStore.getAllKpiTasks());
       setIsDeleteModalOpen(false);
-      
-      // Show success notification
-      alert('KPI task deleted successfully!');
-    } catch (error) {
-      console.error("Error deleting KPI:", error);
-      alert('Failed to delete KPI task');
+      alert("KPI task deleted.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete KPI task");
     } finally {
       setIsSubmitting(false);
     }
@@ -1320,6 +1297,9 @@ const KPIs = () => {
   const currentItems = filteredKpis.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredKpis.length / itemsPerPage);
 
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewKpi, setViewKpi] = useState(null);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1369,13 +1349,12 @@ const KPIs = () => {
           startDate: currentKpi.startDate,
           endDate: currentKpi.endDate,
           assignees: currentKpi.assignees ? [...currentKpi.assignees] : [],
-          // ensure company & department IDs are passed to modal for prefill
-          company: currentKpi.company || currentKpi.companyName || "",
-          department: currentKpi.departmentId || currentKpi.department || "",
+          company: currentKpi.company || "",
+          departmentId: currentKpi.departmentId || "",
+          companyName: currentKpi.companyName || "",  // Add this for display/logging
           category: currentKpi.category || "",
           priority: currentKpi.priority || "medium",
-          // pass creatorRole so modal shows existing value
-          creatorRole: currentKpi.creator?.role || currentKpi.creatorRole || "",
+          creatorRole: currentKpi.creator?.role || "",
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}

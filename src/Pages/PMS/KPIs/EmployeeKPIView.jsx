@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
+import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 import { TaskProgressUpdateModal } from "./TaskProgressUpdateModal";
 import { TaskViewModal } from "./TaskViewModal";
 
@@ -31,6 +32,13 @@ const EmployeeKPIView = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [currentEmployeeId, setCurrentEmployeeId] = useState("1"); // Should come from auth context
+  // DEBUG: temporary employee switcher
+  const employeeOptions = [
+    { id: "1", name: "Sarah Johnson" },
+    { id: "2", name: "Mike Chen" },
+    { id: "3", name: "Emma Davis" },
+    { id: "4", name: "John Smith" },
+  ];
 
   // Mock employee data - replace with context or API call
   const currentEmployee = {
@@ -40,97 +48,47 @@ const EmployeeKPIView = () => {
     position: "Customer Service Lead"
   };
 
-  useEffect(() => {
-    fetchMyTasks();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [myTasks, searchTerm, statusFilter]);
-
+  // fetchMyTasks stays as-is
   const fetchMyTasks = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      // Replace with actual API call to get employee's tasks
-      // const response = await PMSService.getEmployeeKpis(currentEmployeeId);
-      
-      // For now, using sample data
-      const sampleTasks = [
-        {
-          id: 1,
-          name: "Customer Satisfaction Score Report",
-          description: "Compile monthly report on customer satisfaction metrics including survey results and feedback analysis",
-          status: "active",
-          department: "Customer Service",
-          owner: "Sarah Johnson",
-          assignees: ["1"],
-          assigneeUpdates: [
-            {
-              employeeId: 1,
-              updates: [
-                { 
-                  date: "2024-01-05T09:00:00Z", 
-                  note: "Initial assignment", 
-                  author: "Manager",
-                },
-                { 
-                  date: "2024-02-01T14:30:00Z", 
-                  note: "Submitted first draft of report with survey data analysis", 
-                  author: "Sarah Johnson",
-                  documentName: "CSAT_Report_Draft.pdf",
-                  documentSize: "1.2 MB",
-                  documentType: "application/pdf"
-                },
-              ]
-            }
-          ],
-          startDate: "2023-12-01",
-          endDate: "2024-03-31",
-          lastUpdated: "2024-02-01T14:30:00Z",
-          priority: "high",
-          completionStatus: "in-progress", // new field for document-based status
-          documentCount: 1,
-        },
-        {
-          id: 3,
-          name: "Support Process Improvement Plan",
-          description: "Develop and implement a plan to reduce ticket resolution time by optimizing support workflows",
-          status: "attention",
-          department: "Customer Service",
-          owner: "Sarah Johnson",
-          assignees: ["1", "3"],
-          assigneeUpdates: [
-            {
-              employeeId: 1,
-              updates: [
-                { 
-                  date: "2024-01-10T09:00:00Z", 
-                  note: "Started analyzing current processes and bottlenecks", 
-                  author: "Sarah Johnson",
-                  documentName: "Process_Analysis.xlsx",
-                  documentSize: "843 KB", 
-                  documentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                }
-              ]
-            }
-          ],
-          startDate: "2024-01-15",
-          endDate: "2024-04-15",
-          lastUpdated: "2024-01-10T09:00:00Z",
-          priority: "medium",
-          completionStatus: "pending", // new field for document-based status
-          documentCount: 1,
-        }
-      ];
-      
-      setMyTasks(sampleTasks);
-      setFilteredTasks(sampleTasks);
-    } catch (error) {
-      console.error("Error fetching assigned KPIs:", error);
+      const all = PMSDummyDataStore.getAllKpiTasks
+        ? PMSDummyDataStore.getAllKpiTasks()
+        : [];
+      console.log("All tasks in store:", all.map(t => ({
+        id: t.id,
+        assignees: t.assignees,
+        updates: t.assigneeUpdates?.map(u => ({ emp: u.employeeId, count: u.updates.length }))
+      })));
+      const tasks = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
+      console.log('Fetched tasks for employee', currentEmployeeId, ':', tasks.map(t=>t.id));
+      setMyTasks(tasks);
+      setFilteredTasks(tasks);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Replace initial mount effect with a subscription so this view refreshes
+  useEffect(() => {
+    // initial load
+    fetchMyTasks();
+
+    // subscribe to store changes (PMSDummyDataStore.subscribe returns an unsubscribe fn)
+    const unsubscribe = PMSDummyDataStore.subscribe(() => {
+      // re-fetch tasks when store notifies
+      fetchMyTasks();
+    });
+
+    return () => {
+      // cleanup subscription on unmount
+      unsubscribe();
+    };
+  }, [currentEmployeeId]); // refetch if employee id changes
+
+  useEffect(() => {
+    applyFilters();
+  }, [myTasks, searchTerm, statusFilter]);
 
   const applyFilters = () => {
     let filtered = myTasks;
@@ -162,61 +120,15 @@ const EmployeeKPIView = () => {
 
   const handleProgressUpdate = async (taskId, progressData) => {
     try {
-      // In real app, call API to update task progress
-      // await PMSService.updateTaskProgress(taskId, progressData);
-
-      // For demo, update the tasks in state
-      const updatedTasks = myTasks.map(task => {
-        if (task.id === taskId) {
-          const now = new Date().toISOString();
-          // Add new update to assigneeUpdates
-          const updatedAssigneeUpdates = task.assigneeUpdates.map(au => {
-            if (au.employeeId === parseInt(currentEmployeeId)) {
-              return {
-                ...au,
-                updates: [
-                  ...au.updates,
-                  { 
-                    date: now, 
-                    note: progressData.note, 
-                    author: currentEmployee.name,
-                    documentName: progressData.documentName,
-                    documentSize: progressData.documentSize,
-                    documentType: progressData.documentType,
-                    progressPercentage: progressData.progressPercentage // Add this line
-                  }
-                ]
-              };
-            }
-            return au;
-          });
-          
-          // Update document count
-          const documentCount = (task.documentCount || 0) + 1;
-          
-          // Update completion status based on document count
-          let completionStatus = task.completionStatus;
-          if (documentCount >= 3) {
-            completionStatus = "completed";
-          } else if (documentCount >= 1) {
-            completionStatus = "in-progress";
-          }
-          
-          return {
-            ...task,
-            lastUpdated: now,
-            assigneeUpdates: updatedAssigneeUpdates,
-            documentCount,
-            completionStatus
-          };
-        }
-        return task;
+      PMSDummyDataStore.updateTaskProgress(taskId, currentEmployeeId, {
+        ...progressData,
+        author: currentEmployee.name,
       });
-      
-      setMyTasks(updatedTasks);
+      const refreshed = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
+      setMyTasks(refreshed);
       setIsProgressModalOpen(false);
-    } catch (error) {
-      console.error("Error updating task progress:", error);
+    } catch (e) {
+      console.error("Error updating task progress:", e);
     }
   };
 
@@ -319,6 +231,26 @@ const EmployeeKPIView = () => {
         </div>
       </div>
 
+      {/* DEBUG: Employee switcher and reload button */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="text-xs text-gray-500">Viewing as:</div>
+        <select
+          value={currentEmployeeId}
+          onChange={(e)=>setCurrentEmployeeId(e.target.value)}
+          className="px-2 py-1 text-sm border border-gray-300 rounded-lg"
+        >
+          {employeeOptions.map(emp => (
+            <option key={emp.id} value={emp.id}>{emp.name} (ID {emp.id})</option>
+          ))}
+        </select>
+        <button
+          onClick={fetchMyTasks}
+          className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-md"
+        >
+          Reload
+        </button>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -402,13 +334,19 @@ const EmployeeKPIView = () => {
       {/* Tasks List */}
       <div className="space-y-4">
         {filteredTasks.length > 0 ? (
-          filteredTasks.map((task) => (
+          filteredTasks.map((task) => {
+            // ensure myUpdates is available to all sub-sections in this task card
+            const myUpdates = task.assigneeUpdates.find(
+              (au) => au.employeeId === parseInt(currentEmployeeId)
+            )?.updates || [];
+
+            return (
             <div
               key={task.id}
               className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
             >
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div className="flex-1">
+               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
                     <span
@@ -492,12 +430,8 @@ const EmployeeKPIView = () => {
                   {/* Latest update with document */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-xs text-gray-500 mb-2">Latest Submission</p>
-                    {(() => {
-                      const myUpdates = task.assigneeUpdates.find(
-                        au => au.employeeId === parseInt(currentEmployeeId)
-                      )?.updates || [];
-                      
-                      if (myUpdates.length > 0) {
+                    {myUpdates.length > 0 ? (
+                      (() => {
                         const latestUpdate = myUpdates[myUpdates.length - 1];
                         return (
                           <div className="flex items-start gap-3">
@@ -517,7 +451,6 @@ const EmployeeKPIView = () => {
                                   </span>
                                 </div>
                               )}
-                              
                               {/* Add self-reported progress visualization here */}
                               {latestUpdate.progressPercentage !== undefined && (
                                 <div className="mt-1 mb-2">
@@ -539,7 +472,6 @@ const EmployeeKPIView = () => {
                                   </div>
                                 </div>
                               )}
-                              
                               <p className="text-sm text-gray-800">{latestUpdate.note}</p>
                               <p className="text-xs text-gray-500 mt-1">
                                 {new Date(latestUpdate.date).toLocaleString()}
@@ -547,14 +479,39 @@ const EmployeeKPIView = () => {
                             </div>
                           </div>
                         );
-                      } else {
-                        return <p className="text-sm text-gray-600">No documents submitted yet</p>;
-                      }
-                    })()}
+                      })()
+                    ) : (
+                      <p className="text-sm text-gray-600">No documents submitted yet</p>
+                    )}
+                    
+                    {/* Performance Metrics Highlights - new section */}
+                    {myUpdates.length > 0 && myUpdates[myUpdates.length - 1].performanceMetrics && (
+                       <div className="mt-3 pt-3 border-t border-gray-200">
+                         <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
+                         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                           {/* Show top 4 metrics */}
+                           {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
+                             .sort((a, b) => b[1] - a[1])
+                             .slice(0, 4)
+                             .map(([key, value]) => {
+                               // Convert camelCase to display format
+                               const displayName = key.replace(/([A-Z])/g, ' $1')
+                                 .replace(/^./, str => str.toUpperCase());
+                                
+                               return (
+                                 <div key={key} className="flex justify-between">
+                                   <span className="text-xs text-gray-600">{displayName}:</span>
+                                   <span className="text-xs font-medium text-gray-900">{value}%</span>
+                                 </div>
+                               );
+                             })}
+                         </div>
+                       </div>
+                     )}
                   </div>
-                </div>
-                
-                <div className="flex flex-row lg:flex-col gap-2">
+                 </div>
+                 
+                 <div className="flex flex-row lg:flex-col gap-2">
                   <button
                     onClick={() => handleOpenViewModal(task)}
                     className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
@@ -572,18 +529,19 @@ const EmployeeKPIView = () => {
                 </div>
               </div>
             </div>
-          ))
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-            <p className="text-gray-600 mb-6">
-              {searchTerm || statusFilter !== "all"
-                ? "Try adjusting your search criteria or filters"
-                : "You don't have any assigned KPI tasks yet"}
-            </p>
-          </div>
-        )}
+            );
+          })
+         ) : (
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+             <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+             <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+             <p className="text-gray-600 mb-6">
+               {searchTerm || statusFilter !== "all"
+                 ? "Try adjusting your search criteria or filters"
+                 : "You don't have any assigned KPI tasks yet"}
+             </p>
+           </div>
+         )}
       </div>
     </div>
   );
