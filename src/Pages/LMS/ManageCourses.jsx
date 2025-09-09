@@ -199,7 +199,14 @@ const ManageCourses = ({ onViewCourse }) => {
     const processedAttachments = [];
     for (const file of selectedFiles) {
       try {
-        const attachment = LMSService.createAttachmentFromFile(file);
+        // Create attachment object with file for upload
+        const attachment = {
+          id: Date.now() + Math.random(), // temp ID for UI
+          name: file.name,
+          type: file.type.includes("pdf") ? "pdf" : "video",
+          size: LMSService.formatFileSize(file.size),
+          file: file, // Include the actual File object for upload
+        };
         processedAttachments.push(attachment);
       } catch (error) {
         setUploadError(error.message);

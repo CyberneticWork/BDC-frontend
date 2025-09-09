@@ -1,4 +1,5 @@
 import axios from "../utils/axios";
+import config from "../config";
 
 // Helper to convert snake_case API response to camelCase used in UI
 const mapCourse = (c) => ({
@@ -21,7 +22,11 @@ const mapCourse = (c) => ({
     courseId: a.course_id,
     name: a.name,
     type: a.type,
-    url: a.url,
+    url: a.url.startsWith("http")
+      ? a.url
+      : a.url.startsWith("/storage/")
+      ? `${config.apiBaseUrl}${a.url}`
+      : `${config.apiBaseUrl}/storage/attachments/${a.url}`,
     size: a.size,
   })),
 });
@@ -35,6 +40,8 @@ const formatFileSize = (bytes) => {
 };
 
 const LMSService = {
+  // Add formatFileSize as a method
+  formatFileSize,
   // Simulated current user (replace with AuthContext integration later)
   currentUser: { id: 1, name: "Current User" },
 
@@ -73,14 +80,19 @@ const LMSService = {
   },
 
   async createCourse(courseData) {
-    const payload = this._prepareCoursePayload(courseData);
-    const res = await axios.post("/courses", payload);
-    return mapCourse(res.data.course ?? res.data); // controller wraps in {course: ...}
+    const formData = this._prepareCourseFormData(courseData);
+    const res = await axios.post("/courses", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return mapCourse(res.data.course ?? res.data);
   },
 
   async updateCourse(id, courseData) {
-    const payload = this._prepareCoursePayload(courseData);
-    const res = await axios.put(`/courses/${id}`, payload);
+    const formData = this._prepareCourseFormData(courseData);
+    const res = await axios.post(`/courses/${id}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      params: { _method: "PUT" }, // Laravel expects PUT but we use POST with _method
+    });
     return mapCourse(res.data.course ?? res.data);
   },
 
@@ -94,22 +106,31 @@ const LMSService = {
     return true;
   },
 
-  _prepareCoursePayload(formData) {
-    return {
-      title: formData.title,
-      description: formData.description,
-      duration: formData.duration,
-      modules: (formData.modules || []).map((m) => ({
-        title: m.title,
-        content: m.content,
-      })),
-      attachments: (formData.attachments || []).map((a) => ({
-        name: a.name,
-        type: a.type,
-        url: a.url,
-        size: a.size,
-      })),
-    };
+  _prepareCourseFormData(formData) {
+    const data = new FormData();
+    data.append("title", formData.title);
+    data.append("description", formData.description);
+    data.append("duration", formData.duration);
+
+    // Add modules as JSON
+    if (formData.modules && formData.modules.length > 0) {
+      formData.modules.forEach((module, index) => {
+        data.append(`modules[${index}][title]`, module.title);
+        data.append(`modules[${index}][content]`, module.content || "");
+      });
+    }
+
+    // Add attachments (only new files with 'file' property)
+    if (formData.attachments && formData.attachments.length > 0) {
+      formData.attachments.forEach((attachment, index) => {
+        if (attachment.file) {
+          // Only upload new files
+          data.append(`attachments[${index}]`, attachment.file);
+        }
+      });
+    }
+
+    return data;
   },
 
   // Simulated client-side attachment creation (until real upload endpoint exists)
