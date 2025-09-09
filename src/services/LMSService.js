@@ -15,6 +15,13 @@ const mapCourse = (c) => ({
     courseId: m.course_id,
     title: m.title,
     content: m.content,
+    path: m.path
+      ? m.path.startsWith("http")
+        ? m.path
+        : m.path.startsWith("/storage/")
+        ? `${config.apiBaseUrl}${m.path}`
+        : `${config.apiBaseUrl}/storage/modules/${m.path}`
+      : null,
     completed: m.completed,
   })),
   attachments: (c.attachments || []).map((a) => ({
@@ -112,11 +119,20 @@ const LMSService = {
     data.append("description", formData.description);
     data.append("duration", formData.duration);
 
-    // Add modules as JSON
+    // Add modules with files
     if (formData.modules && formData.modules.length > 0) {
       formData.modules.forEach((module, index) => {
         data.append(`modules[${index}][title]`, module.title);
         data.append(`modules[${index}][content]`, module.content || "");
+        // Preserve existing module id so backend can decide to update instead of recreating
+        if (module.id && !module.tempId) {
+          data.append(`modules[${index}][id]`, module.id);
+        }
+
+        // Add module file if exists
+        if (module.file) {
+          data.append(`modules[${index}][file]`, module.file);
+        }
       });
     }
 

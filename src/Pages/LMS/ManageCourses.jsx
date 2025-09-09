@@ -27,7 +27,11 @@ const ManageCourses = ({ onViewCourse }) => {
     modules: [],
     attachments: [],
   });
-  const [newModule, setNewModule] = useState({ title: "", content: "" });
+  const [newModule, setNewModule] = useState({
+    title: "",
+    content: "",
+    file: null,
+  });
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadError, setUploadError] = useState("");
 
@@ -122,7 +126,7 @@ const ManageCourses = ({ onViewCourse }) => {
       modules: [],
       attachments: [],
     });
-    setNewModule({ title: "", content: "" });
+    setNewModule({ title: "", content: "", file: null });
     setSelectedFiles([]);
     setUploadError("");
   };
@@ -138,7 +142,7 @@ const ManageCourses = ({ onViewCourse }) => {
         ...formData,
         modules: [...formData.modules, module],
       });
-      setNewModule({ title: "", content: "" });
+      setNewModule({ title: "", content: "", file: null });
     }
   };
 
@@ -221,6 +225,23 @@ const ManageCourses = ({ onViewCourse }) => {
       ...formData,
       modules: formData.modules.map((m) =>
         m.id === moduleId ? { ...m, [field]: value } : m
+      ),
+    });
+  };
+
+  // Set or replace a file for a specific module
+  const updateModuleFile = (moduleId, file) => {
+    setFormData({
+      ...formData,
+      modules: formData.modules.map((m) =>
+        m.id === moduleId
+          ? {
+              ...m,
+              file, // keep any existing data
+              // Clear existing path if user chooses a new file
+              path: file ? undefined : m.path,
+            }
+          : m
       ),
     });
   };
@@ -423,6 +444,28 @@ const ManageCourses = ({ onViewCourse }) => {
                       placeholder="Module content"
                     />
                   </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Module File (PDF/Video - Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf,.mp4,.avi,.mov,.wmv"
+                      onChange={(e) =>
+                        setNewModule({
+                          ...newModule,
+                          file: e.target.files[0] || null,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {newModule.file && (
+                      <p className="mt-2 text-sm text-gray-600">
+                        Selected: {newModule.file.name} (
+                        {(newModule.file.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                  </div>
                   <button
                     onClick={addModule}
                     className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
@@ -458,6 +501,96 @@ const ManageCourses = ({ onViewCourse }) => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Module content"
                       />
+                      {/* Module File Upload / Existing File Display */}
+                      <div className="mt-3 space-y-2">
+                        {module.file && (
+                          <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2">
+                            <div className="flex items-center">
+                              {module.file.type?.includes("pdf") ? (
+                                <FileText className="h-5 w-5 text-red-500 mr-2" />
+                              ) : (
+                                <Video className="h-5 w-5 text-blue-500 mr-2" />
+                              )}
+                              <span className="text-sm text-gray-700">
+                                {module.file.name} (
+                                {(module.file.size / 1024 / 1024).toFixed(2)}{" "}
+                                MB)
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => updateModuleFile(module.id, null)}
+                              className="text-red-500 hover:text-red-700 text-xs"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                        {!module.file && module.path && (
+                          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2">
+                            <div className="flex items-center">
+                              {module.path.includes(".pdf") ? (
+                                <FileText className="h-5 w-5 text-red-500 mr-2" />
+                              ) : (
+                                <Video className="h-5 w-5 text-blue-500 mr-2" />
+                              )}
+                              <span className="text-sm text-gray-700">
+                                Existing file attached
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => window.open(module.path, "_blank")}
+                              className="text-blue-600 hover:text-blue-800 text-xs underline"
+                            >
+                              View
+                            </button>
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {module.file || module.path
+                              ? "Replace File (optional)"
+                              : "Attach File (PDF / Video)"}
+                          </label>
+                          <input
+                            type="file"
+                            accept=".pdf,.mp4,.avi,.mov,.wmv"
+                            onChange={(e) =>
+                              updateModuleFile(
+                                module.id,
+                                e.target.files[0] || null
+                              )
+                            }
+                            className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs file:mr-2 file:py-1 file:px-3 file:rounded-l file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          />
+                        </div>
+                      </div>
+                      {module.path && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              {module.path.includes(".pdf") ? (
+                                <FileText className="h-5 w-5 text-red-500 mr-2" />
+                              ) : (
+                                <Video className="h-5 w-5 text-blue-500 mr-2" />
+                              )}
+                              <span className="text-sm text-gray-700">
+                                Existing file:{" "}
+                                {module.path.includes(".pdf")
+                                  ? "PDF Document"
+                                  : "Video File"}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => window.open(module.path, "_blank")}
+                              className="text-blue-600 hover:text-blue-800 text-sm underline"
+                            >
+                              View File
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
