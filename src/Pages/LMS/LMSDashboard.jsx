@@ -25,10 +25,18 @@ const LMSDashboard = ({
   const [enrolledCourses, setEnrolledCourses] = useState([]);
 
   useEffect(() => {
-    setCourses(LMSService.getCourses());
-    setExams(LMSService.getExams());
-    setUserProgress(LMSService.getUserProgress());
-    setEnrolledCourses(LMSService.getEnrolledCourses());
+    const init = async () => {
+      try {
+        await LMSService.fetchCourses();
+        setCourses(LMSService.getCourses());
+        setExams(LMSService.getExams());
+        setUserProgress(LMSService.getUserProgress());
+        setEnrolledCourses(LMSService.getEnrolledCourses());
+      } catch (e) {
+        console.error("Failed to load dashboard data", e);
+      }
+    };
+    init();
   }, []);
 
   const handleEnroll = (courseId) => {
@@ -39,9 +47,11 @@ const LMSDashboard = ({
   };
 
   const progressPercentage =
-    userProgress.totalModules > 0
+    (userProgress.totalModules || 0) > 0
       ? Math.round(
-          (userProgress.completedModules / userProgress.totalModules) * 100
+          ((userProgress.completedModules || 0) /
+            (userProgress.totalModules || 1)) *
+            100
         )
       : 0;
 
