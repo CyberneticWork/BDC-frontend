@@ -644,12 +644,6 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Details</h3>
               <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                {kpi.category && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Category:</span>
-                    <span className="text-sm font-medium text-gray-900">{kpi.category}</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Department:</span>
                   <span className="text-sm font-medium text-gray-900">{kpi.departmentName || kpi.department}</span>
@@ -1447,19 +1441,6 @@ const KPIs = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Categories</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {getUniqueValues("category").length}
-              </p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Target className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Filters */}
@@ -1512,9 +1493,7 @@ const KPIs = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Performance
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
+                {/* Category column removed */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
@@ -1589,11 +1568,6 @@ const KPIs = () => {
                         </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                      {kpi.category || "Uncategorized"}
-                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span
