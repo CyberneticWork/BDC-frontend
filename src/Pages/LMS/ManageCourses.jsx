@@ -35,8 +35,14 @@ const ManageCourses = ({ onViewCourse }) => {
     loadCourses();
   }, []);
 
-  const loadCourses = () => {
-    setCourses(LMSService.getMyCourses());
+  const loadCourses = async () => {
+    try {
+      const res = await LMSService.fetchCourses();
+      // API returns pagination with created_at fields; UI expects createdAt, updatedAt already mapped in service
+      setCourses(res.data);
+    } catch (e) {
+      console.error("Failed to load courses", e);
+    }
   };
 
   const handleCreateCourse = async () => {
@@ -50,8 +56,8 @@ const ManageCourses = ({ onViewCourse }) => {
           attachments: [...formData.attachments, ...processedAttachments],
         };
 
-        LMSService.createCourse(courseData);
-        loadCourses();
+        await LMSService.createCourse(courseData);
+        await loadCourses();
         setShowCreateModal(false);
         resetForm();
       } catch (error) {
@@ -76,8 +82,8 @@ const ManageCourses = ({ onViewCourse }) => {
           attachments: [...formData.attachments, ...processedAttachments],
         };
 
-        LMSService.updateCourse(editingCourse.id, courseData);
-        loadCourses();
+        await LMSService.updateCourse(editingCourse.id, courseData);
+        await loadCourses();
         setEditingCourse(null);
         resetForm();
       } catch (error) {
@@ -86,10 +92,14 @@ const ManageCourses = ({ onViewCourse }) => {
     }
   };
 
-  const handleDeleteCourse = (courseId) => {
+  const handleDeleteCourse = async (courseId) => {
     if (window.confirm("Are you sure you want to delete this course?")) {
-      LMSService.deleteCourse(courseId);
-      loadCourses();
+      try {
+        await LMSService.deleteCourse(courseId);
+        await loadCourses();
+      } catch (e) {
+        console.error("Delete failed", e);
+      }
     }
   };
 
@@ -189,7 +199,7 @@ const ManageCourses = ({ onViewCourse }) => {
     const processedAttachments = [];
     for (const file of selectedFiles) {
       try {
-        const attachment = LMSService.uploadFile(file);
+        const attachment = LMSService.createAttachmentFromFile(file);
         processedAttachments.push(attachment);
       } catch (error) {
         setUploadError(error.message);
@@ -309,7 +319,7 @@ const ManageCourses = ({ onViewCourse }) => {
 
       {/* Create/Edit Course Modal */}
       {(showCreateModal || editingCourse) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-gray-900">

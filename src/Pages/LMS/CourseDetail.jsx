@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   CheckCircle,
@@ -20,26 +21,54 @@ const CourseDetail = ({ courseId, onBack }) => {
   const [relatedExams, setRelatedExams] = useState([]);
 
   useEffect(() => {
-    const courseData = LMSService.getCourseById(courseId);
-    setCourse(courseData);
-    if (courseData && courseData.modules.length > 0) {
-      setCurrentModule(courseData.modules[0]);
-    }
-    // Load related exams
-    setRelatedExams(LMSService.getExamsByCourse(courseId));
+    const load = async () => {
+      try {
+        const courseData = await LMSService.getCourseById(courseId);
+        setCourse(courseData);
+        if (
+          courseData &&
+          Array.isArray(courseData.modules) &&
+          courseData.modules.length > 0
+        ) {
+          setCurrentModule(courseData.modules[0]);
+        }
+        // Load related exams (still sync dummy)
+        setRelatedExams(LMSService.getExamsByCourse(courseId));
+      } catch (e) {
+        console.error("Failed to load course", e);
+      }
+    };
+    load();
   }, [courseId]);
 
-  const handleModuleComplete = (moduleId) => {
-    LMSService.completeModule(courseId, moduleId);
-    const updatedCourse = LMSService.getCourseById(courseId);
-    setCourse(updatedCourse);
-
-    // Move to next module if available
-    const currentIndex = updatedCourse.modules.findIndex(
-      (m) => m.id === moduleId
-    );
-    if (currentIndex < updatedCourse.modules.length - 1) {
-      setCurrentModule(updatedCourse.modules[currentIndex + 1]);
+  const handleModuleComplete = async (moduleId) => {
+    // completeModule was part of old dummy logic; now just mark locally if course loaded
+    setCourse((prev) => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        modules: prev.modules.map((m) =>
+          m.id === moduleId ? { ...m, completed: true } : m
+        ),
+      };
+      return updated;
+    });
+    try {
+      const updatedCourse = await LMSService.getCourseById(courseId); // refresh from API (if API supports completion later)
+      if (updatedCourse) {
+        setCourse(updatedCourse);
+        const currentIndex = updatedCourse.modules.findIndex(
+          (m) => m.id === moduleId
+        );
+        if (
+          currentIndex > -1 &&
+          currentIndex < updatedCourse.modules.length - 1
+        ) {
+          setCurrentModule(updatedCourse.modules[currentIndex + 1]);
+        }
+      }
+    } catch (e) {
+      // fallback to local progression only
     }
   };
 
@@ -48,13 +77,25 @@ const CourseDetail = ({ courseId, onBack }) => {
   };
 
   if (!course) {
-    return <div className="text-center py-8">Loading course...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <motion.div
+          className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+        <p className="mt-4 text-gray-600 text-lg">Loading course...</p>
+      </div>
+    );
   }
 
-  const completedModules = course.modules.filter((m) => m.completed).length;
-  const progressPercentage = Math.round(
-    (completedModules / course.modules.length) * 100
-  );
+  const completedModules = (course.modules || []).filter(
+    (m) => m.completed
+  ).length;
+  const progressPercentage =
+    course.modules && course.modules.length > 0
+      ? Math.round((completedModules / course.modules.length) * 100)
+      : 0;
 
   return (
     <div className="space-y-6">
@@ -113,7 +154,7 @@ const CourseDetail = ({ courseId, onBack }) => {
               Course Modules
             </h3>
             <div className="space-y-3">
-              {course.modules.map((module, index) => (
+              {(course.modules || []).map((module, index) => (
                 <div
                   key={module.id}
                   onClick={() => handleModuleSelect(module)}
