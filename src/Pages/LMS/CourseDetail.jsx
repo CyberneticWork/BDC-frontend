@@ -288,7 +288,7 @@ const CourseDetail = ({ courseId, onBack }) => {
                 </div>
                 <button
                   onClick={() => {
-                    // In a real app, this would open/download the file
+                    // Opens the file in a new tab for viewing
                     window.open(attachment.url, "_blank");
                   }}
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center text-sm"
