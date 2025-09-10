@@ -25,6 +25,22 @@ import {
 import PMSService from "../../../services/PMS/PMSService";
 import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 
+// Add predefined task names for dropdown (placed near top, after imports)
+const predefinedTaskNames = [
+  "Job Knowledge and Skills",
+  "Quality of Work",
+  "Productivity",
+  "Communication Skills",
+  "Teamwork and Collaboration",
+  "Behavior at work",
+  "Problem-Solving and Decision-Making",
+  "Attendance and Punctuality",
+  "Adaptability and Flexibility",
+  "Self-Development",
+  "Discipline and conduct at work",
+  "Adherence to the given Guidelines"
+];
+
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
 const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false, isLoading = false, employees = [] }) => {
@@ -225,15 +241,18 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Task Name*
               </label>
-              <input
-                type="text"
+              <select
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 required
-                placeholder="Enter KPI task name"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              />
+              >
+                <option value="">Select task name</option>
+                {predefinedTaskNames.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
             </div>
 
             <div>
