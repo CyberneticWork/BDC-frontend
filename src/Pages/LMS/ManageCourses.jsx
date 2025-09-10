@@ -134,7 +134,7 @@ const ManageCourses = ({ onViewCourse }) => {
   const addModule = () => {
     if (newModule.title && newModule.content) {
       const module = {
-        id: Math.max(...formData.modules.map((m) => m.id || 0), 0) + 1,
+        tempId: `temp-${Date.now()}`, // Unique for UI
         ...newModule,
         completed: false,
       };
@@ -149,7 +149,7 @@ const ManageCourses = ({ onViewCourse }) => {
   const removeModule = (moduleId) => {
     setFormData({
       ...formData,
-      modules: formData.modules.filter((m) => m.id !== moduleId),
+      modules: formData.modules.filter((m) => (m.id || m.tempId) !== moduleId),
     });
   };
 
@@ -224,7 +224,7 @@ const ManageCourses = ({ onViewCourse }) => {
     setFormData({
       ...formData,
       modules: formData.modules.map((m) =>
-        m.id === moduleId ? { ...m, [field]: value } : m
+        (m.id || m.tempId) === moduleId ? { ...m, [field]: value } : m
       ),
     });
   };
@@ -478,7 +478,7 @@ const ManageCourses = ({ onViewCourse }) => {
                 <div className="space-y-3">
                   {formData.modules.map((module, index) => (
                     <div
-                      key={module.id}
+                      key={module.id || module.tempId}
                       className="bg-white border border-gray-200 p-4 rounded-lg"
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -486,7 +486,9 @@ const ManageCourses = ({ onViewCourse }) => {
                           Module {index + 1}: {module.title}
                         </h6>
                         <button
-                          onClick={() => removeModule(module.id)}
+                          onClick={() =>
+                            removeModule(module.id || module.tempId)
+                          }
                           className="text-red-500 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -495,7 +497,11 @@ const ManageCourses = ({ onViewCourse }) => {
                       <textarea
                         value={module.content}
                         onChange={(e) =>
-                          updateModule(module.id, "content", e.target.value)
+                          updateModule(
+                            module.id || module.tempId,
+                            "content",
+                            e.target.value
+                          )
                         }
                         rows={3}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -519,7 +525,12 @@ const ManageCourses = ({ onViewCourse }) => {
                             </div>
                             <button
                               type="button"
-                              onClick={() => updateModuleFile(module.id, null)}
+                              onClick={() =>
+                                updateModuleFile(
+                                  module.id || module.tempId,
+                                  null
+                                )
+                              }
                               className="text-red-500 hover:text-red-700 text-xs"
                             >
                               Remove
@@ -558,7 +569,7 @@ const ManageCourses = ({ onViewCourse }) => {
                             accept=".pdf,.mp4,.avi,.mov,.wmv"
                             onChange={(e) =>
                               updateModuleFile(
-                                module.id,
+                                module.id || module.tempId,
                                 e.target.files[0] || null
                               )
                             }
