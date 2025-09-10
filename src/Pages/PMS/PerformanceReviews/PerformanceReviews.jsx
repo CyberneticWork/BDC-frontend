@@ -1501,6 +1501,12 @@ const PerformanceReviews = () => {
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Weights Total
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -1605,11 +1611,18 @@ const PerformanceReviews = () => {
                         </button>
                       </div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-center">
+                        <span className="text-sm font-bold text-indigo-600">
+                          {review.weights ? review.weights.reduce((sum, w) => sum + (w.percentage || 0), 0) : 0}%
+                        </span>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan="9" className="px-6 py-10 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <Search className="h-10 w-10 text-gray-300 mb-2" />
                       <p className="text-lg font-medium text-gray-600">No reviews found</p>
@@ -1707,7 +1720,6 @@ const PerformanceReviews = () => {
             </div>
           </div>
         </div>
-        
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-gray-100 text-gray-600 mr-4">
@@ -1727,3 +1739,33 @@ const PerformanceReviews = () => {
 };
 
 export default PerformanceReviews;
+
+// Utility to generate review object for each new task assignment
+function buildReviewFromTask(task, assigneeId) {
+  const now = new Date().toISOString();
+  return {
+    id: reviewIdCounter++,
+    taskId: task.id,
+    employeeName: resolveEmployeeName(assigneeId),
+    employeeId: "EMP" + assigneeId.toString().padStart(3, "0"),
+    position: "", // unknown in dummy scope
+    department: task.department || "",
+    manager: task.creator?.name || "Supervisor",
+    type: "Performance Review",
+    status: "Draft",
+    startDate: task.startDate,
+    dueDate: task.endDate,
+    completedDate: null,
+    overallRating: null,
+    cycle: deriveCycle(task.startDate),
+    progress: 0,              // supervisor progress
+    grade: null,
+    supervisorComments: null,
+    lastUpdated: now,
+    selfReportedProgress: 0,
+    selfReportedLastUpdated: null,
+    selfReportedAuthor: null,
+    performanceMetrics: null,
+    weights: task.weights // Add weights from the linked task
+  };
+}

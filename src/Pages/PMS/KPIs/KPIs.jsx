@@ -857,6 +857,34 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
             </div>
           </div>
 
+          {/* Performance Criteria Weights */}
+          {kpi.weights && kpi.weights.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Performance Criteria Weights</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="space-y-2">
+                  {kpi.weights.map((weight, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{weight.title}</p>
+                        {weight.description && (
+                          <p className="text-xs text-gray-500">{weight.description}</p>
+                        )}
+                      </div>
+                      <span className="text-sm font-bold text-indigo-600">{weight.percentage}%</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span className="text-sm font-medium text-gray-700">Total:</span>
+                    <span className="text-sm font-bold text-indigo-600">
+                      {kpi.weights.reduce((sum, w) => sum + (w.percentage || 0), 0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Updates Timeline */}
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2">Updates Timeline</h3>
@@ -1448,10 +1476,11 @@ const KPIs = () => {
           assignees: currentKpi.assignees ? [...currentKpi.assignees] : [],
           company: currentKpi.company || "",
           departmentId: currentKpi.departmentId || "",
-          companyName: currentKpi.companyName || "",  // Add this for display/logging
+          companyName: currentKpi.companyName || "",
           category: currentKpi.category || "",
           priority: currentKpi.priority || "medium",
           creatorRole: currentKpi.creator?.role || "",
+          weights: currentKpi.weights, // Add weights to initialData
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}
@@ -1678,22 +1707,10 @@ const KPIs = () => {
                   <td className="px-6 py-4">
                     <div className="text-sm">
                       {kpi.weights ? (
-                        <div className="space-y-1">
-                          {/* Display percentages in compact format */}
-                          <div className="text-xs text-gray-600">
-                            {kpi.weights.map((weight, index) => (
-                              <span key={index} className="inline-block mr-1">
-                                {weight.percentage}%
-                                {index < kpi.weights.length - 1 && ", "}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="flex justify-between pt-1 border-t border-gray-200">
-                            <span className="text-xs font-medium text-gray-700">Total:</span>
-                            <span className="text-xs font-bold text-indigo-600">
-                              {kpi.weights.reduce((sum, w) => sum + (w.percentage || 0), 0)}%
-                            </span>
-                          </div>
+                        <div className="text-center">
+                          <span className="text-sm font-bold text-indigo-600">
+                            {kpi.weights.reduce((sum, w) => sum + (w.percentage || 0), 0)}%
+                          </span>
                         </div>
                       ) : (
                         <span className="text-xs text-gray-500">No weights set</span>
