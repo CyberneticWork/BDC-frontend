@@ -96,11 +96,6 @@ export const TaskProgressUpdateModal = ({
       return;
     }
 
-    if (!selectedFile) {
-      alert("Please upload a document to support your progress");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       // Create current timestamp
@@ -115,16 +110,25 @@ export const TaskProgressUpdateModal = ({
         performanceMetrics[key] = key === metricKey ? currentMetricValue : 0;
       });
       
+      // Prepare document data (optional)
+      const documentData = selectedFile ? {
+        documentName: selectedFile.name,
+        documentSize: (selectedFile.size / 1024).toFixed(1) + " KB",
+        documentType: selectedFile.type,
+      } : {
+        documentName: null,
+        documentSize: null,
+        documentType: null,
+      };
+      
       // In a real implementation, you'd upload the file to a server here
       const progressData = {
         note: progressNote,
         employeeId,
-        date: now,
-        documentName: selectedFile.name,
-        documentSize: (selectedFile.size / 1024).toFixed(1) + " KB",
-        documentType: selectedFile.type,
-        progressPercentage: currentMetricValue, // Use the single metric value as overall progress
-        performanceMetrics: performanceMetrics, // Include all metrics but only current one has value
+        date: now, // This will be used as the last update date
+        progressPercentage: currentMetricValue,
+        performanceMetrics: performanceMetrics,
+        ...documentData, // Include document data if available
       };
       
       await onSubmit(progressData);
@@ -206,10 +210,10 @@ export const TaskProgressUpdateModal = ({
               </div>
             </div>
 
-            {/* Document upload */}
+            {/* Document upload - Now optional */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Document
+                Upload Document <span className="text-gray-500 text-xs">(Optional)</span>
               </label>
               <div 
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
@@ -259,7 +263,7 @@ export const TaskProgressUpdateModal = ({
                       </button>
                     </div>
                     <p className="text-xs text-gray-500">
-                      Support for PDF, Word, Excel, and image files up to 10MB
+                      Support for PDF, Word, Excel, and image files up to 10MB (Optional)
                     </p>
                   </div>
                 )}
@@ -269,7 +273,7 @@ export const TaskProgressUpdateModal = ({
             {/* Progress note */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Progress Notes
+                Progress Notes <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={progressNote}
@@ -347,9 +351,9 @@ export const TaskProgressUpdateModal = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !selectedFile}
+              disabled={isSubmitting}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                isSubmitting || !selectedFile 
+                isSubmitting 
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
                   : "bg-indigo-600 text-white hover:bg-indigo-700"
               }`}
