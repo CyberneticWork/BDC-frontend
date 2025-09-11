@@ -37,56 +37,111 @@ const ExamManagement = ({ onTakeExam }) => {
     explanation: "",
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     loadExams();
     loadCourses();
   }, []);
 
-  const loadExams = () => {
-    setExams(LMSService.getMyExams());
-  };
-
-  const loadCourses = () => {
-    setCourses(LMSService.getCourses());
-  };
-
-  const handleCreateExam = () => {
-    if (formData.title && formData.description && formData.duration) {
-      const examData = {
-        ...formData,
-        courseId: formData.courseId ? parseInt(formData.courseId) : null,
-        totalQuestions: formData.questions.length,
-      };
-      LMSService.createExam(examData);
-      loadExams();
-      setShowCreateModal(false);
-      resetForm();
+  const loadExams = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await LMSService.getExams();
+      setExams(response.data || []);
+    } catch (err) {
+      setError("Failed to load exams");
+      console.error("Error loading exams:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleUpdateExam = () => {
+  const loadCourses = async () => {
+    try {
+      const response = await LMSService.fetchCourses();
+      setCourses(response.data || []);
+    } catch (err) {
+      console.error("Error loading courses:", err);
+      // Fallback to cached courses if API fails
+      setCourses(LMSService.getCourses());
+    }
+  };
+
+  const handleCreateExam = async () => {
+    if (formData.title && formData.description && formData.duration) {
+      try {
+        setLoading(true);
+        setError(null);
+        const examData = {
+          title: formData.title,
+          description: formData.description,
+          course_id: formData.courseId ? parseInt(formData.courseId) : null,
+          duration: formData.duration,
+          passing_score: formData.passingScore,
+          total_questions: formData.questions.length,
+          questions: formData.questions,
+        };
+        await LMSService.createExam(examData);
+        await loadExams();
+        setShowCreateModal(false);
+        resetForm();
+      } catch (err) {
+        setError("Failed to create exam");
+        console.error("Error creating exam:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleUpdateExam = async () => {
     if (
       editingExam &&
       formData.title &&
       formData.description &&
       formData.duration
     ) {
-      const examData = {
-        ...formData,
-        courseId: formData.courseId ? parseInt(formData.courseId) : null,
-        totalQuestions: formData.questions.length,
-      };
-      LMSService.updateExam(editingExam.id, examData);
-      loadExams();
-      setEditingExam(null);
-      resetForm();
+      try {
+        setLoading(true);
+        setError(null);
+        const examData = {
+          title: formData.title,
+          description: formData.description,
+          course_id: formData.courseId ? parseInt(formData.courseId) : null,
+          duration: formData.duration,
+          passing_score: formData.passingScore,
+          total_questions: formData.questions.length,
+          questions: formData.questions,
+        };
+        await LMSService.updateExam(editingExam.id, examData);
+        await loadExams();
+        setEditingExam(null);
+        resetForm();
+      } catch (err) {
+        setError("Failed to update exam");
+        console.error("Error updating exam:", err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const handleDeleteExam = (examId) => {
+  const handleDeleteExam = async (examId) => {
     if (window.confirm("Are you sure you want to delete this exam?")) {
-      LMSService.deleteExam(examId);
-      loadExams();
+      try {
+        setLoading(true);
+        setError(null);
+        await LMSService.deleteExam(examId);
+        await loadExams();
+      } catch (err) {
+        setError("Failed to delete exam");
+        console.error("Error deleting exam:", err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -95,10 +150,10 @@ const ExamManagement = ({ onTakeExam }) => {
     setFormData({
       title: exam.title,
       description: exam.description,
-      courseId: exam.courseId || "",
+      courseId: exam.course_id || exam.courseId || "",
       duration: exam.duration,
-      passingScore: exam.passingScore,
-      questions: [...exam.questions],
+      passingScore: exam.passing_score || exam.passingScore,
+      questions: [...(exam.questions || [])],
     });
   };
 
@@ -144,7 +199,7 @@ const ExamManagement = ({ onTakeExam }) => {
   const removeQuestion = (questionId) => {
     setFormData({
       ...formData,
-      modules: formData.questions.filter((q) => q.id !== questionId),
+      questions: formData.questions.filter((q) => q.id !== questionId),
     });
   };
 
@@ -213,7 +268,7 @@ const ExamManagement = ({ onTakeExam }) => {
                     {exam.title}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    {exam.totalQuestions} questions
+                    {exam.total_questions || exam.totalQuestions} questions
                   </p>
                 </div>
               </div>
@@ -230,17 +285,17 @@ const ExamManagement = ({ onTakeExam }) => {
               </div>
               <div className="flex items-center text-sm text-gray-500">
                 <Target className="h-4 w-4 mr-1" />
-                <span>Passing: {exam.passingScore}%</span>
+                <span>Passing: {exam.passing_score || exam.passingScore}%</span>
               </div>
               <div className="flex items-center text-sm text-gray-500">
                 <BookOpen className="h-4 w-4 mr-1" />
-                <span>{getCourseTitle(exam.courseId)}</span>
+                <span>{getCourseTitle(exam.course_id || exam.courseId)}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-              <span>Created: {exam.createdAt}</span>
-              <span>Updated: {exam.updatedAt}</span>
+              <span>Created: {exam.created_at || exam.createdAt}</span>
+              <span>Updated: {exam.updated_at || exam.updatedAt}</span>
             </div>
 
             <div className="flex space-x-2">
@@ -307,6 +362,15 @@ const ExamManagement = ({ onTakeExam }) => {
                 <X className="h-6 w-6" />
               </button>
             </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 mr-2" />
+                  <span>{error}</span>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-6">
               {/* Basic Info */}

@@ -211,264 +211,48 @@ const LMSService = {
     };
   },
 
-  // ---- (Existing exam dummy logic kept for now; can be migrated to API later) ----
+  // ---- Exams API ----
 
-  // Exam Management
-  exams: [
-    {
-      id: 1,
-      title: "HR Management Fundamentals Quiz",
-      description: "Test your knowledge of basic HR management concepts",
-      courseId: 1, // Related to course ID 1
-      duration: "30 minutes",
-      totalQuestions: 4, // Updated to match actual number of questions
-      passingScore: 70,
-      questions: [
-        {
-          id: 1,
-          question: "What is the first step in the recruitment process?",
-          options: [
-            "Job posting",
-            "Interview scheduling",
-            "Resume screening",
-            "Reference checking",
-          ],
-          correctAnswer: 2,
-          explanation:
-            "Resume screening is typically the first step after receiving applications",
-        },
-        {
-          id: 2,
-          question: "Which of the following is NOT a key HR function?",
-          options: [
-            "Recruitment",
-            "Employee relations",
-            "Financial planning",
-            "Training and development",
-          ],
-          correctAnswer: 2,
-          explanation:
-            "Financial planning is typically handled by the finance department",
-        },
-        {
-          id: 3,
-          question: "What is the primary purpose of performance appraisals?",
-          options: [
-            "To determine salary increases only",
-            "To identify training needs and provide feedback",
-            "To decide on promotions exclusively",
-            "To document employee misconduct",
-          ],
-          correctAnswer: 1,
-          explanation:
-            "Performance appraisals help identify development needs and provide constructive feedback",
-        },
-        {
-          id: 4,
-          question:
-            "Which employment law protects against workplace discrimination?",
-          options: [
-            "FLSA (Fair Labor Standards Act)",
-            "Title VII of the Civil Rights Act",
-            "OSHA (Occupational Safety and Health Act)",
-            "ERISA (Employee Retirement Income Security Act)",
-          ],
-          correctAnswer: 1,
-          explanation:
-            "Title VII prohibits employment discrimination based on race, color, religion, sex, or national origin",
-        },
-      ],
-      createdBy: 1,
-      createdAt: "2025-09-01",
-      updatedAt: "2025-09-01",
-    },
-    {
-      id: 2,
-      title: "Leadership Assessment",
-      description:
-        "Evaluate your leadership skills and management capabilities",
-      courseId: null, // Standalone exam
-      duration: "45 minutes",
-      totalQuestions: 1, // Fixed: matches actual number of questions
-      passingScore: 75,
-      questions: [
-        {
-          id: 3,
-          question: "What leadership style focuses on team consensus?",
-          options: [
-            "Autocratic",
-            "Democratic",
-            "Laissez-faire",
-            "Transactional",
-          ],
-          correctAnswer: 1,
-          explanation:
-            "Democratic leadership involves team participation in decision making",
-        },
-      ],
-      createdBy: 1,
-      createdAt: "2025-09-02",
-      updatedAt: "2025-09-02",
-    },
-  ],
-
-  // Get all exams
-  getExams() {
-    return this.exams;
+  // Get all exams with optional params
+  async getExams(params = {}) {
+    const response = await axios.get("/exams", { params });
+    return response.data;
   },
 
-  // Get exam by ID
-  getExamById(examId) {
-    return this.exams.find((exam) => exam.id === parseInt(examId));
+  // Get specific exam by ID
+  async getExam(id) {
+    const response = await axios.get(`/exams/${id}`);
+    return response.data;
   },
 
-  // Get exams created by current user
-  getMyExams() {
-    return this.exams.filter((exam) => exam.createdBy === this.currentUser.id);
+  // Create new exam
+  async createExam(examData) {
+    const response = await axios.post("/exams", examData);
+    return response.data;
   },
 
-  // Get exams related to a specific course
-  getExamsByCourse(courseId) {
-    return this.exams.filter((exam) => exam.courseId === parseInt(courseId));
+  // Update exam
+  async updateExam(id, examData) {
+    const response = await axios.put(`/exams/${id}`, examData);
+    return response.data;
   },
 
-  // Get standalone exams (not related to any course)
-  getStandaloneExams() {
-    return this.exams.filter((exam) => exam.courseId === null);
+  // Delete exam
+  async deleteExam(id) {
+    const response = await axios.delete(`/exams/${id}`);
+    return response.data;
   },
 
-  // Create a new exam
-  createExam(examData) {
-    const newExam = {
-      id: Math.max(...this.exams.map((e) => e.id)) + 1,
-      ...examData,
-      questions: examData.questions || [],
-      createdBy: this.currentUser.id,
-      createdAt: new Date().toISOString().split("T")[0],
-      updatedAt: new Date().toISOString().split("T")[0],
-    };
-    this.exams.push(newExam);
-    return newExam;
+  // Submit exam answers
+  async submitExam(id, answers) {
+    const response = await axios.post(`/exams/${id}/submit`, { answers });
+    return response.data;
   },
 
-  // Update an exam (only if user owns it)
-  updateExam(examId, examData) {
-    const exam = this.exams.find((e) => e.id === parseInt(examId));
-    if (exam && exam.createdBy === this.currentUser.id) {
-      Object.assign(exam, examData, {
-        updatedAt: new Date().toISOString().split("T")[0],
-      });
-      return exam;
-    }
-    return null;
-  },
-
-  // Delete an exam (only if user owns it)
-  deleteExam(examId) {
-    const examIndex = this.exams.findIndex((e) => e.id === parseInt(examId));
-    if (
-      examIndex !== -1 &&
-      this.exams[examIndex].createdBy === this.currentUser.id
-    ) {
-      this.exams.splice(examIndex, 1);
-      return true;
-    }
-    return false;
-  },
-
-  // Check if user can edit an exam
-  canEditExam(examId) {
-    const exam = this.exams.find((e) => e.id === parseInt(examId));
-    return exam && exam.createdBy === this.currentUser.id;
-  },
-
-  // Add question to exam
-  addQuestionToExam(examId, question) {
-    const exam = this.exams.find((e) => e.id === parseInt(examId));
-    if (exam && exam.createdBy === this.currentUser.id) {
-      if (!exam.questions) {
-        exam.questions = [];
-      }
-      const newQuestion = {
-        id: Date.now(),
-        ...question,
-      };
-      exam.questions.push(newQuestion);
-      exam.totalQuestions = exam.questions.length;
-      exam.updatedAt = new Date().toISOString().split("T")[0];
-      return newQuestion;
-    }
-    return null;
-  },
-
-  // Remove question from exam
-  removeQuestionFromExam(examId, questionId) {
-    const exam = this.exams.find((e) => e.id === parseInt(examId));
-    if (exam && exam.createdBy === this.currentUser.id) {
-      exam.questions = exam.questions.filter(
-        (q) => q.id !== parseInt(questionId)
-      );
-      exam.totalQuestions = exam.questions.length;
-      exam.updatedAt = new Date().toISOString().split("T")[0];
-      return true;
-    }
-    return false;
-  },
-
-  // Update question in exam
-  updateQuestionInExam(examId, questionId, questionData) {
-    const exam = this.exams.find((e) => e.id === parseInt(examId));
-    if (exam && exam.createdBy === this.currentUser.id) {
-      const question = exam.questions.find(
-        (q) => q.id === parseInt(questionId)
-      );
-      if (question) {
-        Object.assign(question, questionData);
-        exam.updatedAt = new Date().toISOString().split("T")[0];
-        return question;
-      }
-    }
-    return null;
-  },
-
-  // Get exam questions
-  getExamQuestions(examId) {
-    const exam = this.exams.find((e) => e.id === parseInt(examId));
-    return exam ? exam.questions || [] : [];
-  },
-
-  // Submit exam and calculate score
-  submitExam(examId, userAnswers) {
-    const exam = this.exams.find((e) => e.id === parseInt(examId));
-    if (!exam) return null;
-
-    let correctAnswers = 0;
-    const results = exam.questions.map((question, index) => {
-      const userAnswer = userAnswers[index];
-      const isCorrect = userAnswer === question.correctAnswer;
-      if (isCorrect) correctAnswers++;
-
-      return {
-        questionId: question.id,
-        userAnswer,
-        correctAnswer: question.correctAnswer,
-        isCorrect,
-        explanation: question.explanation,
-      };
-    });
-
-    const score = Math.round((correctAnswers / exam.questions.length) * 100);
-    const passed = score >= exam.passingScore;
-
-    return {
-      examId: exam.id,
-      score,
-      passed,
-      correctAnswers,
-      totalQuestions: exam.questions.length,
-      results,
-      submittedAt: new Date().toISOString(),
-    };
+  // Get exam results
+  async getExamResults(params = {}) {
+    const response = await axios.get("/exam-results", { params });
+    return response.data;
   },
 };
 

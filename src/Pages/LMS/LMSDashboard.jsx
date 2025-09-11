@@ -27,13 +27,19 @@ const LMSDashboard = ({
   useEffect(() => {
     const init = async () => {
       try {
-        await LMSService.fetchCourses();
+        const [coursesResponse, examsResponse] = await Promise.all([
+          LMSService.fetchCourses(),
+          LMSService.getExams(),
+        ]);
         setCourses(LMSService.getCourses());
-        setExams(LMSService.getExams());
+        setExams(examsResponse.data || []);
         setUserProgress(LMSService.getUserProgress());
         setEnrolledCourses(LMSService.getEnrolledCourses());
       } catch (e) {
         console.error("Failed to load dashboard data", e);
+        // Fallback to cached data
+        setCourses(LMSService.getCourses());
+        setExams([]);
       }
     };
     init();

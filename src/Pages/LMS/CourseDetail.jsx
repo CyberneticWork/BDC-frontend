@@ -23,7 +23,10 @@ const CourseDetail = ({ courseId, onBack }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const courseData = await LMSService.getCourseById(courseId);
+        const [courseData, examsResponse] = await Promise.all([
+          LMSService.getCourseById(courseId),
+          LMSService.getExams({ course_id: courseId }),
+        ]);
         setCourse(courseData);
         if (
           courseData &&
@@ -32,8 +35,8 @@ const CourseDetail = ({ courseId, onBack }) => {
         ) {
           setCurrentModule(courseData.modules[0]);
         }
-        // Load related exams (still sync dummy)
-        setRelatedExams(LMSService.getExamsByCourse(courseId));
+        // Load related exams
+        setRelatedExams(examsResponse.data || []);
       } catch (e) {
         console.error("Failed to load course", e);
       }
