@@ -13,10 +13,13 @@ import {
   FileText,
   Video,
   Paperclip,
+  Play,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const ManageCourses = ({ onViewCourse }) => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
@@ -34,10 +37,27 @@ const ManageCourses = ({ onViewCourse }) => {
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadError, setUploadError] = useState("");
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+
+  const isCourseOwner = (course) => {
+    // Admin users can edit/delete any course
+    if (user && user.role === "admin") {
+      return true;
+    }
+    // Regular users can only edit/delete their own courses
+    return user && course.createdBy === user.id;
+  };
 
   useEffect(() => {
     loadCourses();
+    setEnrolledCourses(LMSService.getEnrolledCourses());
   }, []);
+
+  const handleEnroll = (courseId) => {
+    LMSService.enrollInCourse(courseId);
+    setEnrolledCourses(LMSService.getEnrolledCourses());
+    loadCourses(); // Refresh to show enrolled status
+  };
 
   const loadCourses = async () => {
     try {
@@ -256,13 +276,15 @@ const ManageCourses = ({ onViewCourse }) => {
             Create, edit, and manage your courses
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Create Course
-        </button>
+        {user && user.role !== "user" && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Create Course
+          </button>
+        )}
       </div>
 
       {/* Courses List */}
@@ -301,26 +323,75 @@ const ManageCourses = ({ onViewCourse }) => {
             </div>
 
             <div className="flex space-x-2">
-              <button
-                onClick={() => onViewCourse(course.id)}
-                className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <BookOpen className="h-4 w-4 mr-1" />
-                View
-              </button>
-              <button
-                onClick={() => handleEditCourse(course)}
-                className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </button>
-              <button
-                onClick={() => handleDeleteCourse(course.id)}
-                className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {user && user.role === "user" ? (
+                // For regular users, show enroll/continue functionality
+                course.enrolled ? (
+                  <div className="w-full space-y-2">
+                    <div className="text-sm text-green-600 font-medium text-center">
+                      Enrolled
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{
+                          width: `${
+                            (course.modules?.filter((m) => m.completed).length /
+                              course.modules?.length) *
+                              100 || 0
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 text-center">
+                      {course.modules?.filter((m) => m.completed).length || 0}{" "}
+                      of {course.modules?.length || 0} modules completed
+                    </p>
+                    <button
+                      onClick={() => onViewCourse(course.id)}
+                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Continue Course
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEnroll(course.id)}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Enroll Now
+                  </button>
+                )
+              ) : (
+                // For admin/HR users, show management buttons
+                <>
+                  <button
+                    onClick={() => onViewCourse(course.id)}
+                    className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                  >
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    View
+                  </button>
+                  {isCourseOwner(course) && (
+                    <button
+                      onClick={() => handleEditCourse(course)}
+                      className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </button>
+                  )}
+                  {isCourseOwner(course) && (
+                    <button
+                      onClick={() => handleDeleteCourse(course.id)}
+                      className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -335,13 +406,15 @@ const ManageCourses = ({ onViewCourse }) => {
           <p className="text-gray-600 mb-6">
             Start by creating your first course
           </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Your First Course
-          </button>
+          {user && user.role !== "user" && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create Your First Course
+            </button>
+          )}
         </div>
       )}
 
@@ -387,7 +460,7 @@ const ManageCourses = ({ onViewCourse }) => {
                     Duration *
                   </label>
                   <input
-                    type="text"
+                    type="number"
                     value={formData.duration}
                     onChange={(e) =>
                       setFormData({ ...formData, duration: e.target.value })

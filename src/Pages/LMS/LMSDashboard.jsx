@@ -11,6 +11,7 @@ import {
   Target,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const LMSDashboard = ({
   onViewCourse,
@@ -19,6 +20,7 @@ const LMSDashboard = ({
   onTakeExam,
   onManageExams,
 }) => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [exams, setExams] = useState([]);
   const [userProgress, setUserProgress] = useState({});
@@ -74,20 +76,24 @@ const LMSDashboard = ({
           </p>
         </div>
         <div className="flex space-x-4">
-          <button
-            onClick={onManageExams}
-            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
-          >
-            <FileText className="h-5 w-5 mr-2" />
-            Manage Exams
-          </button>
-          <button
-            onClick={onViewManageCourses}
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
-          >
-            <Settings className="h-5 w-5 mr-2" />
-            Manage Courses
-          </button>
+          {user && user.role !== "user" && (
+            <button
+              onClick={onManageExams}
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+            >
+              <FileText className="h-5 w-5 mr-2" />
+              Manage Exams
+            </button>
+          )}
+          {user && user.role !== "user" && (
+            <button
+              onClick={onViewManageCourses}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+            >
+              <Settings className="h-5 w-5 mr-2" />
+              Manage Courses
+            </button>
+          )}
         </div>
       </div>
 
@@ -318,12 +324,14 @@ const LMSDashboard = ({
           <div className="text-center py-8">
             <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 mb-4">No exams available yet</p>
-            <button
-              onClick={onManageExams}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              Manage Exams
-            </button>
+            {user && user.role !== "user" && (
+              <button
+                onClick={onManageExams}
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Manage Exams
+              </button>
+            )}
           </div>
         )}
       </div>

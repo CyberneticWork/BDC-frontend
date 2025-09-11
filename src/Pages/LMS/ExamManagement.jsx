@@ -14,8 +14,11 @@ import {
   Save,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
+import { useAuth } from "../../contexts/AuthContext";
+import Swal from "sweetalert2";
 
 const ExamManagement = ({ onTakeExam }) => {
+  const { user } = useAuth();
   const [exams, setExams] = useState([]);
   const [courses, setCourses] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -39,11 +42,77 @@ const ExamManagement = ({ onTakeExam }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
+  // Load exams and courses on component mount
   useEffect(() => {
     loadExams();
     loadCourses();
   }, []);
+
+  const validateForm = () => {
+    const errors = {};
+
+    // Validate exam title
+    if (!formData.title.trim()) {
+      errors.title = "Exam title is required";
+    }
+
+    // Validate description
+    if (!formData.description.trim()) {
+      errors.description = "Description is required";
+    }
+
+    // Validate duration
+    if (!formData.duration.trim()) {
+      errors.duration = "Duration is required";
+    }
+
+    // Validate questions
+    if (formData.questions.length === 0) {
+      errors.questions = "At least one question is required";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      // Show validation error
+      Swal.fire({
+        icon: "warning",
+        title: "Please Fill Required Fields",
+        text: "Some required fields are missing. Please check the form and try again.",
+        confirmButtonColor: "#F59E0B",
+      });
+    }
+
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateQuestion = () => {
+    const errors = {};
+
+    // Validate question text
+    if (!newQuestion.question.trim()) {
+      errors.question = "Question text is required";
+    }
+
+    // Validate all options are filled
+    const emptyOptions = newQuestion.options.filter((opt) => !opt.trim());
+    if (emptyOptions.length > 0) {
+      errors.options = "All option fields must be filled";
+    }
+
+    return errors;
+  };
+
+  const isExamOwner = (exam) => {
+    // Admin users can edit/delete any exam
+    if (user && user.role === "admin") {
+      return true;
+    }
+    // Regular users can only edit/delete their own exams
+    return user && exam.created_by === user.id;
+  };
 
   const loadExams = async () => {
     try {
@@ -54,6 +123,12 @@ const ExamManagement = ({ onTakeExam }) => {
     } catch (err) {
       setError("Failed to load exams");
       console.error("Error loading exams:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Load Exams",
+        text: "Unable to load exams. Please try again later.",
+        confirmButtonColor: "#3B82F6",
+      });
     } finally {
       setLoading(false);
     }
@@ -67,78 +142,176 @@ const ExamManagement = ({ onTakeExam }) => {
       console.error("Error loading courses:", err);
       // Fallback to cached courses if API fails
       setCourses(LMSService.getCourses());
+
+      // Show error message
+      Swal.fire({
+        icon: "warning",
+        title: "Courses Loading Issue",
+        text: "Unable to load courses from server. Using cached data if available.",
+        confirmButtonColor: "#F59E0B",
+        timer: 4000,
+        timerProgressBar: true,
+      });
     }
   };
 
   const handleCreateExam = async () => {
-    if (formData.title && formData.description && formData.duration) {
-      try {
-        setLoading(true);
-        setError(null);
-        const examData = {
-          title: formData.title,
-          description: formData.description,
-          course_id: formData.courseId ? parseInt(formData.courseId) : null,
-          duration: formData.duration,
-          passing_score: formData.passingScore,
-          total_questions: formData.questions.length,
-          questions: formData.questions,
-        };
-        await LMSService.createExam(examData);
-        await loadExams();
-        setShowCreateModal(false);
-        resetForm();
-      } catch (err) {
-        setError("Failed to create exam");
-        console.error("Error creating exam:", err);
-      } finally {
-        setLoading(false);
-      }
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setFieldErrors({}); // Clear any previous field errors
+      // Transform questions to match backend field names
+      const transformedQuestions = formData.questions.map((question) => ({
+        question: question.question,
+        options: question.options,
+        correct_answer: question.correctAnswer,
+        explanation: question.explanation,
+      }));
+      const examData = {
+        title: formData.title,
+        description: formData.description,
+        course_id: formData.courseId ? parseInt(formData.courseId) : null,
+        duration: formData.duration,
+        passing_score: formData.passingScore,
+        total_questions: formData.questions.length,
+        questions: transformedQuestions,
+      };
+      await LMSService.createExam(examData);
+      await loadExams();
+      setShowCreateModal(false);
+      resetForm();
+
+      // Success message
+      Swal.fire({
+        icon: "success",
+        title: "Exam Created Successfully!",
+        text: "Your exam has been created and is now available.",
+        confirmButtonColor: "#10B981",
+        timer: 3000,
+        timerProgressBar: true,
+      });
+    } catch (err) {
+      setError("Failed to create exam");
+      console.error("Error creating exam:", err);
+
+      // Error message
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Create Exam",
+        text:
+          err.response?.data?.message ||
+          "An error occurred while creating the exam. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateExam = async () => {
-    if (
-      editingExam &&
-      formData.title &&
-      formData.description &&
-      formData.duration
-    ) {
-      try {
-        setLoading(true);
-        setError(null);
-        const examData = {
-          title: formData.title,
-          description: formData.description,
-          course_id: formData.courseId ? parseInt(formData.courseId) : null,
-          duration: formData.duration,
-          passing_score: formData.passingScore,
-          total_questions: formData.questions.length,
-          questions: formData.questions,
-        };
-        await LMSService.updateExam(editingExam.id, examData);
-        await loadExams();
-        setEditingExam(null);
-        resetForm();
-      } catch (err) {
-        setError("Failed to update exam");
-        console.error("Error updating exam:", err);
-      } finally {
-        setLoading(false);
-      }
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setFieldErrors({}); // Clear any previous field errors
+      // Transform questions to match backend field names
+      const transformedQuestions = formData.questions.map((question) => ({
+        question: question.question,
+        options: question.options,
+        correct_answer: question.correctAnswer,
+        explanation: question.explanation,
+      }));
+      const examData = {
+        title: formData.title,
+        description: formData.description,
+        course_id: formData.courseId ? parseInt(formData.courseId) : null,
+        duration: formData.duration,
+        passing_score: formData.passingScore,
+        total_questions: formData.questions.length,
+        questions: transformedQuestions,
+      };
+      await LMSService.updateExam(editingExam.id, examData);
+      await loadExams();
+      setEditingExam(null);
+      resetForm();
+
+      // Success message
+      Swal.fire({
+        icon: "success",
+        title: "Exam Updated Successfully!",
+        text: "Your exam has been updated successfully.",
+        confirmButtonColor: "#10B981",
+        timer: 3000,
+        timerProgressBar: true,
+      });
+    } catch (err) {
+      setError("Failed to update exam");
+      console.error("Error updating exam:", err);
+
+      // Error message
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Update Exam",
+        text:
+          err.response?.data?.message ||
+          "An error occurred while updating the exam. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteExam = async (examId) => {
-    if (window.confirm("Are you sure you want to delete this exam?")) {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this! This will permanently delete the exam and all its questions.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#EF4444",
+      cancelButtonColor: "#6B7280",
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
       try {
         setLoading(true);
         setError(null);
         await LMSService.deleteExam(examId);
         await loadExams();
+
+        // Success message
+        Swal.fire({
+          icon: "success",
+          title: "Exam Deleted!",
+          text: "The exam has been deleted successfully.",
+          confirmButtonColor: "#10B981",
+          timer: 3000,
+          timerProgressBar: true,
+        });
       } catch (err) {
         setError("Failed to delete exam");
         console.error("Error deleting exam:", err);
+
+        // Error message
+        Swal.fire({
+          icon: "error",
+          title: "Failed to Delete Exam",
+          text:
+            err.response?.data?.message ||
+            "An error occurred while deleting the exam. Please try again.",
+          confirmButtonColor: "#EF4444",
+        });
       } finally {
         setLoading(false);
       }
@@ -172,9 +345,24 @@ const ExamManagement = ({ onTakeExam }) => {
       correctAnswer: 0,
       explanation: "",
     });
+    setFieldErrors({});
   };
 
   const addQuestion = () => {
+    const questionErrors = validateQuestion();
+    if (Object.keys(questionErrors).length > 0) {
+      setFieldErrors((prev) => ({ ...prev, ...questionErrors }));
+
+      // Show validation error
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Please fill in all required fields for the question.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
     if (
       newQuestion.question &&
       newQuestion.options.every((opt) => opt.trim())
@@ -192,6 +380,24 @@ const ExamManagement = ({ onTakeExam }) => {
         options: ["", "", "", ""],
         correctAnswer: 0,
         explanation: "",
+      });
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.question;
+        delete newErrors.options;
+        return newErrors;
+      });
+
+      // Success message
+      Swal.fire({
+        icon: "success",
+        title: "Question Added!",
+        text: "Question has been added to the exam.",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
       });
     }
   };
@@ -244,13 +450,15 @@ const ExamManagement = ({ onTakeExam }) => {
             Create, edit, and manage exams for your courses
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Create Exam
-        </button>
+        {user && user.role !== "user" && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Create Exam
+          </button>
+        )}
       </div>
 
       {/* Exams List */}
@@ -306,19 +514,23 @@ const ExamManagement = ({ onTakeExam }) => {
                 <CheckCircle className="h-4 w-4 mr-1" />
                 Take Exam
               </button>
-              <button
-                onClick={() => handleEditExam(exam)}
-                className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </button>
-              <button
-                onClick={() => handleDeleteExam(exam.id)}
-                className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {isExamOwner(exam) && (
+                <button
+                  onClick={() => handleEditExam(exam)}
+                  className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </button>
+              )}
+              {isExamOwner(exam) && (
+                <button
+                  onClick={() => handleDeleteExam(exam.id)}
+                  className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -333,19 +545,19 @@ const ExamManagement = ({ onTakeExam }) => {
           <p className="text-gray-600 mb-6">
             Start by creating your first exam
           </p>
-          <button
+          {/* <button
             onClick={() => setShowCreateModal(true)}
             className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center"
           >
             <Plus className="h-5 w-5 mr-2" />
             Create Your First Exam
-          </button>
+          </button> */}
         </div>
       )}
 
       {/* Create/Edit Exam Modal */}
       {(showCreateModal || editingExam) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-gray-900">
@@ -382,26 +594,50 @@ const ExamManagement = ({ onTakeExam }) => {
                   <input
                     type="text"
                     value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      // Clear error when user starts typing
+                      if (fieldErrors.title) {
+                        setFieldErrors((prev) => ({ ...prev, title: "" }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      fieldErrors.title ? "border-red-500" : "border-gray-300"
+                    }`}
                     placeholder="Enter exam title"
                   />
+                  {fieldErrors.title && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {fieldErrors.title}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Duration *
                   </label>
                   <input
-                    type="text"
+                    type="number"
                     value={formData.duration}
-                    onChange={(e) =>
-                      setFormData({ ...formData, duration: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      setFormData({ ...formData, duration: e.target.value });
+                      // Clear error when user starts typing
+                      if (fieldErrors.duration) {
+                        setFieldErrors((prev) => ({ ...prev, duration: "" }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      fieldErrors.duration
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                     placeholder="e.g., 30 minutes"
                   />
+                  {fieldErrors.duration && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {fieldErrors.duration}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -411,13 +647,26 @@ const ExamManagement = ({ onTakeExam }) => {
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    // Clear error when user starts typing
+                    if (fieldErrors.description) {
+                      setFieldErrors((prev) => ({ ...prev, description: "" }));
+                    }
+                  }}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    fieldErrors.description
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Enter exam description"
                 />
+                {fieldErrors.description && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {fieldErrors.description}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -474,6 +723,11 @@ const ExamManagement = ({ onTakeExam }) => {
                     Add Question
                   </button>
                 </div>
+                {fieldErrors.questions && (
+                  <p className="mb-4 text-sm text-red-600">
+                    {fieldErrors.questions}
+                  </p>
+                )}
 
                 {/* Existing Questions */}
                 <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -537,7 +791,15 @@ const ExamManagement = ({ onTakeExam }) => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900">Add Question</h3>
               <button
-                onClick={() => setShowQuestionModal(false)}
+                onClick={() => {
+                  setShowQuestionModal(false);
+                  setFieldErrors((prev) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.question;
+                    delete newErrors.options;
+                    return newErrors;
+                  });
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="h-6 w-6" />
@@ -551,13 +813,27 @@ const ExamManagement = ({ onTakeExam }) => {
                 </label>
                 <textarea
                   value={newQuestion.question}
-                  onChange={(e) =>
-                    setNewQuestion({ ...newQuestion, question: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setNewQuestion({
+                      ...newQuestion,
+                      question: e.target.value,
+                    });
+                    // Clear error when user starts typing
+                    if (fieldErrors.question) {
+                      setFieldErrors((prev) => ({ ...prev, question: "" }));
+                    }
+                  }}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    fieldErrors.question ? "border-red-500" : "border-gray-300"
+                  }`}
                   placeholder="Enter your question"
                 />
+                {fieldErrors.question && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {fieldErrors.question}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -582,12 +858,25 @@ const ExamManagement = ({ onTakeExam }) => {
                         const newOptions = [...newQuestion.options];
                         newOptions[index] = e.target.value;
                         setNewQuestion({ ...newQuestion, options: newOptions });
+                        // Clear options error when user starts typing
+                        if (fieldErrors.options) {
+                          setFieldErrors((prev) => ({ ...prev, options: "" }));
+                        }
                       }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        fieldErrors.options
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder={`Option ${index + 1}`}
                     />
                   </div>
                 ))}
+                {fieldErrors.options && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {fieldErrors.options}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -610,7 +899,15 @@ const ExamManagement = ({ onTakeExam }) => {
 
               <div className="flex justify-end space-x-4 pt-4">
                 <button
-                  onClick={() => setShowQuestionModal(false)}
+                  onClick={() => {
+                    setShowQuestionModal(false);
+                    setFieldErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.question;
+                      delete newErrors.options;
+                      return newErrors;
+                    });
+                  }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
