@@ -1465,15 +1465,12 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
-
-                {/* NEW: Self-Reported Progress column */}
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Self-Reported Progress
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
-
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Progress
@@ -1492,6 +1489,13 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+                {/* Moved Weights Total here (after Grade) */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Weights Total
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Due Date
@@ -1500,12 +1504,6 @@ const PerformanceReviews = () => {
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Weights Total
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
                 </th>
               </tr>
             </thead>
@@ -1523,12 +1521,9 @@ const PerformanceReviews = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {review.department}
                     </td>
-
-                    {/* NEW: Self-Reported Progress cell */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {typeof review.selfReportedProgress === 'number' ? (
                         <div className="flex items-center">
-                          {/* fixed width so both columns render bars the same size */}
                           <div className="w-38 md:w-50 flex-shrink-0 mr-3">
                             <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                               <div
@@ -1547,8 +1542,6 @@ const PerformanceReviews = () => {
                         <span className="text-xs text-gray-400">—</span>
                       )}
                     </td>
-
-                    {/* Progress (Supervisor) cell - match sizing */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="w-38 md:w-50 flex-shrink-0 mr-4">
@@ -1580,6 +1573,27 @@ const PerformanceReviews = () => {
                         <span className="text-xs text-gray-400">Not graded</span>
                       )}
                     </td>
+                    {/* Moved Weights Total cell here (after Grade) */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-center">
+                        <span className="text-sm font-bold text-indigo-600">
+                          {(() => {
+                            // try weights on review first
+                            if (review?.weights && review.weights.length > 0) {
+                              return review.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
+                            }
+                            // fallback: look up the linked task and use its weights
+                            if (review?.taskId) {
+                              const task = PMSDummyDataStore.getTaskById(review.taskId);
+                              if (task?.weights && task.weights.length > 0) {
+                                return task.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
+                              }
+                            }
+                            return 0;
+                          })()}%
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {new Date(review.dueDate).toLocaleDateString()}
                     </td>
@@ -1609,13 +1623,6 @@ const PerformanceReviews = () => {
                         <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
                           <Edit className="h-4 w-4" />
                         </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-center">
-                        <span className="text-sm font-bold text-indigo-600">
-                          {review.weights ? review.weights.reduce((sum, w) => sum + (w.percentage || 0), 0) : 0}%
-                        </span>
                       </div>
                     </td>
                   </tr>
@@ -1720,6 +1727,7 @@ const PerformanceReviews = () => {
             </div>
           </div>
         </div>
+        
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-gray-100 text-gray-600 mr-4">
