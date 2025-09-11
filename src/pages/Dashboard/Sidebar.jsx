@@ -107,9 +107,14 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "pmsDashboard", name: "PMS Dashboard", icon: Home },
-        { id: "performanceReviews", name: "Performance Reviews", icon: ClipboardCheck },
+        {
+          id: "performanceReviews",
+          name: "Performance Reviews",
+          icon: ClipboardCheck,
+        },
         { id: "kpis", name: "KPIs", icon: PieChart },
         { id: "myKPIs", name: "My KPI Tasks", icon: User },
+        { id: "employeeEvaluation", name: "Employee Evaluation", icon: Award },
         // { id: "goals", name: "Goals & OKRs", icon: Target },
         // { id: "360feedback", name: "360 Feedback", icon: Users },
         // { id: "appraisals", name: "Appraisals", icon: Award },
