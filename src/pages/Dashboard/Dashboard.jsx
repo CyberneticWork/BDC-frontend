@@ -47,6 +47,7 @@ import SalaryPage from "@dashboard/SalaryPage";
 import UserManagement from "@dashboard/UserManagement";
 // Import PMS components
 import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
+import EmployeePerformanceEvaluation from "../PMS/EmployeeEvaluation";
 import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
 
 // Import LMS components
@@ -461,15 +462,20 @@ const Dashboard = ({ user, onLogout }) => {
 
   useEffect(() => {
     const parts = location.pathname.split("/").filter(Boolean);
-    const section = parts[1] || "dashboard";
-    if (section && section !== activeItem) {
-      setActiveItem(section);
+    if (parts[0] === "dashboard" && parts[1] === "pms" && parts[2] === "evaluation") {
+      setActiveItem("employeeEvaluation");
+    } else {
+      const section = parts[1] || "dashboard";
+      if (section && section !== activeItem) {
+        setActiveItem(section);
+      }
     }
   }, [location.pathname]);
 
   const handleSetActiveItem = (id) => {
     setActiveItem(id);
     if (id === "dashboard") navigate("/dashboard", { replace: false });
+    else if (id === "employeeEvaluation") navigate("/dashboard/pms/evaluation", { replace: false });
     else navigate(`/dashboard/${id}`, { replace: false });
   };
 
@@ -653,6 +659,9 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="kpis" action="view">
                 <KPIs />
               </ProtectedComponent>
+              <KPIs />
+            ) : activeItem === "employeeEvaluation" ? (
+              <EmployeePerformanceEvaluation />
             ) : activeItem === "myKPIs" ? (
               <ProtectedComponent module="myKPIs" action="view">
                 <EmployeeKPIView />

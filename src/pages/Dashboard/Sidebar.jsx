@@ -121,6 +121,7 @@ const Sidebar = ({
         },
         { id: "kpis", name: "KPIs", icon: PieChart },
         { id: "myKPIs", name: "My KPI Tasks", icon: User },
+        { id: "employeeEvaluation", name: "Employee Evaluation", icon: Award },
         // { id: "goals", name: "Goals & OKRs", icon: Target },
         // { id: "360feedback", name: "360 Feedback", icon: Users },
         // { id: "appraisals", name: "Appraisals", icon: Award },
