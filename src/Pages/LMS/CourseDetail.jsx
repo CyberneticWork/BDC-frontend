@@ -23,7 +23,10 @@ const CourseDetail = ({ courseId, onBack }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const courseData = await LMSService.getCourseById(courseId);
+        const [courseData, examsResponse] = await Promise.all([
+          LMSService.getCourseById(courseId),
+          LMSService.getExams({ course_id: courseId }),
+        ]);
         setCourse(courseData);
         if (
           courseData &&
@@ -32,8 +35,8 @@ const CourseDetail = ({ courseId, onBack }) => {
         ) {
           setCurrentModule(courseData.modules[0]);
         }
-        // Load related exams (still sync dummy)
-        setRelatedExams(LMSService.getExamsByCourse(courseId));
+        // Load related exams
+        setRelatedExams(examsResponse.data || []);
       } catch (e) {
         console.error("Failed to load course", e);
       }
@@ -218,6 +221,46 @@ const CourseDetail = ({ courseId, onBack }) => {
                     {currentModule.content}
                   </p>
                 </div>
+
+                {/* Module File */}
+                {currentModule.path && (
+                  <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                      Module Resource
+                    </h4>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {currentModule.path.includes(".pdf") ? (
+                          <FileText className="h-8 w-8 text-red-500 mr-3" />
+                        ) : (
+                          <Video className="h-8 w-8 text-blue-500 mr-3" />
+                        )}
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {currentModule.path.includes(".pdf")
+                              ? "PDF Document"
+                              : "Video File"}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Click to open in new tab
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() =>
+                          window.open(currentModule.path, "_blank")
+                        }
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center text-sm"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {currentModule.path.includes(".pdf")
+                          ? "View PDF"
+                          : "Watch Video"}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Dummy content sections */}
                 <div className="mt-8 space-y-6">

@@ -114,6 +114,7 @@ export const permissions = {
     lms: { view: true },
     lmsDashboard: { view: true },
     manageCourses: { view: true },
+    manageExams: { view: true },
     myProgress: { view: true },
   },
 };

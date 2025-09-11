@@ -13,10 +13,13 @@ import {
   FileText,
   Video,
   Paperclip,
+  Play,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const ManageCourses = ({ onViewCourse }) => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
@@ -27,13 +30,34 @@ const ManageCourses = ({ onViewCourse }) => {
     modules: [],
     attachments: [],
   });
-  const [newModule, setNewModule] = useState({ title: "", content: "" });
+  const [newModule, setNewModule] = useState({
+    title: "",
+    content: "",
+    file: null,
+  });
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadError, setUploadError] = useState("");
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+
+  const isCourseOwner = (course) => {
+    // Admin users can edit/delete any course
+    if (user && user.role === "admin") {
+      return true;
+    }
+    // Regular users can only edit/delete their own courses
+    return user && course.createdBy === user.id;
+  };
 
   useEffect(() => {
     loadCourses();
+    setEnrolledCourses(LMSService.getEnrolledCourses());
   }, []);
+
+  const handleEnroll = (courseId) => {
+    LMSService.enrollInCourse(courseId);
+    setEnrolledCourses(LMSService.getEnrolledCourses());
+    loadCourses(); // Refresh to show enrolled status
+  };
 
   const loadCourses = async () => {
     try {
@@ -122,7 +146,7 @@ const ManageCourses = ({ onViewCourse }) => {
       modules: [],
       attachments: [],
     });
-    setNewModule({ title: "", content: "" });
+    setNewModule({ title: "", content: "", file: null });
     setSelectedFiles([]);
     setUploadError("");
   };
@@ -130,7 +154,7 @@ const ManageCourses = ({ onViewCourse }) => {
   const addModule = () => {
     if (newModule.title && newModule.content) {
       const module = {
-        id: Math.max(...formData.modules.map((m) => m.id || 0), 0) + 1,
+        tempId: `temp-${Date.now()}`, // Unique for UI
         ...newModule,
         completed: false,
       };
@@ -138,14 +162,14 @@ const ManageCourses = ({ onViewCourse }) => {
         ...formData,
         modules: [...formData.modules, module],
       });
-      setNewModule({ title: "", content: "" });
+      setNewModule({ title: "", content: "", file: null });
     }
   };
 
   const removeModule = (moduleId) => {
     setFormData({
       ...formData,
-      modules: formData.modules.filter((m) => m.id !== moduleId),
+      modules: formData.modules.filter((m) => (m.id || m.tempId) !== moduleId),
     });
   };
 
@@ -220,7 +244,24 @@ const ManageCourses = ({ onViewCourse }) => {
     setFormData({
       ...formData,
       modules: formData.modules.map((m) =>
-        m.id === moduleId ? { ...m, [field]: value } : m
+        (m.id || m.tempId) === moduleId ? { ...m, [field]: value } : m
+      ),
+    });
+  };
+
+  // Set or replace a file for a specific module
+  const updateModuleFile = (moduleId, file) => {
+    setFormData({
+      ...formData,
+      modules: formData.modules.map((m) =>
+        m.id === moduleId
+          ? {
+              ...m,
+              file, // keep any existing data
+              // Clear existing path if user chooses a new file
+              path: file ? undefined : m.path,
+            }
+          : m
       ),
     });
   };
@@ -235,13 +276,15 @@ const ManageCourses = ({ onViewCourse }) => {
             Create, edit, and manage your courses
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Create Course
-        </button>
+        {user && user.role !== "user" && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Create Course
+          </button>
+        )}
       </div>
 
       {/* Courses List */}
@@ -280,26 +323,75 @@ const ManageCourses = ({ onViewCourse }) => {
             </div>
 
             <div className="flex space-x-2">
-              <button
-                onClick={() => onViewCourse(course.id)}
-                className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <BookOpen className="h-4 w-4 mr-1" />
-                View
-              </button>
-              <button
-                onClick={() => handleEditCourse(course)}
-                className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </button>
-              <button
-                onClick={() => handleDeleteCourse(course.id)}
-                className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {user && user.role === "user" ? (
+                // For regular users, show enroll/continue functionality
+                course.enrolled ? (
+                  <div className="w-full space-y-2">
+                    <div className="text-sm text-green-600 font-medium text-center">
+                      Enrolled
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{
+                          width: `${
+                            (course.modules?.filter((m) => m.completed).length /
+                              course.modules?.length) *
+                              100 || 0
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 text-center">
+                      {course.modules?.filter((m) => m.completed).length || 0}{" "}
+                      of {course.modules?.length || 0} modules completed
+                    </p>
+                    <button
+                      onClick={() => onViewCourse(course.id)}
+                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Continue Course
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEnroll(course.id)}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Enroll Now
+                  </button>
+                )
+              ) : (
+                // For admin/HR users, show management buttons
+                <>
+                  <button
+                    onClick={() => onViewCourse(course.id)}
+                    className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                  >
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    View
+                  </button>
+                  {isCourseOwner(course) && (
+                    <button
+                      onClick={() => handleEditCourse(course)}
+                      className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </button>
+                  )}
+                  {isCourseOwner(course) && (
+                    <button
+                      onClick={() => handleDeleteCourse(course.id)}
+                      className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -314,13 +406,15 @@ const ManageCourses = ({ onViewCourse }) => {
           <p className="text-gray-600 mb-6">
             Start by creating your first course
           </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Your First Course
-          </button>
+          {user && user.role !== "user" && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create Your First Course
+            </button>
+          )}
         </div>
       )}
 
@@ -366,7 +460,7 @@ const ManageCourses = ({ onViewCourse }) => {
                     Duration *
                   </label>
                   <input
-                    type="text"
+                    type="number"
                     value={formData.duration}
                     onChange={(e) =>
                       setFormData({ ...formData, duration: e.target.value })
@@ -423,6 +517,28 @@ const ManageCourses = ({ onViewCourse }) => {
                       placeholder="Module content"
                     />
                   </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Module File (PDF/Video - Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf,.mp4,.avi,.mov,.wmv"
+                      onChange={(e) =>
+                        setNewModule({
+                          ...newModule,
+                          file: e.target.files[0] || null,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {newModule.file && (
+                      <p className="mt-2 text-sm text-gray-600">
+                        Selected: {newModule.file.name} (
+                        {(newModule.file.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                  </div>
                   <button
                     onClick={addModule}
                     className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
@@ -435,7 +551,7 @@ const ManageCourses = ({ onViewCourse }) => {
                 <div className="space-y-3">
                   {formData.modules.map((module, index) => (
                     <div
-                      key={module.id}
+                      key={module.id || module.tempId}
                       className="bg-white border border-gray-200 p-4 rounded-lg"
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -443,7 +559,9 @@ const ManageCourses = ({ onViewCourse }) => {
                           Module {index + 1}: {module.title}
                         </h6>
                         <button
-                          onClick={() => removeModule(module.id)}
+                          onClick={() =>
+                            removeModule(module.id || module.tempId)
+                          }
                           className="text-red-500 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -452,12 +570,111 @@ const ManageCourses = ({ onViewCourse }) => {
                       <textarea
                         value={module.content}
                         onChange={(e) =>
-                          updateModule(module.id, "content", e.target.value)
+                          updateModule(
+                            module.id || module.tempId,
+                            "content",
+                            e.target.value
+                          )
                         }
                         rows={3}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Module content"
                       />
+                      {/* Module File Upload / Existing File Display */}
+                      <div className="mt-3 space-y-2">
+                        {module.file && (
+                          <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2">
+                            <div className="flex items-center">
+                              {module.file.type?.includes("pdf") ? (
+                                <FileText className="h-5 w-5 text-red-500 mr-2" />
+                              ) : (
+                                <Video className="h-5 w-5 text-blue-500 mr-2" />
+                              )}
+                              <span className="text-sm text-gray-700">
+                                {module.file.name} (
+                                {(module.file.size / 1024 / 1024).toFixed(2)}{" "}
+                                MB)
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateModuleFile(
+                                  module.id || module.tempId,
+                                  null
+                                )
+                              }
+                              className="text-red-500 hover:text-red-700 text-xs"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                        {!module.file && module.path && (
+                          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2">
+                            <div className="flex items-center">
+                              {module.path.includes(".pdf") ? (
+                                <FileText className="h-5 w-5 text-red-500 mr-2" />
+                              ) : (
+                                <Video className="h-5 w-5 text-blue-500 mr-2" />
+                              )}
+                              <span className="text-sm text-gray-700">
+                                Existing file attached
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => window.open(module.path, "_blank")}
+                              className="text-blue-600 hover:text-blue-800 text-xs underline"
+                            >
+                              View
+                            </button>
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            {module.file || module.path
+                              ? "Replace File (optional)"
+                              : "Attach File (PDF / Video)"}
+                          </label>
+                          <input
+                            type="file"
+                            accept=".pdf,.mp4,.avi,.mov,.wmv"
+                            onChange={(e) =>
+                              updateModuleFile(
+                                module.id || module.tempId,
+                                e.target.files[0] || null
+                              )
+                            }
+                            className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs file:mr-2 file:py-1 file:px-3 file:rounded-l file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          />
+                        </div>
+                      </div>
+                      {module.path && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              {module.path.includes(".pdf") ? (
+                                <FileText className="h-5 w-5 text-red-500 mr-2" />
+                              ) : (
+                                <Video className="h-5 w-5 text-blue-500 mr-2" />
+                              )}
+                              <span className="text-sm text-gray-700">
+                                Existing file:{" "}
+                                {module.path.includes(".pdf")
+                                  ? "PDF Document"
+                                  : "Video File"}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => window.open(module.path, "_blank")}
+                              className="text-blue-600 hover:text-blue-800 text-sm underline"
+                            >
+                              View File
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

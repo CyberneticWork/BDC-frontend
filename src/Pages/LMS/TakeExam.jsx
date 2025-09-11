@@ -19,10 +19,18 @@ const TakeExam = ({ examId, onBack }) => {
   const [examResults, setExamResults] = useState(null);
   const [examStarted, setExamStarted] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const examData = LMSService.getExamById(examId);
-    if (examData) {
+    loadExam();
+  }, [examId]);
+
+  const loadExam = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const examData = await LMSService.getExam(examId);
       console.log("Loaded exam:", examData);
       console.log("Exam questions:", examData.questions);
       setExam(examData);
@@ -39,14 +47,13 @@ const TakeExam = ({ examId, onBack }) => {
         console.log("Duration parsing failed, setting default 30 minutes");
         setTimeLeft(30 * 60);
       }
-    } else {
-      console.error("Exam not found for ID:", examId);
-      console.log(
-        "Available exams:",
-        LMSService.exams.map((e) => ({ id: e.id, title: e.title }))
-      );
+    } catch (err) {
+      setError("Failed to load exam");
+      console.error("Error loading exam:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [examId]);
+  };
 
   useEffect(() => {
     // Only start timer if exam is loaded, exam has started, and timeLeft > 0
@@ -94,15 +101,21 @@ const TakeExam = ({ examId, onBack }) => {
     }
   };
 
-  const handleSubmitExam = () => {
+  const handleSubmitExam = async () => {
     if (isSubmitted) return;
 
-    console.log("Submitting exam...");
-    setIsSubmitted(true);
-    const results = LMSService.submitExam(examId, userAnswers);
-    console.log("Exam results:", results);
-    setExamResults(results);
-    setShowResults(true);
+    try {
+      console.log("Submitting exam...");
+      setIsSubmitted(true);
+      const results = await LMSService.submitExam(examId, userAnswers);
+      console.log("Exam results:", results);
+      setExamResults(results);
+      setShowResults(true);
+    } catch (err) {
+      setError("Failed to submit exam");
+      setIsSubmitted(false); // Allow retry on error
+      console.error("Error submitting exam:", err);
+    }
   };
 
   const handleStartExam = () => {
@@ -126,14 +139,55 @@ const TakeExam = ({ examId, onBack }) => {
     shouldShowResults
   );
 
-  // Check if exam is loaded
-  if (!exam) {
-    console.log("Exam not loaded yet");
+  // Check if exam is loading
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading exam...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check for errors
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={onBack}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
+          >
+            Back to Exams
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if exam is loaded
+  if (!exam) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Exam Not Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            The requested exam could not be found.
+          </p>
+          <button
+            onClick={onBack}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
+          >
+            Back to Exams
+          </button>
         </div>
       </div>
     );
@@ -200,7 +254,19 @@ const TakeExam = ({ examId, onBack }) => {
     );
   }
 
-  if (shouldShowResults) {
+  if (shouldShowResults && !examResults) {
+    console.log("Waiting for results");
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Processing your results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (shouldShowResults && examResults) {
     console.log("Showing results");
     return (
       <div className="space-y-6">
