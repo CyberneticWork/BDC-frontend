@@ -659,7 +659,7 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="kpis" action="view">
                 <KPIs />
               </ProtectedComponent>
-              <KPIs />
+            
             ) : activeItem === "employeeEvaluation" ? (
               <EmployeePerformanceEvaluation />
             ) : activeItem === "myKPIs" ? (

@@ -35,6 +35,7 @@ export const permissions = {
     performanceReviews: { view: true, edit: true },
     kpis: { view: true, edit: true },
     myKPIs: { view: true },
+    employeeEvaluation: { view: true, edit: true },
     lms: { view: true },
     lmsDashboard: { view: true },
     manageExams: { view: true, edit: true },
