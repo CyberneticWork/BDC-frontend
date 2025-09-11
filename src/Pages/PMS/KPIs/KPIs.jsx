@@ -191,11 +191,10 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     // For demo, we'll map employees to companies based on ID
     const empCompany = emp.id <= 2 ? "1" : emp.id <= 4 ? "2" : "3";
     
-    // If no department is selected, filter by company and search term
+    // If no department is selected, filter by company and search term (auto-fetch all employees from company's departments)
     if (!formData.department) return empCompany === formData.company && matchesSearch;
     
     // Otherwise, filter by company, department, and search term
-    // For demo, we'll check if department name matches employee department
     const deptName = departments.find(d => d.id === formData.department)?.name;
     return empCompany === formData.company && emp.department === deptName && matchesSearch;
   });
@@ -396,21 +395,21 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               </div>
             </div>
 
-            {/* Department Selection - NEW */}
+            {/* Department Selection - Now optional */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Department*
+                Department (Optional)
               </label>
               <div className="relative">
                 <select
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  required
+                  // Removed 'required' to make it optional
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
                   disabled={!formData.company || isLoadingDepartments}
                 >
-                  <option value="">Select Department</option>
+                  <option value="">Select Department (Optional)</option>
                   {departments.map(department => (
                     <option key={department.id} value={department.id}>
                       {department.name}
@@ -476,10 +475,11 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               </label>
 
               {/* Show company and department info above search */}
-              {formData.company && formData.department && (
+              {formData.company && (
                 <div className="mb-2 p-2 bg-indigo-50 rounded-lg text-sm">
                   <p className="text-indigo-700">
-                    Filtering employees from: <span className="font-medium">{getCompanyName(formData.company)}</span> / <span className="font-medium">{getDepartmentName(formData.department)}</span>
+                    Filtering employees from: <span className="font-medium">{getCompanyName(formData.company)}</span>
+                    {formData.department && <span> / <span className="font-medium">{getDepartmentName(formData.department)}</span></span>}
                   </p>
                 </div>
               )}
@@ -491,16 +491,16 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   onChange={(e) => setEmpSearch(e.target.value)}
                   placeholder="Search employees by name or department..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  disabled={!formData.department}
+                  disabled={!formData.company}
                 />
               </div>
 
-              {!formData.department && (
-                <p className="text-xs text-amber-600 mt-1">Please select both company and department to search employees</p>
+              {!formData.company && (
+                <p className="text-xs text-amber-600 mt-1">Please select a company to search employees</p>
               )}
 
               {/* Search results */}
-              {empSearch && filteredEmployees.length > 0 && formData.department && (
+              {empSearch && filteredEmployees.length > 0 && formData.company && (
                 <div className="mt-2 max-h-40 overflow-auto border border-gray-100 rounded-lg bg-white shadow-sm">
                   {filteredEmployees.map(emp => (
                     <div key={emp.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
@@ -520,7 +520,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 </div>
               )}
 
-              {empSearch && filteredEmployees.length === 0 && formData.department && (
+              {empSearch && filteredEmployees.length === 0 && formData.company && (
                 <div className="mt-2 p-3 text-center text-sm text-gray-500 border border-gray-100 rounded-lg">
                   No employees found matching your search criteria
                 </div>
@@ -568,6 +568,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               </select>
             </div> */}
 
+            {/* Commented out priority selection section
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Priority
@@ -588,7 +589,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 ))}
               </div>
             </div>
-
+            */}
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
             <button
@@ -715,15 +716,15 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
                 )}
                 {kpi.status.charAt(0).toUpperCase() + kpi.status.slice(1)}
               </span>
-              {kpi.priority && (
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
-                    kpi.priority
-                  )}`}
-                >
-                  {kpi.priority.charAt(0).toUpperCase() + kpi.priority.slice(1)} Priority
-                </span>
-              )}
+              {/* Commented out priority badge display
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
+                  kpi.priority
+                )}`}
+              >
+                {kpi.priority.charAt(0).toUpperCase() + kpi.priority.slice(1)} Priority
+              </span>
+              */}
             </div>
             <p className="text-gray-600 text-sm mt-1">{kpi.description}</p>
           </div>
