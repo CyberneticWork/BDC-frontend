@@ -13,33 +13,43 @@ export const TaskProgressUpdateModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Performance metrics state
-  const [performanceMetrics, setPerformanceMetrics] = useState({
-    jobKnowledge: 0,
-    qualityOfWork: 0,
-    productivity: 0,
-    communicationSkills: 0,
-    teamwork: 0,
-    behaviorAtWork: 0,
-    problemSolving: 0,
-    attendance: 0,
-    adaptability: 0,
-    selfDevelopment: 0,
-    discipline: 0,
-    adherenceToGuidelines: 0
-  });
+  // Performance metrics state - now simplified to focus on just one metric matching the task name
+  const [currentMetricValue, setCurrentMetricValue] = useState(0);
 
-  // Calculate average progress from all metrics
-  const calculateOverallProgress = () => {
-    const values = Object.values(performanceMetrics);
-    const sum = values.reduce((acc, val) => acc + val, 0);
-    return Math.round(sum / values.length);
+  // Map from task name to performance metric key
+  const taskNameToMetricKey = {
+    "Job Knowledge and Skills": "jobKnowledge",
+    "Quality of Work": "qualityOfWork",
+    "Productivity": "productivity",
+    "Communication Skills": "communicationSkills",
+    "Teamwork and Collaboration": "teamwork",
+    "Behavior at work": "behaviorAtWork",
+    "Problem-Solving and Decision-Making": "problemSolving",
+    "Attendance and Punctuality": "attendance",
+    "Adaptability and Flexibility": "adaptability",
+    "Self-Development": "selfDevelopment",
+    "Discipline and conduct at work": "discipline",
+    "Adherence to the given Guidelines": "adherenceToGuidelines"
   };
 
-  const overallProgressPercentage = calculateOverallProgress();
+  // Format metric key for display
+  const formatMetricName = (metricKey) => {
+    if (!metricKey) return "";
+    return metricKey.replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase());
+  };
+
+  // Get metric key from task name
+  const getMetricKeyFromTask = () => {
+    return task ? taskNameToMetricKey[task.name] || null : null;
+  };
+
+  // Get display name for the current metric
+  const getCurrentMetricDisplayName = () => {
+    return task ? task.name : "";
+  };
 
   if (!isOpen || !task) return null;
 
@@ -86,47 +96,46 @@ export const TaskProgressUpdateModal = ({
       return;
     }
 
-    if (!selectedFile) {
-      alert("Please upload a document to support your progress");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       // Create current timestamp
       const now = new Date().toISOString();
       
-      // In a real implementation, you'd upload the file to a server here
-      // Also update the corresponding performance review
-      const progressData = {
-        note: progressNote,
-        employeeId,
-        date: now,
+      // Create full performance metrics object with current value
+      const metricKey = getMetricKeyFromTask();
+      const performanceMetrics = {};
+      // Set value only for the current metric, leave others at 0
+      Object.keys(taskNameToMetricKey).forEach(taskName => {
+        const key = taskNameToMetricKey[taskName];
+        performanceMetrics[key] = key === metricKey ? currentMetricValue : 0;
+      });
+      
+      // Prepare document data (optional)
+      const documentData = selectedFile ? {
         documentName: selectedFile.name,
         documentSize: (selectedFile.size / 1024).toFixed(1) + " KB",
         documentType: selectedFile.type,
-        progressPercentage: overallProgressPercentage, // Use calculated overall progress
-        performanceMetrics: performanceMetrics, // Add detailed metrics
+      } : {
+        documentName: null,
+        documentSize: null,
+        documentType: null,
+      };
+      
+      // In a real implementation, you'd upload the file to a server here
+      const progressData = {
+        note: progressNote,
+        employeeId,
+        date: now, // This will be used as the last update date
+        progressPercentage: currentMetricValue,
+        performanceMetrics: performanceMetrics,
+        ...documentData, // Include document data if available
       };
       
       await onSubmit(progressData);
       
       setProgressNote("");
       setSelectedFile(null);
-      setPerformanceMetrics({
-        jobKnowledge: 0,
-        qualityOfWork: 0,
-        productivity: 0,
-        communicationSkills: 0,
-        teamwork: 0,
-        behaviorAtWork: 0,
-        problemSolving: 0,
-        attendance: 0,
-        adaptability: 0,
-        selfDevelopment: 0,
-        discipline: 0,
-        adherenceToGuidelines: 0
-      });
+      setCurrentMetricValue(0);
       onClose();
     } catch (error) {
       console.error("Error updating progress:", error);
@@ -134,14 +143,6 @@ export const TaskProgressUpdateModal = ({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  // Handle individual metric changes
-  const handleMetricChange = (metric, value) => {
-    setPerformanceMetrics(prev => ({
-      ...prev,
-      [metric]: parseInt(value, 10)
-    }));
   };
 
   // Calculate task completion percentage based on timeline
@@ -160,6 +161,7 @@ export const TaskProgressUpdateModal = ({
   };
 
   const timelinePercentage = getTimelinePercentage();
+  const metricKey = getMetricKeyFromTask();
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -208,10 +210,10 @@ export const TaskProgressUpdateModal = ({
               </div>
             </div>
 
-            {/* Document upload */}
+            {/* Document upload - Now optional */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Document
+                Upload Document <span className="text-gray-500 text-xs">(Optional)</span>
               </label>
               <div 
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
@@ -261,7 +263,7 @@ export const TaskProgressUpdateModal = ({
                       </button>
                     </div>
                     <p className="text-xs text-gray-500">
-                      Support for PDF, Word, Excel, and image files up to 10MB
+                      Support for PDF, Word, Excel, and image files up to 10MB (Optional)
                     </p>
                   </div>
                 )}
@@ -271,7 +273,7 @@ export const TaskProgressUpdateModal = ({
             {/* Progress note */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Progress Notes
+                Progress Notes <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={progressNote}
@@ -283,241 +285,57 @@ export const TaskProgressUpdateModal = ({
               ></textarea>
             </div>
 
-            {/* Performance Categories Section */}
+            {/* Performance Category Section - Now focused on just the relevant metric */}
             <div>
-              <div 
-                className="flex justify-between items-center mb-4 cursor-pointer"
-                onClick={() => setShowCategoryDetails(!showCategoryDetails)}
-              >
+              <div className="flex justify-between items-center mb-4">
                 <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
                   <BarChart className="h-4 w-4 text-gray-500" />
-                  Performance Categories
+                  {getCurrentMetricDisplayName()} Progress
                 </label>
-                <div className="flex items-center gap-2">
-                  <div className="text-sm font-bold text-indigo-600">{overallProgressPercentage}%</div>
-                  {showCategoryDetails ? (
-                    <ChevronUp className="h-5 w-5 text-gray-500" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-gray-500" />
-                  )}
-                </div>
+                <div className="text-sm font-bold text-indigo-600">{currentMetricValue}%</div>
               </div>
 
               <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Overall Performance Progress:</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      overallProgressPercentage < 30 ? 'bg-red-500' : 
-                      overallProgressPercentage < 70 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`}
-                    style={{ width: `${overallProgressPercentage}%` }}
-                  ></div>
-                </div>
+                {metricKey ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Your Progress in this Category:</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                      <div 
+                        className={`h-2.5 rounded-full ${
+                          currentMetricValue < 30 ? 'bg-red-500' : 
+                          currentMetricValue < 70 ? 'bg-yellow-500' : 
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${currentMetricValue}%` }}
+                      ></div>
+                    </div>
 
-                {showCategoryDetails && (
-                  <div className="space-y-4 pt-4 border-t border-gray-200">
-                    <p className="text-sm text-gray-600 mb-2">
-                      Rate your performance in each category (0-100%):
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Job Knowledge and Skills */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Job Knowledge and Skills: {performanceMetrics.jobKnowledge}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.jobKnowledge}
-                          onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Quality of Work */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Quality of Work: {performanceMetrics.qualityOfWork}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.qualityOfWork}
-                          onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Productivity */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Productivity: {performanceMetrics.productivity}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.productivity}
-                          onChange={(e) => handleMetricChange('productivity', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Communication Skills */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Communication Skills: {performanceMetrics.communicationSkills}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.communicationSkills}
-                          onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Teamwork and Collaboration */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Teamwork and Collaboration: {performanceMetrics.teamwork}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.teamwork}
-                          onChange={(e) => handleMetricChange('teamwork', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Behavior at work */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Behavior at Work: {performanceMetrics.behaviorAtWork}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.behaviorAtWork}
-                          onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Problem-Solving and Decision-Making */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Problem-Solving: {performanceMetrics.problemSolving}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.problemSolving}
-                          onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Attendance and Punctuality */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Attendance and Punctuality: {performanceMetrics.attendance}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.attendance}
-                          onChange={(e) => handleMetricChange('attendance', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Adaptability and Flexibility */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Adaptability and Flexibility: {performanceMetrics.adaptability}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.adaptability}
-                          onChange={(e) => handleMetricChange('adaptability', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Self-Development */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Self-Development: {performanceMetrics.selfDevelopment}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.selfDevelopment}
-                          onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Discipline and conduct at work */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Discipline and Conduct: {performanceMetrics.discipline}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.discipline}
-                          onChange={(e) => handleMetricChange('discipline', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
-
-                      {/* Adherence to the given Guidelines */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Adherence to Guidelines: {performanceMetrics.adherenceToGuidelines}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={performanceMetrics.adherenceToGuidelines}
-                          onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Rate your {getCurrentMetricDisplayName()} progress (0-100%):
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={currentMetricValue}
+                        onChange={(e) => setCurrentMetricValue(parseInt(e.target.value))}
+                        className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-2">
+                        <span>Not started (0%)</span>
+                        <span>In progress (50%)</span>
+                        <span>Completed (100%)</span>
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    Unable to determine the metric for this task. Please contact your supervisor.
+                  </p>
                 )}
               </div>
             </div>
@@ -533,9 +351,9 @@ export const TaskProgressUpdateModal = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !selectedFile}
+              disabled={isSubmitting}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-                isSubmitting || !selectedFile 
+                isSubmitting 
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
                   : "bg-indigo-600 text-white hover:bg-indigo-700"
               }`}

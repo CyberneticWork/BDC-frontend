@@ -405,7 +405,7 @@ const EmployeeKPIView = () => {
                       </div>
                     </div>
                     
-                    <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="flex items-center gap-2">
                         <CalendarDays className="h-4 w-4 text-gray-400" />
                         <span className="text-sm text-gray-600">
@@ -422,6 +422,12 @@ const EmployeeKPIView = () => {
                         <Clock className="h-4 w-4 text-gray-400" />
                         <span className="text-sm text-gray-600">
                           Last updated: {new Date(task.lastUpdated).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-600">
+                          Weights Total: {task.weights ? task.weights.reduce((sum, w) => sum + (w.percentage || 0), 0) : 0}%
                         </span>
                       </div>
                     </div>

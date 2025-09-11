@@ -21,9 +21,26 @@ import {
   Clock,
   Loader2,
   Plus,
+  ChevronDown,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService";
 import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+
+// Add predefined task names for dropdown (placed near top, after imports)
+const predefinedTaskNames = [
+  "Job Knowledge and Skills",
+  "Quality of Work",
+  "Productivity",
+  "Communication Skills",
+  "Teamwork and Collaboration",
+  "Behavior at work",
+  "Problem-Solving and Decision-Making",
+  "Attendance and Punctuality",
+  "Adaptability and Flexibility",
+  "Self-Development",
+  "Discipline and conduct at work",
+  "Adherence to the given Guidelines"
+];
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -39,9 +56,18 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     category: "",
     priority: "medium",
     creatorRole: "", // New field for creator role
+    weights: [ // New weights field with predefined criteria - set to empty percentages
+      { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+      { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
+      { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
+      { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+      { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+      { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+    ],
     ...initialData,
   });
 
+  const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
   const [companies, setCompanies] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -123,8 +149,17 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       category: initialData.category || "",
       priority: initialData.priority || "medium",
       creatorRole: initialData.creator?.role || initialData.creatorRole || "",
+      weights: initialData.weights || [ // Initialize weights if not present - set to empty
+        { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+        { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
+        { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
+        { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+        { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+        { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+      ],
     });
     setEmpSearch("");
+    setShowWeights(false); // Reset weights visibility
   }, [initialData, isOpen]);
 
   const handleChange = (e) => {
@@ -199,6 +234,15 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     return departments.find(d => d.id === id)?.name || "Unknown Department";
   };
 
+  const handleWeightChange = (index, value) => {
+    const updatedWeights = [...formData.weights];
+    updatedWeights[index].percentage = parseInt(value, 10) || 0;
+    setFormData(prev => ({
+      ...prev,
+      weights: updatedWeights
+    }));
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
@@ -225,15 +269,18 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Task Name*
               </label>
-              <input
-                type="text"
+              <select
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 required
-                placeholder="Enter KPI task name"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              />
+              >
+                <option value="">Select task name</option>
+                {predefinedTaskNames.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -270,6 +317,53 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 <option value="Department Head">Department Head</option>
                 <option value="Director">Director</option>
               </select>
+            </div>
+
+            {/* Weights Section - Collapsible Dropdown */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowWeights(!showWeights)}
+                className="flex items-center justify-between w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <span className="text-sm font-medium text-gray-700">Performance Criteria Weights (%)</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showWeights ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showWeights && (
+                <div className="mt-3 space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  {formData.weights.map((weight, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-700">
+                          <strong>{weight.title}</strong>
+                          {weight.description && (
+                            <span className="text-xs text-gray-500 ml-1">{weight.description}</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="w-20">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={weight.percentage || ""}
+                          onChange={(e) => handleWeightChange(index, e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:ring-2 focus:ring-purple-500"
+                          placeholder="0"
+                        />
+                      </div>
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                    <span className="text-sm font-medium text-gray-700">Total:</span>
+                    <span className="text-sm font-bold text-indigo-600">
+                      {formData.weights.reduce((sum, w) => sum + (w.percentage || 0), 0)}%
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -763,6 +857,34 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
             </div>
           </div>
 
+          {/* Performance Criteria Weights */}
+          {kpi.weights && kpi.weights.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Performance Criteria Weights</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="space-y-2">
+                  {kpi.weights.map((weight, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{weight.title}</p>
+                        {weight.description && (
+                          <p className="text-xs text-gray-500">{weight.description}</p>
+                        )}
+                      </div>
+                      <span className="text-sm font-bold text-indigo-600">{weight.percentage}%</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span className="text-sm font-medium text-gray-700">Total:</span>
+                    <span className="text-sm font-bold text-indigo-600">
+                      {kpi.weights.reduce((sum, w) => sum + (w.percentage || 0), 0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Updates Timeline */}
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2">Updates Timeline</h3>
@@ -922,6 +1044,14 @@ const KPIs = () => {
       lastUpdated: "2024-02-01T14:30:00Z",
       frequency: "Monthly",
       category: "Customer",
+      weights: [ // Add weights to sample data with new structure
+        { title: "Consistent follow-up with customers for payments", description: "", percentage: 15 },
+        { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 20 },
+        { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 25 },
+        { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 15 },
+        { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 20 },
+        { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 5 }
+      ],
     },
     {
       id: 2,
@@ -1105,10 +1235,10 @@ const KPIs = () => {
     setIsSubmitting(true);
     try {
       if (!formData.assignees || formData.assignees.length === 0) {
-  alert("Please add at least one assignee before creating the KPI task.");
-  setIsSubmitting(false);
-  return;
-}
+        alert("Please add at least one assignee before creating the KPI task.");
+        setIsSubmitting(false);
+        return;
+      }
 
       await new Promise(r => setTimeout(r, 500)); // simulate
       const firstAssignee = formData.assignees?.length ? parseInt(formData.assignees[0]) : null;
@@ -1152,7 +1282,8 @@ const KPIs = () => {
                   firstAssignee === 3 ? "HR" : "Operations",
         completionStatus: "not-started",
         documentCount: 0,
-        priority: formData.priority || "medium"
+        priority: formData.priority || "medium",
+        weights: formData.weights, // Add weights to new KPI
       };
 
       PMSDummyDataStore.addKpiTask(newKpi);
@@ -1345,10 +1476,11 @@ const KPIs = () => {
           assignees: currentKpi.assignees ? [...currentKpi.assignees] : [],
           company: currentKpi.company || "",
           departmentId: currentKpi.departmentId || "",
-          companyName: currentKpi.companyName || "",  // Add this for display/logging
+          companyName: currentKpi.companyName || "",
           category: currentKpi.category || "",
           priority: currentKpi.priority || "medium",
           creatorRole: currentKpi.creator?.role || "",
+          weights: currentKpi.weights, // Add weights to initialData
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}
@@ -1495,6 +1627,9 @@ const KPIs = () => {
                 </th>
                 {/* Category column removed */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Weights
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1567,6 +1702,19 @@ const KPIs = () => {
                           ></div>
                         </div>
                       </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm">
+                      {kpi.weights ? (
+                        <div className="text-center">
+                          <span className="text-sm font-bold text-indigo-600">
+                            {kpi.weights.reduce((sum, w) => sum + (w.percentage || 0), 0)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">No weights set</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">

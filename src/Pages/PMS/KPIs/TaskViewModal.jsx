@@ -205,6 +205,34 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
                 <p className="text-gray-800">{kpi.description}</p>
               </div>
 
+              {/* Performance Criteria Weights */}
+              {kpi.weights && kpi.weights.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Performance Criteria Weights</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="space-y-2">
+                      {kpi.weights.map((weight, index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{weight.title}</p>
+                            {weight.description && (
+                              <p className="text-xs text-gray-500">{weight.description}</p>
+                            )}
+                          </div>
+                          <span className="text-sm font-bold text-indigo-600">{weight.percentage}%</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span className="text-sm font-medium text-gray-700">Total:</span>
+                        <span className="text-sm font-bold text-indigo-600">
+                          {kpi.weights.reduce((sum, w) => sum + (w.percentage || 0), 0)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Additional information */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                 <div>
