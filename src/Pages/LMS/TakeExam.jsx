@@ -9,6 +9,7 @@ import {
   Target,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const TakeExam = ({ examId, onBack }) => {
   const [exam, setExam] = useState(null);
@@ -21,6 +22,7 @@ const TakeExam = ({ examId, onBack }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     loadExam();
@@ -271,6 +273,43 @@ const TakeExam = ({ examId, onBack }) => {
     {
       console.log("Current exam results:", examResults);
     }
+    const passed =
+      examResults.passed ||
+      Number(examResults.score) >= Number(exam.passing_score || 0);
+    const displayName = user?.name || user?.fullName || "Participant";
+    const issuedDate = new Date().toLocaleDateString();
+
+    // helper to print certificate only
+    const handlePrintCertificate = () => {
+      const certEl = document.getElementById("exam-certificate");
+      if (!certEl) return window.print();
+      const win = window.open("", "PRINT", "height=800,width=1000");
+      if (!win) return;
+      win.document.write(
+        `<!DOCTYPE html><html><head><title>Certificate</title><link rel="stylesheet" href="/app.css" />`
+      );
+      // minimal tailwind classes might not work outside build; inline basic styles for certainty
+      win.document.write(`<style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:40px; background:#f8fafc; }
+        .cert-container { background:white; border:10px solid #1d4ed8; padding:40px; position:relative; }
+        .cert-inner { border:4px solid #93c5fd; padding:40px; text-align:center; }
+        h1 { font-size:42px; margin:0 0 10px; letter-spacing:2px; }
+        h2 { font-size:26px; margin:10px 0 5px; }
+        .name { font-size:32px; font-weight:600; margin:15px 0; }
+        .meta { margin-top:30px; display:flex; justify-content:space-between; font-size:14px; }
+        .signature { margin-top:50px; display:flex; justify-content:space-between; }
+        .sig-line { border-top:1px solid #0f172a; width:220px; padding-top:6px; font-size:12px; text-transform:uppercase; letter-spacing:1px; }
+      </style></head><body>`);
+      win.document.write(certEl.outerHTML);
+      win.document.write("</body></html>");
+      win.document.close();
+      win.focus();
+      setTimeout(() => {
+        win.print();
+        win.close();
+      }, 400);
+    };
+
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -358,6 +397,94 @@ const TakeExam = ({ examId, onBack }) => {
         </div>
 
         {console.log("exam:", exam)}
+
+        {/* Certificate */}
+        {passed && (
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-blue-300 relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_center,#3b82f6,transparent_70%)]" />
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                <Award className="h-6 w-6 text-yellow-500 mr-2" />
+                Certificate of Achievement
+              </h3>
+              <button
+                onClick={handlePrintCertificate}
+                className="text-sm px-4 py-2 rounded-md bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow"
+              >
+                Print / Download
+              </button>
+            </div>
+            <div
+              id="exam-certificate"
+              className="cert-container ring-1 ring-blue-200 rounded-xl p-8 bg-white"
+            >
+              <div className="cert-inner">
+                <h1 className="text-4xl font-extrabold tracking-wide text-blue-700 mb-2">
+                  Certificate
+                </h1>
+                <p className="uppercase tracking-widest text-sm text-gray-500 mb-6">
+                  Of Achievement
+                </p>
+                <p className="text-gray-600 text-sm">This is to certify that</p>
+                <div className="name text-3xl font-bold text-gray-800 my-4">
+                  {displayName}
+                </div>
+                <p className="text-gray-600 mb-4">
+                  has successfully passed the examination
+                </p>
+                <h2 className="text-2xl font-semibold text-blue-700 mb-2">
+                  {exam.title}
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  with a score of{" "}
+                  <span className="font-semibold text-green-600">
+                    {examResults.score}%
+                  </span>{" "}
+                  (Required: {exam.passing_score}%)
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-8">
+                  <div className="p-3 rounded bg-blue-50">
+                    <div className="text-xs uppercase text-gray-500 mb-1">
+                      Date Issued
+                    </div>
+                    <div className="font-medium text-gray-800">
+                      {issuedDate}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded bg-blue-50">
+                    <div className="text-xs uppercase text-gray-500 mb-1">
+                      Exam ID
+                    </div>
+                    <div className="font-medium text-gray-800">{exam.id}</div>
+                  </div>
+                  <div className="p-3 rounded bg-blue-50">
+                    <div className="text-xs uppercase text-gray-500 mb-1">
+                      Unique Code
+                    </div>
+                    <div className="font-medium text-gray-800">
+                      CERT-{String(exam.id).padStart(4, "0")}-
+                      {String(examResults.score).padStart(2, "0")}
+                    </div>
+                  </div>
+                </div>
+                <div className="signature mt-12 flex justify-between">
+                  <div className="text-center">
+                    <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-blue-200 to-indigo-200 rounded" />
+                    <div className="text-xs uppercase tracking-wider text-gray-600">
+                      Authorized Signature
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-green-200 to-emerald-200 rounded" />
+                    <div className="text-xs uppercase tracking-wider text-gray-600">
+                      Exam Coordinator
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Detailed Results */}
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
