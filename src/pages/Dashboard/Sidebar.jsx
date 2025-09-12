@@ -132,18 +132,18 @@ const Sidebar = ({
         // { id: "reports", name: "Performance Reports", icon: BarChart3 },
       ],
     },
-    {
-      id: "lms",
-      name: "Learning Management",
-      icon: BookOpen,
-      badge: null,
-      subItems: [
-        { id: "lmsDashboard", name: "LMS Dashboard", icon: Home },
-        { id: "manageExams", name: "Manage Exams", icon: FileText },
-        { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
-        { id: "myProgress", name: "My Progress", icon: BarChart3 },
-      ],
-    },
+   {
+  id: "lms",
+  name: "Learning Management",
+  icon: BookOpen,
+  badge: null,
+  subItems: [
+    { id: "lmsDashboard", name: "LMS Dashboard", icon: Home },
+    { id: "manageExams", name: "Manage Exams", icon: FileText },
+    { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
+    { id: "myProgress", name: "My Progress", icon: BarChart3 },
+  ],
+},
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
   ];
@@ -311,58 +311,58 @@ const Sidebar = ({
 
                       return (
                         <button
-                          onClick={top.toggle}
-                          className={`
-                             w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                             transition-all duration-200 group
-                             ${
-                               activeItem === item.id ||
-                               item.subItems.some(
-                                 (subItem) => activeItem === subItem.id
-                               )
-                                 ? "bg-indigo-50 text-indigo-700"
-                                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                             }
-                           `}
-                        >
-                          <div className="flex items-center gap-3">
-                            <item.icon
-                              className={`h-5 w-5 ${
-                                activeItem === item.id ||
-                                item.subItems.some(
-                                  (subItem) => activeItem === subItem.id
-                                )
-                                  ? "text-indigo-600"
-                                  : "text-gray-400 group-hover:text-gray-600"
-                              }`}
-                            />
-                            <span>{item.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {item.badge && (
-                              <span
-                                className={`
-                                   px-2 py-0.5 text-xs rounded-full font-medium
-                                   ${
-                                     activeItem === item.id ||
-                                     item.subItems.some(
-                                       (subItem) => activeItem === subItem.id
-                                     )
-                                       ? "bg-indigo-100 text-indigo-700"
-                                       : "bg-gray-100 text-gray-600"
-                                   }
-                                 `}
-                              >
-                                {item.badge}
-                              </span>
-                            )}
-                            {top.expanded ? (
-                              <ChevronDown className="h-4 w-4 text-gray-500" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-gray-500" />
-                            )}
-                          </div>
-                        </button>
+  onClick={top.toggle}
+  className={`
+    w-full flex items-right justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+    transition-all duration-200 group
+    ${
+      activeItem === item.id ||
+      item.subItems.some(
+        (subItem) => activeItem === subItem.id
+      )
+        ? "bg-indigo-50 text-indigo-700"
+        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+    }
+  `}
+>
+  <div className="flex items-center gap-3">
+    <item.icon
+      className={`h-5 w-5 ${
+        activeItem === item.id ||
+        item.subItems.some(
+          (subItem) => activeItem === subItem.id
+        )
+          ? "text-indigo-600"
+          : "text-gray-400 group-hover:text-gray-600"
+      }`}
+    />
+  </div>
+  <span className="flex-10 text-left mr-10">{item.name}</span> {/* Changed here */}
+  <div className="flex items-center gap-2">
+    {item.badge && (
+      <span
+        className={`
+          px-2 py-0.5 text-xs rounded-full font-medium
+          ${
+            activeItem === item.id ||
+            item.subItems.some(
+              (subItem) => activeItem === subItem.id
+            )
+              ? "bg-indigo-100 text-indigo-700"
+              : "bg-gray-100 text-gray-600"
+          }
+        `}
+      >
+        {item.badge}
+      </span>
+    )}
+    {top.expanded ? (
+      <ChevronDown className="h-4 w-4 text-gray-500" />
+    ) : (
+      <ChevronRight className="h-4 w-4 text-gray-500" />
+    )}
+  </div>
+</button>
                       );
                     })()}
 

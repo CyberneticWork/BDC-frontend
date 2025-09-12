@@ -389,7 +389,7 @@ const QuickActions = ({ setActiveItem }) => {
     {
       icon: Users,
       label: "Add Employee",
-      action: "EmployeeMaster",
+      action: "employeeMaster",
       color: "from-blue-500 to-blue-600",
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
