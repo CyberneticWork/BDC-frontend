@@ -39,6 +39,8 @@ const ExamManagement = ({ onTakeExam }) => {
     correctAnswer: 0,
     explanation: "",
   });
+  const [questionModalMode, setQuestionModalMode] = useState("add"); // 'add' | 'edit'
+  const [editingQuestion, setEditingQuestion] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -169,7 +171,10 @@ const ExamManagement = ({ onTakeExam }) => {
       const transformedQuestions = formData.questions.map((question) => ({
         question: question.question,
         options: question.options,
-        correct_answer: question.correctAnswer,
+        correct_answer:
+          typeof question.correct_answer === "number"
+            ? question.correct_answer
+            : question.correctAnswer,
         explanation: question.explanation,
       }));
       const examData = {
@@ -227,7 +232,10 @@ const ExamManagement = ({ onTakeExam }) => {
       const transformedQuestions = formData.questions.map((question) => ({
         question: question.question,
         options: question.options,
-        correct_answer: question.correctAnswer,
+        correct_answer:
+          typeof question.correct_answer === "number"
+            ? question.correct_answer
+            : question.correctAnswer,
         explanation: question.explanation,
       }));
       const examData = {
@@ -438,6 +446,72 @@ const ExamManagement = ({ onTakeExam }) => {
     if (!courseId) return "Standalone Exam";
     const course = courses.find((c) => c.id === courseId);
     return course ? course.title : "Unknown Course";
+  };
+
+  const openAddQuestionModal = () => {
+    setQuestionModalMode("add");
+    setEditingQuestion(null);
+    setNewQuestion({
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: 0,
+      explanation: "",
+    });
+    setShowQuestionModal(true);
+  };
+
+  const openEditQuestionModal = (question) => {
+    setQuestionModalMode("edit");
+    setEditingQuestion(question);
+    setNewQuestion({
+      question: question.question || "",
+      options: [...(question.options || ["", "", "", ""])],
+      correctAnswer:
+        typeof question.correct_answer === "number"
+          ? question.correct_answer
+          : question.correctAnswer || 0,
+      explanation: question.explanation || "",
+    });
+    setShowQuestionModal(true);
+  };
+
+  const saveQuestionChanges = () => {
+    // validation reuse
+    const questionErrors = validateQuestion();
+    if (Object.keys(questionErrors).length > 0) {
+      setFieldErrors((prev) => ({ ...prev, ...questionErrors }));
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Please complete required fields",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+    setFormData((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) =>
+        q.id === editingQuestion.id
+          ? {
+              ...q,
+              question: newQuestion.question,
+              options: newQuestion.options,
+              correct_answer: newQuestion.correctAnswer,
+              explanation: newQuestion.explanation,
+            }
+          : q
+      ),
+    }));
+    setShowQuestionModal(false);
+    setEditingQuestion(null);
+    Swal.fire({
+      icon: "success",
+      title: "Question Updated!",
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 1800,
+    });
   };
 
   return (
@@ -716,7 +790,7 @@ const ExamManagement = ({ onTakeExam }) => {
                     Questions ({formData.questions.length})
                   </h4>
                   <button
-                    onClick={() => setShowQuestionModal(true)}
+                    onClick={openAddQuestionModal}
                     className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
                   >
                     <PlusCircle className="h-4 w-4 mr-2" />
@@ -740,19 +814,33 @@ const ExamManagement = ({ onTakeExam }) => {
                         <h6 className="font-medium text-gray-900">
                           Question {index + 1}
                         </h6>
-                        <button
-                          onClick={() => removeQuestion(question.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => openEditQuestionModal(question)}
+                            className="text-blue-500 hover:text-blue-700"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => removeQuestion(question.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                       <p className="text-sm text-gray-700 mb-2">
                         {question.question}
                       </p>
                       <div className="text-xs text-gray-500">
                         Options: {question.options.length} | Correct:{" "}
-                        {question.options[question.correctAnswer]}
+                        {
+                          question.options[
+                            (typeof question.correct_answer === "number"
+                              ? question.correct_answer
+                              : question.correctAnswer) || 0
+                          ]
+                        }
                       </div>
                     </div>
                   ))}
@@ -789,15 +877,20 @@ const ExamManagement = ({ onTakeExam }) => {
         <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full mx-4">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Add Question</h3>
+              <h3 className="text-xl font-bold text-gray-900">
+                {questionModalMode === "edit"
+                  ? "Edit Question"
+                  : "Add Question"}
+              </h3>
               <button
                 onClick={() => {
                   setShowQuestionModal(false);
+                  setEditingQuestion(null);
                   setFieldErrors((prev) => {
-                    const newErrors = { ...prev };
-                    delete newErrors.question;
-                    delete newErrors.options;
-                    return newErrors;
+                    const ne = { ...prev };
+                    delete ne.question;
+                    delete ne.options;
+                    return ne;
                   });
                 }}
                 className="text-gray-400 hover:text-gray-600"
@@ -901,26 +994,36 @@ const ExamManagement = ({ onTakeExam }) => {
                 <button
                   onClick={() => {
                     setShowQuestionModal(false);
+                    setEditingQuestion(null);
                     setFieldErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.question;
-                      delete newErrors.options;
-                      return newErrors;
+                      const ne = { ...prev };
+                      delete ne.question;
+                      delete ne.options;
+                      return ne;
                     });
                   }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={() => {
-                    addQuestion();
-                    setShowQuestionModal(false);
-                  }}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200"
-                >
-                  Add Question
-                </button>
+                {questionModalMode === "edit" ? (
+                  <button
+                    onClick={saveQuestionChanges}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200"
+                  >
+                    Save Changes
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      addQuestion();
+                      setShowQuestionModal(false);
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200"
+                  >
+                    Add Question
+                  </button>
+                )}
               </div>
             </div>
           </div>
