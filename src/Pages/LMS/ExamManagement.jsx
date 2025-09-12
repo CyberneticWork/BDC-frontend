@@ -227,7 +227,7 @@ const ExamManagement = ({ onTakeExam }) => {
       const transformedQuestions = formData.questions.map((question) => ({
         question: question.question,
         options: question.options,
-        correct_answer: question.correctAnswer,
+        correct_answer: question.correct_answer,
         explanation: question.explanation,
       }));
       const examData = {
@@ -752,7 +752,7 @@ const ExamManagement = ({ onTakeExam }) => {
                       </p>
                       <div className="text-xs text-gray-500">
                         Options: {question.options.length} | Correct:{" "}
-                        {question.options[question.correctAnswer]}
+                        {question.options[question.correct_answer]}
                       </div>
                     </div>
                   ))}

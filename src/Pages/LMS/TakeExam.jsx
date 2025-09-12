@@ -268,6 +268,9 @@ const TakeExam = ({ examId, onBack }) => {
 
   if (shouldShowResults && examResults) {
     console.log("Showing results");
+    {
+      console.log("Current exam results:", examResults);
+    }
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -322,13 +325,13 @@ const TakeExam = ({ examId, onBack }) => {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600">
-                {examResults.correctAnswers}
+                {examResults.correct_answers}
               </div>
               <div className="text-sm text-gray-600">Correct Answers</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-gray-600">
-                {examResults.totalQuestions}
+                {examResults.total_questions}
               </div>
               <div className="text-sm text-gray-600">Total Questions</div>
             </div>
@@ -339,7 +342,7 @@ const TakeExam = ({ examId, onBack }) => {
               <span className="text-sm text-gray-600">
                 Passing Score Required:
               </span>
-              <span className="font-medium">{exam.passingScore}%</span>
+              <span className="font-medium">{exam.passing_score}%</span>
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-sm text-gray-600">Your Score:</span>
@@ -354,6 +357,8 @@ const TakeExam = ({ examId, onBack }) => {
           </div>
         </div>
 
+        {console.log("exam:", exam)}
+
         {/* Detailed Results */}
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -364,9 +369,9 @@ const TakeExam = ({ examId, onBack }) => {
               const question = exam.questions[index];
               return (
                 <div
-                  key={result.questionId}
+                  key={result.question_id}
                   className={`p-4 rounded-lg border ${
-                    result.isCorrect
+                    result.is_correct
                       ? "border-green-200 bg-green-50"
                       : "border-red-200 bg-red-50"
                   }`}
@@ -376,7 +381,7 @@ const TakeExam = ({ examId, onBack }) => {
                       Question {index + 1}: {question.question}
                     </h4>
                     <div className="flex items-center">
-                      {result.isCorrect ? (
+                      {result.is_correct ? (
                         <CheckCircle className="h-5 w-5 text-green-600" />
                       ) : (
                         <X className="h-5 w-5 text-red-600" />
@@ -389,21 +394,21 @@ const TakeExam = ({ examId, onBack }) => {
                       <div
                         key={optionIndex}
                         className={`p-2 rounded ${
-                          optionIndex === result.correctAnswer
+                          optionIndex === result.correct_answer
                             ? "bg-green-100 text-green-800"
-                            : optionIndex === result.userAnswer &&
+                            : optionIndex === result.user_answer &&
                               !result.isCorrect
                             ? "bg-red-100 text-red-800"
                             : "bg-gray-100 text-gray-700"
                         }`}
                       >
                         {option}
-                        {optionIndex === result.correctAnswer && (
+                        {optionIndex === result.correct_answer && (
                           <span className="ml-2 text-green-600 font-medium">
                             (Correct)
                           </span>
                         )}
-                        {optionIndex === result.userAnswer &&
+                        {optionIndex === result.user_answer &&
                           !result.isCorrect && (
                             <span className="ml-2 text-red-600 font-medium">
                               (Your Answer)
