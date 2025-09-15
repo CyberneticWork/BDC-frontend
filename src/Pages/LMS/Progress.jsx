@@ -17,7 +17,7 @@ const Progress = () => {
   useEffect(() => {
     setUserProgress(LMSService.getUserProgress());
     setEnrolledCourses(LMSService.getEnrolledCourses());
-    setCertificates(LMSService.getCertificates());
+  
   }, []);
 
   const overallProgress =
