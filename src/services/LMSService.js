@@ -117,26 +117,29 @@ const LMSService = {
   async enrollInCourse(courseId, userId = null) {
     try {
       const url = `/courses/${courseId}/enroll`;
-      console.log('Making enrollment API call to:', url);
-      console.log('Full URL:', axios.defaults.baseURL + url);
+      console.log("Making enrollment API call to:", url);
+      console.log("Full URL:", axios.defaults.baseURL + url);
 
       // Check if token exists
-      const token = localStorage.getItem('token');
-      console.log('Auth token exists:', !!token);
-      console.log('Auth token value:', token ? token.substring(0, 20) + '...' : 'null');
+      const token = localStorage.getItem("token");
+      console.log("Auth token exists:", !!token);
+      console.log(
+        "Auth token value:",
+        token ? token.substring(0, 20) + "..." : "null"
+      );
 
       // If userId is provided, send it in the request body as a workaround
       const requestData = userId ? { user_id: userId } : {};
-      console.log('Request data:', requestData);
+      console.log("Request data:", requestData);
 
       const response = await axios.post(url, requestData);
-      console.log('Enrollment API response:', response);
+      console.log("Enrollment API response:", response);
       return response.data;
     } catch (error) {
-      console.error('Enrollment failed:', error);
-      console.error('Error response:', error.response);
-      console.error('Error status:', error.response?.status);
-      console.error('Error data:', error.response?.data);
+      console.error("Enrollment failed:", error);
+      console.error("Error response:", error.response);
+      console.error("Error status:", error.response?.status);
+      console.error("Error data:", error.response?.data);
       throw error;
     }
   },
@@ -146,17 +149,17 @@ const LMSService = {
       const response = await axios.get(`/courses/${courseId}/enrollment`);
       return response.data;
     } catch (error) {
-      console.error('Check enrollment failed:', error);
+      console.error("Check enrollment failed:", error);
       throw error;
     }
   },
 
   async getEnrollments() {
     try {
-      const response = await axios.get('/enrollments');
+      const response = await axios.get("/enrollments");
       return response.data;
     } catch (error) {
-      console.error('Get enrollments failed:', error);
+      console.error("Get enrollments failed:", error);
       throw error;
     }
   },
@@ -166,7 +169,7 @@ const LMSService = {
       const response = await axios.delete(`/courses/${courseId}/enroll`);
       return response.data;
     } catch (error) {
-      console.error('Unenrollment failed:', error);
+      console.error("Unenrollment failed:", error);
       throw error;
     }
   },

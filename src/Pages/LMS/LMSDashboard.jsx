@@ -43,18 +43,20 @@ const LMSDashboard = ({
           const enrollmentsResponse = await LMSService.getEnrollments();
           userEnrollments = enrollmentsResponse.data || [];
         } catch (error) {
-          console.warn('Could not fetch user enrollments:', error);
+          console.warn("Could not fetch user enrollments:", error);
         }
 
         // Mark enrolled courses
-        const coursesWithEnrollment = coursesResponse.data.map(course => ({
+        const coursesWithEnrollment = coursesResponse.data.map((course) => ({
           ...course,
-          enrolled: userEnrollments.some(enrollment => enrollment.course_id === course.id)
+          enrolled: userEnrollments.some(
+            (enrollment) => enrollment.course_id === course.id
+          ),
         }));
 
         setCourses(coursesWithEnrollment);
         setExams(examsResponse.data || []);
-        setEnrolledCourses(coursesWithEnrollment.filter(c => c.enrolled));
+        setEnrolledCourses(coursesWithEnrollment.filter((c) => c.enrolled));
         setUserProgress(LMSService.getUserProgress());
       } catch (e) {
         console.error("Failed to load dashboard data", e);
@@ -71,38 +73,36 @@ const LMSDashboard = ({
   const handleEnroll = async (courseId) => {
     try {
       setEnrollingCourseId(courseId);
-      console.log('Attempting to enroll in course:', courseId);
-      console.log('Current user:', user);
-      console.log('User ID:', user?.id);
+      console.log("Attempting to enroll in course:", courseId);
+      console.log("Current user:", user);
+      console.log("User ID:", user?.id);
 
       // For now, let's try with a simple test - send user_id in the request body
       const response = await LMSService.enrollInCourse(courseId, user?.id);
-      console.log('Enrollment API response:', response);
+      console.log("Enrollment API response:", response);
 
       // Update the course as enrolled in the local state
-      setCourses(prevCourses =>
-        prevCourses.map(course =>
-          course.id === courseId
-            ? { ...course, enrolled: true }
-            : course
+      setCourses((prevCourses) =>
+        prevCourses.map((course) =>
+          course.id === courseId ? { ...course, enrolled: true } : course
         )
       );
 
       // Update enrolled courses list
-      setEnrolledCourses(prevEnrolled => [
+      setEnrolledCourses((prevEnrolled) => [
         ...prevEnrolled,
-        courses.find(c => c.id === courseId)
+        courses.find((c) => c.id === courseId),
       ]);
 
       // Update user progress
       setUserProgress(LMSService.getUserProgress());
 
       // Show success message (you might want to add a toast notification here)
-      alert('Successfully enrolled in the course!');
+      alert("Successfully enrolled in the course!");
     } catch (error) {
-      console.error('Enrollment failed:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      alert('Failed to enroll in the course. Please try again.');
+      console.error("Enrollment failed:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      alert("Failed to enroll in the course. Please try again.");
     } finally {
       setEnrollingCourseId(null);
     }
