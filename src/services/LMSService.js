@@ -113,40 +113,62 @@ const LMSService = {
     return true;
   },
 
-  _prepareCourseFormData(formData) {
-    const data = new FormData();
-    data.append("title", formData.title);
-    data.append("description", formData.description);
-    data.append("duration", formData.duration);
+  // ---- Enrollment API ----
+  async enrollInCourse(courseId, userId = null) {
+    try {
+      const url = `/courses/${courseId}/enroll`;
+      console.log('Making enrollment API call to:', url);
+      console.log('Full URL:', axios.defaults.baseURL + url);
 
-    // Add modules with files
-    if (formData.modules && formData.modules.length > 0) {
-      formData.modules.forEach((module, index) => {
-        data.append(`modules[${index}][title]`, module.title);
-        data.append(`modules[${index}][content]`, module.content || "");
-        // Preserve existing module id so backend can decide to update instead of recreating
-        if (module.id && !module.tempId) {
-          data.append(`modules[${index}][id]`, module.id);
-        }
+      // Check if token exists
+      const token = localStorage.getItem('token');
+      console.log('Auth token exists:', !!token);
+      console.log('Auth token value:', token ? token.substring(0, 20) + '...' : 'null');
 
-        // Add module file if exists
-        if (module.file) {
-          data.append(`modules[${index}][file]`, module.file);
-        }
-      });
+      // If userId is provided, send it in the request body as a workaround
+      const requestData = userId ? { user_id: userId } : {};
+      console.log('Request data:', requestData);
+
+      const response = await axios.post(url, requestData);
+      console.log('Enrollment API response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('Enrollment failed:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      throw error;
     }
+  },
 
-    // Add attachments (only new files with 'file' property)
-    if (formData.attachments && formData.attachments.length > 0) {
-      formData.attachments.forEach((attachment, index) => {
-        if (attachment.file) {
-          // Only upload new files
-          data.append(`attachments[${index}]`, attachment.file);
-        }
-      });
+  async checkEnrollment(courseId) {
+    try {
+      const response = await axios.get(`/courses/${courseId}/enrollment`);
+      return response.data;
+    } catch (error) {
+      console.error('Check enrollment failed:', error);
+      throw error;
     }
+  },
 
-    return data;
+  async getEnrollments() {
+    try {
+      const response = await axios.get('/enrollments');
+      return response.data;
+    } catch (error) {
+      console.error('Get enrollments failed:', error);
+      throw error;
+    }
+  },
+
+  async unenrollFromCourse(courseId) {
+    try {
+      const response = await axios.delete(`/courses/${courseId}/enroll`);
+      return response.data;
+    } catch (error) {
+      console.error('Unenrollment failed:', error);
+      throw error;
+    }
   },
 
   // Simulated client-side attachment creation (until real upload endpoint exists)
@@ -169,18 +191,13 @@ const LMSService = {
   },
 
   // ---- Client-side enrollment & progress (placeholder until backend endpoints exist) ----
+  // Note: Real API methods are now implemented above, these simulated methods are kept for fallback only
+
   getCourses() {
     return this._coursesCache;
   },
 
-  enrollInCourse(courseId) {
-    const course = this._coursesCache.find((c) => c.id === parseInt(courseId));
-    if (course) {
-      course.enrolled = true;
-      this._recalculateUserProgress();
-    }
-    return course;
-  },
+  // enrollInCourse method removed - using real API method above
 
   getEnrolledCourses() {
     return this._coursesCache.filter((c) => c.enrolled);

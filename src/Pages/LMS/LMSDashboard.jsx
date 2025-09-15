@@ -25,33 +25,87 @@ const LMSDashboard = ({
   const [exams, setExams] = useState([]);
   const [userProgress, setUserProgress] = useState({});
   const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [enrollingCourseId, setEnrollingCourseId] = useState(null);
 
   useEffect(() => {
     const init = async () => {
       try {
+        setLoading(true);
         const [coursesResponse, examsResponse] = await Promise.all([
           LMSService.fetchCourses(),
           LMSService.getExams(),
         ]);
-        setCourses(LMSService.getCourses());
+
+        // Get user's enrollments to mark enrolled courses
+        let userEnrollments = [];
+        try {
+          const enrollmentsResponse = await LMSService.getEnrollments();
+          userEnrollments = enrollmentsResponse.data || [];
+        } catch (error) {
+          console.warn('Could not fetch user enrollments:', error);
+        }
+
+        // Mark enrolled courses
+        const coursesWithEnrollment = coursesResponse.data.map(course => ({
+          ...course,
+          enrolled: userEnrollments.some(enrollment => enrollment.course_id === course.id)
+        }));
+
+        setCourses(coursesWithEnrollment);
         setExams(examsResponse.data || []);
+        setEnrolledCourses(coursesWithEnrollment.filter(c => c.enrolled));
         setUserProgress(LMSService.getUserProgress());
-        setEnrolledCourses(LMSService.getEnrolledCourses());
       } catch (e) {
         console.error("Failed to load dashboard data", e);
         // Fallback to cached data
         setCourses(LMSService.getCourses());
         setExams([]);
+      } finally {
+        setLoading(false);
       }
     };
     init();
   }, []);
 
-  const handleEnroll = (courseId) => {
-    LMSService.enrollInCourse(courseId);
-    setCourses(LMSService.getCourses());
-    setUserProgress(LMSService.getUserProgress());
-    setEnrolledCourses(LMSService.getEnrolledCourses());
+  const handleEnroll = async (courseId) => {
+    try {
+      setEnrollingCourseId(courseId);
+      console.log('Attempting to enroll in course:', courseId);
+      console.log('Current user:', user);
+      console.log('User ID:', user?.id);
+
+      // For now, let's try with a simple test - send user_id in the request body
+      const response = await LMSService.enrollInCourse(courseId, user?.id);
+      console.log('Enrollment API response:', response);
+
+      // Update the course as enrolled in the local state
+      setCourses(prevCourses =>
+        prevCourses.map(course =>
+          course.id === courseId
+            ? { ...course, enrolled: true }
+            : course
+        )
+      );
+
+      // Update enrolled courses list
+      setEnrolledCourses(prevEnrolled => [
+        ...prevEnrolled,
+        courses.find(c => c.id === courseId)
+      ]);
+
+      // Update user progress
+      setUserProgress(LMSService.getUserProgress());
+
+      // Show success message (you might want to add a toast notification here)
+      alert('Successfully enrolled in the course!');
+    } catch (error) {
+      console.error('Enrollment failed:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      alert('Failed to enroll in the course. Please try again.');
+    } finally {
+      setEnrollingCourseId(null);
+    }
   };
 
   const progressPercentage =
@@ -258,10 +312,20 @@ const LMSDashboard = ({
               ) : (
                 <button
                   onClick={() => handleEnroll(course.id)}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                  disabled={enrollingCourseId === course.id}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
                 >
-                  <Play className="h-4 w-4 mr-2" />
-                  Enroll Now
+                  {enrollingCourseId === course.id ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Enrolling...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Enroll Now
+                    </>
+                  )}
                 </button>
               )}
             </div>
