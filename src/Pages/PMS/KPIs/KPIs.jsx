@@ -24,7 +24,6 @@ import {
   ChevronDown,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService";
-import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -198,7 +197,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       category: initialData.category || "",
       priority: initialData.priority || "medium",
       creatorRole: initialData.creatorRole || "",
-      weights: [
+      weights: initialData.weights || [
         { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
         { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
         { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
@@ -1055,190 +1054,10 @@ const KPIs = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Shared employees list used by TaskModal and TaskViewModal
-  const [employees] = useState([
-    { id: 1, name: "Sarah Johnson", department: "Customer Service" },
-    { id: 2, name: "Mike Chen", department: "Sales" },
-    { id: 3, name: "Emma Davis", department: "HR" },
-    { id: 4, name: "John Smith", department: "Operations" },
-  ]);
+  const [employees, setEmployees] = useState([]);
 
   // Change this to match the employee ID you're assigning tasks to
   const [currentEmployeeId, setCurrentEmployeeId] = useState("2"); // Or whichever ID you're using
-
-  // Sample data (replace with actual API call)
-  const sampleKpis = [
-    {
-      id: 1,
-      name: "Customer Satisfaction Score",
-      description: "Measure of customer satisfaction through surveys",
-      target: 85,
-      current: 78,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 25,
-      department: "Customer Service",
-      company: "1",
-      departmentId: "101",
-      companyName: "Acme Corporation",
-      departmentName: "Customer Service",
-      owner: "", // owner cleared — UI shows creator role instead
-      creator: { name: "Sarah Johnson", role: "Team Lead", date: "2024-01-01T09:00:00Z" },
-      assignees: ["1"],
-      assigneeUpdates: [
-        {
-          employeeId: 1,
-          updates: [
-            { date: "2024-01-05T09:00:00Z", note: "Initial assignment", author: "Manager", progressPercentage: 0 },
-            { date: "2024-02-01T14:30:00Z", note: "Submitted first draft of report", author: "Sarah Johnson", progressPercentage: 20 },
-          ]
-        }
-      ],
-      startDate: "2023-12-01",
-      endDate: "2024-03-31",
-      lastUpdated: "2024-02-01T14:30:00Z",
-      frequency: "Monthly",
-      category: "Customer",
-      weights: [ // Add weights to sample data with new structure
-        { title: "Consistent follow-up with customers for payments", description: "", percentage: 15 },
-        { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 20 },
-        { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 25 },
-        { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 15 },
-        { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 20 },
-        { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 5 }
-      ],
-    },
-    {
-      id: 2,
-      name: "Revenue Growth Rate",
-      description: "Quarterly revenue growth percentage",
-      target: 15,
-      current: 18,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 45,
-      department: "Sales",
-      company: "2",
-      departmentId: "201",
-      companyName: "Globex Industries",
-      departmentName: "Sales",
-      owner: "Executive",
-      creator: { name: "Mike Chen", role: "Supervisor", date: "2024-01-10T11:00:00Z" },
-      assignees: ["2","4"],
-      assigneeUpdates: [
-        {
-          employeeId: 2,
-          updates: [
-            { date: "2024-01-12T11:00:00Z", note: "Provided Q4 numbers", author: "Mike Chen", progressPercentage: 40 }
-          ]
-        },
-        {
-          employeeId: 4,
-          updates: [
-            { date: "2024-01-15T10:00:00Z", note: "Assisted with data cleanup", author: "John Smith", progressPercentage: 10 }
-          ]
-        }
-      ],
-      startDate: "2023-11-01",
-      endDate: "2024-02-28",
-      lastUpdated: "2024-01-15T10:00:00Z",
-      frequency: "Quarterly",
-      category: "Financial",
-    },
-    {
-      id: 3,
-      name: "Employee Turnover Rate",
-      description: "Percentage of employees leaving the organization",
-      target: 8,
-      current: 12,
-      unit: "%",
-      trend: "down",
-      status: "attention",
-      progress: 10,
-      department: "HR",
-      company: "3",
-      departmentId: "301",
-      companyName: "Wayne Enterprises",
-      departmentName: "HR",
-      owner: "",
-      creator: { name: "Emma Davis", role: "Department Head", date: "2024-01-08T09:00:00Z" },
-      assignees: ["3"],
-      assigneeUpdates: [
-        {
-          employeeId: 3,
-          updates: [
-            { date: "2024-01-10T09:00:00Z", note: "Reviewed exit interviews", author: "Emma Davis", progressPercentage: 5 },
-            { date: "2024-02-01T14:30:00Z", note: "Identified trends in departures", author: "Emma Davis", progressPercentage: 10 },
-          ]
-        }
-      ],
-      startDate: "2023-10-15",
-      endDate: "2024-01-31",
-      lastUpdated: "2024-02-01T14:30:00Z",
-      frequency: "Monthly",
-      category: "HR",
-    },
-    {
-      id: 4,
-      name: "Project Completion Rate",
-      description: "Percentage of projects completed on time",
-      target: 90,
-      current: 95,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 80,
-      department: "Operations",
-      company: "1",
-      departmentId: "103",
-      companyName: "Acme Corporation",
-      departmentName: "Operations",
-      owner: "Supervisor",
-      creator: { name: "John Smith", role: "Supervisor", date: "2024-01-02T10:00:00Z" },
-      assignees: ["4"],
-      assigneeUpdates: [
-        {
-          employeeId: 4,
-          updates: [
-            { date: "2024-01-15T10:00:00Z", note: "Project A completed", author: "John Smith", progressPercentage: 60 },
-            { date: "2024-01-20T10:00:00Z", note: "Project B on track", author: "John Smith", progressPercentage: 80 },
-          ]
-        }
-      ],
-      startDate: "2024-01-01",
-      endDate: "2024-03-15",
-      lastUpdated: "2024-01-20T10:00:00Z",
-      frequency: "Weekly",
-      category: "Operations",
-    },
-    // Example new KPI with zero-initialized progress
-    {
-      id: 5,
-      name: "New Product Adoption",
-      description: "Track adoption of the new product feature",
-      target: 100,
-      current: 100,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 0,
-      department: "Product",
-      company: "2",
-      departmentId: "202",
-      companyName: "Globex Industries",
-      departmentName: "Product",
-      owner: "",
-      creator: { name: "Linda Perez", role: "Product Manager", date: new Date().toISOString() },
-      assignees: [],
-      assigneeUpdates: [],
-      startDate: new Date().toISOString().slice(0,10),
-      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().slice(0,10),
-      lastUpdated: new Date().toISOString(),
-      frequency: "Monthly",
-      category: "Product",
-    },
-  ];
 
   useEffect(() => {
     fetchKpis();
@@ -1318,28 +1137,22 @@ const KPIs = () => {
   const handleEditKpi = async (formData) => {
     setIsSubmitting(true);
     try {
-      await new Promise(r => setTimeout(r, 400));
-      PMSDummyDataStore.updateKpiTask(currentKpi.id, {
-        name: formData.name,
+      const data = {
+        task_name: formData.name, // From selected task
         description: formData.description,
-        assignees: (formData.assignees || []).map(a => a.toString()),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        company_id: formData.company,
+        department_id: formData.department,
+        creator_role_name: formData.creatorRole, // role_name string
+        assignees: formData.assignees, // Array of attendance_employee_no
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        weights: formData.weights,
         priority: formData.priority,
-        // Add company/department fields from formData
-        company: formData.company, // ID
-        departmentId: formData.department, // ID
-        companyName: formData.companyName || "", // Use passed name
-        departmentName: formData.departmentName || "", // Use passed name
-        department: formData.departmentName || "", // Use passed name
-        creator: {
-          ...(currentKpi.creator || {}),
-          role: formData.creatorRole || currentKpi.creator?.role || ""
-        }
-      });
-      setKpis(PMSDummyDataStore.getAllKpiTasks());
+      };
+      const result = await PMSService.updateKpiTaskAssignment(currentKpi.id, data);
+      alert("KPI task updated successfully.");
       setIsEditModalOpen(false);
-      alert("KPI task updated.");
+      fetchKpis(); // Refresh the list
     } catch (e) {
       console.error(e);
       alert("Failed to update KPI task");
@@ -1351,11 +1164,10 @@ const KPIs = () => {
   const handleDeleteKpi = async () => {
     setIsSubmitting(true);
     try {
-      await new Promise(r => setTimeout(r, 400));
-      PMSDummyDataStore.deleteKpiTask(currentKpi.id);
-      setKpis(PMSDummyDataStore.getAllKpiTasks());
+      const result = await PMSService.deleteKpiTaskAssignment(currentKpi.id);
+      alert("KPI task deleted successfully.");
       setIsDeleteModalOpen(false);
-      alert("KPI task deleted.");
+      fetchKpis(); // Refresh the list
     } catch (e) {
       console.error(e);
       alert("Failed to delete KPI task");

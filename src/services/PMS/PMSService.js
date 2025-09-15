@@ -213,6 +213,28 @@ class PMSService {
       throw error;
     }
   }
+
+  // NEW: Update KPI task assignment
+  async updateKpiTaskAssignment(id, data) {
+    try {
+      const response = await axios.put(`/pms/kpi-task-assignments/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating KPI task assignment:", error);
+      throw error;
+    }
+  }
+
+  // NEW: Delete KPI task assignment (soft delete by updating delete flag)
+  async deleteKpiTaskAssignment(id) {
+    try {
+      const response = await axios.put(`/pms/kpi-task-assignments/${id}`, { deleted: true });
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting KPI task assignment:", error);
+      throw error;
+    }
+  }
   // --- end added methods ---
 }
 
