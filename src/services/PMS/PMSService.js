@@ -1,6 +1,5 @@
 import axios from "@utils/axios";
 
-
 class PMSService {
   // Performance Reviews
   async getPerformanceReviews(filters = {}) {
@@ -137,6 +136,63 @@ class PMSService {
       throw error;
     }
   }
+
+  // --- Add these methods so KPIs.jsx can call them ---
+  async getKpiTasks() {
+    try {
+      const response = await axios.get('/kpi-tasks');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching KPI task names:", error);
+      throw error;
+    }
+  }
+
+  async getCreatorRoles() {
+    try {
+      const response = await axios.get('/creator-roles');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching creator roles:", error);
+      throw error;
+    }
+  }
+
+  async getCompanies() {
+    try {
+      const response = await axios.get('/pms/companies');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+      throw error;
+    }
+  }
+
+  async getDepartmentsByCompany(companyId) {
+    try {
+      const response = await axios.get(`/pms/departments/${companyId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching departments for company:", error);
+      throw error;
+    }
+  }
+
+  // Fetch employees by company, optional department and search term
+  async getEmployeesByCompany(companyId, departmentId = null, search = "") {
+    try {
+      const params = { company_id: companyId };
+      if (departmentId) params.department_id = departmentId;
+      if (search) params.search = search;
+      const response = await axios.get('/pms/employees-by-company', { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching employees by company:", error);
+      throw error;
+    }
+  }
+  // --- end added methods ---
 }
 
+// Change the export to export an instance instead of the class
 export default new PMSService();

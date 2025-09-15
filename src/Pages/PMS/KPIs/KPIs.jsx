@@ -26,22 +26,6 @@ import {
 import PMSService from "../../../services/PMS/PMSService";
 import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 
-// Add predefined task names for dropdown (placed near top, after imports)
-const predefinedTaskNames = [
-  "Job Knowledge and Skills",
-  "Quality of Work",
-  "Productivity",
-  "Communication Skills",
-  "Teamwork and Collaboration",
-  "Behavior at work",
-  "Problem-Solving and Decision-Making",
-  "Attendance and Punctuality",
-  "Adaptability and Flexibility",
-  "Self-Development",
-  "Discipline and conduct at work",
-  "Adherence to the given Guidelines"
-];
-
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
 const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false, isLoading = false, employees = [] }) => {
@@ -69,87 +53,152 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
+
+  // Creator roles from backend
+  const [creatorRoles, setCreatorRoles] = useState([]);
+  const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
+
+  // NEW: backend-driven state
+  const [taskOptions, setTaskOptions] = useState([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+
   const [companies, setCompanies] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [companyEmployees, setCompanyEmployees] = useState([]); // employees fetched from backend for selected company/department
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  
+  // Fetch KPI task names from backend
+  useEffect(() => {
+    const fetchTasks = async () => {
+      setIsLoadingTasks(true);
+      try {
+        const tasks = await PMSService.getKpiTasks(); // [{id, task_name}]
+        setTaskOptions(Array.isArray(tasks) ? tasks : []);
+      } catch (e) {
+        console.error("Error fetching KPI task names:", e);
+        setTaskOptions([]);
+      } finally {
+        setIsLoadingTasks(false);
+      }
+    };
+    fetchTasks();
+  }, []);
 
-  // Fetch companies on component mount
+  // Fetch companies from backend
   useEffect(() => {
     const fetchCompaniesData = async () => {
       setIsLoadingCompanies(true);
       try {
-        // In a real implementation, you would fetch from API
-        // const response = await PMSService.getCompanies();
-        // For demo, using dummy data
-        const dummyCompanies = [
-          { id: "1", name: "Acme Corporation" },
-          { id: "2", name: "Globex Industries" },
-          { id: "3", name: "Wayne Enterprises" }
-        ];
-        setCompanies(dummyCompanies);
+        const data = await PMSService.getCompanies(); // [{id, name}]
+        setCompanies(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching companies:", error);
+        setCompanies([]);
       } finally {
         setIsLoadingCompanies(false);
       }
     };
-    
     fetchCompaniesData();
   }, []);
 
   // Fetch departments when company changes
   useEffect(() => {
-    const fetchDepartmentsData = () => {
+    const fetchDepartmentsData = async () => {
       if (!formData.company) {
         setDepartments([]);
         return;
       }
-
       setIsLoadingDepartments(true);
-      // Synchronous fetch for dummy data
-      let dummyDepartments = [];
-      if (formData.company === "1") {
-        dummyDepartments = [
-          { id: "101", name: "Sales" },
-          { id: "102", name: "Customer Service" },
-          { id: "103", name: "Engineering" }
-        ];
-      } else if (formData.company === "2") {
-        dummyDepartments = [
-          { id: "201", name: "Marketing" },
-          { id: "202", name: "HR" },
-          { id: "203", name: "Operations" }
-        ];
-      } else if (formData.company === "3") {
-        dummyDepartments = [
-          { id: "301", name: "Research & Development" },
-          { id: "302", name: "Finance" },
-          { id: "303", name: "IT" }
-        ];
+      try {
+        const data = await PMSService.getDepartmentsByCompany(formData.company); // [{id, name}]
+        setDepartments(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+        setDepartments([]);
+      } finally {
+        setIsLoadingDepartments(false);
       }
-      setDepartments(dummyDepartments);
-      setIsLoadingDepartments(false);
     };
-    
     fetchDepartmentsData();
   }, [formData.company]);
 
+  // Fetch employees for selected company/department (debounced + supports search)
   useEffect(() => {
-    // Reset form when modal opens with new data
+    // Only fetch when a company is selected
+    if (!formData.company) {
+      setCompanyEmployees([]);
+      return;
+    }
+
+    let mounted = true;
+    const timer = setTimeout(async () => {
+      setIsLoadingEmployees(true);
+      try {
+        const data = await PMSService.getEmployeesByCompany(
+          formData.company,
+          formData.department || null,
+          empSearch || ""
+        );
+        if (!mounted) return;
+        // API may return array or { data: [...] }
+        const list = Array.isArray(data) ? data : (data?.data || []);
+        setCompanyEmployees(
+          list.map(e => ({
+            id: e.id,
+            name: e.full_name || e.name || e.fullName || "",
+            department: e.department || e.department_name || ""
+          }))
+        );
+      } catch (err) {
+        console.error("Error fetching employees:", err);
+        if (mounted) setCompanyEmployees([]);
+      } finally {
+        if (mounted) setIsLoadingEmployees(false);
+      }
+    }, 350); // debounce 350ms
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
+  }, [formData.company, formData.department, empSearch]);
+  
+  // Fetch creator roles once
+  useEffect(() => {
+    let mounted = true;
+    const fetchRoles = async () => {
+      setIsLoadingCreatorRoles(true);
+      try {
+        const roles = await PMSService.getCreatorRoles(); // calls /creator-roles
+        if (!mounted) return;
+        setCreatorRoles(Array.isArray(roles) ? roles : []);
+      } catch (err) {
+        console.error("Error fetching creator roles:", err);
+        if (mounted) setCreatorRoles([]);
+      } finally {
+        if (mounted) setIsLoadingCreatorRoles(false);
+      }
+    };
+    fetchRoles();
+    return () => { mounted = false; };
+  }, []);
+
+  // Reset form when modal opens with new data
+  useEffect(() => {
     setFormData({
       name: initialData.name || "",
       description: initialData.description || "",
       startDate: initialData.startDate || "",
       endDate: initialData.endDate || "",
       assignees: initialData.assignees ? [...initialData.assignees] : [],
-      // Ensure we use the right property names for company and department
       company: initialData.company || "",
       department: initialData.departmentId || initialData.department || "",
       category: initialData.category || "",
       priority: initialData.priority || "medium",
-      creatorRole: initialData.creator?.role || initialData.creatorRole || "",
-      weights: initialData.weights || [ // Initialize weights if not present - set to empty
+      creatorRole: initialData.creatorRole || "",
+      weights: [
         { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
         { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
         { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
@@ -162,43 +211,33 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     setShowWeights(false); // Reset weights visibility
   }, [initialData, isOpen]);
 
+  // Ensure numeric IDs for company/department/creatorRole
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Only company and department should be cast to Number.
+    // creatorRole must remain a string (role name) so UI can call .split on it safely.
+    const isNumericField = name === "company" || name === "department";
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: isNumericField ? (value ? Number(value) : "") : value
     }));
 
-    // Reset department if company changes
     if (name === "company") {
-      setFormData(prev => ({
-        ...prev,
-        department: ""
-      }));
+      setFormData(prev => ({ ...prev, department: "" }));
     }
   };
 
-  // Filter employees based on selected company and department
-  const filteredEmployees = employees.filter(emp => {
-    // Only include employees that match the search term
-    const matchesSearch = 
-      emp.name.toLowerCase().includes(empSearch.toLowerCase()) ||
-      emp.department.toLowerCase().includes(empSearch.toLowerCase());
-    
-    // If no company is selected, just filter by search term
-    if (!formData.company) return matchesSearch;
-    
-    // For demo, we'll map employees to companies based on ID
-    const empCompany = emp.id <= 2 ? "1" : emp.id <= 4 ? "2" : "3";
-    
-    // If no department is selected, filter by company and search term (auto-fetch all employees from company's departments)
-    if (!formData.department) return empCompany === formData.company && matchesSearch;
-    
-    // Otherwise, filter by company, department, and search term
-    const deptName = departments.find(d => d.id === formData.department)?.name;
-    return empCompany === formData.company && emp.department === deptName && matchesSearch;
+  // Filter employees based on selected company and department (now uses companyEmployees from backend)
+  const filteredEmployees = companyEmployees.filter(emp => {
+    const q = empSearch?.toLowerCase?.() || "";
+    if (!q) return true;
+    return (
+      (emp.name || "").toLowerCase().includes(q) ||
+      (emp.department || "").toLowerCase().includes(q) ||
+      (String(emp.id) || "").includes(q)
+    );
   });
-
+  
   const addEmployee = (employee) => {
     setFormData(prev => {
       const next = prev.assignees.includes(employee.id.toString())
@@ -233,6 +272,16 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     return departments.find(d => d.id === id)?.name || "Unknown Department";
   };
 
+  // Find employee by id: prefer backend-fetched companyEmployees, fall back to the shared `employees` prop
+  const findEmployee = (id) => {
+    const normalizedId = typeof id === "string" ? id : String(id);
+    return (
+      companyEmployees.find(e => String(e.id) === normalizedId) ||
+      employees.find(e => String(e.id) === normalizedId) ||
+      { id: normalizedId, name: "Unknown", department: "" }
+    );
+  };
+  
   const handleWeightChange = (index, value) => {
     const updatedWeights = [...formData.weights];
     updatedWeights[index].percentage = parseInt(value, 10) || 0;
@@ -244,7 +293,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w/full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
@@ -264,22 +313,31 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-4">
+            {/* Task Name from API */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Task Name*
               </label>
-              <select
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">Select task name</option>
-                {predefinedTaskNames.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none"
+                  disabled={isLoadingTasks}
+                >
+                  <option value="">Select task name</option>
+                  {taskOptions.map(t => (
+                    <option key={t.id} value={t.task_name}>{t.task_name}</option>
+                  ))}
+                </select>
+                {isLoadingTasks && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
@@ -296,26 +354,33 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               />
             </div>
 
-             <div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Creator Role*
               </label>
-              <select
-                name="creatorRole"
-                value={formData.creatorRole}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
-              >
-                <option value="">Select Creator Role</option>
-                <option value="Management">Management</option>
-                <option value="Senior Management">Senior Management</option>
-                <option value="Executive">Executive</option>
-                <option value="Team Lead">Team Lead</option>
-                <option value="Supervisor">Supervisor</option>
-                <option value="Department Head">Department Head</option>
-                <option value="Director">Director</option>
-              </select>
+              <div className="relative">
+                <select
+                  name="creatorRole"
+                  value={formData.creatorRole}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
+                  disabled={isLoadingCreatorRoles}
+                >
+                  <option value="">Select Creator Role</option>
+                  {creatorRoles.map((r) => (
+                    // Use the role name string so the UI can call .split() safely
+                    <option key={r.id} value={r.role_name}>
+                      {r.role_name || r.name || `Role ${r.id}`}
+                    </option>
+                  ))}
+                </select>
+                {isLoadingCreatorRoles && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Weights Section - Collapsible Dropdown */}
@@ -366,7 +431,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
             </div>
           </div>
 
-            {/* Company Selection - NEW */}
+            {/* Company from API */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Company*
@@ -395,7 +460,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               </div>
             </div>
 
-            {/* Department Selection - Now optional */}
+            {/* Department from API (depends on company) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Department (Optional)
@@ -405,14 +470,13 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  // Removed 'required' to make it optional
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
                   disabled={!formData.company || isLoadingDepartments}
                 >
                   <option value="">Select Department (Optional)</option>
-                  {departments.map(department => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
                     </option>
                   ))}
                 </select>
@@ -494,6 +558,9 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   disabled={!formData.company}
                 />
               </div>
+              {isLoadingEmployees && (
+                <div className="text-xs text-gray-500 mt-1">Loading employees…</div>
+              )}
 
               {!formData.company && (
                 <p className="text-xs text-amber-600 mt-1">Please select a company to search employees</p>
@@ -532,7 +599,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   <div className="text-xs text-gray-500">No employees added</div>
                 )}
                 {formData.assignees && formData.assignees.map((id) => {
-                  const emp = employees.find(e => e.id.toString() === id);
+                  const emp = findEmployee(id);
                   if (!emp) return null;
                   return (
                     <div key={id} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
@@ -1255,12 +1322,14 @@ const KPIs = () => {
         // Add company/department fields from formData
         company: formData.company,
         departmentId: formData.department,
-        companyName: companyMap[formData.company] || "",
-        departmentName: departmentMap[formData.department] || "",
-        department: departmentMap[formData.department] || "", // Keep as name for consistency with existing data
+        // companyMap/departmentMap keys are strings in this file; ensure lookup uses String()
+        companyName: companyMap[String(formData.company)] || "",
+        departmentName: departmentMap[String(formData.department)] || "",
+        department: departmentMap[String(formData.department)] || "", // Keep as name for consistency with existing data
         owner: "",
         creator: {
           name: "",
+          // formData.creatorRole is now the role_name string
           role: formData.creatorRole || "",
           date: new Date().toISOString()
         },
@@ -1647,12 +1716,11 @@ const KPIs = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {currentItems.map((kpi) => (
                 <tr key={kpi.id} className="hover:bg-gray-50">
+                  {/* KPI Name */}
                   <td className="px-6 py-4">
                     <div>
                       <div className="flex items-center">
-                        <div className="text-sm font-medium text-gray-900">
-                          {kpi.name}
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{kpi.name}</div>
                         <div className="ml-2">{getTrendIcon(kpi.trend)}</div>
                         {kpi.priority && (
                           <span
@@ -1671,40 +1739,30 @@ const KPIs = () => {
                       <div className="text-sm text-gray-500">{kpi.description}</div>
                       <div className="text-xs text-gray-400">{kpi.departmentName || kpi.department}</div>
                     </div>
-                  </td>
+                                   </td>
+                  {/* Performance */}
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <span
-                            className={`text-sm font-medium ${getPerformanceColor(
-                              kpi.current,
-                              kpi.target
-                            )}`}
-                          >
+                          <span className={`text-sm font-medium ${getPerformanceColor(kpi.current, kpi.target)}`}>
                             {kpi.current}{kpi.unit}
                           </span>
-                          <span className="text-xs text-gray-500">
-                            Target: {kpi.target}{kpi.unit}
-                          </span>
+                          <span className="text-xs text-gray-500">Target: {kpi.target}{kpi.unit}</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              getLatestProgress(kpi) < 30
-                                ? "bg-red-500"
-                                : getLatestProgress(kpi) < 70
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
+                              getLatestProgress(kpi) < 30 ? "bg-red-500" : getLatestProgress(kpi) < 70 ? "bg-yellow-500" : "bg-green-500"
                             }`}
-                            style={{
-                              width: `${getLatestProgress(kpi)}%`,
-                            }}
-                          ></div>
+                            style={{ width: `${getLatestProgress(kpi)}%` }}
+                          />
                         </div>
                       </div>
                     </div>
                   </td>
+  
+                  {/* Weights */}
                   <td className="px-6 py-4">
                     <div className="text-sm">
                       {kpi.weights ? (
@@ -1718,44 +1776,36 @@ const KPIs = () => {
                       )}
                     </div>
                   </td>
+  
+                  {/* Status */}
                   <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
-                        kpi.status
-                      )}`}
-                    >
-                      {kpi.status === "active" && (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {kpi.status === "attention" && (
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                      )}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(kpi.status)}`}>
+                      {kpi.status === "active" && <CheckCircle className="w-3 h-3 mr-1" />}
+                      {kpi.status === "attention" && <AlertCircle className="w-3 h-3 mr-1" />}
                       {kpi.status.charAt(0).toUpperCase() + kpi.status.slice(1)}
                     </span>
                   </td>
+  
+                  {/* Owner / Creator */}
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="text-xs font-medium text-gray-600">
-                          {kpi.creator?.role
-                            ? kpi.creator.role.split(" ").map((w) => w[0]).join("").toUpperCase()
-                            : (kpi.owner ? kpi.owner.split(" ").map((w) => w[0]).join("").toUpperCase() : "--")}
+                          {kpi.creator?.role ? kpi.creator.role.split(" ").map((w) => w[0]).join("").toUpperCase() : (kpi.owner ? kpi.owner.split(" ").map((w) => w[0]).join("").toUpperCase() : "--")}
                         </span>
                       </div>
                       <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {kpi.creator?.role || "—"}
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{kpi.creator?.role || "—"}</div>
                       </div>
                     </div>
                   </td>
+  
+                  {/* Timeline */}
                   <td className="px-6 py-4">
                     <div className="text-sm">
                       <div className="flex items-center text-gray-900">
                         <Clock className="w-4 h-4 text-gray-400 mr-1" />
-                        <span>
-                          {new Date(kpi.startDate).toLocaleDateString()} - {new Date(kpi.endDate).toLocaleDateString()}
-                        </span>
+                        <span>{new Date(kpi.startDate).toLocaleDateString()} - {new Date(kpi.endDate).toLocaleDateString()}</span>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         {(() => {
@@ -1770,28 +1820,23 @@ const KPIs = () => {
                       </div>
                     </div>
                   </td>
+  
+                  {/* Actions */}
                   <td className="px-6 py-4 text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-2">
-                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        onClick={() => { setViewKpi(kpi); setIsViewModalOpen(true); }}>
+                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => { setViewKpi(kpi); setIsViewModalOpen(true); }}>
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
-                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => openEditModal(kpi)}
-                      >
+                      <button className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors" onClick={() => openEditModal(kpi)}>
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button 
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        onClick={() => openDeleteModal(kpi)}
-                      >
+                      <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" onClick={() => openDeleteModal(kpi)}>
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+               ))}
             </tbody>
           </table>
         </div>
