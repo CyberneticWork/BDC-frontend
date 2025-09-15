@@ -565,7 +565,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                     : "border-gray-300"
                 } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter employee number"
-                disabled={!!formData.personal.id}
+                disabled={formData.personal.id}
                 required
               />
               <FieldError error={errors.personal?.attendanceEmpNo} />
@@ -584,7 +584,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
                   errors.personal?.epfNo ? "border-red-500" : "border-gray-300"
                 } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter EPF number"
-                disabled={!!formData.personal.epfNo}
+                disabled={formData.personal.id}
                 required
               />
               <FieldError error={errors.personal?.epfNo} />

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Filter, 
   Plus, 
   Search, 
   Star, 
-  ChevronDown, 
+  ChevronDown,
+  ChevronUp,
   CheckSquare, 
   Clock,
   FileText,
@@ -18,42 +19,180 @@ import {
   PieChart,
   ListChecks,
   Award,
-  Loader2
+  Loader2,
+  BarChart,
+  User,
+  RefreshCw,
+  File, 
+  Download, 
+  Upload 
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
+import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+import EmployeeDocumentsModal from './EmployeeDocumentsModal';
 
 // Progress Review Modal Component
 const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   const [progress, setProgress] = useState(review?.progress || 0);
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
+  const [statusState, setStatusState] = useState(review?.status || 'In Progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  if (!isOpen || !review) return null;
+  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+  
+  // Add performance metrics state
+  const [performanceMetrics, setPerformanceMetrics] = useState({
+    jobKnowledge: 0,
+    qualityOfWork: 0,
+    productivity: 0,
+    communicationSkills: 0,
+    teamwork: 0,
+    behaviorAtWork: 0,
+    problemSolving: 0,
+    attendance: 0,
+    adaptability: 0,
+    selfDevelopment: 0,
+    discipline: 0,
+    adherenceToGuidelines: 0
+  });
 
   // keep only the grades you mentioned
   const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
-  
+  const statusOptions = ['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'];
+
+  // Calculate overall progress from the performance metrics
+  const calculateOverallProgress = () => {
+    const values = Object.values(performanceMetrics);
+    const sum = values.reduce((acc, val) => acc + val, 0);
+    return Math.round(sum / values.length);
+  };
+
+  // sync local state when review prop changes (modal reopened with different review)
+  useEffect(() => {
+    if (review) {
+      setProgress(review.progress || 0);
+      setGrade(review.grade || '');
+      setComments(review.supervisorComments || '');
+      setStatusState(review.status || 'In Progress');
+      
+      // Load performance metrics if they exist
+      if (review.performanceMetrics) {
+        setPerformanceMetrics(review.performanceMetrics);
+      } else {
+        // Reset metrics if not present
+        setPerformanceMetrics({
+          jobKnowledge: 0,
+          qualityOfWork: 0,
+          productivity: 0,
+          communicationSkills: 0,
+          teamwork: 0,
+          behaviorAtWork: 0,
+          problemSolving: 0,
+          attendance: 0,
+          adaptability: 0,
+          selfDevelopment: 0,
+          discipline: 0,
+          adherenceToGuidelines: 0
+        });
+      }
+    }
+  }, [review]);
+
+  // Handle individual metric changes
+  const handleMetricChange = (metric, value) => {
+    setPerformanceMetrics(prev => {
+      const updated = {
+        ...prev,
+        [metric]: parseInt(value, 10)
+      };
+      
+      // Calculate overall progress immediately from updated metrics
+      const vals = Object.values(updated);
+      const sum = vals.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0);
+      const overall = vals.length ? Math.round(sum / vals.length) : 0;
+      setProgress(overall);
+
+      return updated;
+    });
+  };
+
+  // Reset metrics helper
+  const resetMetrics = () => {
+    const zeroed = {
+      jobKnowledge: 0,
+      qualityOfWork: 0,
+      productivity: 0,
+      communicationSkills: 0,
+      teamwork: 0,
+      behaviorAtWork: 0,
+      problemSolving: 0,
+      attendance: 0,
+      adaptability: 0,
+      selfDevelopment: 0,
+      discipline: 0,
+      adherenceToGuidelines: 0
+    };
+    setPerformanceMetrics(zeroed);
+    setProgress(0);
+  };
+
+  // Apply self-reported metrics from the review (if present)
+  const applySelfReportedMetrics = () => {
+    if (review?.performanceMetrics) {
+      setPerformanceMetrics(review.performanceMetrics);
+      // calculate overall and set immediately
+      const vals = Object.values(review.performanceMetrics);
+      const sum = vals.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0);
+      setProgress(vals.length ? Math.round(sum / vals.length) : 0);
+      setShowCategoryDetails(true);
+    } else {
+      alert("No self-reported performance metrics available for this review.");
+    }
+  };
+
+  const handleHeaderKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setShowCategoryDetails(prev => !prev);
+    }
+  };
+
+  // ensure dropdown is closed when modal opens freshly
+  useEffect(() => {
+    if (isOpen) {
+      setShowCategoryDetails(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !review) return null;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
-      // In a real app, you would make an API call here
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      onSave({
+      // Create updated review object including supervisor-selected status
+      const updatedReview = {
         ...review,
-        progress,
-        grade,
+        progress: progress,
+        grade: grade,
         supervisorComments: comments,
-        lastUpdated: new Date().toISOString()
-      });
+        status: statusState,
+        lastUpdated: new Date().toISOString(),
+        performanceMetrics: performanceMetrics // Include performance metrics
+      };
       
+      // In a real app, update review on server and optionally update KPI status:
+      // await PMSService.updateReview(review.id, updatedReview);
+      
+      onSave(updatedReview);
       onClose();
     } catch (error) {
-      console.error("Error saving review:", error);
-      alert("Failed to save review");
+      console.error("Error updating review:", error);
+      alert("Failed to update review");
     } finally {
       setIsSubmitting(false);
     }
@@ -71,6 +210,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close review modal"
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
           >
             <X size={20} />
@@ -80,30 +220,380 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Progress Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Completion Progress
-            </label>
-            <div className="flex items-center gap-4">
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={progress} 
-                onChange={(e) => setProgress(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <span className="text-sm font-medium text-gray-700 w-12">{progress}%</span>
+            {/* Enhanced Performance Metrics Header */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <BarChart className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Performance Metrics</h3>
+                    <p className="text-sm text-gray-600">Rate employee performance across key areas</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {/* Current Progress Display */}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-indigo-600">{progress}%</div>
+                    <div className="text-xs text-gray-500">Overall Score</div>
+                  </div>
+                  
+                  {/* Enhanced Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryDetails(prev => !prev)}
+                    onKeyDown={handleHeaderKeyDown}
+                    aria-expanded={showCategoryDetails}
+                    aria-controls="performance-metrics-panel"
+                    className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                    title={showCategoryDetails ? "Hide detailed metrics" : "Show detailed metrics"}
+                  >
+                    <span className="text-sm font-medium text-gray-700">
+                      {showCategoryDetails ? "Hide Details" : "Rate Performance"}
+                    </span>
+                    <div className={`transform transition-transform duration-200 ${showCategoryDetails ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="h-4 w-4 text-indigo-600" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Quick Actions Row */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-indigo-200">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={applySelfReportedMetrics}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-md hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    title="Load employee's self-reported metrics (if available)"
+                  >
+                    <User className="h-4 w-4" />
+                    Use Self-Reported
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetMetrics}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                    title="Reset all metrics to 0"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Reset
+                  </button>
+                </div>
+                
+                {/* Progress Bar Preview */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600">Progress:</span>
+                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        progress < 30 ? 'bg-red-500' : 
+                        progress < 70 ? 'bg-yellow-500' : 
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className={`h-2.5 rounded-full ${
-                  progress < 30 ? 'bg-red-500' : 
-                  progress < 70 ? 'bg-yellow-500' : 
-                  'bg-green-500'
-                }`}
-                style={{ width: `${progress}%` }}
-              ></div>
+
+            {/* Collapsible Metrics Panel */}
+            <div 
+              id="performance-metrics-panel"
+              className={`bg-gray-50 rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 ${
+                showCategoryDetails ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="p-6">
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-2">Detailed Performance Categories</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Adjust the sliders below to rate the employee's performance in each category (0-100%):
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Job Knowledge and Skills */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Job Knowledge and Skills: <span className="font-bold text-indigo-600">{performanceMetrics.jobKnowledge}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.jobKnowledge}
+                      onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Job Knowledge and Skills"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Quality of Work */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Quality of Work: <span className="font-bold text-indigo-600">{performanceMetrics.qualityOfWork}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.qualityOfWork}
+                      onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Quality of Work"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Productivity */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Productivity: <span className="font-bold text-indigo-600">{performanceMetrics.productivity}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.productivity}
+                      onChange={(e) => handleMetricChange('productivity', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Productivity"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+
+                  {/* Communication Skills */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Communication Skills: <span className="font-bold text-indigo-600">{performanceMetrics.communicationSkills}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.communicationSkills}
+                      onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Communication Skills"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Teamwork and Collaboration */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Teamwork and Collaboration: <span className="font-bold text-indigo-600">{performanceMetrics.teamwork}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.teamwork}
+                      onChange={(e) => handleMetricChange('teamwork', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Teamwork and Collaboration"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Behavior at work */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Behavior at Work: <span className="font-bold text-indigo-600">{performanceMetrics.behaviorAtWork}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.behaviorAtWork}
+                      onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Behavior at Work"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Problem-Solving and Decision-Making */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Problem-Solving: <span className="font-bold text-indigo-600">{performanceMetrics.problemSolving}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.problemSolving}
+                      onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Problem-Solving and Decision-Making"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Attendance and Punctuality */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Attendance and Punctuality: <span className="font-bold text-indigo-600">{performanceMetrics.attendance}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.attendance}
+                      onChange={(e) => handleMetricChange('attendance', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Attendance and Punctuality"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Adaptability and Flexibility */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Adaptability and Flexibility: <span className="font-bold text-indigo-600">{performanceMetrics.adaptability}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.adaptability}
+                      onChange={(e) => handleMetricChange('adaptability', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Adaptability and Flexibility"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+
+                  {/* Self-Development */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Self-Development: <span className="font-bold text-indigo-600">{performanceMetrics.selfDevelopment}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.selfDevelopment}
+                      onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Self-Development"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+
+                  {/* Discipline and conduct at work */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Discipline and Conduct: <span className="font-bold text-indigo-600">{performanceMetrics.discipline}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.discipline}
+                      onChange={(e) => handleMetricChange('discipline', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Discipline and conduct at work"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+
+                  {/* Adherence to the given Guidelines */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Adherence to Guidelines: <span className="font-bold text-indigo-600">{performanceMetrics.adherenceToGuidelines}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={performanceMetrics.adherenceToGuidelines}
+                      onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Adherence to the given Guidelines"
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Excellent</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* Supervisor selected status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Review Status (Supervisor)</label>
+            <select
+              value={statusState}
+              onChange={(e) => setStatusState(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            >
+              {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
 
           {/* Grade Section */}
@@ -141,29 +631,6 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Provide feedback on performance, areas of strength, and opportunities for improvement..."
             ></textarea>
-          </div>
-
-          {/* Details Section */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Review Details</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Review Type</p>
-                <p className="font-medium">{review.type}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Review Period</p>
-                <p className="font-medium">{review.cycle}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Start Date</p>
-                <p className="font-medium">{new Date(review.startDate).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Due Date</p>
-                <p className="font-medium">{new Date(review.dueDate).toLocaleDateString()}</p>
-              </div>
-            </div>
           </div>
 
           {/* Submit Button */}
@@ -261,7 +728,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
                   <PieChart className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Progress</p>
+                  <p className="text-xs text-gray-500">Progress (Supervisor)</p>
                   <p className="font-medium text-gray-900">{review.progress || 0}% Complete</p>
                 </div>
               </div>
@@ -275,6 +742,39 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
                   style={{ width: `${review.progress || 0}%` }}
                 ></div>
               </div>
+
+              {/* NEW: Self-Reported Progress (if available) */}
+              {typeof review.selfReportedProgress === 'number' && (
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
+                      <BarChart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Self-Reported Progress</p>
+                      <p className="font-medium text-indigo-900">{review.selfReportedProgress}%</p>
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full ${
+                        review.selfReportedProgress < 30 ? 'bg-red-500' :
+                        review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${review.selfReportedProgress}%` }}
+                    ></div>
+                  </div>
+
+                  {review.selfReportedLastUpdated && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Last reported on {new Date(review.selfReportedLastUpdated).toLocaleString()}
+                      {review.selfReportedAuthor ? ` by ${review.selfReportedAuthor}` : ''}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="bg-gray-50 p-4 rounded-xl">
@@ -407,125 +907,21 @@ const PerformanceReviews = () => {
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isNewReviewModalOpen, setIsNewReviewModalOpen] = useState(false);
+  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   
   // Enhanced sample review data with progress and grade fields
-  const [reviewData, setReviewData] = useState([
-    {
-      id: 1,
-      employeeName: "John Smith",
-      employeeId: "EMP001",
-      position: "Software Developer",
-      department: "Engineering",
-      manager: "Michael Wong",
-      type: "Annual Performance Review",
-      status: "Completed",
-      startDate: "2025-07-15",
-      dueDate: "2025-08-15",
-      completedDate: "2025-08-12",
-      overallRating: 4.2,
-      cycle: "2025 Annual",
-      progress: 100,
-      grade: "A-",
-      supervisorComments: "John has shown exceptional skill in problem-solving and technical implementation. His code quality is excellent and he consistently meets deadlines. Could improve on documentation and knowledge sharing with junior team members.",
-      lastUpdated: "2025-08-12T10:30:00Z"
-    },
-    {
-      id: 2,
-      employeeName: "Sarah Johnson",
-      employeeId: "EMP025",
-      position: "Marketing Specialist",
-      department: "Marketing",
-      manager: "Lisa Chen",
-      type: "Quarterly Review",
-      status: "In Progress",
-      startDate: "2025-08-01",
-      dueDate: "2025-08-31",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Q3",
-      progress: 65,
-      grade: "B+",
-      supervisorComments: "Sarah is performing well on her campaign management tasks. Her creative input has been valuable and she's responsive to feedback. Need to focus more on analytics and data-driven decision making.",
-      lastUpdated: "2025-08-20T14:15:00Z"
-    },
-    {
-      id: 3,
-      employeeName: "David Rodriguez",
-      employeeId: "EMP014",
-      position: "Sales Representative",
-      department: "Sales",
-      manager: "Robert Johnson",
-      type: "Annual Performance Review",
-      status: "Pending Manager",
-      startDate: "2025-07-15",
-      dueDate: "2025-08-15",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Annual",
-      progress: 80,
-      grade: null,
-      supervisorComments: null,
-      lastUpdated: null
-    },
-    {
-      id: 4,
-      employeeName: "Emily Davis",
-      employeeId: "EMP032",
-      position: "UX Designer",
-      department: "Design",
-      manager: "Michael Wong",
-      type: "Quarterly Review",
-      status: "Draft",
-      startDate: "2025-08-01",
-      dueDate: "2025-08-31",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Q3",
-      progress: 25,
-      grade: null,
-      supervisorComments: null,
-      lastUpdated: null
-    },
-    {
-      id: 5,
-      employeeName: "James Wilson",
-      employeeId: "EMP017",
-      position: "Product Manager",
-      department: "Product",
-      manager: "Lisa Chen",
-      type: "Annual Performance Review",
-      status: "Completed",
-      startDate: "2025-07-15",
-      dueDate: "2025-08-15",
-      completedDate: "2025-08-10",
-      overallRating: 4.7,
-      cycle: "2025 Annual",
-      progress: 100,
-      grade: "A+",
-      supervisorComments: "James has exceeded expectations in all areas. His product launches have been highly successful, and he manages cross-functional teams with ease. His strategic vision and execution are exemplary.",
-      lastUpdated: "2025-08-10T16:45:00Z"
-    },
-    {
-      id: 6,
-      employeeName: "Linda Martinez",
-      employeeId: "EMP028",
-      position: "Customer Support Specialist",
-      department: "Support",
-      manager: "Robert Johnson",
-      type: "Quarterly Review",
-      status: "Pending Employee",
-      startDate: "2025-08-01",
-      dueDate: "2025-08-31",
-      completedDate: null,
-      overallRating: null,
-      cycle: "2025 Q3",
-      progress: 50,
-      grade: "C+",
-      supervisorComments: "Linda needs improvement in response time and ticket resolution. Communication with customers is good, but follow-through on complex issues needs work.",
-      lastUpdated: "2025-08-18T11:20:00Z"
-    },
-  ]);
+  const [reviewData, setReviewData] = useState(() => PMSDummyDataStore.getPerformanceReviews());
+
+  // Subscribe to store updates so this view refreshes automatically
+  useEffect(() => {
+    const unsubscribe = PMSDummyDataStore.subscribe(() => {
+      setReviewData(PMSDummyDataStore.getPerformanceReviews());
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Handle opening progress review modal
   const openProgressModal = (review) => {
@@ -539,44 +935,49 @@ const PerformanceReviews = () => {
     setIsDetailsModalOpen(true);
   };
 
+  // Handle opening documents modal
+  const openDocumentsModal = (review) => {
+    setSelectedReview(review);
+    setIsDocumentsModalOpen(true);
+  };
+
   // Handle saving progress review
   const handleSaveProgressReview = (updatedReview) => {
-    setReviewData(prevData => 
-      prevData.map(review => 
-        review.id === updatedReview.id ? updatedReview : review
-      )
-    );
+    PMSDummyDataStore.updatePerformanceReview(updatedReview.id, updatedReview);
+    setReviewData(PMSDummyDataStore.getPerformanceReviews());
   };
 
   // Handle creating new review
-  const handleCreateReview = (reviewData) => {
-    // Add the new review to the existing reviews
-    setReviewData(prev => [
-      {
-        id: Math.max(...prev.map(r => r.id)) + 1, // Generate a new ID
-        employeeName: reviewData.employeeName,
-        employeeId: reviewData.employeeId,
-        position: reviewData.employeePosition,
-        department: reviewData.employeeDepartment,
-        manager: reviewData.supervisorName,
-        type: reviewData.reviewType === "performance" ? "Performance Review" : 
-              reviewData.reviewType === "quarterly" ? "Quarterly Review" :
-              reviewData.reviewType === "annual" ? "Annual Review" :
-              reviewData.reviewType === "probation" ? "Probation Review" : 
-              "Progress Check-in",
-        status: "Draft",
-        startDate: reviewData.startDate,
-        dueDate: reviewData.dueDate,
-        completedDate: null,
-        overallRating: null,
-        cycle: reviewData.reviewCycle.replace('_', ' '),
-        progress: 0,
-        grade: null,
-        supervisorComments: reviewData.reviewNotes,
-        lastUpdated: new Date().toISOString()
-      },
-      ...prev
-    ]);
+  const handleCreateReview = (reviewDataForm) => {
+    const newReview = {
+      id: Date.now(),
+      employeeName: reviewDataForm.employeeName,
+      employeeId: reviewDataForm.employeeId,
+      position: reviewDataForm.employeePosition,
+      department: reviewDataForm.employeeDepartment,
+      manager: reviewDataForm.supervisorName,
+      type: reviewDataForm.reviewType === "performance" ? "Performance Review" :
+            reviewDataForm.reviewType === "quarterly" ? "Quarterly Review" :
+            reviewDataForm.reviewType === "annual" ? "Annual Review" :
+            reviewDataForm.reviewType === "probation" ? "Probation Review" : "Progress Check-in",
+      status: "Draft",
+      startDate: reviewDataForm.startDate,
+      dueDate: reviewDataForm.dueDate,
+      completedDate: null,
+      overallRating: null,
+      cycle: reviewDataForm.reviewCycle.replace('_',' '),
+      progress: 0,
+      grade: null,
+      supervisorComments: reviewDataForm.reviewNotes,
+      lastUpdated: new Date().toISOString(),
+      selfReportedProgress: 0,
+      selfReportedLastUpdated: null,
+      selfReportedAuthor: null,
+      taskId: reviewDataForm.taskId || null,
+      performanceMetrics: null
+    };
+    PMSDummyDataStore.addPerformanceReview(newReview);
+    setReviewData(PMSDummyDataStore.getPerformanceReviews());
   };
 
   // Filter reviews based on active tab and search query
@@ -690,6 +1091,13 @@ const PerformanceReviews = () => {
         onSubmit={handleCreateReview}
       />
 
+      {/* Employee Documents Modal */}
+      <EmployeeDocumentsModal
+        isOpen={isDocumentsModalOpen}
+        onClose={() => setIsDocumentsModalOpen(false)}
+        review={selectedReview}
+      />
+
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Performance Reviews</h1>
@@ -702,6 +1110,65 @@ const PerformanceReviews = () => {
           <Plus className="h-4 w-4" />
           <span>New Review</span>
         </button> */}
+      </div>
+
+      {/* Status Summary Cards - moved here (below header, above table) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-blue-100 text-blue-600 mr-4">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">In Progress</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'In Progress').length}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-yellow-100 text-yellow-600 mr-4">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">Pending Approval</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'Pending Manager' || r.status === 'Pending Employee').length}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-green-100 text-green-600 mr-4">
+              <CheckSquare className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">Completed</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'Completed').length}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-gray-100 text-gray-600 mr-4">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-500">Draft</div>
+              <div className="text-xl font-semibold text-gray-900">
+                {reviewData.filter(r => r.status === 'Draft').length}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Grade Legend */}
@@ -926,6 +1393,15 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+
+                {/* NEW: Self-Reported Progress column */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Self-Reported Progress
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
+
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Progress
@@ -969,12 +1445,38 @@ const PerformanceReviews = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {review.department}
                     </td>
+
+                    {/* NEW: Self-Reported Progress cell */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {typeof review.selfReportedProgress === 'number' ? (
+                        <div className="flex items-center">
+                          {/* fixed width so both columns render bars the same size */}
+                          <div className="w-38 md:w-50 flex-shrink-0 mr-3">
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-1.5 rounded-full ${
+                                  review.selfReportedProgress < 30 ? 'bg-red-500' :
+                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${review.selfReportedProgress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+
+                    {/* Progress (Supervisor) cell - match sizing */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-1 mr-4">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-38 md:w-50 flex-shrink-0 mr-4">
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                             <div 
-                              className={`h-2 rounded-full ${
+                              className={`h-1.5 rounded-full ${
                                 review.progress < 30 ? 'bg-red-500' : 
                                 review.progress < 70 ? 'bg-yellow-500' : 
                                 'bg-green-500'
@@ -1019,6 +1521,13 @@ const PerformanceReviews = () => {
                         >
                           <ListChecks className="h-4 w-4" />
                         </button>
+                        <button 
+                          className="text-amber-600 hover:text-amber-900 p-1"
+                          onClick={() => openDocumentsModal(review)}
+                          title="View Documents"
+                        >
+                          <File className="h-4 w-4" />
+                        </button>
                         <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
                           <Edit className="h-4 w-4" />
                         </button>
@@ -1028,7 +1537,7 @@ const PerformanceReviews = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-10 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <Search className="h-10 w-10 text-gray-300 mb-2" />
                       <p className="text-lg font-medium text-gray-600">No reviews found</p>
@@ -1084,7 +1593,7 @@ const PerformanceReviews = () => {
       </div>
 
       {/* Status Summary Cards - Same as before */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-blue-100 text-blue-600 mr-4">
@@ -1140,7 +1649,7 @@ const PerformanceReviews = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

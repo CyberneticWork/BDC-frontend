@@ -23,6 +23,7 @@ import {
   Plus,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService";
+import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -37,6 +38,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     department: "",
     category: "",
     priority: "medium",
+    creatorRole: "", // New field for creator role
     ...initialData,
   });
 
@@ -72,43 +74,36 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   // Fetch departments when company changes
   useEffect(() => {
-    const fetchDepartmentsData = async () => {
+    const fetchDepartmentsData = () => {
       if (!formData.company) {
         setDepartments([]);
         return;
       }
 
       setIsLoadingDepartments(true);
-      try {
-        // In a real implementation, you would fetch from API
-        // const response = await PMSService.getDepartmentsByCompany(formData.company);
-        // For demo, using dummy data
-        let dummyDepartments = [];
-        if (formData.company === "1") {
-          dummyDepartments = [
-            { id: "101", name: "Sales" },
-            { id: "102", name: "Customer Service" },
-            { id: "103", name: "Engineering" }
-          ];
-        } else if (formData.company === "2") {
-          dummyDepartments = [
-            { id: "201", name: "Marketing" },
-            { id: "202", name: "HR" },
-            { id: "203", name: "Operations" }
-          ];
-        } else if (formData.company === "3") {
-          dummyDepartments = [
-            { id: "301", name: "Research & Development" },
-            { id: "302", name: "Finance" },
-            { id: "303", name: "IT" }
-          ];
-        }
-        setDepartments(dummyDepartments);
-      } catch (error) {
-        console.error("Error fetching departments:", error);
-      } finally {
-        setIsLoadingDepartments(false);
+      // Synchronous fetch for dummy data
+      let dummyDepartments = [];
+      if (formData.company === "1") {
+        dummyDepartments = [
+          { id: "101", name: "Sales" },
+          { id: "102", name: "Customer Service" },
+          { id: "103", name: "Engineering" }
+        ];
+      } else if (formData.company === "2") {
+        dummyDepartments = [
+          { id: "201", name: "Marketing" },
+          { id: "202", name: "HR" },
+          { id: "203", name: "Operations" }
+        ];
+      } else if (formData.company === "3") {
+        dummyDepartments = [
+          { id: "301", name: "Research & Development" },
+          { id: "302", name: "Finance" },
+          { id: "303", name: "IT" }
+        ];
       }
+      setDepartments(dummyDepartments);
+      setIsLoadingDepartments(false);
     };
     
     fetchDepartmentsData();
@@ -117,16 +112,17 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   useEffect(() => {
     // Reset form when modal opens with new data
     setFormData({
-      name: "",
-      description: "",
-      startDate: "",
-      endDate: "",
+      name: initialData.name || "",
+      description: initialData.description || "",
+      startDate: initialData.startDate || "",
+      endDate: initialData.endDate || "",
       assignees: initialData.assignees ? [...initialData.assignees] : [],
+      // Ensure we use the right property names for company and department
       company: initialData.company || "",
-      department: initialData.department || "",
+      department: initialData.departmentId || initialData.department || "",
       category: initialData.category || "",
       priority: initialData.priority || "medium",
-      ...initialData
+      creatorRole: initialData.creator?.role || initialData.creatorRole || "",
     });
     setEmpSearch("");
   }, [initialData, isOpen]);
@@ -253,6 +249,29 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
+
+             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Creator Role*
+              </label>
+              <select
+                name="creatorRole"
+                value={formData.creatorRole}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
+              >
+                <option value="">Select Creator Role</option>
+                <option value="Management">Management</option>
+                <option value="Senior Management">Senior Management</option>
+                <option value="Executive">Executive</option>
+                <option value="Team Lead">Team Lead</option>
+                <option value="Supervisor">Supervisor</option>
+                <option value="Department Head">Department Head</option>
+                <option value="Director">Director</option>
+              </select>
+            </div>
+          </div>
 
             {/* Company Selection - NEW */}
             <div>
@@ -475,7 +494,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 ))}
               </div>
             </div>
-          </div>
+
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
             <button
@@ -553,7 +572,14 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, kpiName, isLoadin
 const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   if (!isOpen || !kpi) return null;
 
-  const getEmployee = (id) => employees.find(e => e.id === id) || { id, name: "Unknown", department: "" };
+  const getEmployee = (id) => {
+    const normalizedId = typeof id === "string" ? parseInt(id, 10) : id;
+    // try numeric match first, then fallback to string match
+    return (
+      employees.find(e => e.id === normalizedId || String(e.id) === String(id)) ||
+      { id: normalizedId, name: "Unknown", department: "" }
+    );
+  };
   const updatesFor = (empId) => (kpi.assigneeUpdates || []).find(u => u.employeeId === empId);
 
   const getStatusBadge = (status) => {
@@ -618,12 +644,6 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Details</h3>
               <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                {kpi.category && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Category:</span>
-                    <span className="text-sm font-medium text-gray-900">{kpi.category}</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Department:</span>
                   <span className="text-sm font-medium text-gray-900">{kpi.departmentName || kpi.department}</span>
@@ -846,9 +866,27 @@ const KPIs = () => {
     { id: 4, name: "John Smith", department: "Operations" },
   ]);
 
-  // New view modal state
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [viewKpi, setViewKpi] = useState(null);
+  // Change this to match the employee ID you're assigning tasks to
+  const [currentEmployeeId, setCurrentEmployeeId] = useState("2"); // Or whichever ID you're using
+
+  // Add these maps for company and department names (matching TaskModal)
+  const companyMap = {
+    "1": "Acme Corporation",
+    "2": "Globex Industries",
+    "3": "Wayne Enterprises"
+  };
+
+  const departmentMap = {
+    "101": "Sales",
+    "102": "Customer Service",
+    "103": "Engineering",
+    "201": "Marketing",
+    "202": "HR",
+    "203": "Operations",
+    "301": "Research & Development",
+    "302": "Finance",
+    "303": "IT"
+  };
 
   // Sample data (replace with actual API call)
   const sampleKpis = [
@@ -861,21 +899,21 @@ const KPIs = () => {
       unit: "%",
       trend: "up",
       status: "active",
-      // keep human-friendly department name for table display
+      progress: 25,
       department: "Customer Service",
-      // new fields for modal prefill (company id and department id)
       company: "1",
       departmentId: "101",
       companyName: "Acme Corporation",
       departmentName: "Customer Service",
-      owner: "Sarah Johnson",
+      owner: "", // owner cleared — UI shows creator role instead
+      creator: { name: "Sarah Johnson", role: "Team Lead", date: "2024-01-01T09:00:00Z" },
       assignees: ["1"],
       assigneeUpdates: [
         {
           employeeId: 1,
           updates: [
-            { date: "2024-01-05T09:00:00Z", note: "Initial assignment", author: "Manager" },
-            { date: "2024-02-01T14:30:00Z", note: "Submitted first draft of report", author: "Sarah Johnson" },
+            { date: "2024-01-05T09:00:00Z", note: "Initial assignment", author: "Manager", progressPercentage: 0 },
+            { date: "2024-02-01T14:30:00Z", note: "Submitted first draft of report", author: "Sarah Johnson", progressPercentage: 20 },
           ]
         }
       ],
@@ -894,21 +932,27 @@ const KPIs = () => {
       unit: "%",
       trend: "up",
       status: "active",
+      progress: 45,
       department: "Sales",
       company: "2",
       departmentId: "201",
       companyName: "Globex Industries",
       departmentName: "Sales",
-      owner: "Mike Chen",
+      owner: "Executive",
+      creator: { name: "Mike Chen", role: "Supervisor", date: "2024-01-10T11:00:00Z" },
       assignees: ["2","4"],
       assigneeUpdates: [
         {
           employeeId: 2,
-          updates: [{ date: "2024-01-12T11:00:00Z", note: "Provided Q4 numbers", author: "Mike Chen" }]
+          updates: [
+            { date: "2024-01-12T11:00:00Z", note: "Provided Q4 numbers", author: "Mike Chen", progressPercentage: 40 }
+          ]
         },
         {
           employeeId: 4,
-          updates: [{ date: "2024-01-15T10:00:00Z", note: "Assisted with data cleanup", author: "John Smith" }]
+          updates: [
+            { date: "2024-01-15T10:00:00Z", note: "Assisted with data cleanup", author: "John Smith", progressPercentage: 10 }
+          ]
         }
       ],
       startDate: "2023-11-01",
@@ -926,19 +970,21 @@ const KPIs = () => {
       unit: "%",
       trend: "down",
       status: "attention",
+      progress: 10,
       department: "HR",
       company: "3",
       departmentId: "301",
       companyName: "Wayne Enterprises",
       departmentName: "HR",
-      owner: "Emma Davis",
+      owner: "",
+      creator: { name: "Emma Davis", role: "Department Head", date: "2024-01-08T09:00:00Z" },
       assignees: ["3"],
       assigneeUpdates: [
         {
           employeeId: 3,
           updates: [
-            { date: "2024-01-10T09:00:00Z", note: "Reviewed exit interviews", author: "Emma Davis" },
-            { date: "2024-02-01T14:30:00Z", note: "Identified trends in departures", author: "Emma Davis" },
+            { date: "2024-01-10T09:00:00Z", note: "Reviewed exit interviews", author: "Emma Davis", progressPercentage: 5 },
+            { date: "2024-02-01T14:30:00Z", note: "Identified trends in departures", author: "Emma Davis", progressPercentage: 10 },
           ]
         }
       ],
@@ -957,19 +1003,21 @@ const KPIs = () => {
       unit: "%",
       trend: "up",
       status: "active",
+      progress: 80,
       department: "Operations",
       company: "1",
       departmentId: "103",
       companyName: "Acme Corporation",
       departmentName: "Operations",
-      owner: "John Smith",
+      owner: "Supervisor",
+      creator: { name: "John Smith", role: "Supervisor", date: "2024-01-02T10:00:00Z" },
       assignees: ["4"],
       assigneeUpdates: [
         {
           employeeId: 4,
           updates: [
-            { date: "2024-01-15T10:00:00Z", note: "Project A completed", author: "John Smith" },
-            { date: "2024-01-20T10:00:00Z", note: "Project B on track", author: "John Smith" },
+            { date: "2024-01-15T10:00:00Z", note: "Project A completed", author: "John Smith", progressPercentage: 60 },
+            { date: "2024-01-20T10:00:00Z", note: "Project B on track", author: "John Smith", progressPercentage: 80 },
           ]
         }
       ],
@@ -979,29 +1027,54 @@ const KPIs = () => {
       frequency: "Weekly",
       category: "Operations",
     },
+    // Example new KPI with zero-initialized progress
+    {
+      id: 5,
+      name: "New Product Adoption",
+      description: "Track adoption of the new product feature",
+      target: 100,
+      current: 100,
+      unit: "%",
+      trend: "up",
+      status: "active",
+      progress: 0,
+      department: "Product",
+      company: "2",
+      departmentId: "202",
+      companyName: "Globex Industries",
+      departmentName: "Product",
+      owner: "",
+      creator: { name: "Linda Perez", role: "Product Manager", date: new Date().toISOString() },
+      assignees: [],
+      assigneeUpdates: [],
+      startDate: new Date().toISOString().slice(0,10),
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().slice(0,10),
+      lastUpdated: new Date().toISOString(),
+      frequency: "Monthly",
+      category: "Product",
+    },
   ];
 
   useEffect(() => {
     fetchKpis();
   }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [kpis, searchTerm, statusFilter, departmentFilter]);
-
-  const fetchKpis = async () => {
+  const fetchKpis = () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      // For now, using sample data
-      // const data = await PMSService.getKpis();
-      setKpis(sampleKpis);
-    } catch (err) {
+      const all = PMSDummyDataStore.getAllKpiTasks();
+      setKpis(all);
+    } catch (e) {
       setError("Failed to fetch KPIs");
-      console.error("Error fetching KPIs:", err);
+      console.error(e);
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    applyFilters();
+  }, [kpis, searchTerm, statusFilter, departmentFilter]);
 
   const applyFilters = () => {
     let filtered = kpis;
@@ -1031,15 +1104,15 @@ const KPIs = () => {
   const handleAddKpi = async (formData) => {
     setIsSubmitting(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!formData.assignees || formData.assignees.length === 0) {
+  alert("Please add at least one assignee before creating the KPI task.");
+  setIsSubmitting(false);
+  return;
+}
 
-      const firstAssignee = formData.assignees && formData.assignees.length > 0
-        ? parseInt(formData.assignees[0])
-        : null;
-
+      await new Promise(r => setTimeout(r, 500)); // simulate
+      const firstAssignee = formData.assignees?.length ? parseInt(formData.assignees[0]) : null;
       const newKpi = {
-        id: kpis.length + 1,
         name: formData.name,
         description: formData.description,
         target: 0,
@@ -1047,30 +1120,48 @@ const KPIs = () => {
         unit: "%",
         trend: "up",
         status: "active",
-        department: firstAssignee === 1 ? "Customer Service" :
-                   firstAssignee === 2 ? "Sales" :
-                   firstAssignee === 3 ? "HR" : "Operations",
-        owner: firstAssignee ? (employees.find(e => e.id === firstAssignee)?.name || "") : "",
-        assignees: (formData.assignees || []).map(s => s.toString()),
-        assigneeUpdates: (formData.assignees || []).map(s => ({
-          employeeId: parseInt(s),
-          updates: [{ date: new Date().toISOString(), note: "Task assigned", author: "System" }]
+        progress: 0,
+        // Add company/department fields from formData
+        company: formData.company,
+        departmentId: formData.department,
+        companyName: companyMap[formData.company] || "",
+        departmentName: departmentMap[formData.department] || "",
+        department: departmentMap[formData.department] || "", // Keep as name for consistency with existing data
+        owner: "",
+        creator: {
+          name: "",
+          role: formData.creatorRole || "",
+          date: new Date().toISOString()
+        },
+        assignees: (formData.assignees || []).map(a => a.toString()),
+        assigneeUpdates: (formData.assignees || []).map(a => ({
+          employeeId: parseInt(a),
+          updates: [{
+            date: new Date().toISOString(),
+            note: "Task assigned",
+            author: "System",
+            progressPercentage: 0
+          }]
         })),
         startDate: formData.startDate,
         endDate: formData.endDate,
         lastUpdated: new Date().toISOString(),
         frequency: "Monthly",
         category: firstAssignee === 1 ? "Customer" :
-                 firstAssignee === 2 ? "Financial" :
-                 firstAssignee === 3 ? "HR" : "Operations",
+                  firstAssignee === 2 ? "Financial" :
+                  firstAssignee === 3 ? "HR" : "Operations",
+        completionStatus: "not-started",
+        documentCount: 0,
+        priority: formData.priority || "medium"
       };
 
-      setKpis(prev => [...prev, newKpi]);
-      alert('KPI task created successfully!');
+      PMSDummyDataStore.addKpiTask(newKpi);
+      setKpis(PMSDummyDataStore.getAllKpiTasks());
       setIsAddModalOpen(false);
-    } catch (error) {
-      console.error("Error creating KPI:", error);
-      alert('Failed to create KPI task');
+      alert("KPI task created & performance reviews generated.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to create KPI task");
     } finally {
       setIsSubmitting(false);
     }
@@ -1079,42 +1170,31 @@ const KPIs = () => {
   const handleEditKpi = async (formData) => {
     setIsSubmitting(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const firstAssignee = formData.assignees && formData.assignees.length > 0
-        ? parseInt(formData.assignees[0])
-        : null;
-
-      const updatedKpis = kpis.map(kpi =>
-        kpi.id === currentKpi.id ? {
-          ...kpi,
-          name: formData.name,
-          description: formData.description,
-          assignees: (formData.assignees || []).map(s => s.toString()),
-          // merge existing updates or add "reassigned" note if changed
-          assigneeUpdates: (formData.assignees || []).map(s => {
-            const empId = parseInt(s);
-            const existing = (kpi.assigneeUpdates || []).find(a => a.employeeId === empId);
-            return existing || { employeeId: empId, updates: [{ date: new Date().toISOString(), note: "Assigned/Updated", author: "System" }] };
-          }),
-          assignee: firstAssignee,
-          department: firstAssignee === 1 ? "Customer Service" :
-                     firstAssignee === 2 ? "Sales" :
-                     firstAssignee === 3 ? "HR" : "Operations",
-          owner: firstAssignee ? (employees.find(e => e.id === firstAssignee)?.name || "") : kpi.owner,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          lastUpdated: new Date().toISOString(),
-        } : kpi
-      );
-
-      setKpis(updatedKpis);
-      alert('KPI task updated successfully!');
+      await new Promise(r => setTimeout(r, 400));
+      PMSDummyDataStore.updateKpiTask(currentKpi.id, {
+        name: formData.name,
+        description: formData.description,
+        assignees: (formData.assignees || []).map(a => a.toString()),
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        priority: formData.priority,
+        // Add company/department fields from formData
+        company: formData.company,
+        departmentId: formData.department,
+        companyName: companyMap[formData.company] || "",
+        departmentName: departmentMap[formData.department] || "",
+        department: departmentMap[formData.department] || "", // Keep as name for consistency
+        creator: {
+          ...(currentKpi.creator || {}),
+          role: formData.creatorRole || currentKpi.creator?.role || ""
+        }
+      });
+      setKpis(PMSDummyDataStore.getAllKpiTasks());
       setIsEditModalOpen(false);
-    } catch (error) {
-      console.error("Error updating KPI:", error);
-      alert('Failed to update KPI task');
+      alert("KPI task updated.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update KPI task");
     } finally {
       setIsSubmitting(false);
     }
@@ -1123,22 +1203,14 @@ const KPIs = () => {
   const handleDeleteKpi = async () => {
     setIsSubmitting(true);
     try {
-      // In a real app, this would be an API call:
-      // await PMSService.deleteKpi(currentKpi.id);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Remove KPI from state
-      const updatedKpis = kpis.filter(kpi => kpi.id !== currentKpi.id);
-      setKpis(updatedKpis);
+      await new Promise(r => setTimeout(r, 400));
+      PMSDummyDataStore.deleteKpiTask(currentKpi.id);
+      setKpis(PMSDummyDataStore.getAllKpiTasks());
       setIsDeleteModalOpen(false);
-      
-      // Show success notification
-      alert('KPI task deleted successfully!');
-    } catch (error) {
-      console.error("Error deleting KPI:", error);
-      alert('Failed to delete KPI task');
+      alert("KPI task deleted.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete KPI task");
     } finally {
       setIsSubmitting(false);
     }
@@ -1184,11 +1256,43 @@ const KPIs = () => {
     return [...new Set(kpis.map((kpi) => kpi[key]))];
   };
 
+  // Add this function to get the latest progress from assignee updates
+  const getLatestProgress = (kpi) => {
+    let latestProgress = 0;
+    let latestDate = null;
+    
+    if (!kpi.assignees || kpi.assignees.length === 0) {
+      return kpi.progress || 0;
+    }
+    
+    kpi.assignees.forEach(idStr => {
+      const empId = parseInt(idStr);
+      const assigneeUpdates = kpi.assigneeUpdates?.find(au => au.employeeId === empId);
+      
+      if (assigneeUpdates?.updates && assigneeUpdates.updates.length > 0) {
+        assigneeUpdates.updates.forEach(update => {
+          if (update.progressPercentage !== undefined) {
+            const updateDate = new Date(update.date);
+            if (!latestDate || updateDate > latestDate) {
+              latestDate = updateDate;
+              latestProgress = update.progressPercentage;
+            }
+          }
+        });
+      }
+    });
+    
+    return latestProgress;
+  };
+
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredKpis.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredKpis.length / itemsPerPage);
+
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewKpi, setViewKpi] = useState(null);
 
   if (isLoading) {
     return (
@@ -1239,11 +1343,12 @@ const KPIs = () => {
           startDate: currentKpi.startDate,
           endDate: currentKpi.endDate,
           assignees: currentKpi.assignees ? [...currentKpi.assignees] : [],
-          // ensure company & department IDs are passed to modal for prefill
-          company: currentKpi.company || currentKpi.companyName || "",
-          department: currentKpi.departmentId || currentKpi.department || "",
+          company: currentKpi.company || "",
+          departmentId: currentKpi.departmentId || "",
+          companyName: currentKpi.companyName || "",  // Add this for display/logging
           category: currentKpi.category || "",
           priority: currentKpi.priority || "medium",
+          creatorRole: currentKpi.creator?.role || "",
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}
@@ -1336,19 +1441,6 @@ const KPIs = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Categories</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {getUniqueValues("category").length}
-              </p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Target className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Filters */}
@@ -1401,9 +1493,7 @@ const KPIs = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Performance
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
+                {/* Category column removed */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
@@ -1465,27 +1555,19 @@ const KPIs = () => {
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              kpi.current >= kpi.target
-                                ? "bg-green-500"
-                                : kpi.current >= kpi.target * 0.8
+                              getLatestProgress(kpi) < 30
+                                ? "bg-red-500"
+                                : getLatestProgress(kpi) < 70
                                 ? "bg-yellow-500"
-                                : "bg-red-500"
+                                : "bg-green-500"
                             }`}
                             style={{
-                              width: `${Math.min(
-                                (kpi.current / kpi.target) * 100,
-                                100
-                              )}%`,
+                              width: `${getLatestProgress(kpi)}%`,
                             }}
                           ></div>
                         </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                      {kpi.category || "Uncategorized"}
-                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -1506,15 +1588,14 @@ const KPIs = () => {
                     <div className="flex items-center">
                       <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="text-xs font-medium text-gray-600">
-                          {kpi.owner
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
+                          {kpi.creator?.role
+                            ? kpi.creator.role.split(" ").map((w) => w[0]).join("").toUpperCase()
+                            : (kpi.owner ? kpi.owner.split(" ").map((w) => w[0]).join("").toUpperCase() : "--")}
                         </span>
                       </div>
                       <div className="ml-3">
                         <div className="text-sm font-medium text-gray-900">
-                          {kpi.owner}
+                          {kpi.creator?.role || "—"}
                         </div>
                       </div>
                     </div>
