@@ -225,10 +225,10 @@ class PMSService {
     }
   }
 
-  // NEW: Delete KPI task assignment (soft delete by updating delete flag)
+  // NEW: Delete KPI task assignment (use DELETE to match backend)
   async deleteKpiTaskAssignment(id) {
     try {
-      const response = await axios.put(`/pms/kpi-task-assignments/${id}`, { deleted: true });
+      const response = await axios.delete(`/pms/kpi-task-assignments/${id}`);
       return response.data;
     } catch (error) {
       console.error("Error deleting KPI task assignment:", error);
