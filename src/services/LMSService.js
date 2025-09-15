@@ -238,9 +238,52 @@ const LMSService = {
     return { id: course.createdBy, name: `User ${course.createdBy}` };
   },
 
-  getUserProgress() {
-    this._recalculateUserProgress();
-    return this._userProgress;
+  async getUserProgress() {
+    try {
+      console.log("Fetching user progress from API...");
+      const response = await axios.get("/user/progress");
+      const data = response.data;
+
+      console.log("User progress API response:", data);
+
+      // Update cache with API data
+      this._userProgress = {
+        totalCourses: data.totalCourses || 0,
+        completedCourses: data.completedCourses || 0,
+        totalModules: data.totalModules || 0,
+        completedModules: data.completedModules || 0,
+        certificatesEarned: data.certificatesEarned || 0,
+      };
+
+      // Update courses cache with enrolled courses from API
+      this._coursesCache = (data.enrolledCourses || []).map((course) => ({
+        ...course,
+        enrolled: true,
+        completed: course.completed || false,
+        certificate: course.completed
+          ? { id: course.id, title: course.title }
+          : null,
+      }));
+
+      return {
+        ...this._userProgress,
+        enrolledCourses: data.enrolledCourses || [],
+        certificates: data.certificates || [],
+      };
+    } catch (error) {
+      console.error("Failed to fetch user progress from API:", error);
+      console.error("Error response:", error.response);
+      console.error("Error status:", error.response?.status);
+      console.error("Error data:", error.response?.data);
+
+      // Fallback to client-side calculation
+      this._recalculateUserProgress();
+      return {
+        ...this._userProgress,
+        enrolledCourses: this.getEnrolledCourses(),
+        certificates: [],
+      };
+    }
   },
 
   _recalculateUserProgress() {
@@ -348,6 +391,41 @@ const LMSService = {
     } catch (error) {
       console.error("API connection test failed:", error);
       throw error;
+    }
+  },
+
+  // Update module progress
+  async updateModuleProgress(courseId, moduleId, completed) {
+    try {
+      console.log(
+        `Updating module progress: course ${courseId}, module ${moduleId}, completed: ${completed}`
+      );
+      const response = await axios.post(
+        `/courses/${courseId}/modules/${moduleId}/progress`,
+        {
+          completed: completed,
+        }
+      );
+      console.log("Module progress update response:", response.data);
+
+      // Refresh progress data after update
+      await this.refreshUserProgress();
+
+      return response.data;
+    } catch (error) {
+      console.error("Failed to update module progress:", error);
+      throw error;
+    }
+  },
+
+  // Get user certificates
+  async getUserCertificates() {
+    try {
+      const progressData = await this.getUserProgress();
+      return progressData.certificates || [];
+    } catch (error) {
+      console.error("Failed to fetch user certificates:", error);
+      return [];
     }
   },
 };
