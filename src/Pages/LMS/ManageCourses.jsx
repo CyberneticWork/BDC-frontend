@@ -373,12 +373,12 @@ const ManageCourses = ({ onViewCourse }) => {
         </div>
         {user && user.role !== "user" && (
           <div className="flex space-x-4">
-            <button
+            {/* <button
               onClick={testApiConnection}
               className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
             >
               Test API
-            </button>
+            </button> */}
             <button
               onClick={() => setShowCreateModal(true)}
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
