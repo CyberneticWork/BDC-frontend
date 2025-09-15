@@ -191,6 +191,28 @@ class PMSService {
       throw error;
     }
   }
+
+  // NEW: Create KPI task assignment
+  async createKpiTaskAssignment(data) {
+    try {
+      const response = await axios.post('/pms/kpi-task-assignments', data);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating KPI task assignment:", error);
+      throw error;
+    }
+  }
+
+  // NEW: Fetch KPI task assignments
+  async getKpiTaskAssignments() {
+    try {
+      const response = await axios.get('/pms/kpi-task-assignments');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching KPI task assignments:", error);
+      throw error;
+    }
+  }
   // --- end added methods ---
 }
 

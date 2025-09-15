@@ -146,8 +146,8 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
         const list = Array.isArray(data) ? data : (data?.data || []);
         setCompanyEmployees(
           list.map(e => ({
-            id: e.id,
-            name: e.full_name || e.name || e.fullName || "",
+            id: e.attendance_employee_no, // Use attendance_employee_no as ID for consistency
+            name: e.full_name || e.name || "",
             department: e.department || e.department_name || ""
           }))
         );
@@ -215,7 +215,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const handleChange = (e) => {
     const { name, value } = e.target;
     // Only company and department should be cast to Number.
-    // creatorRole must remain a string (role name) so UI can call .split on it safely.
+    // creatorRole must remain a string (role name) so the UI can call .split on it safely.
     const isNumericField = name === "company" || name === "department";
     setFormData(prev => ({
       ...prev,
@@ -1244,14 +1244,16 @@ const KPIs = () => {
     fetchKpis();
   }, []);
 
-  const fetchKpis = () => {
+  const fetchKpis = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const all = PMSDummyDataStore.getAllKpiTasks();
-      setKpis(all);
+      const data = await PMSService.getKpiTaskAssignments(); // Fetch from backend
+      setKpis(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError("Failed to fetch KPIs");
+      setError("Failed to fetch KPI task assignments");
       console.error(e);
+      setKpis([]); // Fallback to empty array
     } finally {
       setIsLoading(false);
     }
@@ -1289,66 +1291,25 @@ const KPIs = () => {
   const handleAddKpi = async (formData) => {
     setIsSubmitting(true);
     try {
-      if (!formData.assignees || formData.assignees.length === 0) {
-        alert("Please add at least one assignee before creating the KPI task.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      await new Promise(r => setTimeout(r, 500)); // simulate
-      const firstAssignee = formData.assignees?.length ? parseInt(formData.assignees[0]) : null;
-      const newKpi = {
-        name: formData.name,
+      const data = {
+        task_name: formData.name, // From selected task
         description: formData.description,
-        target: 0,
-        current: 0,
-        unit: "%",
-        trend: "up",
-        status: "active",
-        progress: 0,
-        // Add company/department fields from formData
-        company: formData.company, // ID
-        departmentId: formData.department, // ID
-        companyName: formData.companyName || "", // Use passed name
-        departmentName: formData.departmentName || "", // Use passed name
-        department: formData.departmentName || "", // Use passed name
-        owner: "",
-        creator: {
-          name: "",
-          // formData.creatorRole is now the role_name string
-          role: formData.creatorRole || "",
-          date: new Date().toISOString()
-        },
-        assignees: (formData.assignees || []).map(a => a.toString()),
-        assigneeUpdates: (formData.assignees || []).map(a => ({
-          employeeId: parseInt(a),
-          updates: [{
-            date: new Date().toISOString(),
-            note: "Task assigned",
-            author: "System",
-            progressPercentage: 0
-          }]
-        })),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        lastUpdated: new Date().toISOString(),
-        frequency: "Monthly",
-        category: firstAssignee === 1 ? "Customer" :
-                  firstAssignee === 2 ? "Financial" :
-                  firstAssignee === 3 ? "HR" : "Operations",
-        completionStatus: "not-started",
-        documentCount: 0,
-        priority: formData.priority || "medium",
-        weights: formData.weights, // Add weights to new KPI
+        company_id: formData.company,
+        department_id: formData.department,
+        creator_role_name: formData.creatorRole, // role_name string
+        assignees: formData.assignees, // Array of attendance_employee_no
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        weights: formData.weights,
+        priority: formData.priority,
       };
-
-      PMSDummyDataStore.addKpiTask(newKpi);
-      setKpis(PMSDummyDataStore.getAllKpiTasks());
+      const result = await PMSService.createKpiTaskAssignment(data);
+      alert("KPI task assignment created successfully.");
       setIsAddModalOpen(false);
-      alert("KPI task created & performance reviews generated.");
+      // Optionally, refresh KPIs list or navigate
     } catch (e) {
       console.error(e);
-      alert("Failed to create KPI task");
+      alert("Failed to create KPI task assignment");
     } finally {
       setIsSubmitting(false);
     }
