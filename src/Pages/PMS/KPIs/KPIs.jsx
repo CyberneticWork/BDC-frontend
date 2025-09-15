@@ -257,7 +257,13 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Add computed names to formData before submitting
+    const enrichedFormData = {
+      ...formData,
+      companyName: getCompanyName(formData.company),
+      departmentName: getDepartmentName(formData.department),
+    };
+    onSubmit(enrichedFormData);
   };
 
   if (!isOpen) return null;
@@ -1059,25 +1065,6 @@ const KPIs = () => {
   // Change this to match the employee ID you're assigning tasks to
   const [currentEmployeeId, setCurrentEmployeeId] = useState("2"); // Or whichever ID you're using
 
-  // Add these maps for company and department names (matching TaskModal)
-  const companyMap = {
-    "1": "Acme Corporation",
-    "2": "Globex Industries",
-    "3": "Wayne Enterprises"
-  };
-
-  const departmentMap = {
-    "101": "Sales",
-    "102": "Customer Service",
-    "103": "Engineering",
-    "201": "Marketing",
-    "202": "HR",
-    "203": "Operations",
-    "301": "Research & Development",
-    "302": "Finance",
-    "303": "IT"
-  };
-
   // Sample data (replace with actual API call)
   const sampleKpis = [
     {
@@ -1320,12 +1307,11 @@ const KPIs = () => {
         status: "active",
         progress: 0,
         // Add company/department fields from formData
-        company: formData.company,
-        departmentId: formData.department,
-        // companyMap/departmentMap keys are strings in this file; ensure lookup uses String()
-        companyName: companyMap[String(formData.company)] || "",
-        departmentName: departmentMap[String(formData.department)] || "",
-        department: departmentMap[String(formData.department)] || "", // Keep as name for consistency with existing data
+        company: formData.company, // ID
+        departmentId: formData.department, // ID
+        companyName: formData.companyName || "", // Use passed name
+        departmentName: formData.departmentName || "", // Use passed name
+        department: formData.departmentName || "", // Use passed name
         owner: "",
         creator: {
           name: "",
@@ -1380,11 +1366,11 @@ const KPIs = () => {
         endDate: formData.endDate,
         priority: formData.priority,
         // Add company/department fields from formData
-        company: formData.company,
-        departmentId: formData.department,
-        companyName: companyMap[formData.company] || "",
-        departmentName: departmentMap[formData.department] || "",
-        department: departmentMap[formData.department] || "", // Keep as name for consistency
+        company: formData.company, // ID
+        departmentId: formData.department, // ID
+        companyName: formData.companyName || "", // Use passed name
+        departmentName: formData.departmentName || "", // Use passed name
+        department: formData.departmentName || "", // Use passed name
         creator: {
           ...(currentKpi.creator || {}),
           role: formData.creatorRole || currentKpi.creator?.role || ""
