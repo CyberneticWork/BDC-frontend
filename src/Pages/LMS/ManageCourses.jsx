@@ -70,23 +70,58 @@ const ManageCourses = ({ onViewCourse }) => {
   };
 
   const handleCreateCourse = async () => {
+    console.log("handleCreateCourse called with formData:", formData);
     if (formData.title && formData.description && formData.duration) {
+      console.log("Form validation passed, proceeding with course creation");
       try {
+        console.log("Starting course creation process...");
         const processedAttachments = await processFiles();
-        if (processedAttachments === null) return; // Error occurred
+        console.log("Processed attachments:", processedAttachments);
+
+        if (processedAttachments === null) {
+          console.error("File processing failed");
+          return; // Error occurred
+        }
 
         const courseData = {
           ...formData,
           attachments: [...formData.attachments, ...processedAttachments],
         };
 
+        console.log("Final course data being sent:", courseData);
         await LMSService.createCourse(courseData);
+        console.log("Course created successfully");
+
         await loadCourses();
         setShowCreateModal(false);
         resetForm();
       } catch (error) {
-        setUploadError("Failed to upload files. Please try again.");
+        console.error("Course creation error:", error);
+        console.error("Error response:", error.response);
+        console.error("Error data:", error.response?.data);
+
+        // Show more specific error message
+        if (error.response?.data?.message) {
+          setUploadError(
+            `Failed to create course: ${error.response.data.message}`
+          );
+        } else if (error.response?.status === 413) {
+          setUploadError(
+            "Files are too large. Please reduce file sizes or contact administrator."
+          );
+        } else if (error.response?.status === 422) {
+          setUploadError("Validation failed. Please check your input data.");
+        } else if (error.response?.status === 500) {
+          setUploadError("Server error occurred. Please try again later.");
+        } else {
+          setUploadError("Failed to upload files. Please try again.");
+        }
       }
+    } else {
+      console.log("Form validation failed - missing required fields");
+      setUploadError(
+        "Please fill in all required fields (title, description, duration)."
+      );
     }
   };
 
@@ -98,21 +133,53 @@ const ManageCourses = ({ onViewCourse }) => {
       formData.duration
     ) {
       try {
+        console.log("Starting course update process...");
         const processedAttachments = await processFiles();
-        if (processedAttachments === null) return; // Error occurred
+        console.log("Processed attachments for update:", processedAttachments);
+
+        if (processedAttachments === null) {
+          console.error("File processing failed for update");
+          return; // Error occurred
+        }
 
         const courseData = {
           ...formData,
           attachments: [...formData.attachments, ...processedAttachments],
         };
 
+        console.log("Final course update data:", courseData);
         await LMSService.updateCourse(editingCourse.id, courseData);
+        console.log("Course updated successfully");
+
         await loadCourses();
         setEditingCourse(null);
         resetForm();
       } catch (error) {
-        setUploadError("Failed to upload files. Please try again.");
+        console.error("Course update error:", error);
+        console.error("Error response:", error.response);
+        console.error("Error data:", error.response?.data);
+
+        // Show more specific error message
+        if (error.response?.data?.message) {
+          setUploadError(
+            `Failed to update course: ${error.response.data.message}`
+          );
+        } else if (error.response?.status === 413) {
+          setUploadError(
+            "Files are too large. Please reduce file sizes or contact administrator."
+          );
+        } else if (error.response?.status === 422) {
+          setUploadError("Validation failed. Please check your input data.");
+        } else if (error.response?.status === 500) {
+          setUploadError("Server error occurred. Please try again later.");
+        } else {
+          setUploadError("Failed to upload files. Please try again.");
+        }
       }
+    } else {
+      setUploadError(
+        "Please fill in all required fields (title, description, duration)."
+      );
     }
   };
 
@@ -175,7 +242,13 @@ const ManageCourses = ({ onViewCourse }) => {
 
   // File handling functions
   const handleFileSelect = (event) => {
+    console.log("File selection triggered");
     const files = Array.from(event.target.files);
+    console.log(
+      "Selected files:",
+      files.map((f) => ({ name: f.name, type: f.type, size: f.size }))
+    );
+
     const allowedTypes = [
       "application/pdf",
       "video/mp4",
@@ -189,6 +262,7 @@ const ManageCourses = ({ onViewCourse }) => {
     const errors = [];
 
     files.forEach((file) => {
+      console.log("Validating file:", file.name);
       if (!allowedTypes.includes(file.type)) {
         errors.push(
           `${file.name}: Invalid file type. Only PDF and video files are allowed.`
@@ -196,13 +270,16 @@ const ManageCourses = ({ onViewCourse }) => {
       } else if (file.size > maxSize) {
         errors.push(`${file.name}: File size exceeds 50MB limit.`);
       } else {
+        console.log("File is valid:", file.name);
         validFiles.push(file);
       }
     });
 
     if (errors.length > 0) {
+      console.error("File validation errors:", errors);
       setUploadError(errors.join("\n"));
     } else {
+      console.log("All files valid, setting selected files");
       setUploadError("");
       setSelectedFiles([...selectedFiles, ...validFiles]);
     }
@@ -212,17 +289,31 @@ const ManageCourses = ({ onViewCourse }) => {
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };
 
-  const removeExistingAttachment = (attachmentId) => {
-    setFormData({
-      ...formData,
-      attachments: formData.attachments.filter((a) => a.id !== attachmentId),
-    });
+  const testApiConnection = async () => {
+    try {
+      console.log("Testing API connection from ManageCourses...");
+      const result = await LMSService.testApiConnection();
+      alert(`API connection successful: ${result.message}`);
+    } catch (error) {
+      console.error("API connection test failed:", error);
+      alert("API connection failed. Check console for details.");
+    }
   };
 
   const processFiles = async () => {
+    console.log("Processing files:", selectedFiles);
     const processedAttachments = [];
+
     for (const file of selectedFiles) {
       try {
+        console.log(
+          "Processing file:",
+          file.name,
+          "Type:",
+          file.type,
+          "Size:",
+          file.size
+        );
         // Create attachment object with file for upload
         const attachment = {
           id: Date.now() + Math.random(), // temp ID for UI
@@ -231,12 +322,16 @@ const ManageCourses = ({ onViewCourse }) => {
           size: LMSService.formatFileSize(file.size),
           file: file, // Include the actual File object for upload
         };
+        console.log("Created attachment object:", attachment);
         processedAttachments.push(attachment);
       } catch (error) {
-        setUploadError(error.message);
+        console.error("Error processing file:", file.name, error);
+        setUploadError(`Error processing file ${file.name}: ${error.message}`);
         return null;
       }
     }
+
+    console.log("Processed attachments:", processedAttachments);
     return processedAttachments;
   };
 
@@ -277,13 +372,21 @@ const ManageCourses = ({ onViewCourse }) => {
           </p>
         </div>
         {user && user.role !== "user" && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Course
-          </button>
+          <div className="flex space-x-4">
+            <button
+              onClick={testApiConnection}
+              className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+            >
+              Test API
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create Course
+            </button>
+          </div>
         )}
       </div>
 

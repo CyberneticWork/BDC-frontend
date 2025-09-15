@@ -13,12 +13,54 @@ const Progress = () => {
   const [userProgress, setUserProgress] = useState({});
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [certificates, setCertificates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    setUserProgress(LMSService.getUserProgress());
-    setEnrolledCourses(LMSService.getEnrolledCourses());
-  
+    const fetchProgress = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const progressData = await LMSService.getUserProgress();
+
+        setUserProgress(progressData);
+        setEnrolledCourses(progressData.enrolledCourses || []);
+        setCertificates(progressData.certificates || []);
+      } catch (err) {
+        console.error("Error fetching progress:", err);
+        setError("Failed to load progress data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProgress();
   }, []);
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your progress...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   const overallProgress =
     userProgress.totalModules > 0
@@ -31,9 +73,31 @@ const Progress = () => {
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
-          Learning Progress
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <div></div>
+          <h1 className="text-4xl font-bold text-gray-900">
+            Learning Progress
+          </h1>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            Refresh
+          </button>
+        </div>
         <p className="text-gray-600 text-lg">
           Track your learning journey and achievements
         </p>
@@ -131,10 +195,7 @@ const Progress = () => {
           </h3>
           <div className="space-y-6">
             {enrolledCourses.map((course) => {
-              const courseProgress =
-                (course.modules.filter((m) => m.completed).length /
-                  course.modules.length) *
-                100;
+              const courseProgress = course.progress_percentage || 0;
               return (
                 <div
                   key={course.id}
@@ -146,12 +207,12 @@ const Progress = () => {
                         {course.title}
                       </h4>
                       <p className="text-sm text-gray-600">
-                        {course.modules.length} modules
+                        {course.total_modules || 0} modules
                       </p>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-gray-900">
-                        {Math.round(courseProgress)}%
+                        {courseProgress}%
                       </div>
                       <div className="text-sm text-gray-600">complete</div>
                     </div>
@@ -166,8 +227,8 @@ const Progress = () => {
 
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">
-                      {course.modules.filter((m) => m.completed).length} of{" "}
-                      {course.modules.length} modules completed
+                      {course.completed_modules || 0} of{" "}
+                      {course.total_modules || 0} modules completed
                     </span>
                     {course.completed && (
                       <div className="flex items-center text-green-600 text-sm font-medium">
@@ -177,30 +238,32 @@ const Progress = () => {
                     )}
                   </div>
 
-                  {/* Module Progress */}
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {course.modules.map((module) => (
-                      <div
-                        key={module.id}
-                        className="flex items-center text-sm"
-                      >
-                        {module.completed ? (
-                          <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                        ) : (
-                          <div className="h-4 w-4 rounded-full border border-gray-300 mr-2"></div>
-                        )}
-                        <span
-                          className={
-                            module.completed
-                              ? "text-green-600"
-                              : "text-gray-600"
-                          }
+                  {/* Module Progress - Note: API might not include detailed module data */}
+                  {course.modules && course.modules.length > 0 && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {course.modules.map((module) => (
+                        <div
+                          key={module.id}
+                          className="flex items-center text-sm"
                         >
-                          {module.title}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                          {module.completed ? (
+                            <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                          ) : (
+                            <div className="h-4 w-4 rounded-full border border-gray-300 mr-2"></div>
+                          )}
+                          <span
+                            className={
+                              module.completed
+                                ? "text-green-600"
+                                : "text-gray-600"
+                            }
+                          >
+                            {module.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -224,7 +287,8 @@ const Progress = () => {
                   <Award className="h-8 w-8 text-yellow-600 mr-3" />
                   <div>
                     <h4 className="font-semibold text-gray-900">
-                      {certificate.title}
+                      {certificate.course_title ||
+                        `Certificate ${certificate.id}`}
                     </h4>
                     <p className="text-sm text-gray-600">
                       Certificate ID: {certificate.id}
@@ -235,17 +299,33 @@ const Progress = () => {
                 <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2" />
-                    <span>Completed on: {certificate.completionDate}</span>
+                    <span>Issued on: {certificate.issued_date}</span>
                   </div>
-                  <div className="flex items-center">
-                    <Target className="h-4 w-4 mr-2" />
-                    <span>Issued on: {certificate.issuedDate}</span>
-                  </div>
+                  {certificate.certificate_url && (
+                    <div className="flex items-center">
+                      <Target className="h-4 w-4 mr-2" />
+                      <span>Certificate Available</span>
+                    </div>
+                  )}
                 </div>
 
-                <button className="mt-4 w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200">
-                  Download Certificate
-                </button>
+                {certificate.certificate_url ? (
+                  <a
+                    href={certificate.certificate_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 block text-center"
+                  >
+                    Download Certificate
+                  </a>
+                ) : (
+                  <button
+                    disabled
+                    className="mt-4 w-full bg-gray-300 text-gray-500 font-medium py-2 px-4 rounded-lg cursor-not-allowed"
+                  >
+                    Certificate Pending
+                  </button>
+                )}
               </div>
             ))}
           </div>

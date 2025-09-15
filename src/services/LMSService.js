@@ -87,20 +87,46 @@ const LMSService = {
   },
 
   async createCourse(courseData) {
-    const formData = this._prepareCourseFormData(courseData);
-    const res = await axios.post("/courses", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return mapCourse(res.data.course ?? res.data);
+    try {
+      console.log("Creating course with data:", courseData);
+      const formData = this._prepareCourseFormData(courseData);
+      console.log("Prepared FormData for course creation");
+
+      const res = await axios.post("/courses", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      console.log("Course creation response:", res.data);
+      return mapCourse(res.data.course ?? res.data);
+    } catch (error) {
+      console.error("Course creation failed:", error);
+      console.error("Error response:", error.response);
+      console.error("Error status:", error.response?.status);
+      console.error("Error data:", error.response?.data);
+      throw error;
+    }
   },
 
   async updateCourse(id, courseData) {
-    const formData = this._prepareCourseFormData(courseData);
-    const res = await axios.post(`/courses/${id}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-      params: { _method: "PUT" }, // Laravel expects PUT but we use POST with _method
-    });
-    return mapCourse(res.data.course ?? res.data);
+    try {
+      console.log("Updating course with ID:", id, "Data:", courseData);
+      const formData = this._prepareCourseFormData(courseData);
+      console.log("Prepared FormData for course update");
+
+      const res = await axios.post(`/courses/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        params: { _method: "PUT" }, // Laravel expects PUT but we use POST with _method
+      });
+
+      console.log("Course update response:", res.data);
+      return mapCourse(res.data.course ?? res.data);
+    } catch (error) {
+      console.error("Course update failed:", error);
+      console.error("Error response:", error.response);
+      console.error("Error status:", error.response?.status);
+      console.error("Error data:", error.response?.data);
+      throw error;
+    }
   },
 
   async deleteCourse(id) {
@@ -212,9 +238,52 @@ const LMSService = {
     return { id: course.createdBy, name: `User ${course.createdBy}` };
   },
 
-  getUserProgress() {
-    this._recalculateUserProgress();
-    return this._userProgress;
+  async getUserProgress() {
+    try {
+      console.log("Fetching user progress from API...");
+      const response = await axios.get("/user/progress");
+      const data = response.data;
+
+      console.log("User progress API response:", data);
+
+      // Update cache with API data
+      this._userProgress = {
+        totalCourses: data.totalCourses || 0,
+        completedCourses: data.completedCourses || 0,
+        totalModules: data.totalModules || 0,
+        completedModules: data.completedModules || 0,
+        certificatesEarned: data.certificatesEarned || 0,
+      };
+
+      // Update courses cache with enrolled courses from API
+      this._coursesCache = (data.enrolledCourses || []).map((course) => ({
+        ...course,
+        enrolled: true,
+        completed: course.completed || false,
+        certificate: course.completed
+          ? { id: course.id, title: course.title }
+          : null,
+      }));
+
+      return {
+        ...this._userProgress,
+        enrolledCourses: data.enrolledCourses || [],
+        certificates: data.certificates || [],
+      };
+    } catch (error) {
+      console.error("Failed to fetch user progress from API:", error);
+      console.error("Error response:", error.response);
+      console.error("Error status:", error.response?.status);
+      console.error("Error data:", error.response?.data);
+
+      // Fallback to client-side calculation
+      this._recalculateUserProgress();
+      return {
+        ...this._userProgress,
+        enrolledCourses: this.getEnrolledCourses(),
+        certificates: [],
+      };
+    }
   },
 
   _recalculateUserProgress() {
@@ -229,6 +298,43 @@ const LMSService = {
       completedModules: completedModules.length,
       certificatesEarned: completedCourses.length, // placeholder
     };
+  },
+
+  // Helper method to prepare FormData for course creation/updates
+  _prepareCourseFormData(courseData) {
+    const formData = new FormData();
+    formData.append("title", courseData.title);
+    formData.append("description", courseData.description);
+    formData.append("duration", courseData.duration);
+
+    // Add modules with files
+    if (courseData.modules && courseData.modules.length > 0) {
+      courseData.modules.forEach((module, index) => {
+        formData.append(`modules[${index}][title]`, module.title);
+        formData.append(`modules[${index}][content]`, module.content || "");
+        // Preserve existing module id so backend can decide to update instead of recreating
+        if (module.id && !module.tempId) {
+          formData.append(`modules[${index}][id]`, module.id);
+        }
+
+        // Add module file if exists
+        if (module.file) {
+          formData.append(`modules[${index}][file]`, module.file);
+        }
+      });
+    }
+
+    // Add attachments (only new files with 'file' property)
+    if (courseData.attachments && courseData.attachments.length > 0) {
+      courseData.attachments.forEach((attachment, index) => {
+        if (attachment.file) {
+          // Only upload new files
+          formData.append(`attachments[${index}]`, attachment.file);
+        }
+      });
+    }
+
+    return formData;
   },
 
   // ---- Exams API ----
@@ -273,6 +379,54 @@ const LMSService = {
   async getExamResults(params = {}) {
     const response = await axios.get("/exam-results", { params });
     return response.data;
+  },
+
+  // Test API connectivity
+  async testApiConnection() {
+    try {
+      console.log("Testing API connection...");
+      const response = await axios.get("/courses");
+      console.log("API connection test successful:", response.status);
+      return { status: "success", message: "API is accessible" };
+    } catch (error) {
+      console.error("API connection test failed:", error);
+      throw error;
+    }
+  },
+
+  // Update module progress
+  async updateModuleProgress(courseId, moduleId, completed) {
+    try {
+      console.log(
+        `Updating module progress: course ${courseId}, module ${moduleId}, completed: ${completed}`
+      );
+      const response = await axios.post(
+        `/courses/${courseId}/modules/${moduleId}/progress`,
+        {
+          completed: completed,
+        }
+      );
+      console.log("Module progress update response:", response.data);
+
+      // Refresh progress data after update
+      await this.refreshUserProgress();
+
+      return response.data;
+    } catch (error) {
+      console.error("Failed to update module progress:", error);
+      throw error;
+    }
+  },
+
+  // Get user certificates
+  async getUserCertificates() {
+    try {
+      const progressData = await this.getUserProgress();
+      return progressData.certificates || [];
+    } catch (error) {
+      console.error("Failed to fetch user certificates:", error);
+      return [];
+    }
   },
 };
 
