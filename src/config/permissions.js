@@ -117,5 +117,9 @@ export const permissions = {
     manageCourses: { view: true },
     manageExams: { view: true },
     myProgress: { view: true },
+    pms: { view: true },
+    pmsDashboard: { view: true },
+    performanceReviews: { view: true, edit: true },
+    myKPIs: { view: true },
   },
 };

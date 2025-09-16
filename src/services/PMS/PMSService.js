@@ -235,6 +235,17 @@ class PMSService {
       throw error;
     }
   }
+
+  // NEW: Fetch KPI task assignments for a specific employee
+  async getEmployeeKpiTaskAssignments(employeeId) {
+    try {
+      const response = await axios.get(`/pms/employee-kpi-task-assignments/${employeeId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching employee KPI task assignments:", error);
+      throw error;
+    }
+  }
   // --- end added methods ---
 }
 

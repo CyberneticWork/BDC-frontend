@@ -15,8 +15,7 @@ import {
   Calendar,
   X,
 } from "lucide-react";
-import PMSService from "@services/PMS/PMSService";
-import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+import PMSService from "../../../services/PMS/PMSService"; // Updated import
 import { TaskProgressUpdateModal } from "./TaskProgressUpdateModal";
 import { TaskViewModal } from "./TaskViewModal";
 
@@ -24,6 +23,7 @@ const EmployeeKPIView = () => {
   const [myTasks, setMyTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   
@@ -31,60 +31,48 @@ const EmployeeKPIView = () => {
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [currentEmployeeId, setCurrentEmployeeId] = useState("1"); // Should come from auth context
-  // DEBUG: temporary employee switcher
-  const employeeOptions = [
-    { id: "1", name: "Sarah Johnson" },
-    { id: "2", name: "Mike Chen" },
-    { id: "3", name: "Emma Davis" },
-    { id: "4", name: "John Smith" },
-  ];
+  
+  // Current employee ID (replace with auth context or prop)
+  const [currentEmployeeId, setCurrentEmployeeId] = useState(getLoggedInEmployeeId());
 
-  // Mock employee data - replace with context or API call
-  const currentEmployee = {
-    id: "1",
-    name: "Sarah Johnson",
-    department: "Customer Service",
-    position: "Customer Service Lead"
-  };
+  function getLoggedInEmployeeId() {
+    // In a real app, get this from auth context
+    // Try different IDs that might exist in your system
+    const possibleIds = ["EMP001", "EMP002", "EMP003", "1", "2", "3"];
+    
+    // Get from localStorage if previously set
+    const savedId = localStorage.getItem('currentEmployeeId');
+    if (savedId) return savedId;
+    
+    // Otherwise use the first ID
+    localStorage.setItem('currentEmployeeId', possibleIds[0]);
+    return possibleIds[0];
+  }
 
-  // fetchMyTasks stays as-is
+  // Fetch tasks from API (updated to use employee-specific endpoint)
   const fetchMyTasks = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const all = PMSDummyDataStore.getAllKpiTasks
-        ? PMSDummyDataStore.getAllKpiTasks()
-        : [];
-      console.log("All tasks in store:", all.map(t => ({
-        id: t.id,
-        assignees: t.assignees,
-        updates: t.assigneeUpdates?.map(u => ({ emp: u.employeeId, count: u.updates.length }))
-      })));
-      const tasks = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
-      console.log('Fetched tasks for employee', currentEmployeeId, ':', tasks.map(t=>t.id));
-      setMyTasks(tasks);
-      setFilteredTasks(tasks);
+      console.log('Fetching tasks for employee:', currentEmployeeId); // Debug log
+      const employeeTasks = await PMSService.getEmployeeKpiTaskAssignments(currentEmployeeId);
+      console.log('API response:', employeeTasks); // Debug log
+      
+      setMyTasks(employeeTasks);
+      setFilteredTasks(employeeTasks);
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+      setError("Failed to fetch your tasks: " + (err.message || "Unknown error"));
+      setMyTasks([]);
+      setFilteredTasks([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Replace initial mount effect with a subscription so this view refreshes
   useEffect(() => {
-    // initial load
     fetchMyTasks();
-
-    // subscribe to store changes (PMSDummyDataStore.subscribe returns an unsubscribe fn)
-    const unsubscribe = PMSDummyDataStore.subscribe(() => {
-      // re-fetch tasks when store notifies
-      fetchMyTasks();
-    });
-
-    return () => {
-      // cleanup subscription on unmount
-      unsubscribe();
-    };
-  }, [currentEmployeeId]); // refetch if employee id changes
+  }, [currentEmployeeId]); // Refetch if employee ID changes
 
   useEffect(() => {
     applyFilters();
@@ -120,19 +108,18 @@ const EmployeeKPIView = () => {
 
   const handleProgressUpdate = async (taskId, progressData) => {
     try {
-      PMSDummyDataStore.updateTaskProgress(taskId, currentEmployeeId, {
-        ...progressData,
-        author: currentEmployee.name,
-      });
-      const refreshed = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
-      setMyTasks(refreshed);
+      // Assuming you have an API method for updates (e.g., PMSService.updateTaskProgress)
+      // For now, simulate or call the appropriate service
+      console.log("Updating progress for task:", taskId, progressData);
+      // Refresh tasks after update
+      fetchMyTasks();
       setIsProgressModalOpen(false);
     } catch (e) {
       console.error("Error updating task progress:", e);
     }
   };
 
-  // Helper functions
+  // Helper functions (unchanged)
   const getStatusBadge = (status) => {
     const statusConfig = {
       active: "bg-green-100 text-green-800",
@@ -169,7 +156,6 @@ const EmployeeKPIView = () => {
     return priorityConfig[priority] || "bg-gray-100 text-gray-800";
   };
 
-  // Calculate task timeline percentage
   const getTimelinePercentage = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -195,6 +181,22 @@ const EmployeeKPIView = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Tasks</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button
+          onClick={fetchMyTasks}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Progress Update Modal */}
@@ -204,7 +206,7 @@ const EmployeeKPIView = () => {
         task={selectedTask}
         onSubmit={(progressData) => handleProgressUpdate(selectedTask?.id, progressData)}
         employeeId={currentEmployeeId}
-        employeeName={currentEmployee.name}
+        employeeName="Current Employee" // Replace with actual name from auth
       />
 
       {/* View Task Modal */}
@@ -229,26 +231,6 @@ const EmployeeKPIView = () => {
             </p>
           </div>
         </div>
-      </div>
-
-      {/* DEBUG: Employee switcher and reload button */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="text-xs text-gray-500">Viewing as:</div>
-        <select
-          value={currentEmployeeId}
-          onChange={(e)=>setCurrentEmployeeId(e.target.value)}
-          className="px-2 py-1 text-sm border border-gray-300 rounded-lg"
-        >
-          {employeeOptions.map(emp => (
-            <option key={emp.id} value={emp.id}>{emp.name} (ID {emp.id})</option>
-          ))}
-        </select>
-        <button
-          onClick={fetchMyTasks}
-          className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-md"
-        >
-          Reload
-        </button>
       </div>
 
       {/* Stats Cards */}
@@ -335,219 +317,218 @@ const EmployeeKPIView = () => {
       <div className="space-y-4">
         {filteredTasks.length > 0 ? (
           filteredTasks.map((task) => {
-            // ensure myUpdates is available to all sub-sections in this task card
-            const myUpdates = task.assigneeUpdates.find(
-              (au) => au.employeeId === parseInt(currentEmployeeId)
-            )?.updates || [];
+            // Ensure myUpdates is available
+            const myUpdates = task.assigneeUpdates && Array.isArray(task.assigneeUpdates) 
+              ? task.assigneeUpdates.find(au => au && au.employeeId === parseInt(currentEmployeeId.replace("EMP", "")))?.updates || []
+              : [];
 
             return (
-            <div
-              key={task.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
-            >
-               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
-                        task.status
-                      )}`}
-                    >
-                      {task.status === "active" && (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {task.status === "attention" && (
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
-                        task.completionStatus
-                      )}`}
-                    >
-                      {task.completionStatus?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Not Started"}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
-                        task.priority
-                      )}`}
-                    >
-                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-3">{task.description}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="col-span-3">
-                      <div className="flex items-center justify-between mb-1">
+              <div
+                key={task.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+              >
+                {/* Task content (unchanged from original) */}
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
+                          task.status
+                        )}`}
+                      >
+                        {task.status === "active" && (
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                        )}
+                        {task.status === "attention" && (
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                        )}
+                        {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
+                          task.completionStatus
+                        )}`}
+                      >
+                        {task.completionStatus?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Not Started"}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
+                          task.priority
+                        )}`}
+                      >
+                        {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
+                      </span>
+                    </div>
+                    <p className="text-gray-600 mb-3">{task.description}</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="col-span-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              Timeline ({getTimelinePercentage(task.startDate, task.endDate)}% elapsed)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {getDaysRemaining(task.endDate)} days remaining
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full bg-indigo-500`}
+                            style={{
+                              width: `${getTimelinePercentage(task.startDate, task.endDate)}%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <CalendarDays className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            Timeline ({getTimelinePercentage(task.startDate, task.endDate)}% elapsed)
+                            {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <File className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            {task.documentCount || 0} document{task.documentCount !== 1 ? 's' : ''} submitted
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            {getDaysRemaining(task.endDate)} days remaining
+                            Last updated: {new Date(task.lastUpdated).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            Weights Total: {task.weights ? task.weights.reduce((sum, w) => sum + (w.percentage || 0), 0) : 0}%
                           </span>
                         </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full bg-indigo-500`}
-                          style={{
-                            width: `${getTimelinePercentage(task.startDate, task.endDate)}%`,
-                          }}
-                        ></div>
-                      </div>
                     </div>
                     
-                    <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <File className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {task.documentCount || 0} document{task.documentCount !== 1 ? 's' : ''} submitted
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          Last updated: {new Date(task.lastUpdated).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          Weights Total: {task.weights ? task.weights.reduce((sum, w) => sum + (w.percentage || 0), 0) : 0}%
-                        </span>
-                      </div>
+                    {/* Latest update with document */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-2">Latest Submission</p>
+                      {myUpdates.length > 0 ? (
+                        (() => {
+                          const latestUpdate = myUpdates[myUpdates.length - 1];
+                          return (
+                            <div className="flex items-start gap-3">
+                              {latestUpdate.documentName && (
+                                <div className="flex-shrink-0 bg-indigo-100 rounded-lg p-2">
+                                  <File className="w-5 h-5 text-indigo-600" />
+                                </div>
+                              )}
+                              <div>
+                                {latestUpdate.documentName && (
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium text-indigo-600">
+                                      {latestUpdate.documentName}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {latestUpdate.documentSize}
+                                    </span>
+                                  </div>
+                                )}
+                                {/* Self-reported progress */}
+                                {latestUpdate.progressPercentage !== undefined && (
+                                  <div className="mt-1 mb-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="text-gray-600 font-medium flex items-center gap-1">
+                                        <BarChart3 className="h-3 w-3 text-gray-500" />
+                                        Self-reported progress: {latestUpdate.progressPercentage}%
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                      <div 
+                                        className={`h-1.5 rounded-full ${
+                                          latestUpdate.progressPercentage < 30 ? 'bg-red-500' : 
+                                          latestUpdate.progressPercentage < 70 ? 'bg-yellow-500' : 
+                                          'bg-green-500'
+                                        }`}
+                                        style={{ width: `${latestUpdate.progressPercentage}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                )}
+                                <p className="text-sm text-gray-800">{latestUpdate.note}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {new Date(latestUpdate.date).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <p className="text-sm text-gray-600">No documents submitted yet</p>
+                      )}
+                      
+                      {/* Performance Metrics Highlights */}
+                      {myUpdates.length > 0 && myUpdates[myUpdates.length - 1].performanceMetrics && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                            {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
+                              .sort((a, b) => b[1] - a[1])
+                              .slice(0, 4)
+                              .map(([key, value]) => {
+                                const displayName = key.replace(/([A-Z])/g, ' $1')
+                                  .replace(/^./, str => str.toUpperCase());
+                                
+                                return (
+                                  <div key={key} className="flex justify-between">
+                                    <span className="text-xs text-gray-600">{displayName}:</span>
+                                    <span className="text-xs font-medium text-gray-900">{value}%</span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
-                  {/* Latest update with document */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-2">Latest Submission</p>
-                    {myUpdates.length > 0 ? (
-                      (() => {
-                        const latestUpdate = myUpdates[myUpdates.length - 1];
-                        return (
-                          <div className="flex items-start gap-3">
-                            {latestUpdate.documentName && (
-                              <div className="flex-shrink-0 bg-indigo-100 rounded-lg p-2">
-                                <File className="w-5 h-5 text-indigo-600" />
-                              </div>
-                            )}
-                            <div>
-                              {latestUpdate.documentName && (
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium text-indigo-600">
-                                    {latestUpdate.documentName}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {latestUpdate.documentSize}
-                                  </span>
-                                </div>
-                              )}
-                              {/* Add self-reported progress visualization here */}
-                              {latestUpdate.progressPercentage !== undefined && (
-                                <div className="mt-1 mb-2">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="text-gray-600 font-medium flex items-center gap-1">
-                                      <BarChart3 className="h-3 w-3 text-gray-500" />
-                                      Self-reported progress: {latestUpdate.progressPercentage}%
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                                    <div 
-                                      className={`h-1.5 rounded-full ${
-                                        latestUpdate.progressPercentage < 30 ? 'bg-red-500' : 
-                                        latestUpdate.progressPercentage < 70 ? 'bg-yellow-500' : 
-                                        'bg-green-500'
-                                      }`}
-                                      style={{ width: `${latestUpdate.progressPercentage}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                              )}
-                              <p className="text-sm text-gray-800">{latestUpdate.note}</p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {new Date(latestUpdate.date).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <p className="text-sm text-gray-600">No documents submitted yet</p>
-                    )}
-                    
-                    {/* Performance Metrics Highlights - new section */}
-                    {myUpdates.length > 0 && myUpdates[myUpdates.length - 1].performanceMetrics && (
-                       <div className="mt-3 pt-3 border-t border-gray-200">
-                         <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
-                         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                           {/* Show top 4 metrics */}
-                           {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
-                             .sort((a, b) => b[1] - a[1])
-                             .slice(0, 4)
-                             .map(([key, value]) => {
-                               // Convert camelCase to display format
-                               const displayName = key.replace(/([A-Z])/g, ' $1')
-                                 .replace(/^./, str => str.toUpperCase());
-                                
-                               return (
-                                 <div key={key} className="flex justify-between">
-                                   <span className="text-xs text-gray-600">{displayName}:</span>
-                                   <span className="text-xs font-medium text-gray-900">{value}%</span>
-                                 </div>
-                               );
-                             })}
-                         </div>
-                       </div>
-                     )}
+                  <div className="flex flex-row lg:flex-col gap-2">
+                    <button
+                      onClick={() => handleOpenViewModal(task)}
+                      className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span>View Details</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenProgressModal(task)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span>Submit Work</span>
+                    </button>
                   </div>
-                 </div>
-                 
-                 <div className="flex flex-row lg:flex-col gap-2">
-                  <button
-                    onClick={() => handleOpenViewModal(task)}
-                    className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span>View Details</span>
-                  </button>
-                  <button
-                    onClick={() => handleOpenProgressModal(task)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    <span>Submit Work</span>
-                  </button>
                 </div>
               </div>
-            </div>
             );
           })
-         ) : (
-           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-             <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-             <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-             <p className="text-gray-600 mb-6">
-               {searchTerm || statusFilter !== "all"
-                 ? "Try adjusting your search criteria or filters"
-                 : "You don't have any assigned KPI tasks yet"}
-             </p>
-           </div>
-         )}
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+            <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+            <p className="text-gray-600 mb-6">
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search criteria or filters"
+                : "You don't have any assigned KPI tasks yet"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

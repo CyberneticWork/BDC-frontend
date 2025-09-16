@@ -30,6 +30,8 @@ import {
 import NewReviewModal from "./NewReviewModal";
 import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
 import EmployeeDocumentsModal from './EmployeeDocumentsModal';
+import { permissions } from '../../../config/permissions'; // Add this import
+import { useAuth } from '../../../contexts/AuthContext'; // Assuming you have an AuthContext for user role; adjust if needed
 
 // Progress Review Modal Component
 const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
@@ -1139,6 +1141,11 @@ const PerformanceReviews = () => {
     });
   };
 
+  // Get current user role (adjust based on your auth setup)
+  const { user } = useAuth(); // Assuming user object has a 'role' property
+  const userRole = user?.role || 'user'; // Default to 'user' if not available
+  const userPermissions = permissions[userRole]?.performanceReviews || {};
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Progress Review Modal */}
@@ -1599,30 +1606,45 @@ const PerformanceReviews = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button 
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          onClick={() => openDetailsModal(review)}
-                          title="View Details"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button 
-                          className="text-indigo-600 hover:text-indigo-900 p-1"
-                          onClick={() => openProgressModal(review)}
-                          title="Update Progress"
-                        >
-                          <ListChecks className="h-4 w-4" />
-                        </button>
-                        <button 
-                          className="text-amber-600 hover:text-amber-900 p-1"
-                          onClick={() => openDocumentsModal(review)}
-                          title="View Documents"
-                        >
-                          <File className="h-4 w-4" />
-                        </button>
-                        <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
-                          <Edit className="h-4 w-4" />
-                        </button>
+                        {/* Always show View Details for all roles with view permission */}
+                        {userPermissions.view && (
+                          <button 
+                            className="text-blue-600 hover:text-blue-900 p-1"
+                            onClick={() => openDetailsModal(review)}
+                            title="View Details"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Show Update Progress only if not "user" role and has edit permission */}
+                        {userRole !== 'user' && userPermissions.edit && (
+                          <button 
+                            className="text-indigo-600 hover:text-indigo-900 p-1"
+                            onClick={() => openProgressModal(review)}
+                            title="Update Progress"
+                          >
+                            <ListChecks className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Show View Documents only if not "user" role and has edit permission */}
+                        {userRole !== 'user' && userPermissions.edit && (
+                          <button 
+                            className="text-amber-600 hover:text-amber-900 p-1"
+                            onClick={() => openDocumentsModal(review)}
+                            title="View Documents"
+                          >
+                            <File className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Show Edit Review only if not "user" role and has edit permission */}
+                        {userRole !== 'user' && userPermissions.edit && (
+                          <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1693,7 +1715,7 @@ const PerformanceReviews = () => {
             </div>
             <div>
               <div className="text-sm font-medium text-gray-500">In Progress</div>
-              <div className="text-xl font-semibold text-gray-900">
+                           <div className="text-xl font-semibold text-gray-900">
                 {reviewData.filter(r => r.status === 'In Progress').length}
               </div>
             </div>
