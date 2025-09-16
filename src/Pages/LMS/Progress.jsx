@@ -168,7 +168,7 @@ const Progress = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Certificates</p>
               <p className="text-2xl font-bold text-gray-900">
-                {userProgress.certificatesEarned}
+                {certificates.length}
               </p>
             </div>
           </div>
@@ -304,17 +304,31 @@ const Progress = () => {
             {certificates.map((certificate) => (
               <div
                 key={certificate.id}
-                className="border border-gray-200 rounded-lg p-6 bg-gradient-to-r from-yellow-50 to-orange-50"
+                className={`border border-gray-200 rounded-lg p-6 ${
+                  certificate.type === "exam"
+                    ? "bg-gradient-to-r from-blue-50 to-indigo-50"
+                    : "bg-gradient-to-r from-yellow-50 to-orange-50"
+                }`}
               >
                 <div className="flex items-center mb-4">
-                  <Award className="h-8 w-8 text-yellow-600 mr-3" />
+                  <Award
+                    className={`h-8 w-8 mr-3 ${
+                      certificate.type === "exam"
+                        ? "text-blue-600"
+                        : "text-yellow-600"
+                    }`}
+                  />
                   <div>
                     <h4 className="font-semibold text-gray-900">
-                      {certificate.course_title ||
-                        `Certificate ${certificate.id}`}
+                      {certificate.type === "exam"
+                        ? certificate.exam_title || certificate.course_title
+                        : certificate.course_title ||
+                          `Certificate ${certificate.id}`}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      Certificate ID: {certificate.id}
+                      {certificate.type === "exam"
+                        ? `Exam Certificate - ID: ${certificate.id}`
+                        : `Course Certificate - ID: ${certificate.id}`}
                     </p>
                   </div>
                 </div>
@@ -324,6 +338,15 @@ const Progress = () => {
                     <Clock className="h-4 w-4 mr-2" />
                     <span>Issued on: {certificate.issued_date}</span>
                   </div>
+                  {certificate.type === "exam" && certificate.score && (
+                    <div className="flex items-center">
+                      <Target className="h-4 w-4 mr-2" />
+                      <span>
+                        Score: {certificate.score}% (Passing:{" "}
+                        {certificate.passing_score}%)
+                      </span>
+                    </div>
+                  )}
                   {certificate.certificate_url && (
                     <div className="flex items-center">
                       <Target className="h-4 w-4 mr-2" />
@@ -335,7 +358,11 @@ const Progress = () => {
                 {certificate.issued_date ? (
                   <button
                     onClick={() => handleShowCertificate(certificate)}
-                    className="mt-4 w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                    className={`mt-4 w-full font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                      certificate.type === "exam"
+                        ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                        : "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white"
+                    }`}
                   >
                     <Award className="h-4 w-4 mr-2" />
                     View Certificate
@@ -376,7 +403,9 @@ const Progress = () => {
                     Certificate
                   </h1>
                   <p className="uppercase tracking-widest text-sm text-gray-500 mb-6">
-                    Of Course Completion
+                    {selectedCertificate.type === "exam"
+                      ? "Of Exam Completion"
+                      : "Of Course Completion"}
                   </p>
                   <p className="text-gray-600 text-sm">
                     This is to certify that
@@ -385,10 +414,14 @@ const Progress = () => {
                     {displayName}
                   </div>
                   <p className="text-gray-600 mb-4">
-                    has successfully completed the course
+                    has successfully completed the{" "}
+                    {selectedCertificate.type === "exam" ? "exam" : "course"}
                   </p>
                   <h2 className="text-2xl font-semibold text-blue-700 mb-2">
-                    {selectedCertificate.course_title}
+                    {selectedCertificate.type === "exam"
+                      ? selectedCertificate.exam_title ||
+                        selectedCertificate.course_title
+                      : selectedCertificate.course_title}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-8">
                     <div className="p-3 rounded bg-blue-50">
@@ -401,10 +434,15 @@ const Progress = () => {
                     </div>
                     <div className="p-3 rounded bg-blue-50">
                       <div className="text-xs uppercase text-gray-500 mb-1">
-                        Course ID
+                        {selectedCertificate.type === "exam"
+                          ? "Exam ID"
+                          : "Course ID"}
                       </div>
                       <div className="font-medium text-gray-800">
-                        {selectedCertificate.course_id}
+                        {selectedCertificate.type === "exam"
+                          ? selectedCertificate.id.replace("exam-", "")
+                          : selectedCertificate.course_id ||
+                            selectedCertificate.id}
                       </div>
                     </div>
                     <div className="p-3 rounded bg-blue-50">
@@ -412,17 +450,42 @@ const Progress = () => {
                         Certificate Code
                       </div>
                       <div className="font-medium text-gray-800">
-                        CERT-
-                        {String(selectedCertificate.course_id).padStart(4, "0")}
-                        -{selectedCertificate.id}
+                        {selectedCertificate.type === "exam"
+                          ? `EXAM-${String(
+                              selectedCertificate.id.replace("exam-", "")
+                            ).padStart(4, "0")}`
+                          : `CERT-${String(
+                              selectedCertificate.course_id ||
+                                selectedCertificate.id
+                            ).padStart(4, "0")}-${selectedCertificate.id}`}
                       </div>
                     </div>
                   </div>
+                  {selectedCertificate.type === "exam" &&
+                    selectedCertificate.score && (
+                      <div className="mt-6 p-4 rounded-lg bg-green-50 border border-green-200">
+                        <div className="flex items-center justify-center">
+                          <Target className="h-5 w-5 text-green-600 mr-2" />
+                          <span className="text-green-800 font-medium">
+                            Score: {selectedCertificate.score}% (Passing Score:{" "}
+                            {selectedCertificate.passing_score}%)
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   <div className="signature mt-12 flex justify-between">
                     <div className="text-center">
-                      <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-blue-200 to-indigo-200 rounded" />
+                      <div
+                        className={`w-48 h-12 mb-2 mx-auto rounded ${
+                          selectedCertificate.type === "exam"
+                            ? "bg-gradient-to-r from-blue-200 to-indigo-200"
+                            : "bg-gradient-to-r from-blue-200 to-indigo-200"
+                        }`}
+                      />
                       <div className="text-xs uppercase tracking-wider text-gray-600">
-                        Course Instructor
+                        {selectedCertificate.type === "exam"
+                          ? "Exam Administrator"
+                          : "Course Instructor"}
                       </div>
                     </div>
                     <div className="text-center">
