@@ -381,6 +381,59 @@ const LMSService = {
     return response.data;
   },
 
+  // Check if a user has passed a specific exam
+  async hasUserPassedExam(examId) {
+    try {
+      // Get exam results for the specific exam
+      const response = await axios.get("/exam-results", {
+        params: { exam_id: examId },
+      });
+
+      // Check if there's any result with passing score
+      const results = response.data.data || [];
+
+      // Find the exam record with matching ID that has a passing score
+      const passedExam = results.find(
+        (result) => result.exam_id == examId && result.passed
+      );
+
+      return !!passedExam;
+    } catch (error) {
+      console.error(`Failed to check if user passed exam ${examId}:`, error);
+      return false;
+    }
+  },
+
+  // Get user certificate for a specific exam
+  async getExamCertificate(examId) {
+    try {
+      // Get exam results for the specific exam to get certificate data
+      const response = await axios.get("/exam-results", {
+        params: { exam_id: examId },
+      });
+
+      // Find the passing result
+      const results = response.data.data || [];
+      const passedResult = results.find(
+        (result) => result.exam_id == examId && result.passed
+      );
+
+      if (!passedResult) return null;
+
+      return {
+        examId: passedResult.exam_id,
+        score: passedResult.score,
+        issueDate: passedResult.submitted_at || new Date().toISOString(),
+        certificateId: `CERT-${String(examId).padStart(4, "0")}-${String(
+          passedResult.score
+        ).padStart(2, "0")}`,
+      };
+    } catch (error) {
+      console.error(`Failed to get certificate for exam ${examId}:`, error);
+      return null;
+    }
+  },
+
   // Test API connectivity
   async testApiConnection() {
     try {
@@ -408,8 +461,8 @@ const LMSService = {
       );
       console.log("Module progress update response:", response.data);
 
-      // Refresh progress data after update
-      await this.refreshUserProgress();
+      // Progress data is updated via API response, no need to refresh here
+      // The frontend components will re-fetch progress data when needed
 
       return response.data;
     } catch (error) {

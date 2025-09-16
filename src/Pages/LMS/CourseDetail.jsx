@@ -11,21 +11,26 @@ import {
   Download,
   BookOpen,
   Target,
+  X,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const CourseDetail = ({ courseId, onBack }) => {
   const [course, setCourse] = useState(null);
   const [currentModule, setCurrentModule] = useState(null);
   const [showCertificate, setShowCertificate] = useState(false);
   const [relatedExams, setRelatedExams] = useState([]);
+  const [courseProgress, setCourseProgress] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [courseData, examsResponse] = await Promise.all([
+        const [courseData, examsResponse, progress] = await Promise.all([
           LMSService.getCourseById(courseId),
           LMSService.getExams({ course_id: courseId }),
+          LMSService.getUserProgress(),
         ]);
         setCourse(courseData);
         if (
@@ -37,46 +42,125 @@ const CourseDetail = ({ courseId, onBack }) => {
         }
         // Load related exams
         setRelatedExams(examsResponse.data || []);
+        // Set course-specific progress from API if available
+        const cp = progress.enrolledCourses?.find(
+          (c) => c.id === parseInt(courseId)
+        );
+        if (cp) setCourseProgress(cp);
       } catch (e) {
         console.error("Failed to load course", e);
       }
     };
     load();
   }, [courseId]);
-
+  const displayName = user?.name || user?.fullName || "Participant";
   const handleModuleComplete = async (moduleId) => {
-    // completeModule was part of old dummy logic; now just mark locally if course loaded
-    setCourse((prev) => {
-      if (!prev) return prev;
-      const updated = {
-        ...prev,
-        modules: prev.modules.map((m) =>
-          m.id === moduleId ? { ...m, completed: true } : m
-        ),
-      };
-      return updated;
-    });
     try {
-      const updatedCourse = await LMSService.getCourseById(courseId); // refresh from API (if API supports completion later)
+      // Call the API to update module progress
+      await LMSService.updateModuleProgress(courseId, moduleId, true);
+
+      // Get updated progress data from API
+      const progressData = await LMSService.getUserProgress();
+      const updatedCourseData = progressData.enrolledCourses?.find(
+        (c) => c.id === parseInt(courseId)
+      );
+      if (updatedCourseData) setCourseProgress(updatedCourseData);
+
+      // Get fresh course data with updated modules
+      const updatedCourse = await LMSService.getCourseById(courseId);
+
+      // Update local state with properly merged data
+      setCourse((prev) => {
+        if (!updatedCourse) return prev;
+
+        // Start with the course data from getCourseById (which has the module structure)
+        let mergedCourse = { ...updatedCourse };
+
+        // If we have progress data, use it to update completion status and module completion
+        if (updatedCourseData) {
+          mergedCourse.completed = updatedCourseData.completed || false;
+
+          // Update module completion status if available from progress data
+          if (
+            updatedCourseData.modules &&
+            updatedCourseData.modules.length > 0
+          ) {
+            mergedCourse.modules = updatedCourse.modules?.map((module) => {
+              const progressModule = updatedCourseData.modules.find(
+                (pm) => pm.id === module.id
+              );
+              return progressModule
+                ? { ...module, completed: progressModule.completed }
+                : module;
+            });
+          } else {
+            // If no detailed module data from progress, at least mark the current module as completed
+            mergedCourse.modules = updatedCourse.modules?.map((module) =>
+              module.id === moduleId ? { ...module, completed: true } : module
+            );
+          }
+        } else {
+          // Fallback: just mark the current module as completed
+          mergedCourse.modules = updatedCourse.modules?.map((module) =>
+            module.id === moduleId ? { ...module, completed: true } : module
+          );
+        }
+
+        return mergedCourse;
+      });
+
+      // Auto-advance to next module if available
       if (updatedCourse) {
-        setCourse(updatedCourse);
         const currentIndex = updatedCourse.modules.findIndex(
           (m) => m.id === moduleId
         );
         if (
           currentIndex > -1 &&
-          currentIndex < updatedCourse.modules.length - 1
+          currentIndex < updatedCourse.modules.length - 1 &&
+          !updatedCourse.modules[currentIndex + 1].completed
         ) {
           setCurrentModule(updatedCourse.modules[currentIndex + 1]);
         }
       }
-    } catch (e) {
-      // fallback to local progression only
+    } catch (error) {
+      console.error("Failed to mark module as complete:", error);
+      // Show error message to user (you might want to add a toast notification here)
+      alert("Failed to update module progress. Please try again.");
     }
   };
 
   const handleModuleSelect = (module) => {
     setCurrentModule(module);
+  };
+
+  // Handle printing certificate in a new window
+  const handlePrintCertificate = () => {
+    const certEl = document.getElementById("course-certificate");
+    if (!certEl) return window.print();
+    const win = window.open("", "PRINT", "height=800,width=1000");
+    if (!win) return;
+    win.document.write(
+      `<!DOCTYPE html><html><head><title>Course Certificate</title><link rel="stylesheet" href="/app.css" />`
+    );
+    win.document.write(`<style>
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:40px; background:#f8fafc; }
+      .cert-container { background:white; border:10px solid #1d4ed8; padding:40px; position:relative; }
+      .cert-inner { border:4px solid #93c5fd; padding:40px; text-align:center; }
+      h1 { font-size:42px; margin:0 0 10px; letter-spacing:2px; }
+      h2 { font-size:26px; margin:10px 0 5px; }
+      .name { font-size:32px; font-weight:600; margin:15px 0; }
+      .meta { margin-top:30px; display:flex; justify-content:space-between; font-size:14px; }
+      .signature { margin-top:50px; display:flex; justify-content:space-between; }
+      .sig-line { border-top:1px solid #0f172a; width:220px; padding-top:6px; font-size:12px; text-transform:uppercase; letter-spacing:1px; }
+    </style></head><body>`);
+    win.document.write(certEl.outerHTML);
+    win.document.write("</body></html>");
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      win.print();
+      win.close();
+    }, 400);
   };
 
   if (!course) {
@@ -92,13 +176,16 @@ const CourseDetail = ({ courseId, onBack }) => {
     );
   }
 
-  const completedModules = (course.modules || []).filter(
-    (m) => m.completed
-  ).length;
+  const completedModules =
+    courseProgress?.completed_modules ??
+    (course.modules || []).filter((m) => m.completed).length;
+  const totalModules =
+    courseProgress?.total_modules ?? (course.modules?.length || 0);
   const progressPercentage =
-    course.modules && course.modules.length > 0
-      ? Math.round((completedModules / course.modules.length) * 100)
-      : 0;
+    totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+  const isCourseCompleted = !!(
+    courseProgress?.completed || progressPercentage === 100
+  );
 
   return (
     <div className="space-y-6">
@@ -112,7 +199,7 @@ const CourseDetail = ({ courseId, onBack }) => {
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Courses
           </button>
-          {course.completed && (
+          {isCourseCompleted && (
             <button
               onClick={() => setShowCertificate(true)}
               className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center"
@@ -132,7 +219,7 @@ const CourseDetail = ({ courseId, onBack }) => {
           <Clock className="h-4 w-4 mr-1" />
           <span>{course.duration}</span>
           <span className="mx-2">•</span>
-          <span>{course.modules.length} modules</span>
+          <span>{totalModules} modules</span>
           <span className="mx-2">•</span>
           <span>{completedModules} completed</span>
         </div>
@@ -200,7 +287,15 @@ const CourseDetail = ({ courseId, onBack }) => {
                   <h3 className="text-xl font-semibold text-gray-900">
                     {currentModule.title}
                   </h3>
-                  {currentModule.completed ? (
+                  {isCourseCompleted ? (
+                    <button
+                      onClick={() => setShowCertificate(true)}
+                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center"
+                    >
+                      <Award className="h-4 w-4 mr-2" />
+                      View Certificate
+                    </button>
+                  ) : currentModule.completed ? (
                     <div className="flex items-center text-green-600">
                       <CheckCircle className="h-5 w-5 mr-2" />
                       <span className="font-medium">Completed</span>
@@ -392,48 +487,94 @@ const CourseDetail = ({ courseId, onBack }) => {
       )}
 
       {/* Certificate Modal */}
-      {showCertificate && course.certificate && (
+      {showCertificate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4">
-            <div className="text-center">
-              <Award className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                Certificate of Completion
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Congratulations on completing this course!
-              </p>
+          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-4">
+            <div className="relative">
+              <button
+                onClick={() => setShowCertificate(false)}
+                className="absolute right-0 top-0 text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
 
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg mb-6">
-                <h4 className="font-semibold text-gray-900 mb-2">
-                  {course.title}
-                </h4>
-                <p className="text-sm text-gray-600 mb-2">
-                  Certificate ID: {course.certificate.id}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Completed on: {course.certificate.completionDate}
-                </p>
+              <div
+                id="course-certificate"
+                className="cert-container ring-1 ring-blue-200 rounded-xl p-8 bg-white"
+              >
+                <div className="cert-inner">
+                  <h1 className="text-4xl font-extrabold tracking-wide text-blue-700 mb-2">
+                    Certificate
+                  </h1>
+                  <p className="uppercase tracking-widest text-sm text-gray-500 mb-6">
+                    Of Course Completion
+                  </p>
+                  <p className="text-gray-600 text-sm">
+                    This is to certify that
+                  </p>
+                  <div className="name text-3xl font-bold text-gray-800 my-4">
+                    {displayName}
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    has successfully completed the course
+                  </p>
+                  <h2 className="text-2xl font-semibold text-blue-700 mb-2">
+                    {course.title}
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    with {completedModules} of {totalModules} modules completed
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-8">
+                    <div className="p-3 rounded bg-blue-50">
+                      <div className="text-xs uppercase text-gray-500 mb-1">
+                        Date Issued
+                      </div>
+                      <div className="font-medium text-gray-800">
+                        {new Date().toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded bg-blue-50">
+                      <div className="text-xs uppercase text-gray-500 mb-1">
+                        Course ID
+                      </div>
+                      <div className="font-medium text-gray-800">
+                        {courseId}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded bg-blue-50">
+                      <div className="text-xs uppercase text-gray-500 mb-1">
+                        Certificate Code
+                      </div>
+                      <div className="font-medium text-gray-800">
+                        CERT-{String(courseId).padStart(4, "0")}-
+                        {String(progressPercentage).padStart(2, "0")}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="signature mt-12 flex justify-between">
+                    <div className="text-center">
+                      <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-blue-200 to-indigo-200 rounded" />
+                      <div className="text-xs uppercase tracking-wider text-gray-600">
+                        Course Instructor
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-green-200 to-emerald-200 rounded" />
+                      <div className="text-xs uppercase tracking-wider text-gray-600">
+                        Learning Coordinator
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex space-x-4">
+              <div className="flex justify-end mt-6">
                 <button
-                  onClick={() => setShowCertificate(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors"
+                  onClick={handlePrintCertificate}
+                  className="flex items-center px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow"
                 >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    // In a real app, this would download/print the certificate
-                    alert(
-                      "Certificate download feature would be implemented here"
-                    );
-                    setShowCertificate(false);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  Download
+                  <Download className="h-4 w-4 mr-2" />
+                  Print / Download Certificate
                 </button>
               </div>
             </div>
