@@ -408,8 +408,8 @@ const LMSService = {
       );
       console.log("Module progress update response:", response.data);
 
-      // Refresh progress data after update
-      await this.refreshUserProgress();
+      // Progress data is updated via API response, no need to refresh here
+      // The frontend components will re-fetch progress data when needed
 
       return response.data;
     } catch (error) {

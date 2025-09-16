@@ -28,6 +28,53 @@ const LMSDashboard = ({
   const [loading, setLoading] = useState(false);
   const [enrollingCourseId, setEnrollingCourseId] = useState(null);
 
+  const refreshDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // Refresh courses
+      const coursesResponse = await LMSService.fetchCourses();
+      let userEnrollments = [];
+      try {
+        const enrollmentsResponse = await LMSService.getEnrollments();
+        userEnrollments = enrollmentsResponse.data || [];
+      } catch (error) {
+        console.warn("Could not fetch user enrollments:", error);
+      }
+
+      const coursesWithEnrollment = coursesResponse.data.map((course) => ({
+        ...course,
+        enrolled: userEnrollments.some(
+          (enrollment) => enrollment.course_id === course.id
+        ),
+      }));
+
+      setCourses(coursesWithEnrollment);
+
+      // Refresh user progress
+      try {
+        const progressData = await LMSService.getUserProgress();
+        setUserProgress(progressData);
+        setEnrolledCourses(
+          progressData.enrolledCourses ||
+            coursesWithEnrollment.filter((c) => c.enrolled)
+        );
+      } catch (progressError) {
+        console.warn("Could not refresh user progress:", progressError);
+        setEnrolledCourses(coursesWithEnrollment.filter((c) => c.enrolled));
+        setUserProgress(LMSService.getUserProgress());
+      }
+
+      // Refresh exams
+      const examsResponse = await LMSService.getExams();
+      setExams(examsResponse.data || []);
+    } catch (error) {
+      console.error("Failed to refresh dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -56,8 +103,21 @@ const LMSDashboard = ({
 
         setCourses(coursesWithEnrollment);
         setExams(examsResponse.data || []);
-        setEnrolledCourses(coursesWithEnrollment.filter((c) => c.enrolled));
-        setUserProgress(LMSService.getUserProgress());
+
+        // Get updated user progress from API
+        try {
+          const progressData = await LMSService.getUserProgress();
+          setUserProgress(progressData);
+          setEnrolledCourses(
+            progressData.enrolledCourses ||
+              coursesWithEnrollment.filter((c) => c.enrolled)
+          );
+        } catch (progressError) {
+          console.warn("Could not fetch user progress:", progressError);
+          // Fallback to local calculation
+          setEnrolledCourses(coursesWithEnrollment.filter((c) => c.enrolled));
+          setUserProgress(LMSService.getUserProgress());
+        }
       } catch (e) {
         console.error("Failed to load dashboard data", e);
         // Fallback to cached data
@@ -68,6 +128,20 @@ const LMSDashboard = ({
       }
     };
     init();
+
+    // Refresh data when page becomes visible (user returns to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Dashboard became visible, refreshing data...");
+        refreshDashboardData();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const handleEnroll = async (courseId) => {
@@ -94,8 +168,8 @@ const LMSDashboard = ({
         courses.find((c) => c.id === courseId),
       ]);
 
-      // Update user progress
-      setUserProgress(LMSService.getUserProgress());
+      // Refresh all dashboard data after enrollment
+      await refreshDashboardData();
 
       // Show success message (you might want to add a toast notification here)
       alert("Successfully enrolled in the course!");
@@ -283,17 +357,57 @@ const LMSDashboard = ({
                     <div
                       className="bg-green-500 h-2 rounded-full"
                       style={{
-                        width: `${
-                          (course.modules.filter((m) => m.completed).length /
-                            course.modules.length) *
-                          100
-                        }%`,
+                        width: (() => {
+                          // Use enrolled course data if available, otherwise calculate from course modules
+                          const enrolledCourse = enrolledCourses.find(
+                            (ec) => ec.id === course.id
+                          );
+                          if (
+                            enrolledCourse &&
+                            enrolledCourse.completed_modules !== undefined
+                          ) {
+                            return enrolledCourse.total_modules > 0
+                              ? `${
+                                  (enrolledCourse.completed_modules /
+                                    enrolledCourse.total_modules) *
+                                  100
+                                }%`
+                              : "0%";
+                          } else {
+                            // Fallback to course modules calculation
+                            return course.modules && course.modules.length > 0
+                              ? `${
+                                  (course.modules.filter((m) => m.completed)
+                                    .length /
+                                    course.modules.length) *
+                                  100
+                                }%`
+                              : "0%";
+                          }
+                        })(),
                       }}
                     ></div>
                   </div>
                   <p className="text-xs text-gray-500">
-                    {course.modules.filter((m) => m.completed).length} of{" "}
-                    {course.modules.length} modules completed
+                    {(() => {
+                      // Use enrolled course data if available
+                      const enrolledCourse = enrolledCourses.find(
+                        (ec) => ec.id === course.id
+                      );
+                      if (
+                        enrolledCourse &&
+                        enrolledCourse.completed_modules !== undefined
+                      ) {
+                        return `${enrolledCourse.completed_modules} of ${enrolledCourse.total_modules} modules completed`;
+                      } else {
+                        // Fallback to course modules calculation
+                        const completed =
+                          course.modules?.filter((m) => m.completed).length ||
+                          0;
+                        const total = course.modules?.length || 0;
+                        return `${completed} of ${total} modules completed`;
+                      }
+                    })()}
                   </p>
                   <button
                     onClick={() => onViewCourse(course.id)}
@@ -302,12 +416,20 @@ const LMSDashboard = ({
                     <Play className="h-4 w-4 mr-2" />
                     Continue Course
                   </button>
-                  {course.completed && (
-                    <div className="flex items-center text-green-600 text-sm font-medium justify-center">
-                      <Award className="h-4 w-4 mr-1" />
-                      Certificate Earned
-                    </div>
-                  )}
+                  {(() => {
+                    // Check completion status from enrolled course data
+                    const enrolledCourse = enrolledCourses.find(
+                      (ec) => ec.id === course.id
+                    );
+                    const isCompleted =
+                      enrolledCourse?.completed || course.completed;
+                    return isCompleted ? (
+                      <div className="flex items-center text-green-600 text-sm font-medium justify-center">
+                        <Award className="h-4 w-4 mr-1" />
+                        Certificate Earned
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               ) : (
                 <button
