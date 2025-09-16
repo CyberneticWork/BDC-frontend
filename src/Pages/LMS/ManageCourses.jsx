@@ -416,7 +416,8 @@ const ManageCourses = ({ onViewCourse }) => {
             </div>
 
             <div className="text-xs text-gray-400 mb-4">
-              Created by: {LMSService.getCourseCreator(course.id)?.name || "Unknown"}
+              Created by:{" "}
+              {LMSService.getCourseCreator(course.id)?.name || "Unknown"}
             </div>
 
             <div className="flex space-x-2">
