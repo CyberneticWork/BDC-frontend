@@ -265,10 +265,19 @@ const LMSService = {
           : null,
       }));
 
+      // Fetch exam certificates
+      const examCertificates = await this._getExamCertificates();
+
+      // Combine course and exam certificates
+      const allCertificates = [
+        ...(data.certificates || []),
+        ...examCertificates,
+      ];
+
       return {
         ...this._userProgress,
         enrolledCourses: data.enrolledCourses || [],
-        certificates: data.certificates || [],
+        certificates: allCertificates,
       };
     } catch (error) {
       console.error("Failed to fetch user progress from API:", error);
@@ -283,6 +292,45 @@ const LMSService = {
         enrolledCourses: this.getEnrolledCourses(),
         certificates: [],
       };
+    }
+  },
+
+  // Helper method to get exam certificates
+  async _getExamCertificates() {
+    try {
+      // Get all exams
+      const examsResponse = await this.getExams();
+      const exams = examsResponse.data || [];
+
+      // Get exam results to find passed exams
+      const resultsResponse = await this.getExamResults();
+      const results = resultsResponse.data || [];
+
+      // Filter passed exams and create certificate objects
+      const examCertificates = [];
+
+      for (const result of results) {
+        if (result.passed) {
+          const exam = exams.find((e) => e.id === result.exam_id);
+          if (exam) {
+            examCertificates.push({
+              id: `exam-${result.exam_id}`,
+              type: "exam",
+              course_title: exam.title,
+              exam_title: exam.title,
+              issued_date: result.submitted_at || result.created_at,
+              score: result.score,
+              passing_score: exam.passing_score || exam.passingScore,
+              certificate_url: null, // Exam certificates might not have URLs
+            });
+          }
+        }
+      }
+
+      return examCertificates;
+    } catch (error) {
+      console.error("Failed to fetch exam certificates:", error);
+      return [];
     }
   },
 

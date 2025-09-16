@@ -395,20 +395,13 @@ const ManageCourses = ({ onViewCourse }) => {
         {courses.map((course) => (
           <div
             key={course.id}
-            className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300"
+            className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <BookOpen className="h-8 w-8 text-blue-600 mr-3" />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {course.title}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {course.modules.length} modules
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center mb-4">
+              <BookOpen className="h-8 w-8 text-blue-600 mr-3" />
+              <h4 className="text-lg font-semibold text-gray-900">
+                {course.title}
+              </h4>
             </div>
 
             <p className="text-gray-600 text-sm mb-4 line-clamp-3">
@@ -418,11 +411,12 @@ const ManageCourses = ({ onViewCourse }) => {
             <div className="flex items-center text-sm text-gray-500 mb-4">
               <Clock className="h-4 w-4 mr-1" />
               <span>{course.duration}</span>
+              <span className="mx-2">•</span>
+              <span>{course.modules.length} modules</span>
             </div>
 
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-              <span>Created: {course.createdAt}</span>
-              <span>Updated: {course.updatedAt}</span>
+            <div className="text-xs text-gray-400 mb-4">
+              Created by: {LMSService.getCourseCreator(course.id)?.name || "Unknown"}
             </div>
 
             <div className="flex space-x-2">
@@ -430,7 +424,7 @@ const ManageCourses = ({ onViewCourse }) => {
                 // For regular users, show enroll/continue functionality
                 course.enrolled ? (
                   <div className="w-full space-y-2">
-                    <div className="text-sm text-green-600 font-medium text-center">
+                    <div className="text-sm text-green-600 font-medium">
                       Enrolled
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -445,13 +439,13 @@ const ManageCourses = ({ onViewCourse }) => {
                         }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-xs text-gray-500">
                       {course.modules?.filter((m) => m.completed).length || 0}{" "}
                       of {course.modules?.length || 0} modules completed
                     </p>
                     <button
                       onClick={() => onViewCourse(course.id)}
-                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center mt-2"
                     >
                       <Play className="h-4 w-4 mr-2" />
                       Continue Course
@@ -468,7 +462,7 @@ const ManageCourses = ({ onViewCourse }) => {
                 )
               ) : (
                 // For admin/HR users, show management buttons
-                <>
+                <div className="flex space-x-2">
                   <button
                     onClick={() => onViewCourse(course.id)}
                     className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
@@ -493,7 +487,7 @@ const ManageCourses = ({ onViewCourse }) => {
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
