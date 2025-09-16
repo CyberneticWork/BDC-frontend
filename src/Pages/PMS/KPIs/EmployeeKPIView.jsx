@@ -36,17 +36,23 @@ const EmployeeKPIView = () => {
   const [currentEmployeeId, setCurrentEmployeeId] = useState(getLoggedInEmployeeId());
 
   function getLoggedInEmployeeId() {
-    // In a real app, get this from auth context
-    // Try different IDs that might exist in your system
-    const possibleIds = ["EMP001", "EMP002", "EMP003", "1", "2", "3"];
-    
-    // Get from localStorage if previously set
-    const savedId = localStorage.getItem('currentEmployeeId');
-    if (savedId) return savedId;
-    
-    // Otherwise use the first ID
-    localStorage.setItem('currentEmployeeId', possibleIds[0]);
-    return possibleIds[0];
+    // Prefer stored auth user payload if present
+    try {
+      const authRaw = localStorage.getItem('auth_user') || localStorage.getItem('user') || null;
+      if (authRaw) {
+        const auth = JSON.parse(authRaw);
+        if (auth.employee_id) return String(auth.employee_id);
+        if (auth.attendance_employee_no) return String(auth.attendance_employee_no);
+        if (auth.user && auth.user.employee_id) return String(auth.user.employee_id);
+        if (auth.user && auth.user.attendance_employee_no) return String(auth.user.attendance_employee_no);
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+    // fallback saved id
+    const saved = localStorage.getItem('currentEmployeeId');
+    if (saved) return String(saved);
+    return ''; // empty if unknown
   }
 
   // Fetch tasks from API (updated to use employee-specific endpoint)
@@ -54,17 +60,30 @@ const EmployeeKPIView = () => {
     setIsLoading(true);
     setError(null);
     try {
-      console.log('Fetching tasks for employee:', currentEmployeeId); // Debug log
-      const employeeTasks = await PMSService.getEmployeeKpiTaskAssignments(currentEmployeeId);
-      console.log('API response:', employeeTasks); // Debug log
-      
-      setMyTasks(employeeTasks);
-      setFilteredTasks(employeeTasks);
+      console.log('Fetching tasks for employeeId:', currentEmployeeId);
+
+      if (!currentEmployeeId) {
+        console.error('No employeeId available!');
+        setError('User ID not found. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await PMSService.getEmployeeKpiTaskAssignments(currentEmployeeId);
+      console.log('API Response:', response);
+
+      if (!Array.isArray(response)) {
+        console.error('Invalid API response format, expected array:', response);
+        setError('Invalid data received from server');
+        setMyTasks([]);
+        return;
+      }
+
+      setMyTasks(response);
     } catch (err) {
-      console.error("Error fetching tasks:", err);
-      setError("Failed to fetch your tasks: " + (err.message || "Unknown error"));
+      console.error('Fetch error:', err);
+      setError(err?.message || 'Failed to fetch tasks');
       setMyTasks([]);
-      setFilteredTasks([]);
     } finally {
       setIsLoading(false);
     }
@@ -79,18 +98,19 @@ const EmployeeKPIView = () => {
   }, [myTasks, searchTerm, statusFilter]);
 
   const applyFilters = () => {
-    let filtered = myTasks;
+    let filtered = Array.isArray(myTasks) ? myTasks : [];
 
     if (searchTerm) {
-      filtered = filtered.filter(
-        (task) =>
-          task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          task.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const q = searchTerm.toLowerCase();
+      filtered = filtered.filter((task) => {
+        const name = (task.name || '').toString().toLowerCase();
+        const desc = (task.description || '').toString().toLowerCase();
+        return name.includes(q) || desc.includes(q);
+      });
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((task) => task.status === statusFilter);
+      filtered = filtered.filter((task) => (task.status || '').toString() === statusFilter);
     }
 
     setFilteredTasks(filtered);
@@ -318,8 +338,18 @@ const EmployeeKPIView = () => {
         {filteredTasks.length > 0 ? (
           filteredTasks.map((task) => {
             // Ensure myUpdates is available
-            const myUpdates = task.assigneeUpdates && Array.isArray(task.assigneeUpdates) 
-              ? task.assigneeUpdates.find(au => au && au.employeeId === parseInt(currentEmployeeId.replace("EMP", "")))?.updates || []
+            const empNumeric = parseInt(String(currentEmployeeId).replace(/\D/g, ''), 10) || null;
+            const empRawStr = String(currentEmployeeId);
+
+            const myUpdates = (task.assigneeUpdates && Array.isArray(task.assigneeUpdates))
+              ? (task.assigneeUpdates.find(au => {
+                  if (!au) return false;
+                  // match numeric or string or direct equality
+                  if (typeof au.employeeId === 'number' && empNumeric && au.employeeId === empNumeric) return true;
+                  if (String(au.employeeId) === empRawStr) return true;
+                  if (String(au.employeeId) === String(empNumeric)) return true;
+                  return false;
+                }) || {}).updates || []
               : [];
 
             return (
