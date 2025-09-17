@@ -200,7 +200,7 @@ const CertificateModal = ({
                 )}
 
               <div className="signature mt-12 flex justify-between">
-                <div className="text-center">
+                {/* <div className="text-center">
                   <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-blue-200 to-indigo-200 rounded" />
                   <div className="text-xs uppercase tracking-wider text-gray-600">
                     {certificateType === "exam"
@@ -209,15 +209,15 @@ const CertificateModal = ({
                       ? "Exam Administrator"
                       : "Course Instructor"}
                   </div>
-                </div>
-                <div className="text-center">
+                </div> */}
+                {/* <div className="text-center">
                   <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-green-200 to-emerald-200 rounded" />
                   <div className="text-xs uppercase tracking-wider text-gray-600">
                     {certificateType === "exam"
                       ? "Exam Coordinator"
                       : "Learning Coordinator"}
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

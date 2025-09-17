@@ -545,9 +545,7 @@ const ExamManagement = ({ onTakeExam }) => {
     try {
       // Get the exam data
       const exam = exams.find((e) => e.id === examId);
-      if (!exam) {
-        throw new Error("Exam not found");
-      }
+      // exam may be absent in edge cases; don't hard-fail here
 
       // Get certificate data from the service
       const certificate = await LMSService.getExamCertificate(examId);
@@ -558,9 +556,11 @@ const ExamManagement = ({ onTakeExam }) => {
       // Set certificate data and show modal
       setCurrentCertificate({
         ...certificate,
-        examTitle: exam.title,
-        examDescription: exam.description,
-        passingScore: exam.passing_score || exam.passingScore,
+        // Prefer title coming from certificate; fallback to local exam list
+        examTitle: certificate.examTitle || exam?.title,
+        examDescription: certificate.examDescription || exam?.description,
+        passingScore:
+          certificate.passingScore || exam?.passing_score || exam?.passingScore,
         userName: user?.name || user?.fullName || "User",
       });
       setShowCertificateModal(true);
@@ -642,23 +642,46 @@ const ExamManagement = ({ onTakeExam }) => {
             </div>
 
             <div className="flex space-x-2">
-              {passedExams[exam.id] ? (
-                <button
-                  onClick={() => handleViewCertificate(exam.id)}
-                  className="flex-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                >
-                  <Award className="h-4 w-4 mr-1" />
-                  View Certificate
-                </button>
-              ) : (
-                <button
-                  onClick={() => onTakeExam && onTakeExam(exam.id)}
-                  className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Take Exam
-                </button>
-              )}
+              {(() => {
+                const statusKnown = Object.prototype.hasOwnProperty.call(
+                  passedExams,
+                  exam.id
+                );
+
+                if (!statusKnown) {
+                  return (
+                    <button
+                      disabled
+                      className="flex-1 bg-gray-200 text-gray-600 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center cursor-wait"
+                    >
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                      Checking status...
+                    </button>
+                  );
+                }
+
+                if (passedExams[exam.id]) {
+                  return (
+                    <button
+                      onClick={() => handleViewCertificate(exam.id)}
+                      className="flex-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <Award className="h-4 w-4 mr-1" />
+                      View Certificate
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    onClick={() => onTakeExam && onTakeExam(exam.id)}
+                    className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Take Exam
+                  </button>
+                );
+              })()}
               {isExamOwner(exam) && (
                 <button
                   onClick={() => handleEditExam(exam)}

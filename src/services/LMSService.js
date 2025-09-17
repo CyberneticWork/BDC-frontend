@@ -321,6 +321,14 @@ const LMSService = {
           if (exam) {
             examCertificates.push({
               id: `exam-${result.exam_id}`,
+              // Add fields that CertificateModal expects when certificateType === 'exam'
+              examId: result.exam_id,
+              examTitle: exam.title,
+              examDescription: exam.description,
+              issueDate: result.submitted_at || result.created_at,
+              passingScore: exam.passing_score || exam.passingScore,
+
+              // Keep existing fields for current list rendering and backward compatibility
               type: "exam",
               course_title: exam.title,
               exam_title: exam.title,
@@ -487,6 +495,20 @@ const LMSService = {
 
       if (!passedResult) return null;
 
+      // Try to resolve exam metadata (title, description, passing score)
+      let examData = null;
+      try {
+        examData = await this.getExam(examId);
+      } catch (e) {
+        // Fallback to embedded exam object in the result (if provided)
+        examData = passedResult.exam || null;
+      }
+
+      const examTitle = examData?.title || `Exam #${examId}`;
+      const examDescription = examData?.description;
+      const passingScore =
+        examData?.passing_score || examData?.passingScore || undefined;
+
       return {
         examId: passedResult.exam_id,
         score: passedResult.score,
@@ -494,6 +516,9 @@ const LMSService = {
         certificateId: `CERT-${String(examId).padStart(4, "0")}-${String(
           passedResult.score
         ).padStart(2, "0")}`,
+        examTitle,
+        examDescription,
+        passingScore,
       };
     } catch (error) {
       console.error(`Failed to get certificate for exam ${examId}:`, error);

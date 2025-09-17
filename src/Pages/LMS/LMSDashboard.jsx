@@ -253,6 +253,23 @@ const LMSDashboard = ({
   const [passedExams, setPassedExams] = useState({});
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [currentCertificate, setCurrentCertificate] = useState(null);
+  const [showDebugModal, setShowDebugModal] = useState(false);
+  const [debugData, setDebugData] = useState(null);
+  const [loadingDebug, setLoadingDebug] = useState(false);
+
+  const handleShowDebugResults = async () => {
+    try {
+      setLoadingDebug(true);
+      const res = await LMSService.getExamResults();
+      setDebugData(res);
+      setShowDebugModal(true);
+    } catch (e) {
+      console.error("Failed to fetch exam-results for debug", e);
+      alert("Failed to load exam results. Check console for details.");
+    } finally {
+      setLoadingDebug(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -267,6 +284,25 @@ const LMSDashboard = ({
           </p>
         </div>
         <div className="flex space-x-4">
+          {user && user.role !== "user" && (
+            <button
+              onClick={handleShowDebugResults}
+              disabled={loadingDebug}
+              className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+            >
+              {loadingDebug ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Loading Debug
+                </>
+              ) : (
+                <>
+                  <FileText className="h-5 w-5 mr-2" />
+                  Debug: Exam Results
+                </>
+              )}
+            </button>
+          )}
           {user && user.role !== "user" && (
             <Link
               to="/dashboard/lmsUserStats"
@@ -567,23 +603,46 @@ const LMSDashboard = ({
                 )}
               </div>
 
-              {passedExams[exam.id] ? (
-                <button
-                  onClick={() => handleViewCertificate(exam.id)}
-                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
-                >
-                  <Award className="h-4 w-4 mr-2" />
-                  View Certificate
-                </button>
-              ) : (
-                <button
-                  onClick={() => onTakeExam(exam.id)}
-                  className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
-                >
-                  <Target className="h-4 w-4 mr-2" />
-                  Take Exam
-                </button>
-              )}
+              {(() => {
+                const statusKnown = Object.prototype.hasOwnProperty.call(
+                  passedExams,
+                  exam.id
+                );
+
+                if (!statusKnown) {
+                  return (
+                    <button
+                      disabled
+                      className="w-full bg-gray-300 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center cursor-wait"
+                    >
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Checking status...
+                    </button>
+                  );
+                }
+
+                if (passedExams[exam.id]) {
+                  return (
+                    <button
+                      onClick={() => handleViewCertificate(exam.id)}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                    >
+                      <Award className="h-4 w-4 mr-2" />
+                      View Certificate
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    onClick={() => onTakeExam(exam.id)}
+                    className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                  >
+                    <Target className="h-4 w-4 mr-2" />
+                    Take Exam
+                  </button>
+                );
+              })()}
             </div>
           ))}
         </div>
@@ -620,6 +679,30 @@ const LMSDashboard = ({
           }
           certificateType="exam"
         />
+      )}
+
+      {/* Debug Modal */}
+      {showDebugModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[85vh] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Debug: /exam-results Response
+              </h3>
+              <button
+                onClick={() => setShowDebugModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-4 overflow-auto max-h-[70vh]">
+              <pre className="text-xs text-gray-800 whitespace-pre-wrap">
+                {JSON.stringify(debugData, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
