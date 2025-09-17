@@ -1111,21 +1111,27 @@ const KPIs = () => {
     setIsSubmitting(true);
     try {
       const data = {
-        task_name: formData.name, // From selected task
+        task_name: formData.name,
         description: formData.description,
         company_id: formData.company,
         department_id: formData.department,
-        creator_role_name: formData.creatorRole, // role_name string
-        assignees: formData.assignees, // Array of attendance_employee_no
+        creator_role_name: formData.creatorRole,
+        assignees: formData.assignees,
         start_date: formData.startDate,
         end_date: formData.endDate,
         weights: formData.weights,
         priority: formData.priority,
       };
+      
       const result = await PMSService.createKpiTaskAssignment(data);
+      
+      // Show success message
       alert("KPI task assignment created successfully.");
       setIsAddModalOpen(false);
-      // Optionally, refresh KPIs list or navigate
+      
+      // Refresh the KPI list to get the latest data from server
+      await fetchKpis();
+      
     } catch (e) {
       console.error(e);
       alert("Failed to create KPI task assignment");
@@ -1149,10 +1155,14 @@ const KPIs = () => {
         weights: formData.weights,
         priority: formData.priority,
       };
+      
       const result = await PMSService.updateKpiTaskAssignment(currentKpi.id, data);
       alert("KPI task updated successfully.");
       setIsEditModalOpen(false);
-      fetchKpis(); // Refresh the list
+      
+      // FIX: Ensure we refresh the list after update
+      await fetchKpis();
+      
     } catch (e) {
       console.error(e);
       alert("Failed to update KPI task");
@@ -1167,7 +1177,10 @@ const KPIs = () => {
       const result = await PMSService.deleteKpiTaskAssignment(currentKpi.id);
       alert("KPI task deleted successfully.");
       setIsDeleteModalOpen(false);
-      fetchKpis(); // Refresh the list
+      
+      // FIX: Ensure we refresh the list after deletion
+      await fetchKpis();
+      
     } catch (e) {
       console.error(e);
       alert("Failed to delete KPI task");

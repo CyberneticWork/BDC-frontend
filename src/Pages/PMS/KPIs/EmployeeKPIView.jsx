@@ -14,6 +14,8 @@ import {
   File,
   Calendar,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService"; // Updated import
 import { TaskProgressUpdateModal } from "./TaskProgressUpdateModal";
@@ -34,6 +36,10 @@ const EmployeeKPIView = () => {
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const tasksPerPage = 3;
   
   // Current employee ID (replace with auth context or prop)
   const [currentEmployeeId, setCurrentEmployeeId] = useState(getLoggedInEmployeeId());
@@ -82,10 +88,24 @@ const EmployeeKPIView = () => {
         return;
       }
 
-      setMyTasks(response);
+      // changed code: sort only by most-recent timestamp (created_at, lastUpdated, startDate) — latest first
+      const parseTimestamp = (t) => {
+        const candidates = [t.created_at, t.lastUpdated, t.startDate, t.endDate];
+        for (const c of candidates) {
+          if (c) {
+            const ts = Date.parse(c);
+            if (!isNaN(ts)) return ts;
+          }
+        }
+        return 0;
+      };
+
+      const sortedTasks = [...response].sort((a, b) => parseTimestamp(b) - parseTimestamp(a));
+
+      setMyTasks(sortedTasks);
       
       // Fetch progress submissions for each task
-      await fetchProgressSubmissions(response);
+      await fetchProgressSubmissions(sortedTasks);
     } catch (err) {
       console.error('Fetch error:', err);
       setError(err?.message || 'Failed to fetch tasks');
@@ -138,6 +158,7 @@ const EmployeeKPIView = () => {
 
   useEffect(() => {
     applyFilters();
+    setCurrentPage(1); // Reset pagination when filters change
   }, [myTasks, searchTerm, statusFilter]);
 
   const applyFilters = () => {
@@ -157,6 +178,17 @@ const EmployeeKPIView = () => {
     }
 
     setFilteredTasks(filtered);
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
+  const startIndex = (currentPage - 1) * tasksPerPage;
+  const endIndex = startIndex + tasksPerPage;
+  const currentTasks = filteredTasks.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenProgressModal = (task) => {
@@ -388,7 +420,7 @@ const EmployeeKPIView = () => {
               My KPI Tasks
             </h1>
             <p className="text-gray-600 mt-2">
-              Track and submit deliverables for your assigned tasks
+              Track and submit deliverables for your assigned tasks (Latest added first)
             </p>
           </div>
         </div>
@@ -476,8 +508,8 @@ const EmployeeKPIView = () => {
 
       {/* Tasks List */}
       <div className="space-y-4">
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map((task) => {
+        {currentTasks.length > 0 ? (
+          currentTasks.map((task) => {
             const latestSubmission = getLatestSubmission(task.id);
 
             return (
@@ -574,82 +606,52 @@ const EmployeeKPIView = () => {
                       </div>
                     </div>
                     
-                    {/* Latest Submission */}
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-2 font-medium">Latest Submission</p>
+                    {/* Latest Submission - Reduced Size */}
+                    <div className="bg-gray-50 p-2 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1 font-medium">Latest Submission</p>
                       {latestSubmission ? (
-                        <div className="space-y-2">
-                          {/* Document info - more compact */}
+                        <div className="space-y-1">
+                          {/* Document info - compact */}
                           {latestSubmission.document_name && (
                             <div className="flex items-center gap-2">
-                              <div className="flex-shrink-0 bg-indigo-100 rounded p-1">
-                                <File className="w-3 h-3 text-indigo-600" />
+                              <div className="flex-shrink-0 bg-indigo-100 rounded p-0.5">
+                                <File className="w-2.5 h-2.5 text-indigo-600" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-indigo-600 truncate">
                                   {latestSubmission.document_name}
                                 </p>
-                                <p className="text-xs text-gray-500">
-                                  {latestSubmission.document_size}
-                                </p>
                               </div>
                             </div>
                           )}
                           
-                          {/* Progress Bar - more compact */}
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600 font-medium flex items-center gap-1">
-                                <BarChart3 className="h-3 w-3 text-gray-500" />
-                                Progress: {latestSubmission.progress_percentage}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5">
-                              <div 
-                                className={`h-1.5 rounded-full ${
-                                  latestSubmission.progress_percentage < 30 ? 'bg-red-500' : 
-                                  latestSubmission.progress_percentage < 70 ? 'bg-yellow-500' : 
-                                  'bg-green-500'
-                                }`}
-                                style={{ width: `${latestSubmission.progress_percentage}%` }}
-                              ></div>
-                            </div>
+                          {/* Progress Bar - compact */}
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-600 font-medium flex items-center gap-1">
+                              <BarChart3 className="h-2.5 w-2.5 text-gray-500" />
+                              Progress: {latestSubmission.progress_percentage}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1">
+                            <div 
+                              className={`h-1 rounded-full ${
+                                latestSubmission.progress_percentage < 30 ? 'bg-red-500' : 
+                                latestSubmission.progress_percentage < 70 ? 'bg-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${latestSubmission.progress_percentage}%` }}
+                            ></div>
                           </div>
                           
-                          {/* Note - more compact */}
-                          <p className="text-xs text-gray-800 leading-relaxed line-clamp-2">
+                          {/* Note - compact */}
+                          <p className="text-xs text-gray-800 line-clamp-1 mt-1">
                             {latestSubmission.note}
                           </p>
                           
-                          {/* Timestamp - more compact */}
+                          {/* Timestamp - compact */}
                           <p className="text-xs text-gray-500">
-                            {new Date(latestSubmission.created_at).toLocaleString()}
+                            {new Date(latestSubmission.created_at).toLocaleDateString()}
                           </p>
-                          
-                          {/* Performance Metrics Highlights - more compact */}
-                          {latestSubmission.performance_metrics && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <p className="text-xs text-gray-500 mb-2 font-medium">Top Metrics:</p>
-                              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                                {Object.entries(latestSubmission.performance_metrics)
-                                  .sort((a, b) => b[1] - a[1])
-                                  .slice(0, 4)
-                                  .map(([key, value]) => {
-                                    const displayName = key.replace(/([A-Z])/g, ' $1')
-                                      .replace(/^./, str => str.toUpperCase());
-                                    
-                                    return (
-                                      <div key={key} className="flex justify-between items-center">
-                                        <span className="text-xs text-gray-600 truncate pr-1" title={displayName}>
-                                          {displayName.length > 12 ? displayName.substring(0, 12) + '...' : displayName}:
-                                        </span>
-                                        <span className="text-xs font-medium text-gray-900">{value}%</span>
-                                      </div>
-                                    );
-                                  })}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-600">No submissions yet</p>
@@ -689,6 +691,59 @@ const EmployeeKPIView = () => {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="text-sm text-gray-700">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredTasks.length)} of {filteredTasks.length} tasks
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === 1
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </button>
+            
+            <div className="flex space-x-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentPage === page
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === totalPages
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
