@@ -247,13 +247,30 @@ class PMSService {
     }
   }
 
-  // Submit task progress
-  async submitTaskProgress(data) {
+  // Submit task progress with file upload
+  async submitTaskProgress(formData) {
     try {
-      const response = await axios.post('/pms/task-progress-submissions', data);
+      console.log("PMSService: Submitting task progress...");
+      const response = await axios.post('/pms/task-progress-submissions', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response.data;
     } catch (error) {
       console.error("Error submitting task progress:", error);
+      
+      // Log detailed error information for debugging
+      if (error.response) {
+        console.error("Response status:", error.response.status);
+        console.error("Response data:", error.response.data);
+        console.error("Response headers:", error.response.headers);
+      } else if (error.request) {
+        console.error("No response received:", error.request);
+      } else {
+        console.error("Error setting up request:", error.message);
+      }
+      
       throw error;
     }
   }

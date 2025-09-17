@@ -111,8 +111,20 @@ export const TaskProgressUpdateModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Enhanced validation
     if (!progressNote.trim()) {
       alert("Please add a note about your progress");
+      return;
+    }
+
+    if (currentMetricValue === undefined || currentMetricValue === null || isNaN(currentMetricValue)) {
+      alert("Please set a valid progress percentage");
+      return;
+    }
+
+    if (currentMetricValue < 0 || currentMetricValue > 100) {
+      alert("Progress percentage must be between 0 and 100");
       return;
     }
 
@@ -125,35 +137,33 @@ export const TaskProgressUpdateModal = ({
       const metricKey = getMetricKeyFromTask();
       const performanceMetrics = {};
       
+      // Ensure currentMetricValue is a valid integer
+      const progressValue = parseInt(currentMetricValue);
+      
       // Set value only for the current metric, leave others at 0
       Object.keys(taskNameToMetricKey).forEach(taskName => {
         const key = taskNameToMetricKey[taskName];
-        performanceMetrics[key] = key === metricKey ? currentMetricValue : 0;
+        performanceMetrics[key] = key === metricKey ? progressValue : 0;
       });
       
       // Add the task name with its percentage to performance metrics
-      performanceMetrics[task.name] = currentMetricValue;
-      
-      // Prepare document data (optional)
-      const documentData = selectedFile ? {
-        documentName: selectedFile.name,
-        documentSize: (selectedFile.size / 1024).toFixed(1) + " KB",
-        documentType: selectedFile.type,
-      } : {
-        documentName: null,
-        documentSize: null,
-        documentType: null,
-      };
+      performanceMetrics[task.name] = progressValue;
       
       // Progress data structure expected by the API
       const progressData = {
-        note: progressNote,
-        progressPercentage: currentMetricValue,
+        note: progressNote.trim(),
+        progressPercentage: progressValue, // Use validated integer
         performanceMetrics: performanceMetrics,
         date: now,
         author: employeeName || "Employee",
-        ...documentData
+        // Include file and metadata
+        file: selectedFile,
+        documentName: selectedFile?.name || null,
+        documentSize: selectedFile ? (selectedFile.size / 1024).toFixed(1) + " KB" : null,
+        documentType: selectedFile?.type || null,
       };
+      
+      console.log("Submitting progress data:", progressData); // Debug log
       
       await onSubmit(progressData);
       
@@ -349,7 +359,11 @@ export const TaskProgressUpdateModal = ({
                       max="100"
                       step="5"
                       value={currentMetricValue}
-                      onChange={(e) => setCurrentMetricValue(parseInt(e.target.value))}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value, 10);
+                        console.log("Range value changed:", value); // Debug log
+                        setCurrentMetricValue(value);
+                      }}
                       className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
                     <div className="flex justify-between text-xs text-gray-500 mt-2">

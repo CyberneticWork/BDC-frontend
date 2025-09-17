@@ -27,6 +27,9 @@ const EmployeeKPIView = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   
+  // Add state for progress submissions
+  const [progressSubmissions, setProgressSubmissions] = useState({});
+  
   // Modal states
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -80,6 +83,9 @@ const EmployeeKPIView = () => {
       }
 
       setMyTasks(response);
+      
+      // Fetch progress submissions for each task
+      await fetchProgressSubmissions(response);
     } catch (err) {
       console.error('Fetch error:', err);
       setError(err?.message || 'Failed to fetch tasks');
@@ -87,6 +93,43 @@ const EmployeeKPIView = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // New function to fetch progress submissions
+  const fetchProgressSubmissions = async (tasks) => {
+    try {
+      const submissions = {};
+      
+      // Fetch progress submissions for each task
+      for (const task of tasks) {
+        try {
+          const taskSubmissions = await PMSService.getTaskProgressSubmissions(task.id);
+          submissions[task.id] = taskSubmissions || [];
+        } catch (err) {
+          console.error(`Error fetching submissions for task ${task.id}:`, err);
+          submissions[task.id] = [];
+        }
+      }
+      
+      setProgressSubmissions(submissions);
+    } catch (err) {
+      console.error('Error fetching progress submissions:', err);
+    }
+  };
+
+  // Get latest submission for a task
+  const getLatestSubmission = (taskId) => {
+    const submissions = progressSubmissions[taskId] || [];
+    if (submissions.length === 0) return null;
+    
+    // Sort by created_at desc and get the first one
+    return submissions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  };
+
+  // Get all submissions for a task (for view modal)
+  const getAllSubmissions = (taskId) => {
+    const submissions = progressSubmissions[taskId] || [];
+    return submissions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   };
 
   useEffect(() => {
@@ -127,6 +170,8 @@ const EmployeeKPIView = () => {
   };
 
   const handleProgressUpdate = async (taskId, progressData) => {
+    console.log("handleProgressUpdate called with:", { taskId, progressData }); // Debug log
+    
     try {
       // Find the assignment ID for this task
       const task = myTasks.find(t => t.id === taskId);
@@ -150,27 +195,63 @@ const EmployeeKPIView = () => {
         employeeDbId = parseInt(currentEmployeeId);
       }
 
-      // Prepare submission data
-      const submissionData = {
-        kpi_assignment_id: taskId, // This should be the assignment ID
-        employee_id: employeeDbId, // Use numeric employee ID
-        note: progressData.note,
-        progress_percentage: progressData.progressPercentage,
-        performance_metrics: progressData.performanceMetrics || {
-          [task.name]: progressData.progressPercentage
-        },
-        document_name: progressData.documentName || null,
-        document_size: progressData.documentSize || null,
-        document_type: progressData.documentType || null,
-        document_path: null // File upload handling would be implemented here
-      };
+      // Enhanced validation with detailed logging
+      console.log("Validation data:", {
+        employeeDbId,
+        progressPercentage: progressData.progressPercentage,
+        note: progressData.note
+      });
 
-      console.log("Submitting progress data:", submissionData);
+      if (!employeeDbId || isNaN(employeeDbId)) {
+        console.error("Invalid employee ID:", employeeDbId);
+        alert("Invalid employee ID. Please refresh the page and try again.");
+        return;
+      }
 
-      const result = await PMSService.submitTaskProgress(submissionData);
+      if (!progressData.progressPercentage && progressData.progressPercentage !== 0) {
+        console.error("Missing progressPercentage:", progressData.progressPercentage);
+        alert("Progress percentage is missing. Please set a progress value.");
+        return;
+      }
+
+      if (isNaN(parseInt(progressData.progressPercentage))) {
+        console.error("Invalid progressPercentage:", progressData.progressPercentage);
+        alert("Invalid progress percentage. Please ensure you've set a progress value.");
+        return;
+      }
+
+      if (!progressData.note || progressData.note.trim() === '') {
+        console.error("Missing or empty note:", progressData.note);
+        alert("Progress note is required. Please add a note describing your progress.");
+        return;
+      }
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Append form fields with proper data types
+      formData.append('kpi_assignment_id', parseInt(taskId));
+      formData.append('employee_id', employeeDbId);
+      formData.append('note', progressData.note.trim());
+      formData.append('progress_percentage', parseInt(progressData.progressPercentage));
+      formData.append('performance_metrics', JSON.stringify(progressData.performanceMetrics || {
+        [task.name]: parseInt(progressData.progressPercentage)
+      }));
+      
+      // Append document metadata only if file exists
+      if (progressData.file && progressData.documentName) {
+        formData.append('document_name', progressData.documentName);
+        formData.append('document_size', progressData.documentSize || '0 KB');
+        formData.append('document_type', progressData.documentType || 'unknown');
+        formData.append('document', progressData.file);
+      }
+
+      console.log("FormData ready for submission");
+
+      const result = await PMSService.submitTaskProgress(formData);
       console.log("Progress submitted successfully:", result);
 
-      // Refresh tasks after successful submission
+      // Refresh tasks and submissions after successful submission
       await fetchMyTasks();
       setIsProgressModalOpen(false);
       
@@ -178,8 +259,23 @@ const EmployeeKPIView = () => {
 
     } catch (error) {
       console.error("Error updating task progress:", error);
-      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
-      alert(`Failed to submit progress: ${errorMessage}`);
+      
+      // Handle validation errors specifically
+      if (error.response?.status === 422) {
+        const errors = error.response?.data?.errors;
+        if (errors) {
+          console.error("Validation errors:", errors);
+          const errorMessages = Object.entries(errors).map(([field, messages]) => 
+            `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
+          ).join('\n');
+          alert(`Validation failed:\n${errorMessages}`);
+        } else {
+          alert(`Validation failed: ${error.response?.data?.message || 'Please check your input and try again.'}`);
+        }
+      } else {
+        const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+        alert(`Failed to submit progress: ${errorMessage}`);
+      }
     }
   };
 
@@ -268,16 +364,17 @@ const EmployeeKPIView = () => {
         isOpen={isProgressModalOpen}
         onClose={() => setIsProgressModalOpen(false)}
         task={selectedTask}
-        onSubmit={(progressData) => handleProgressUpdate(selectedTask?.id, progressData)}
+        onSubmit={(progressData) => handleProgressUpdate(selectedTask?.id, progressData)} // Fix: pass selectedTask.id and progressData separately
         employeeId={currentEmployeeId}
         employeeName="Current Employee" // Replace with actual name from auth
       />
 
-      {/* View Task Modal */}
+      {/* View Task Modal - Pass submissions data */}
       <TaskViewModal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
         kpi={selectedTask}
+        submissions={selectedTask ? getAllSubmissions(selectedTask.id) : []}
       />
 
       {/* Header */}
@@ -341,7 +438,7 @@ const EmployeeKPIView = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Documents Submitted</p>
               <p className="text-2xl font-bold text-indigo-600">
-                {myTasks.reduce((total, task) => total + (task.documentCount || 0), 0)}
+                {Object.values(progressSubmissions).reduce((total, submissions) => total + submissions.length, 0)}
               </p>
             </div>
             <div className="p-3 bg-indigo-100 rounded-xl">
@@ -381,27 +478,14 @@ const EmployeeKPIView = () => {
       <div className="space-y-4">
         {filteredTasks.length > 0 ? (
           filteredTasks.map((task) => {
-            // Ensure myUpdates is available
-            const empNumeric = parseInt(String(currentEmployeeId).replace(/\D/g, ''), 10) || null;
-            const empRawStr = String(currentEmployeeId);
-
-            const myUpdates = (task.assigneeUpdates && Array.isArray(task.assigneeUpdates))
-              ? (task.assigneeUpdates.find(au => {
-                  if (!au) return false;
-                  // match numeric or string or direct equality
-                  if (typeof au.employeeId === 'number' && empNumeric && au.employeeId === empNumeric) return true;
-                  if (String(au.employeeId) === empRawStr) return true;
-                  if (String(au.employeeId) === String(empNumeric)) return true;
-                  return false;
-                }) || {}).updates || []
-              : [];
+            const latestSubmission = getLatestSubmission(task.id);
 
             return (
               <div
                 key={task.id}
                 className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
               >
-                {/* Task content (unchanged from original) */}
+                {/* Task content */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -472,102 +556,103 @@ const EmployeeKPIView = () => {
                         <div className="flex items-center gap-2">
                           <File className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            {task.documentCount || 0} document{task.documentCount !== 1 ? 's' : ''} submitted
+                            {(progressSubmissions[task.id] || []).length} submission{(progressSubmissions[task.id] || []).length !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            Last updated: {new Date(task.lastUpdated).toLocaleDateString()}
+                            Last updated: {latestSubmission ? new Date(latestSubmission.created_at).toLocaleDateString() : 'Never'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <BarChart3 className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            Weights Total: {task.weights ? task.weights.reduce((sum, w) => sum + (w.percentage || 0), 0) : 0}%
+                            Progress: {latestSubmission ? latestSubmission.progress_percentage : 0}%
                           </span>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Latest update with document */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-2">Latest Submission</p>
-                      {myUpdates.length > 0 ? (
-                        (() => {
-                          const latestUpdate = myUpdates[myUpdates.length - 1];
-                          return (
-                            <div className="flex items-start gap-3">
-                              {latestUpdate.documentName && (
-                                <div className="flex-shrink-0 bg-indigo-100 rounded-lg p-2">
-                                  <File className="w-5 h-5 text-indigo-600" />
-                                </div>
-                              )}
-                              <div>
-                                {latestUpdate.documentName && (
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-medium text-indigo-600">
-                                      {latestUpdate.documentName}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {latestUpdate.documentSize}
-                                    </span>
-                                  </div>
-                                )}
-                                {/* Self-reported progress */}
-                                {latestUpdate.progressPercentage !== undefined && (
-                                  <div className="mt-1 mb-2">
-                                    <div className="flex items-center justify-between text-xs">
-                                      <span className="text-gray-600 font-medium flex items-center gap-1">
-                                        <BarChart3 className="h-3 w-3 text-gray-500" />
-                                        Self-reported progress: {latestUpdate.progressPercentage}%
-                                      </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                                      <div 
-                                        className={`h-1.5 rounded-full ${
-                                          latestUpdate.progressPercentage < 30 ? 'bg-red-500' : 
-                                          latestUpdate.progressPercentage < 70 ? 'bg-yellow-500' : 
-                                          'bg-green-500'
-                                        }`}
-                                        style={{ width: `${latestUpdate.progressPercentage}%` }}
-                                      ></div>
-                                    </div>
-                                  </div>
-                                )}
-                                <p className="text-sm text-gray-800">{latestUpdate.note}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {new Date(latestUpdate.date).toLocaleString()}
+                    {/* Latest Submission */}
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-2 font-medium">Latest Submission</p>
+                      {latestSubmission ? (
+                        <div className="space-y-2">
+                          {/* Document info - more compact */}
+                          {latestSubmission.document_name && (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-shrink-0 bg-indigo-100 rounded p-1">
+                                <File className="w-3 h-3 text-indigo-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-indigo-600 truncate">
+                                  {latestSubmission.document_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {latestSubmission.document_size}
                                 </p>
                               </div>
                             </div>
-                          );
-                        })()
-                      ) : (
-                        <p className="text-sm text-gray-600">No documents submitted yet</p>
-                      )}
-                      
-                      {/* Performance Metrics Highlights */}
-                      {myUpdates.length > 0 && myUpdates[myUpdates.length - 1].performanceMetrics && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                            {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
-                              .sort((a, b) => b[1] - a[1])
-                              .slice(0, 4)
-                              .map(([key, value]) => {
-                                const displayName = key.replace(/([A-Z])/g, ' $1')
-                                  .replace(/^./, str => str.toUpperCase());
-                                
-                                return (
-                                  <div key={key} className="flex justify-between">
-                                    <span className="text-xs text-gray-600">{displayName}:</span>
-                                    <span className="text-xs font-medium text-gray-900">{value}%</span>
-                                  </div>
-                                );
-                              })}
+                          )}
+                          
+                          {/* Progress Bar - more compact */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-600 font-medium flex items-center gap-1">
+                                <BarChart3 className="h-3 w-3 text-gray-500" />
+                                Progress: {latestSubmission.progress_percentage}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div 
+                                className={`h-1.5 rounded-full ${
+                                  latestSubmission.progress_percentage < 30 ? 'bg-red-500' : 
+                                  latestSubmission.progress_percentage < 70 ? 'bg-yellow-500' : 
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${latestSubmission.progress_percentage}%` }}
+                              ></div>
+                            </div>
                           </div>
+                          
+                          {/* Note - more compact */}
+                          <p className="text-xs text-gray-800 leading-relaxed line-clamp-2">
+                            {latestSubmission.note}
+                          </p>
+                          
+                          {/* Timestamp - more compact */}
+                          <p className="text-xs text-gray-500">
+                            {new Date(latestSubmission.created_at).toLocaleString()}
+                          </p>
+                          
+                          {/* Performance Metrics Highlights - more compact */}
+                          {latestSubmission.performance_metrics && (
+                            <div className="pt-2 border-t border-gray-200">
+                              <p className="text-xs text-gray-500 mb-2 font-medium">Top Metrics:</p>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                                {Object.entries(latestSubmission.performance_metrics)
+                                  .sort((a, b) => b[1] - a[1])
+                                  .slice(0, 4)
+                                  .map(([key, value]) => {
+                                    const displayName = key.replace(/([A-Z])/g, ' $1')
+                                      .replace(/^./, str => str.toUpperCase());
+                                    
+                                    return (
+                                      <div key={key} className="flex justify-between items-center">
+                                        <span className="text-xs text-gray-600 truncate pr-1" title={displayName}>
+                                          {displayName.length > 12 ? displayName.substring(0, 12) + '...' : displayName}:
+                                        </span>
+                                        <span className="text-xs font-medium text-gray-900">{value}%</span>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      ) : (
+                        <p className="text-xs text-gray-600">No submissions yet</p>
                       )}
                     </div>
                   </div>
