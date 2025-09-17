@@ -174,6 +174,7 @@ const Sidebar = ({
       timeAttendance:
         path.includes("timeAttendance") || activeItem === "timeAttendance",
       pms: path.includes("pms") || activeItem === "pms",
+      lms: path.includes("lms") || activeItem === "lms",
     });
   }, [activeItem]);
 
