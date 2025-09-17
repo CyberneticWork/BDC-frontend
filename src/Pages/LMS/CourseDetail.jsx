@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
 import { useAuth } from "../../contexts/AuthContext";
+import CertificateModal from "../../components/CertificateModal";
 
 const CourseDetail = ({ courseId, onBack }) => {
   const [course, setCourse] = useState(null);
@@ -488,98 +489,18 @@ const CourseDetail = ({ courseId, onBack }) => {
 
       {/* Certificate Modal */}
       {showCertificate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-4">
-            <div className="relative">
-              <button
-                onClick={() => setShowCertificate(false)}
-                className="absolute right-0 top-0 text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
-
-              <div
-                id="course-certificate"
-                className="cert-container ring-1 ring-blue-200 rounded-xl p-8 bg-white"
-              >
-                <div className="cert-inner">
-                  <h1 className="text-4xl font-extrabold tracking-wide text-blue-700 mb-2">
-                    Certificate
-                  </h1>
-                  <p className="uppercase tracking-widest text-sm text-gray-500 mb-6">
-                    Of Course Completion
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    This is to certify that
-                  </p>
-                  <div className="name text-3xl font-bold text-gray-800 my-4">
-                    {displayName}
-                  </div>
-                  <p className="text-gray-600 mb-4">
-                    has successfully completed the course
-                  </p>
-                  <h2 className="text-2xl font-semibold text-blue-700 mb-2">
-                    {course.title}
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    with {completedModules} of {totalModules} modules completed
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-8">
-                    <div className="p-3 rounded bg-blue-50">
-                      <div className="text-xs uppercase text-gray-500 mb-1">
-                        Date Issued
-                      </div>
-                      <div className="font-medium text-gray-800">
-                        {new Date().toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded bg-blue-50">
-                      <div className="text-xs uppercase text-gray-500 mb-1">
-                        Course ID
-                      </div>
-                      <div className="font-medium text-gray-800">
-                        {courseId}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded bg-blue-50">
-                      <div className="text-xs uppercase text-gray-500 mb-1">
-                        Certificate Code
-                      </div>
-                      <div className="font-medium text-gray-800">
-                        CERT-{String(courseId).padStart(4, "0")}-
-                        {String(progressPercentage).padStart(2, "0")}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="signature mt-12 flex justify-between">
-                    <div className="text-center">
-                      <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-blue-200 to-indigo-200 rounded" />
-                      <div className="text-xs uppercase tracking-wider text-gray-600">
-                        Course Instructor
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-green-200 to-emerald-200 rounded" />
-                      <div className="text-xs uppercase tracking-wider text-gray-600">
-                        Learning Coordinator
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={handlePrintCertificate}
-                  className="flex items-center px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Print / Download Certificate
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CertificateModal
+          selectedCertificate={{
+            course_title: course.title,
+            issued_date: new Date().toISOString().split("T")[0],
+            course_id: courseId,
+            id: courseId,
+            type: "course",
+          }}
+          onClose={() => setShowCertificate(false)}
+          displayName={displayName}
+          certificateType="course"
+        />
       )}
     </div>
   );

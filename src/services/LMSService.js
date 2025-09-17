@@ -278,6 +278,7 @@ const LMSService = {
         ...this._userProgress,
         enrolledCourses: data.enrolledCourses || [],
         certificates: allCertificates,
+        certificatesEarned: allCertificates.length, // Update to include both course and exam certificates
       };
     } catch (error) {
       console.error("Failed to fetch user progress from API:", error);
@@ -287,10 +288,15 @@ const LMSService = {
 
       // Fallback to client-side calculation
       this._recalculateUserProgress();
+      const enrolledCourses = this.getEnrolledCourses();
+      const examCertificates = await this._getExamCertificates();
+
       return {
         ...this._userProgress,
-        enrolledCourses: this.getEnrolledCourses(),
-        certificates: [],
+        enrolledCourses: enrolledCourses,
+        certificates: examCertificates, // Include exam certificates in fallback
+        certificatesEarned:
+          this._userProgress.certificatesEarned + examCertificates.length, // Include exam certificates in count
       };
     }
   },
@@ -334,17 +340,30 @@ const LMSService = {
     }
   },
 
-  _recalculateUserProgress() {
+  async _recalculateUserProgress() {
     const enrolled = this._coursesCache.filter((c) => c.enrolled);
     const completedCourses = enrolled.filter((c) => c.completed);
     const allModules = enrolled.flatMap((c) => c.modules || []);
+
+    // Get exam certificates count
+    let examCertificatesCount = 0;
+    try {
+      const examCertificates = await this._getExamCertificates();
+      examCertificatesCount = examCertificates.length;
+    } catch (error) {
+      console.warn(
+        "Could not fetch exam certificates for progress calculation:",
+        error
+      );
+    }
+
     const completedModules = allModules.filter((m) => m.completed);
     this._userProgress = {
       totalCourses: enrolled.length,
       completedCourses: completedCourses.length,
       totalModules: allModules.length,
       completedModules: completedModules.length,
-      certificatesEarned: completedCourses.length, // placeholder
+      certificatesEarned: completedCourses.length + examCertificatesCount, // Include both course and exam certificates
     };
   },
 

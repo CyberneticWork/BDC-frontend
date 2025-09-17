@@ -399,7 +399,7 @@ const TakeExam = ({ examId, onBack }) => {
         {console.log("exam:", exam)}
 
         {/* Certificate */}
-        {passed && (
+        {/* {passed && (
           <div className="bg-white p-6 rounded-2xl shadow-xl border border-blue-300 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_center,#3b82f6,transparent_70%)]" />
             <div className="flex justify-between items-start mb-4">
@@ -436,7 +436,7 @@ const TakeExam = ({ examId, onBack }) => {
                   {exam.title}
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  with a score of{" "}
+                  with a score of werg{" "}
                   <span className="font-semibold text-green-600">
                     {examResults.score}%
                   </span>{" "}
@@ -484,7 +484,7 @@ const TakeExam = ({ examId, onBack }) => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Detailed Results */}
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
