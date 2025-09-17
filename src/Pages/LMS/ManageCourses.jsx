@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
 import { useAuth } from "../../contexts/AuthContext";
+import Swal from "sweetalert2";
 
 const ManageCourses = ({ onViewCourse }) => {
   const { user } = useAuth();
@@ -39,6 +40,10 @@ const ManageCourses = ({ onViewCourse }) => {
   const [uploadError, setUploadError] = useState("");
   const [enrolledCourses, setEnrolledCourses] = useState([]);
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+
   const isCourseOwner = (course) => {
     // Admin users can edit/delete any course
     if (user && user.role === "admin") {
@@ -46,6 +51,44 @@ const ManageCourses = ({ onViewCourse }) => {
     }
     // Regular users can only edit/delete their own courses
     return user && course.createdBy === user.id;
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    // Validate course title
+    if (!formData.title.trim()) {
+      errors.title = "Course title is required";
+    }
+
+    // Validate description
+    if (!formData.description.trim()) {
+      errors.description = "Description is required";
+    }
+
+    // Validate duration
+    if (!formData.duration.trim()) {
+      errors.duration = "Duration is required";
+    }
+
+    // Validate modules
+    if (formData.modules.length === 0) {
+      errors.modules = "At least one module is required";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      // Show validation error
+      Swal.fire({
+        icon: "warning",
+        title: "Please Fill Required Fields",
+        text: "Some required fields are missing. Please check the form and try again.",
+        confirmButtonColor: "#F59E0B",
+      });
+    }
+
+    return Object.keys(errors).length === 0;
   };
 
   useEffect(() => {
@@ -70,126 +113,168 @@ const ManageCourses = ({ onViewCourse }) => {
   };
 
   const handleCreateCourse = async () => {
-    console.log("handleCreateCourse called with formData:", formData);
-    if (formData.title && formData.description && formData.duration) {
-      console.log("Form validation passed, proceeding with course creation");
-      try {
-        console.log("Starting course creation process...");
-        const processedAttachments = await processFiles();
-        console.log("Processed attachments:", processedAttachments);
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
 
-        if (processedAttachments === null) {
-          console.error("File processing failed");
-          return; // Error occurred
-        }
+    try {
+      setLoading(true);
+      setError(null);
+      setFieldErrors({}); // Clear any previous field errors
 
-        const courseData = {
-          ...formData,
-          attachments: [...formData.attachments, ...processedAttachments],
-        };
+      console.log("Starting course creation process...");
+      const processedAttachments = await processFiles();
+      console.log("Processed attachments:", processedAttachments);
 
-        console.log("Final course data being sent:", courseData);
-        await LMSService.createCourse(courseData);
-        console.log("Course created successfully");
-
-        await loadCourses();
-        setShowCreateModal(false);
-        resetForm();
-      } catch (error) {
-        console.error("Course creation error:", error);
-        console.error("Error response:", error.response);
-        console.error("Error data:", error.response?.data);
-
-        // Show more specific error message
-        if (error.response?.data?.message) {
-          setUploadError(
-            `Failed to create course: ${error.response.data.message}`
-          );
-        } else if (error.response?.status === 413) {
-          setUploadError(
-            "Files are too large. Please reduce file sizes or contact administrator."
-          );
-        } else if (error.response?.status === 422) {
-          setUploadError("Validation failed. Please check your input data.");
-        } else if (error.response?.status === 500) {
-          setUploadError("Server error occurred. Please try again later.");
-        } else {
-          setUploadError("Failed to upload files. Please try again.");
-        }
+      if (processedAttachments === null) {
+        console.error("File processing failed");
+        return; // Error occurred
       }
-    } else {
-      console.log("Form validation failed - missing required fields");
-      setUploadError(
-        "Please fill in all required fields (title, description, duration)."
-      );
+
+      const courseData = {
+        ...formData,
+        attachments: [...formData.attachments, ...processedAttachments],
+      };
+
+      console.log("Final course data being sent:", courseData);
+      await LMSService.createCourse(courseData);
+      console.log("Course created successfully");
+
+      await loadCourses();
+      setShowCreateModal(false);
+      resetForm();
+
+      // Success message
+      Swal.fire({
+        icon: "success",
+        title: "Course Created Successfully!",
+        text: "Your course has been created and is now available.",
+        confirmButtonColor: "#10B981",
+        timer: 3000,
+        timerProgressBar: true,
+      });
+    } catch (error) {
+      setError("Failed to create course");
+      console.error("Course creation error:", error);
+      console.error("Error response:", error.response);
+      console.error("Error data:", error.response?.data);
+
+      // Error message
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Create Course",
+        text:
+          error.response?.data?.message ||
+          "An error occurred while creating the course. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateCourse = async () => {
-    if (
-      editingCourse &&
-      formData.title &&
-      formData.description &&
-      formData.duration
-    ) {
-      try {
-        console.log("Starting course update process...");
-        const processedAttachments = await processFiles();
-        console.log("Processed attachments for update:", processedAttachments);
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
 
-        if (processedAttachments === null) {
-          console.error("File processing failed for update");
-          return; // Error occurred
-        }
+    if (!editingCourse) {
+      return;
+    }
 
-        const courseData = {
-          ...formData,
-          attachments: [...formData.attachments, ...processedAttachments],
-        };
+    try {
+      setLoading(true);
+      setError(null);
+      setFieldErrors({}); // Clear any previous field errors
 
-        console.log("Final course update data:", courseData);
-        await LMSService.updateCourse(editingCourse.id, courseData);
-        console.log("Course updated successfully");
+      console.log("Starting course update process...");
+      const processedAttachments = await processFiles();
+      console.log("Processed attachments for update:", processedAttachments);
 
-        await loadCourses();
-        setEditingCourse(null);
-        resetForm();
-      } catch (error) {
-        console.error("Course update error:", error);
-        console.error("Error response:", error.response);
-        console.error("Error data:", error.response?.data);
-
-        // Show more specific error message
-        if (error.response?.data?.message) {
-          setUploadError(
-            `Failed to update course: ${error.response.data.message}`
-          );
-        } else if (error.response?.status === 413) {
-          setUploadError(
-            "Files are too large. Please reduce file sizes or contact administrator."
-          );
-        } else if (error.response?.status === 422) {
-          setUploadError("Validation failed. Please check your input data.");
-        } else if (error.response?.status === 500) {
-          setUploadError("Server error occurred. Please try again later.");
-        } else {
-          setUploadError("Failed to upload files. Please try again.");
-        }
+      if (processedAttachments === null) {
+        console.error("File processing failed for update");
+        return; // Error occurred
       }
-    } else {
-      setUploadError(
-        "Please fill in all required fields (title, description, duration)."
-      );
+
+      const courseData = {
+        ...formData,
+        attachments: [...formData.attachments, ...processedAttachments],
+      };
+
+      console.log("Final course update data:", courseData);
+      await LMSService.updateCourse(editingCourse.id, courseData);
+      console.log("Course updated successfully");
+
+      await loadCourses();
+      setEditingCourse(null);
+      resetForm();
+
+      // Success message
+      Swal.fire({
+        icon: "success",
+        title: "Course Updated Successfully!",
+        text: "Your course has been updated successfully.",
+        confirmButtonColor: "#10B981",
+        timer: 3000,
+        timerProgressBar: true,
+      });
+    } catch (error) {
+      setError("Failed to update course");
+      console.error("Course update error:", error);
+      console.error("Error response:", error.response);
+      console.error("Error data:", error.response?.data);
+
+      // Error message
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Update Course",
+        text:
+          error.response?.data?.message ||
+          "An error occurred while updating the course. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteCourse = async (courseId) => {
-    if (window.confirm("Are you sure you want to delete this course?")) {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this! All associated data will be deleted.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#EF4444",
+      cancelButtonColor: "#6B7280",
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (result.isConfirmed) {
       try {
+        setLoading(true);
         await LMSService.deleteCourse(courseId);
         await loadCourses();
-      } catch (e) {
-        console.error("Delete failed", e);
+
+        Swal.fire({
+          icon: "success",
+          title: "Course Deleted!",
+          text: "The course has been deleted successfully.",
+          confirmButtonColor: "#10B981",
+          timer: 2000,
+          timerProgressBar: true,
+        });
+      } catch (error) {
+        console.error("Delete failed", error);
+        Swal.fire({
+          icon: "error",
+          title: "Failed to Delete Course",
+          text: "An error occurred while deleting the course. Please try again.",
+          confirmButtonColor: "#EF4444",
+        });
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -216,6 +301,8 @@ const ManageCourses = ({ onViewCourse }) => {
     setNewModule({ title: "", content: "", file: null });
     setSelectedFiles([]);
     setUploadError("");
+    setError(null);
+    setFieldErrors({});
   };
 
   const addModule = () => {
@@ -549,9 +636,16 @@ const ManageCourses = ({ onViewCourse }) => {
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      fieldErrors.title ? "border-red-500" : "border-gray-300"
+                    }`}
                     placeholder="Enter course title"
                   />
+                  {fieldErrors.title && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {fieldErrors.title}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -563,9 +657,18 @@ const ManageCourses = ({ onViewCourse }) => {
                     onChange={(e) =>
                       setFormData({ ...formData, duration: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      fieldErrors.duration
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                     placeholder="e.g., 2 hours"
                   />
+                  {fieldErrors.duration && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {fieldErrors.duration}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -579,9 +682,18 @@ const ManageCourses = ({ onViewCourse }) => {
                     setFormData({ ...formData, description: e.target.value })
                   }
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    fieldErrors.description
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Enter course description"
                 />
+                {fieldErrors.description && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {fieldErrors.description}
+                  </p>
+                )}
               </div>
 
               {/* Modules Section */}
@@ -776,6 +888,11 @@ const ManageCourses = ({ onViewCourse }) => {
                     </div>
                   ))}
                 </div>
+                {fieldErrors.modules && (
+                  <p className="mt-2 text-sm text-red-600">
+                    {fieldErrors.modules}
+                  </p>
+                )}
               </div>
 
               {/* Attachments Section */}
@@ -919,10 +1036,20 @@ const ManageCourses = ({ onViewCourse }) => {
                   onClick={
                     editingCourse ? handleUpdateCourse : handleCreateCourse
                   }
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center"
+                  disabled={loading}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Save className="h-4 w-4 mr-2" />
-                  {editingCourse ? "Update Course" : "Create Course"}
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {editingCourse ? "Updating..." : "Creating..."}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {editingCourse ? "Update Course" : "Create Course"}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
