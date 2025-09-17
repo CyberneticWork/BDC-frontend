@@ -246,6 +246,39 @@ class PMSService {
       throw error;
     }
   }
+
+  // Submit task progress
+  async submitTaskProgress(data) {
+    try {
+      const response = await axios.post('/pms/task-progress-submissions', data);
+      return response.data;
+    } catch (error) {
+      console.error("Error submitting task progress:", error);
+      throw error;
+    }
+  }
+
+  // Get task progress submissions for an assignment
+  async getTaskProgressSubmissions(assignmentId) {
+    try {
+      const response = await axios.get(`/pms/task-progress-submissions/assignment/${assignmentId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching task progress submissions:", error);
+      throw error;
+    }
+  }
+
+  // Get employee task progress submissions
+  async getEmployeeTaskProgressSubmissions(employeeId) {
+    try {
+      const response = await axios.get(`/pms/task-progress-submissions/employee/${employeeId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching employee task progress submissions:", error);
+      throw error;
+    }
+  }
   // --- end added methods ---
 }
 

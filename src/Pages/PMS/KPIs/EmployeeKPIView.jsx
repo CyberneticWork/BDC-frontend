@@ -128,14 +128,58 @@ const EmployeeKPIView = () => {
 
   const handleProgressUpdate = async (taskId, progressData) => {
     try {
-      // Assuming you have an API method for updates (e.g., PMSService.updateTaskProgress)
-      // For now, simulate or call the appropriate service
-      console.log("Updating progress for task:", taskId, progressData);
-      // Refresh tasks after update
-      fetchMyTasks();
+      // Find the assignment ID for this task
+      const task = myTasks.find(t => t.id === taskId);
+      if (!task) {
+        console.error("Task not found:", taskId);
+        alert("Task not found");
+        return;
+      }
+
+      // Get current employee ID (convert to numeric if needed)
+      let employeeDbId = null;
+      
+      // Try to extract numeric ID from currentEmployeeId
+      if (typeof currentEmployeeId === 'string' && currentEmployeeId.startsWith('EMP')) {
+        // Extract number from EMP0001 format
+        const numericPart = currentEmployeeId.replace(/\D/g, '');
+        employeeDbId = parseInt(numericPart);
+      } else if (typeof currentEmployeeId === 'number') {
+        employeeDbId = currentEmployeeId;
+      } else {
+        employeeDbId = parseInt(currentEmployeeId);
+      }
+
+      // Prepare submission data
+      const submissionData = {
+        kpi_assignment_id: taskId, // This should be the assignment ID
+        employee_id: employeeDbId, // Use numeric employee ID
+        note: progressData.note,
+        progress_percentage: progressData.progressPercentage,
+        performance_metrics: progressData.performanceMetrics || {
+          [task.name]: progressData.progressPercentage
+        },
+        document_name: progressData.documentName || null,
+        document_size: progressData.documentSize || null,
+        document_type: progressData.documentType || null,
+        document_path: null // File upload handling would be implemented here
+      };
+
+      console.log("Submitting progress data:", submissionData);
+
+      const result = await PMSService.submitTaskProgress(submissionData);
+      console.log("Progress submitted successfully:", result);
+
+      // Refresh tasks after successful submission
+      await fetchMyTasks();
       setIsProgressModalOpen(false);
-    } catch (e) {
-      console.error("Error updating task progress:", e);
+      
+      alert("Progress submitted successfully!");
+
+    } catch (error) {
+      console.error("Error updating task progress:", error);
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+      alert(`Failed to submit progress: ${errorMessage}`);
     }
   };
 
