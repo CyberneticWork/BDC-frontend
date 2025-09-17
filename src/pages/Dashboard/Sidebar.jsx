@@ -132,18 +132,19 @@ const Sidebar = ({
         // { id: "reports", name: "Performance Reports", icon: BarChart3 },
       ],
     },
-   {
-  id: "lms",
-  name: "Learning Management",
-  icon: BookOpen,
-  badge: null,
-  subItems: [
-    { id: "lmsDashboard", name: "LMS Dashboard", icon: Home },
-    { id: "manageExams", name: "Manage Exams", icon: FileText },
-    { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
-    { id: "myProgress", name: "My Progress", icon: BarChart3 },
-  ],
-},
+    {
+      id: "lms",
+      name: "Learning Management",
+      icon: BookOpen,
+      badge: null,
+      subItems: [
+        { id: "lmsDashboard", name: "LMS Dashboard", icon: Home },
+        { id: "manageExams", name: "Manage Exams", icon: FileText },
+        { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
+        { id: "myProgress", name: "My Progress", icon: BarChart3 },
+        { id: "lmsUserStats", name: "User Stats", icon: BarChart3 },
+      ],
+    },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
   ];
@@ -174,6 +175,7 @@ const Sidebar = ({
       timeAttendance:
         path.includes("timeAttendance") || activeItem === "timeAttendance",
       pms: path.includes("pms") || activeItem === "pms",
+      lms: path.includes("lms") || activeItem === "lms",
     });
   }, [activeItem]);
 

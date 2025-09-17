@@ -52,6 +52,7 @@ import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
 
 // Import LMS components
 import LMS from "../LMS/LMS";
+import UserStats from "../LMS/UserStats";
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -685,6 +686,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "myProgress" ? (
               <ProtectedComponent module="myProgress" action="view">
                 <LMS initialView="progress" />
+              </ProtectedComponent>
+            ) : activeItem === "lmsUserStats" ? (
+              <ProtectedComponent module="lmsUserStats" action="view">
+                <UserStats />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">

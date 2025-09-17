@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
 import { useAuth } from "../../contexts/AuthContext";
+import CertificateModal from "../../components/CertificateModal";
 
 const Progress = () => {
   const [userProgress, setUserProgress] = useState({});
@@ -71,36 +72,6 @@ const Progress = () => {
   // Handle showing certificate modal
   const handleShowCertificate = (certificate) => {
     setSelectedCertificate(certificate);
-  };
-
-  // Handle printing certificate in a new window
-  const handlePrintCertificate = () => {
-    const certEl = document.getElementById("progress-certificate");
-    if (!certEl) return window.print();
-    const win = window.open("", "PRINT", "height=800,width=1000");
-    if (!win) return;
-    win.document.write(
-      `<!DOCTYPE html><html><head><title>Course Certificate</title><link rel="stylesheet" href="/app.css" />`
-    );
-    win.document.write(`<style>
-      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:40px; background:#f8fafc; }
-      .cert-container { background:white; border:10px solid #1d4ed8; padding:40px; position:relative; }
-      .cert-inner { border:4px solid #93c5fd; padding:40px; text-align:center; }
-      h1 { font-size:42px; margin:0 0 10px; letter-spacing:2px; }
-      h2 { font-size:26px; margin:10px 0 5px; }
-      .name { font-size:32px; font-weight:600; margin:15px 0; }
-      .meta { margin-top:30px; display:flex; justify-content:space-between; font-size:14px; }
-      .signature { margin-top:50px; display:flex; justify-content:space-between; }
-      .sig-line { border-top:1px solid #0f172a; width:220px; padding-top:6px; font-size:12px; text-transform:uppercase; letter-spacing:1px; }
-    </style></head><body>`);
-    win.document.write(certEl.outerHTML);
-    win.document.write("</body></html>");
-    win.document.close();
-    win.focus();
-    setTimeout(() => {
-      win.print();
-      win.close();
-    }, 400);
   };
 
   const overallProgress =
@@ -383,134 +354,14 @@ const Progress = () => {
       )}
 
       {/* Certificate Modal */}
-      {selectedCertificate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-4">
-            <div className="relative">
-              <button
-                onClick={() => setSelectedCertificate(null)}
-                className="absolute right-0 top-0 text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
-
-              <div
-                id="progress-certificate"
-                className="cert-container ring-1 ring-blue-200 rounded-xl p-8 bg-white"
-              >
-                <div className="cert-inner">
-                  <h1 className="text-4xl font-extrabold tracking-wide text-blue-700 mb-2">
-                    Certificate
-                  </h1>
-                  <p className="uppercase tracking-widest text-sm text-gray-500 mb-6">
-                    {selectedCertificate.type === "exam"
-                      ? "Of Exam Completion"
-                      : "Of Course Completion"}
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    This is to certify that
-                  </p>
-                  <div className="name text-3xl font-bold text-gray-800 my-4">
-                    {displayName}
-                  </div>
-                  <p className="text-gray-600 mb-4">
-                    has successfully completed the{" "}
-                    {selectedCertificate.type === "exam" ? "exam" : "course"}
-                  </p>
-                  <h2 className="text-2xl font-semibold text-blue-700 mb-2">
-                    {selectedCertificate.type === "exam"
-                      ? selectedCertificate.exam_title ||
-                        selectedCertificate.course_title
-                      : selectedCertificate.course_title}
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-8">
-                    <div className="p-3 rounded bg-blue-50">
-                      <div className="text-xs uppercase text-gray-500 mb-1">
-                        Date Issued
-                      </div>
-                      <div className="font-medium text-gray-800">
-                        {selectedCertificate.issued_date}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded bg-blue-50">
-                      <div className="text-xs uppercase text-gray-500 mb-1">
-                        {selectedCertificate.type === "exam"
-                          ? "Exam ID"
-                          : "Course ID"}
-                      </div>
-                      <div className="font-medium text-gray-800">
-                        {selectedCertificate.type === "exam"
-                          ? selectedCertificate.id.replace("exam-", "")
-                          : selectedCertificate.course_id ||
-                            selectedCertificate.id}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded bg-blue-50">
-                      <div className="text-xs uppercase text-gray-500 mb-1">
-                        Certificate Code
-                      </div>
-                      <div className="font-medium text-gray-800">
-                        {selectedCertificate.type === "exam"
-                          ? `EXAM-${String(
-                              selectedCertificate.id.replace("exam-", "")
-                            ).padStart(4, "0")}`
-                          : `CERT-${String(
-                              selectedCertificate.course_id ||
-                                selectedCertificate.id
-                            ).padStart(4, "0")}-${selectedCertificate.id}`}
-                      </div>
-                    </div>
-                  </div>
-                  {selectedCertificate.type === "exam" &&
-                    selectedCertificate.score && (
-                      <div className="mt-6 p-4 rounded-lg bg-green-50 border border-green-200">
-                        <div className="flex items-center justify-center">
-                          <Target className="h-5 w-5 text-green-600 mr-2" />
-                          <span className="text-green-800 font-medium">
-                            Score: {selectedCertificate.score}% (Passing Score:{" "}
-                            {selectedCertificate.passing_score}%)
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  <div className="signature mt-12 flex justify-between">
-                    <div className="text-center">
-                      <div
-                        className={`w-48 h-12 mb-2 mx-auto rounded ${
-                          selectedCertificate.type === "exam"
-                            ? "bg-gradient-to-r from-blue-200 to-indigo-200"
-                            : "bg-gradient-to-r from-blue-200 to-indigo-200"
-                        }`}
-                      />
-                      <div className="text-xs uppercase tracking-wider text-gray-600">
-                        {selectedCertificate.type === "exam"
-                          ? "Exam Administrator"
-                          : "Course Instructor"}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-green-200 to-emerald-200 rounded" />
-                      <div className="text-xs uppercase tracking-wider text-gray-600">
-                        Learning Coordinator
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={handlePrintCertificate}
-                  className="flex items-center px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Print / Download Certificate
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CertificateModal
+        selectedCertificate={selectedCertificate}
+        onClose={() => setSelectedCertificate(null)}
+        displayName={displayName}
+        certificateType={
+          selectedCertificate?.type === "exam" ? "exam" : "course"
+        }
+      />
 
       {/* Empty State */}
       {enrolledCourses.length === 0 && (

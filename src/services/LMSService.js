@@ -278,6 +278,7 @@ const LMSService = {
         ...this._userProgress,
         enrolledCourses: data.enrolledCourses || [],
         certificates: allCertificates,
+        certificatesEarned: allCertificates.length, // Update to include both course and exam certificates
       };
     } catch (error) {
       console.error("Failed to fetch user progress from API:", error);
@@ -287,10 +288,15 @@ const LMSService = {
 
       // Fallback to client-side calculation
       this._recalculateUserProgress();
+      const enrolledCourses = this.getEnrolledCourses();
+      const examCertificates = await this._getExamCertificates();
+
       return {
         ...this._userProgress,
-        enrolledCourses: this.getEnrolledCourses(),
-        certificates: [],
+        enrolledCourses: enrolledCourses,
+        certificates: examCertificates, // Include exam certificates in fallback
+        certificatesEarned:
+          this._userProgress.certificatesEarned + examCertificates.length, // Include exam certificates in count
       };
     }
   },
@@ -315,6 +321,14 @@ const LMSService = {
           if (exam) {
             examCertificates.push({
               id: `exam-${result.exam_id}`,
+              // Add fields that CertificateModal expects when certificateType === 'exam'
+              examId: result.exam_id,
+              examTitle: exam.title,
+              examDescription: exam.description,
+              issueDate: result.submitted_at || result.created_at,
+              passingScore: exam.passing_score || exam.passingScore,
+
+              // Keep existing fields for current list rendering and backward compatibility
               type: "exam",
               course_title: exam.title,
               exam_title: exam.title,
@@ -334,17 +348,30 @@ const LMSService = {
     }
   },
 
-  _recalculateUserProgress() {
+  async _recalculateUserProgress() {
     const enrolled = this._coursesCache.filter((c) => c.enrolled);
     const completedCourses = enrolled.filter((c) => c.completed);
     const allModules = enrolled.flatMap((c) => c.modules || []);
+
+    // Get exam certificates count
+    let examCertificatesCount = 0;
+    try {
+      const examCertificates = await this._getExamCertificates();
+      examCertificatesCount = examCertificates.length;
+    } catch (error) {
+      console.warn(
+        "Could not fetch exam certificates for progress calculation:",
+        error
+      );
+    }
+
     const completedModules = allModules.filter((m) => m.completed);
     this._userProgress = {
       totalCourses: enrolled.length,
       completedCourses: completedCourses.length,
       totalModules: allModules.length,
       completedModules: completedModules.length,
-      certificatesEarned: completedCourses.length, // placeholder
+      certificatesEarned: completedCourses.length + examCertificatesCount, // Include both course and exam certificates
     };
   },
 
@@ -468,6 +495,20 @@ const LMSService = {
 
       if (!passedResult) return null;
 
+      // Try to resolve exam metadata (title, description, passing score)
+      let examData = null;
+      try {
+        examData = await this.getExam(examId);
+      } catch (e) {
+        // Fallback to embedded exam object in the result (if provided)
+        examData = passedResult.exam || null;
+      }
+
+      const examTitle = examData?.title || `Exam #${examId}`;
+      const examDescription = examData?.description;
+      const passingScore =
+        examData?.passing_score || examData?.passingScore || undefined;
+
       return {
         examId: passedResult.exam_id,
         score: passedResult.score,
@@ -475,6 +516,9 @@ const LMSService = {
         certificateId: `CERT-${String(examId).padStart(4, "0")}-${String(
           passedResult.score
         ).padStart(2, "0")}`,
+        examTitle,
+        examDescription,
+        passingScore,
       };
     } catch (error) {
       console.error(`Failed to get certificate for exam ${examId}:`, error);
@@ -528,6 +572,63 @@ const LMSService = {
       console.error("Failed to fetch user certificates:", error);
       return [];
     }
+  },
+
+  // ---- Admin LMS Stats & Progress (User Stats) ----
+  // High-level LMS stats
+  async getLmsStats() {
+    const res = await axios.get("/admin/lms/stats");
+    return res.data;
+  },
+
+  // Course progress for all users (Laravel-style pagination)
+  async getAllUsersCourseProgress({
+    page = 1,
+    perPage = 15,
+    search,
+    courseId,
+    userId,
+  } = {}) {
+    const params = { page, per_page: perPage };
+    if (search) params.search = search;
+    if (courseId) params.course_id = courseId;
+    if (userId) params.user_id = userId;
+    const res = await axios.get("/admin/lms/users/course-progress", { params });
+    return res.data; // { current_page, data, total, ... }
+  },
+
+  // Exam progress for all users (manual pagination shape)
+  async getAllUsersExamProgress({
+    page = 1,
+    perPage = 15,
+    search,
+    examId,
+    userId,
+  } = {}) {
+    const params = { page, per_page: perPage };
+    if (search) params.search = search;
+    if (examId) params.exam_id = examId;
+    if (userId) params.user_id = userId;
+    const res = await axios.get("/admin/lms/users/exam-progress", { params });
+    return res.data; // { current_page, data, total, ... }
+  },
+
+  // Course progress for a single user
+  async getUserCourseProgress(userId, { page = 1, perPage = 15 } = {}) {
+    const params = { page, per_page: perPage };
+    const res = await axios.get(`/admin/lms/users/${userId}/course-progress`, {
+      params,
+    });
+    return res.data;
+  },
+
+  // Exam progress for a single user
+  async getUserExamProgress(userId, { page = 1, perPage = 15 } = {}) {
+    const params = { page, per_page: perPage };
+    const res = await axios.get(`/admin/lms/users/${userId}/exam-progress`, {
+      params,
+    });
+    return res.data;
   },
 };
 

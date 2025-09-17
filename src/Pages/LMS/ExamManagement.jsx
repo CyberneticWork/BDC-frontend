@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
 import { useAuth } from "../../contexts/AuthContext";
+import CertificateModal from "../../components/CertificateModal";
 import Swal from "sweetalert2";
 
 const ExamManagement = ({ onTakeExam }) => {
@@ -544,9 +545,7 @@ const ExamManagement = ({ onTakeExam }) => {
     try {
       // Get the exam data
       const exam = exams.find((e) => e.id === examId);
-      if (!exam) {
-        throw new Error("Exam not found");
-      }
+      // exam may be absent in edge cases; don't hard-fail here
 
       // Get certificate data from the service
       const certificate = await LMSService.getExamCertificate(examId);
@@ -557,9 +556,11 @@ const ExamManagement = ({ onTakeExam }) => {
       // Set certificate data and show modal
       setCurrentCertificate({
         ...certificate,
-        examTitle: exam.title,
-        examDescription: exam.description,
-        passingScore: exam.passing_score || exam.passingScore,
+        // Prefer title coming from certificate; fallback to local exam list
+        examTitle: certificate.examTitle || exam?.title,
+        examDescription: certificate.examDescription || exam?.description,
+        passingScore:
+          certificate.passingScore || exam?.passing_score || exam?.passingScore,
         userName: user?.name || user?.fullName || "User",
       });
       setShowCertificateModal(true);
@@ -572,45 +573,6 @@ const ExamManagement = ({ onTakeExam }) => {
         confirmButtonColor: "#3B82F6",
       });
     }
-  };
-
-  // Handle printing certificate
-  const handlePrintCertificate = () => {
-    const certEl = document.getElementById("exam-certificate");
-    if (!certEl) return;
-
-    const win = window.open("", "PRINT", "height=800,width=1000");
-    if (!win) return;
-
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Exam Certificate</title>
-        <link rel="stylesheet" href="/app.css" />
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:40px; background:#f8fafc; }
-          .cert-container { background:white; border:10px solid #1d4ed8; padding:40px; position:relative; }
-          .cert-inner { border:4px solid #93c5fd; padding:40px; text-align:center; }
-          h1 { font-size:42px; margin:0 0 10px; letter-spacing:2px; }
-          h2 { font-size:26px; margin:10px 0 5px; }
-          .name { font-size:32px; font-weight:600; margin:15px 0; }
-          .meta { margin-top:30px; display:flex; justify-content:space-between; font-size:14px; }
-          .signature { margin-top:50px; display:flex; justify-content:space-between; }
-          .sig-line { border-top:1px solid #0f172a; width:220px; padding-top:6px; font-size:12px; text-transform:uppercase; letter-spacing:1px; }
-        </style>
-      </head>
-      <body>
-    `);
-    win.document.write(certEl.outerHTML);
-    win.document.write("</body></html>");
-    win.document.close();
-    win.focus();
-
-    setTimeout(() => {
-      win.print();
-      win.close();
-    }, 400);
   };
 
   return (
@@ -680,23 +642,46 @@ const ExamManagement = ({ onTakeExam }) => {
             </div>
 
             <div className="flex space-x-2">
-              {passedExams[exam.id] ? (
-                <button
-                  onClick={() => handleViewCertificate(exam.id)}
-                  className="flex-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                >
-                  <Award className="h-4 w-4 mr-1" />
-                  View Certificate
-                </button>
-              ) : (
-                <button
-                  onClick={() => onTakeExam && onTakeExam(exam.id)}
-                  className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Take Exam
-                </button>
-              )}
+              {(() => {
+                const statusKnown = Object.prototype.hasOwnProperty.call(
+                  passedExams,
+                  exam.id
+                );
+
+                if (!statusKnown) {
+                  return (
+                    <button
+                      disabled
+                      className="flex-1 bg-gray-200 text-gray-600 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center cursor-wait"
+                    >
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                      Checking status...
+                    </button>
+                  );
+                }
+
+                if (passedExams[exam.id]) {
+                  return (
+                    <button
+                      onClick={() => handleViewCertificate(exam.id)}
+                      className="flex-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <Award className="h-4 w-4 mr-1" />
+                      View Certificate
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    onClick={() => onTakeExam && onTakeExam(exam.id)}
+                    className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Take Exam
+                  </button>
+                );
+              })()}
               {isExamOwner(exam) && (
                 <button
                   onClick={() => handleEditExam(exam)}
@@ -983,7 +968,7 @@ const ExamManagement = ({ onTakeExam }) => {
 
       {/* Add Question Modal */}
       {showQuestionModal && (
-        <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full mx-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900">
@@ -1141,105 +1126,20 @@ const ExamManagement = ({ onTakeExam }) => {
 
       {/* Certificate Modal */}
       {showCertificateModal && currentCertificate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-3xl w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                <Award className="h-6 w-6 text-yellow-500 mr-2" />
-                Certificate of Achievement
-              </h3>
-              <button
-                onClick={() => setShowCertificateModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div
-              id="exam-certificate"
-              className="cert-container ring-1 ring-blue-200 rounded-xl p-8 bg-white"
-            >
-              <div className="cert-inner">
-                <h1 className="text-4xl font-extrabold tracking-wide text-blue-700 mb-2">
-                  Certificate
-                </h1>
-                <p className="uppercase tracking-widest text-sm text-gray-500 mb-6">
-                  Of Achievement
-                </p>
-                <p className="text-gray-600 text-sm">This is to certify that</p>
-                <div className="name text-3xl font-bold text-gray-800 my-4">
-                  {currentCertificate.userName}
-                </div>
-                <p className="text-gray-600 mb-4">
-                  has successfully passed the examination
-                </p>
-                <h2 className="text-2xl font-semibold text-blue-700 mb-2">
-                  {currentCertificate.examTitle}
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  with a score of{" "}
-                  <span className="font-semibold text-green-600">
-                    {currentCertificate.score}%
-                  </span>{" "}
-                  (Required: {currentCertificate.passingScore}%)
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-8">
-                  <div className="p-3 rounded bg-blue-50">
-                    <div className="text-xs uppercase text-gray-500 mb-1">
-                      Date Issued
-                    </div>
-                    <div className="font-medium text-gray-800">
-                      {new Date(
-                        currentCertificate.issueDate
-                      ).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded bg-blue-50">
-                    <div className="text-xs uppercase text-gray-500 mb-1">
-                      Exam ID
-                    </div>
-                    <div className="font-medium text-gray-800">
-                      {currentCertificate.examId}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded bg-blue-50">
-                    <div className="text-xs uppercase text-gray-500 mb-1">
-                      Certificate Code
-                    </div>
-                    <div className="font-medium text-gray-800">
-                      {currentCertificate.certificateId}
-                    </div>
-                  </div>
-                </div>
-                <div className="signature mt-12 flex justify-between">
-                  <div className="text-center">
-                    <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-blue-200 to-indigo-200 rounded" />
-                    <div className="text-xs uppercase tracking-wider text-gray-600">
-                      Authorized Signature
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-48 h-12 mb-2 mx-auto bg-gradient-to-r from-green-200 to-emerald-200 rounded" />
-                    <div className="text-xs uppercase tracking-wider text-gray-600">
-                      Exam Coordinator
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handlePrintCertificate}
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center"
-              >
-                <Printer className="h-4 w-4 mr-2" />
-                Print / Download Certificate
-              </button>
-            </div>
-          </div>
-        </div>
+        <CertificateModal
+          selectedCertificate={currentCertificate}
+          onClose={() => {
+            setShowCertificateModal(false);
+            setCurrentCertificate(null);
+          }}
+          displayName={
+            currentCertificate?.userName ||
+            user?.name ||
+            user?.fullName ||
+            "User"
+          }
+          certificateType="exam"
+        />
       )}
     </div>
   );

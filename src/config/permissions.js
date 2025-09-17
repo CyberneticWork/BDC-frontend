@@ -41,6 +41,7 @@ export const permissions = {
     manageExams: { view: true, edit: true },
     manageCourses: { view: true, edit: true },
     myProgress: { view: true },
+    lmsUserStats: { view: true },
   },
   hr: {
     dashboard: { view: true, edit: true },
@@ -82,6 +83,7 @@ export const permissions = {
     manageExams: { view: true, edit: true },
     manageCourses: { view: true, edit: true },
     myProgress: { view: true },
+    lmsUserStats: { view: true },
   },
   supervisor: {
     dashboard: { view: true },
@@ -104,6 +106,7 @@ export const permissions = {
     manageExams: { view: true, edit: true },
     manageCourses: { view: true, edit: true },
     myProgress: { view: true },
+    lmsUserStats: { view: true },
   },
   user: {
     dashboard: { view: true },
