@@ -548,6 +548,63 @@ const LMSService = {
       return [];
     }
   },
+
+  // ---- Admin LMS Stats & Progress (User Stats) ----
+  // High-level LMS stats
+  async getLmsStats() {
+    const res = await axios.get("/admin/lms/stats");
+    return res.data;
+  },
+
+  // Course progress for all users (Laravel-style pagination)
+  async getAllUsersCourseProgress({
+    page = 1,
+    perPage = 15,
+    search,
+    courseId,
+    userId,
+  } = {}) {
+    const params = { page, per_page: perPage };
+    if (search) params.search = search;
+    if (courseId) params.course_id = courseId;
+    if (userId) params.user_id = userId;
+    const res = await axios.get("/admin/lms/users/course-progress", { params });
+    return res.data; // { current_page, data, total, ... }
+  },
+
+  // Exam progress for all users (manual pagination shape)
+  async getAllUsersExamProgress({
+    page = 1,
+    perPage = 15,
+    search,
+    examId,
+    userId,
+  } = {}) {
+    const params = { page, per_page: perPage };
+    if (search) params.search = search;
+    if (examId) params.exam_id = examId;
+    if (userId) params.user_id = userId;
+    const res = await axios.get("/admin/lms/users/exam-progress", { params });
+    return res.data; // { current_page, data, total, ... }
+  },
+
+  // Course progress for a single user
+  async getUserCourseProgress(userId, { page = 1, perPage = 15 } = {}) {
+    const params = { page, per_page: perPage };
+    const res = await axios.get(`/admin/lms/users/${userId}/course-progress`, {
+      params,
+    });
+    return res.data;
+  },
+
+  // Exam progress for a single user
+  async getUserExamProgress(userId, { page = 1, perPage = 15 } = {}) {
+    const params = { page, per_page: perPage };
+    const res = await axios.get(`/admin/lms/users/${userId}/exam-progress`, {
+      params,
+    });
+    return res.data;
+  },
 };
 
 export default LMSService;

@@ -141,6 +141,7 @@ const Sidebar = ({
         { id: "manageExams", name: "Manage Exams", icon: FileText },
         { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
         { id: "myProgress", name: "My Progress", icon: BarChart3 },
+        { id: "lmsUserStats", name: "User Stats", icon: BarChart3 },
       ],
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },

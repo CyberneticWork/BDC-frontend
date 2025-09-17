@@ -16,6 +16,7 @@ import {
 import LMSService from "../../services/LMSService";
 import { useAuth } from "../../contexts/AuthContext";
 import CertificateModal from "../../components/CertificateModal";
+import { Link } from "react-router-dom";
 
 const LMSDashboard = ({
   onViewCourse,
@@ -266,6 +267,15 @@ const LMSDashboard = ({
           </p>
         </div>
         <div className="flex space-x-4">
+          {user && user.role !== "user" && (
+            <Link
+              to="/dashboard/lmsUserStats"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
+            >
+              <TrendingUp className="h-5 w-5 mr-2" />
+              User Stats
+            </Link>
+          )}
           {user && user.role !== "user" && (
             <button
               onClick={onManageExams}
