@@ -357,7 +357,7 @@ export const TaskProgressUpdateModal = ({
                       type="range"
                       min="0"
                       max="100"
-                      step="5"
+                      step="1"  // Changed from "5" to "1" for 1% increments
                       value={currentMetricValue}
                       onChange={(e) => {
                         const value = parseInt(e.target.value, 10);
