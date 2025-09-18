@@ -433,18 +433,22 @@ const ManageCourses = ({ onViewCourse }) => {
 
   // Set or replace a file for a specific module
   const updateModuleFile = (moduleId, file) => {
+    console.log('updateModuleFile called with moduleId:', moduleId, 'file:', file);
     setFormData({
       ...formData,
-      modules: formData.modules.map((m) =>
-        m.id === moduleId
-          ? {
-              ...m,
-              file, // keep any existing data
-              // Clear existing path if user chooses a new file
-              path: file ? undefined : m.path,
-            }
-          : m
-      ),
+      modules: formData.modules.map((m) => {
+        console.log('checking module:', m.id || m.tempId, 'vs', moduleId);
+        if ((m.id || m.tempId) === moduleId) {
+          console.log('updating module file to:', file);
+          return {
+            ...m,
+            file, // keep any existing data
+            // Clear existing path if user chooses a new file
+            path: file ? undefined : m.path,
+          };
+        }
+        return m;
+      }),
     });
   };
 
