@@ -86,7 +86,7 @@ function LoginPage({ onSuccess }) {
             className="mb-8"
           >
             <img
-              src="../../../public/logo.png"
+              src="./public/logo.png"
               alt="HRM System Logo"
               className="h-16 w-auto"
             />
@@ -148,11 +148,11 @@ function LoginPage({ onSuccess }) {
           >
             <div className="flex items-center gap-2 mb-2">
               <Mail className="h-4 w-4" />
-              <span>support@hrmsystem.com</span>
+              <span>info@cybernetic.lk</span>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="h-4 w-4" />
-              <span>+1 (555) 123-4567</span>
+              <span>+94 70 250 5007</span>
             </div>
           </motion.div>
         </motion.div>
@@ -233,7 +233,7 @@ function LoginPage({ onSuccess }) {
           animate={{ opacity: 1 }}
           transition={{ delay: 2, duration: 0.5 }}
         >
-          <p>&copy; {currentYear} HRM System. All rights reserved.</p>
+          <p>&copy; {currentYear} Cybernetic IT Deparment. All rights reserved.</p>
           <div className="flex justify-center gap-4 mt-2">
             <a
               href="#"

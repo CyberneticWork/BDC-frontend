@@ -316,7 +316,10 @@ const ManageCourses = ({ onViewCourse }) => {
         ...formData,
         modules: [...formData.modules, module],
       });
-      setNewModule({ title: "", content: "", file: null });
+      setNewModule({ title: "", content: "", file: null }); // <-- This resets the file field
+      // Reset the file input element visually (if needed)
+      const fileInput = document.getElementById("new-module-file-input");
+      if (fileInput) fileInput.value = "";
     }
   };
 
@@ -446,6 +449,18 @@ const ManageCourses = ({ onViewCourse }) => {
           : m
       ),
     });
+  };
+
+  const removeExistingAttachment = async (attachmentId) => {
+    try {
+      await LMSService.removeAttachment(attachmentId); // Add this method to LMSService.js
+      setFormData({
+        ...formData,
+        attachments: formData.attachments.filter((a) => a.id !== attachmentId),
+      });
+    } catch (err) {
+      setUploadError("Failed to remove attachment.");
+    }
   };
 
   return (
@@ -732,6 +747,7 @@ const ManageCourses = ({ onViewCourse }) => {
                       Module File (PDF/Video - Optional)
                     </label>
                     <input
+                      id="new-module-file-input" // <-- Add this id
                       type="file"
                       accept=".pdf,.mp4,.avi,.mov,.wmv"
                       onChange={(e) =>
@@ -768,14 +784,25 @@ const ManageCourses = ({ onViewCourse }) => {
                         <h6 className="font-medium text-gray-900">
                           Module {index + 1}: {module.title}
                         </h6>
-                        <button
-                          onClick={() =>
-                            removeModule(module.id || module.tempId)
-                          }
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              // You can trigger a file input click or show a modal here
+                              // For now, just alert or log for demonstration
+                              alert("Attach or replace file for this module.");
+                            }}
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Attach/Replace File"
+                          >
+                            <Upload className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => removeModule(module.id || module.tempId)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                       <textarea
                         value={module.content}
@@ -832,13 +859,24 @@ const ManageCourses = ({ onViewCourse }) => {
                                 Existing file attached
                               </span>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => window.open(module.path, "_blank")}
-                              className="text-blue-600 hover:text-blue-800 text-xs underline"
-                            >
-                              View
-                            </button>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => window.open(module.path, "_blank")}
+                                className="text-blue-600 hover:text-blue-800 text-xs underline"
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateModuleFile(module.id || module.tempId, null)
+                                }
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
                         )}
                         <div>
