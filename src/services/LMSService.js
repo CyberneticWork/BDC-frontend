@@ -630,6 +630,10 @@ const LMSService = {
     });
     return res.data;
   },
+
+  removeAttachment: (attachmentId) => {
+    return axios.delete(`/attachments/${attachmentId}`);
+  },
 };
 
 export default LMSService;
