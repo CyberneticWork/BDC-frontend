@@ -37,7 +37,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 
 // Progress Review Modal Component
 const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = false }) => {
-  const [progress, setProgress] = useState(review?.progress || 0);
+  // **FIXED**: Initialize with supervisor progress from performance_reviews table, not self-reported
+  const [progress, setProgress] = useState(0); // Start with 0, will be set in useEffect
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
   const [statusState, setStatusState] = useState(review?.status || 'In Progress');
@@ -85,26 +86,50 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
   // Fetch detailed task and submission data when using database
   useEffect(() => {
     if (isOpen && review && useDatabase && review.id) {
+      // Fetch task details if using database
       const fetchTaskDetails = async () => {
         try {
           const details = await PMSService.getPerformanceReviewDetails(review.id);
           setTaskDetails(details);
-          
-          // Pre-populate metrics if available
-          if (details.submissions && details.submissions.length > 0) {
-            const latestSubmission = details.submissions[0];
-            if (latestSubmission.performance_metrics) {
-              setPerformanceMetrics(latestSubmission.performance_metrics);
-            }
-          }
         } catch (error) {
           console.error('Error fetching task details:', error);
         }
       };
-      
       fetchTaskDetails();
     }
   }, [isOpen, review, useDatabase]);
+
+  // **FIXED**: Initialize with supervisor progress from performance_reviews table
+  useEffect(() => {
+    if (review) {
+      // Use supervisor progress from performance_reviews table (0 if not set)
+      setProgress(review.progress || 0); // This comes from performance_reviews.progress column
+      setGrade(review.grade || '');
+      setComments(review.supervisorComments || '');
+      setStatusState(review.status || 'In Progress');
+      
+      // Initialize performance metrics from supervisor review if exists, otherwise start fresh
+      if (review.performanceMetrics && Object.values(review.performanceMetrics).some(v => v > 0)) {
+        setPerformanceMetrics(review.performanceMetrics);
+      } else {
+        // Start with fresh metrics
+        setPerformanceMetrics({
+          jobKnowledge: 0,
+          qualityOfWork: 0,
+          productivity: 0,
+          communicationSkills: 0,
+          teamwork: 0,
+          behaviorAtWork: 0,
+          problemSolving: 0,
+          attendance: 0,
+          adaptability: 0,
+          selfDevelopment: 0,
+          discipline: 0,
+          adherenceToGuidelines: 0
+        });
+      }
+    }
+  }, [review]);
 
   // Get the linked task if available
   const getLinkedTask = () => {
@@ -134,41 +159,11 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
     } else {
       // Fallback to average of all metrics
       const values = Object.values(metrics);
+      if (values.length === 0) return 0;
       const sum = values.reduce((acc, val) => acc + val, 0);
       return Math.round(sum / values.length);
     }
   };
-
-  // sync local state when review prop changes (modal reopened with different review)
-  useEffect(() => {
-    if (review) {
-      setProgress(review.progress || 0);
-      setGrade(review.grade || '');
-      setComments(review.supervisorComments || '');
-      setStatusState(review.status || 'In Progress');
-      
-      // Load performance metrics if they exist
-      if (review.performanceMetrics) {
-        setPerformanceMetrics(review.performanceMetrics);
-      } else {
-        // Reset metrics if not present
-        setPerformanceMetrics({
-          jobKnowledge: 0,
-          qualityOfWork: 0,
-          productivity: 0,
-          communicationSkills: 0,
-          teamwork: 0,
-          behaviorAtWork: 0,
-          problemSolving: 0,
-          attendance: 0,
-          adaptability: 0,
-          selfDevelopment: 0,
-          discipline: 0,
-          adherenceToGuidelines: 0
-        });
-      }
-    }
-  }, [review]);
 
   // Update progress whenever performanceMetrics changes
   useEffect(() => {
@@ -205,8 +200,19 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
 
   // Apply self-reported metrics from the review (if present)
   const applySelfReportedMetrics = () => {
-    if (review?.performanceMetrics) {
-      setPerformanceMetrics(review.performanceMetrics);
+    // Check if there are self-reported metrics from employee submissions
+    if (taskDetails?.submissions && taskDetails.submissions.length > 0) {
+      const latestSubmission = taskDetails.submissions[0]; // First one is latest due to ordering
+      if (latestSubmission.performance_metrics) {
+        setPerformanceMetrics(latestSubmission.performance_metrics);
+        setShowCategoryDetails(true);
+        return;
+      }
+    }
+    
+    // Fallback to review's self-reported metrics if available
+    if (review?.selfReportedMetrics) {
+      setPerformanceMetrics(review.selfReportedMetrics);
       setShowCategoryDetails(true);
     } else {
       alert("No self-reported performance metrics available for this review.");
@@ -327,12 +333,20 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {/* Current Progress Display */}
+                  {/* Current Progress Display - FIXED to show supervisor progress */}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-indigo-600">{progress}%</div>
-                    <div className="text-xs text-gray-500">Overall Score</div>
+                    <div className="text-xs text-gray-500">Supervisor Rating</div>
                   </div>
                   
+                  {/* Show employee's self-reported progress separately if available */}
+                  {review?.selfReportedProgress > 0 && (
+                    <div className="text-center border-l border-gray-200 pl-3">
+                      <div className="text-lg font-medium text-blue-600">{review.selfReportedProgress}%</div>
+                      <div className="text-xs text-gray-500">Employee Self-Report</div>
+                    </div>
+                  )}
+
                   {/* Enhanced Toggle Button */}
                   <button
                     type="button"
@@ -933,7 +947,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review, useDatabase = false }) =>
                       <PieChart className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Progress (Supervisor)</p>
+                      <p className="text-xs text-gray-500">Supervisor Progress</p>
                       <p className="font-medium text-gray-900">{reviewDetails.progress || 0}% Complete</p>
                     </div>
                   </div>
@@ -948,21 +962,21 @@ const ReviewDetailsModal = ({ isOpen, onClose, review, useDatabase = false }) =>
                     ></div>
                   </div>
 
-                  {/* Self-Reported Progress (if available) */}
+                  {/* Self-Reported Progress (if available) - shown separately */}
                   {typeof reviewDetails.selfReportedProgress === 'number' && (
                     <div className="mt-4 pt-3 border-t border-gray-100">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
+                        <div className="p-2 rounded-lg bg-blue-50 text-blue-700">
                           <User className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500">Self-Reported Progress</p>
+                          <p className="text-xs text-gray-500">Employee Self-Reported</p>
                           <p className="font-medium text-gray-900">{reviewDetails.selfReportedProgress}%</p>
                         </div>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-1.5">
                         <div 
-                          className="h-1.5 rounded-full bg-indigo-500"
+                          className="h-1.5 rounded-full bg-blue-500"
                           style={{ width: `${reviewDetails.selfReportedProgress}%` }}
                         ></div>
                       </div>
