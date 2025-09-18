@@ -29,12 +29,13 @@ import {
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
 import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+import PMSService from "@services/PMS/PMSService"; // Add this missing import
 import EmployeeDocumentsModal from './EmployeeDocumentsModal';
-import { permissions } from '../../../config/permissions'; // Add this import
-import { useAuth } from '../../../contexts/AuthContext'; // Assuming you have an AuthContext for user role; adjust if needed
+import { permissions } from '../../../config/permissions';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // Progress Review Modal Component
-const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
+const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = false }) => {
   const [progress, setProgress] = useState(review?.progress || 0);
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
@@ -58,6 +59,8 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     adherenceToGuidelines: 0
   });
 
+  const [taskDetails, setTaskDetails] = useState(null);
+
   // keep only the grades you mentioned
   const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
   const statusOptions = ['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'];
@@ -78,9 +81,42 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     "Adherence to the given Guidelines": "adherenceToGuidelines"
   };
 
+  // Fetch detailed task and submission data when using database
+  useEffect(() => {
+    if (isOpen && review && useDatabase && review.id) {
+      const fetchTaskDetails = async () => {
+        try {
+          const details = await PMSService.getPerformanceReviewDetails(review.id);
+          setTaskDetails(details);
+          
+          // Pre-populate metrics if available
+          if (details.submissions && details.submissions.length > 0) {
+            const latestSubmission = details.submissions[0];
+            if (latestSubmission.performance_metrics) {
+              setPerformanceMetrics(latestSubmission.performance_metrics);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching task details:', error);
+        }
+      };
+      
+      fetchTaskDetails();
+    }
+  }, [isOpen, review, useDatabase]);
+
   // Get the linked task if available
   const getLinkedTask = () => {
-    if (review?.taskId) {
+    if (useDatabase && taskDetails) {
+      return {
+        id: taskDetails.assignment.id,
+        name: taskDetails.assignment.task_name,
+        description: taskDetails.assignment.description,
+        startDate: taskDetails.assignment.start_date,
+        endDate: taskDetails.assignment.end_date,
+        weights: taskDetails.assignment.weights
+      };
+    } else if (review?.taskId) {
       return PMSDummyDataStore.getTaskById(review.taskId);
     }
     return null;
@@ -231,11 +267,16 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Review Progress</h2>
             <div className="text-sm text-gray-600 mt-1">
-              <span className="font-medium">{review.employeeName}</span> • {review.position}
+              <span className="font-medium">{review.employeeName}</span> • {review.position || 'Employee'}
             </div>
             {linkedTask && (
               <div className="text-sm text-indigo-600 mt-1">
                 Task: {linkedTask.name}
+              </div>
+            )}
+            {useDatabase && (
+              <div className="text-xs text-green-600 mt-1">
+                ✓ Database Data
               </div>
             )}
           </div>
@@ -247,6 +288,27 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
             <X size={20} />
           </button>
         </div>
+
+        {/* Display database-specific information */}
+        {useDatabase && taskDetails && (
+          <div className="p-6 border-b border-gray-100 bg-blue-50">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">Task Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-blue-700">Submissions:</span> {taskDetails.submissions.length}
+              </div>
+              <div>
+                <span className="text-blue-700">Latest Progress:</span> {review.selfReportedProgress}%
+              </div>
+              <div>
+                <span className="text-blue-700">Priority:</span> {review.priority || 'Medium'}
+              </div>
+              <div>
+                <span className="text-blue-700">Documents:</span> {review.documentCount || 0}
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Progress Section */}
@@ -740,8 +802,70 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   );
 };
 
-// Performance Review Details Modal
-const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
+// Performance Review Details Modal - Updated to use backend data
+const ReviewDetailsModal = ({ isOpen, onClose, review, useDatabase = false }) => {
+  const [reviewDetails, setReviewDetails] = useState(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // Fetch review details when modal opens
+  useEffect(() => {
+    if (isOpen && review && useDatabase && review.id) {
+      fetchReviewDetails();
+    } else if (isOpen && review && !useDatabase) {
+      // Use dummy data for non-database mode
+      setReviewDetails(review);
+    }
+  }, [isOpen, review, useDatabase]);
+
+  const fetchReviewDetails = async () => {
+    setIsLoadingDetails(true);
+    try {
+      const details = await PMSService.getPerformanceReviewDetails(review.id);
+      
+      // Transform backend data to match the expected format
+      const transformedDetails = {
+        id: review.id,
+        taskName: details.assignment.task_name,
+        employeeName: details.assignment.employee_name,
+        employeeId: details.assignment.employee_id,
+        position: review.position || 'Employee',
+        department: details.assignment.department,
+        company: details.assignment.company,
+        type: 'Performance Review',
+        status: review.status,
+        startDate: details.assignment.start_date,
+        dueDate: details.assignment.end_date,
+        completedDate: review.completedDate,
+        cycle: review.cycle,
+        description: details.assignment.description,
+        priority: review.priority,
+        weights: details.assignment.weights,
+        manager: 'Supervisor',
+        overallRating: review.overallRating,
+        grade: review.grade,
+        progress: review.progress,
+        supervisorComments: review.supervisorComments,
+        lastUpdated: review.lastUpdated,
+        selfReportedProgress: review.selfReportedProgress,
+        selfReportedLastUpdated: review.selfReportedLastUpdated,
+        selfReportedAuthor: review.selfReportedAuthor,
+        submissionCount: details.submissions.length,
+        latestSubmissionNote: details.submissions.length > 0 ? details.submissions[0].note : null,
+        documentCount: review.documentCount,
+        performanceMetrics: review.performanceMetrics,
+        submissions: details.submissions
+      };
+      
+      setReviewDetails(transformedDetails);
+    } catch (error) {
+      console.error('Error fetching review details:', error);
+      // Fallback to basic review data
+      setReviewDetails(review);
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
   if (!isOpen || !review) return null;
 
   // Helper function to get grade color
@@ -762,8 +886,13 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Performance Review Details</h2>
             <div className="text-sm text-gray-600 mt-1">
-              <span className="font-medium">{review.employeeName}</span> • {review.position}
+              <span className="font-medium">{review.employeeName}</span> • {review.position || 'Employee'}
             </div>
+            {useDatabase && (
+              <div className="text-xs text-green-600 mt-1">
+                ✓ Database Data • Assignment ID: {review.id}
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -774,180 +903,223 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Status and Progress Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg ${
-                  review.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                  review.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                  review.status.includes('Pending') ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {review.status === 'Completed' ? <CheckSquare className="h-5 w-5" /> :
-                   review.status === 'In Progress' ? <Clock className="h-5 w-5" /> :
-                   review.status.includes('Pending') ? <Users className="h-5 w-5" /> :
-                   <FileText className="h-5 w-5" />}
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Status</p>
-                  <p className="font-medium text-gray-900">{review.status}</p>
-                </div>
-              </div>
+          {isLoadingDetails ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-4" />
+              <p className="text-gray-500">Loading review details...</p>
             </div>
-
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
-                  <PieChart className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Progress (Supervisor)</p>
-                  <p className="font-medium text-gray-900">{review.progress || 0}% Complete</p>
-                </div>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                <div 
-                  className={`h-2.5 rounded-full ${
-                    (review.progress || 0) < 30 ? 'bg-red-500' : 
-                    (review.progress || 0) < 70 ? 'bg-yellow-500' : 
-                    'bg-green-500'
-                  }`}
-                  style={{ width: `${review.progress || 0}%` }}
-                ></div>
-              </div>
-
-              {/* NEW: Self-Reported Progress (if available) */}
-              {typeof review.selfReportedProgress === 'number' && (
-                <div className="mt-4 pt-3 border-t border-gray-100">
+          ) : reviewDetails ? (
+            <>
+              {/* Status and Progress Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
-                      <BarChart className="h-5 w-5" />
+                    <div className={`p-2 rounded-lg ${
+                      reviewDetails.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                      reviewDetails.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                      reviewDetails.status.includes('Pending') ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {reviewDetails.status === 'Completed' ? <CheckSquare className="h-5 w-5" /> :
+                       reviewDetails.status === 'In Progress' ? <Clock className="h-5 w-5" /> :
+                       reviewDetails.status.includes('Pending') ? <Users className="h-5 w-5" /> :
+                       <FileText className="h-5 w-5" />}
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Self-Reported Progress</p>
-                      <p className="font-medium text-indigo-900">{review.selfReportedProgress}%</p>
+                      <p className="text-xs text-gray-500">Status</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.status}</p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+                      <PieChart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Progress (Supervisor)</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.progress || 0}% Complete</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                    <div 
                       className={`h-2.5 rounded-full ${
-                        review.selfReportedProgress < 30 ? 'bg-red-500' :
-                        review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                        (reviewDetails.progress || 0) < 30 ? 'bg-red-500' : 
+                        (reviewDetails.progress || 0) < 70 ? 'bg-yellow-500' : 
                         'bg-green-500'
                       }`}
-                      style={{ width: `${review.selfReportedProgress}%` }}
+                      style={{ width: `${reviewDetails.progress || 0}%` }}
                     ></div>
                   </div>
 
-                  {review.selfReportedLastUpdated && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Last reported on {new Date(review.selfReportedLastUpdated).toLocaleString()}
-                      {review.selfReportedAuthor ? ` by ${review.selfReportedAuthor}` : ''}
-                    </p>
+                  {/* Self-Reported Progress (if available) */}
+                  {typeof reviewDetails.selfReportedProgress === 'number' && (
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Self-Reported Progress</p>
+                          <p className="font-medium text-gray-900">{reviewDetails.selfReportedProgress}%</p>
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="h-1.5 rounded-full bg-indigo-500"
+                          style={{ width: `${reviewDetails.selfReportedProgress}%` }}
+                        ></div>
+                      </div>
+                      {reviewDetails.selfReportedLastUpdated && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Last updated by {reviewDetails.selfReportedAuthor} on {new Date(reviewDetails.selfReportedLastUpdated).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                      <Award className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Grade</p>
+                      <p className="font-medium text-gray-900">
+                        {reviewDetails.grade ? (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getGradeColor(reviewDetails.grade)}`}>
+                            {reviewDetails.grade}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">Not graded</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Database-specific Task Information */}
+              {useDatabase && reviewDetails.submissions && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                  <h3 className="text-sm font-medium text-blue-900 mb-3">Task Submission Details</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-blue-700">Task:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.taskName}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Submissions:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.submissionCount || 0}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Documents:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.documentCount || 0}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Priority:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.priority || 'Medium'}</p>
+                    </div>
+                  </div>
+                  {reviewDetails.latestSubmissionNote && (
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <span className="text-blue-700 text-sm">Latest Note:</span>
+                      <p className="text-blue-900 text-sm mt-1">{reviewDetails.latestSubmissionNote}</p>
+                    </div>
                   )}
                 </div>
               )}
-            </div>
 
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
-                  <Award className="h-5 w-5" />
-                </div>
+              {/* Review Information and Timeline */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-xs text-gray-500">Grade</p>
-                  {review.grade ? (
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${getGradeColor(review.grade)}`}>
-                      {review.grade}
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Review Information</h3>
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Review Type</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.type}</p>
                     </div>
-                  ) : (
-                    <p className="font-medium text-gray-500">Not graded</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Review Info Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Review Information</h3>
-              <div className="bg-gray-50 rounded-xl p-4 space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500">Review Type</p>
-                  <p className="font-medium text-gray-900">{review.type}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Review Cycle</p>
-                  <p className="font-medium text-gray-900">{review.cycle}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Department</p>
-                  <p className="font-medium text-gray-900">{review.department}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Manager</p>
-                  <p className="font-medium text-gray-900">{review.manager}</p>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Timeline</h3>
-              <div className="bg-gray-50 rounded-xl p-4 space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500">Start Date</p>
-                  <p className="font-medium text-gray-900">{new Date(review.startDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Due Date</p>
-                  <p className="font-medium text-gray-900">{new Date(review.dueDate).toLocaleDateString()}</p>
-                </div>
-                {review.completedDate && (
-                  <div>
-                    <p className="text-xs text-gray-500">Completion Date</p>
-                    <p className="font-medium text-gray-900">{new Date(review.completedDate).toLocaleDateString()}</p>
+                    <div>
+                      <p className="text-xs text-gray-500">Review Cycle</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.cycle}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Department</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.department}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Manager</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.manager}</p>
+                    </div>
                   </div>
-                )}
-                {review.lastUpdated && (
-                  <div>
-                    <p className="text-xs text-gray-500">Last Updated</p>
-                    <p className="font-medium text-gray-900">{new Date(review.lastUpdated).toLocaleDateString()}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Supervisor Comments */}
-          {review.supervisorComments && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Supervisor Comments</h3>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-gray-700 whitespace-pre-line">{review.supervisorComments}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Rating Section */}
-          {review.overallRating && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Performance Rating</h3>
-              <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={`w-5 h-5 ${i < Math.floor(review.overallRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`}
-                      fill={i < Math.floor(review.overallRating) ? 'currentColor' : 'none'}
-                    />
-                  ))}
                 </div>
-                <span className="text-lg font-bold text-gray-900">{review.overallRating}</span>
-                <span className="text-sm text-gray-500">out of 5</span>
+
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Timeline</h3>
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Start Date</p>
+                      <p className="font-medium text-gray-900">{new Date(reviewDetails.startDate).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Due Date</p>
+                      <p className="font-medium text-gray-900">{new Date(reviewDetails.dueDate).toLocaleDateString()}</p>
+                    </div>
+                    {reviewDetails.completedDate && (
+                      <div>
+                        <p className="text-xs text-gray-500">Completion Date</p>
+                        <p className="font-medium text-gray-900">{new Date(reviewDetails.completedDate).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                    {reviewDetails.lastUpdated && (
+                      <div>
+                        <p className="text-xs text-gray-500">Last Updated</p>
+                        <p className="font-medium text-gray-900">{new Date(reviewDetails.lastUpdated).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Supervisor Comments */}
+              {reviewDetails.supervisorComments && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Supervisor Comments</h3>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-gray-700 whitespace-pre-line">{reviewDetails.supervisorComments}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Rating Section */}
+              {reviewDetails.overallRating && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Performance Rating</h3>
+                  <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star 
+                          key={i} 
+                          className={`w-5 h-5 ${i < Math.floor(reviewDetails.overallRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`}
+                          fill={i < Math.floor(reviewDetails.overallRating) ? 'currentColor' : 'none'}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-lg font-bold text-gray-900">{reviewDetails.overallRating}</span>
+                    <span className="text-sm text-gray-500">out of 5</span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <FileText className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No Details Available</h3>
+              <p className="text-gray-500 mt-2">Unable to load review details at this time.</p>
             </div>
           )}
 
@@ -984,18 +1156,43 @@ const PerformanceReviews = () => {
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   
+  const [isLoadingFromDB, setIsLoadingFromDB] = useState(false);
+  const [useDatabase, setUseDatabase] = useState(true); // Toggle between dummy data and database
+
   // Enhanced sample review data with progress and grade fields
-  const [reviewData, setReviewData] = useState(() => PMSDummyDataStore.getPerformanceReviews());
+  const [reviewData, setReviewData] = useState(() => 
+    useDatabase ? [] : PMSDummyDataStore.getPerformanceReviews()
+  );
+
+  // Function to fetch reviews from database
+  const fetchReviewsFromDatabase = async () => {
+    setIsLoadingFromDB(true);
+    try {
+      const data = await PMSService.getPerformanceReviewsFromDB();
+      console.log('Fetched performance reviews from database:', data);
+      setReviewData(data);
+    } catch (error) {
+      console.error('Error fetching reviews from database:', error);
+      // Fallback to dummy data
+      setReviewData(PMSDummyDataStore.getPerformanceReviews());
+    } finally {
+      setIsLoadingFromDB(false);
+    }
+  };
 
   // Subscribe to store updates so this view refreshes automatically
   useEffect(() => {
-    const unsubscribe = PMSDummyDataStore.subscribe(() => {
-      setReviewData(PMSDummyDataStore.getPerformanceReviews());
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+    if (useDatabase) {
+      fetchReviewsFromDatabase();
+    } else {
+      const unsubscribe = PMSDummyDataStore.subscribe(() => {
+        setReviewData(PMSDummyDataStore.getPerformanceReviews());
+      });
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [useDatabase]);
 
   // Handle opening progress review modal
   const openProgressModal = (review) => {
@@ -1009,9 +1206,20 @@ const PerformanceReviews = () => {
     setIsDetailsModalOpen(true);
   };
 
-  // Handle opening documents modal
-  const openDocumentsModal = (review) => {
+  // Handle opening documents modal with database data
+  const openDocumentsModal = async (review) => {
     setSelectedReview(review);
+    if (useDatabase && review.id) {
+      try {
+        const documents = await PMSService.getAssignmentDocuments(review.id);
+        setSelectedReview({
+          ...review,
+          documents: documents
+        });
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+      }
+    }
     setIsDocumentsModalOpen(true);
   };
 
@@ -1148,12 +1356,35 @@ const PerformanceReviews = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Add toggle for data source */}
+      <div className="mb-4 flex items-center gap-4">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={useDatabase}
+            onChange={(e) => setUseDatabase(e.target.checked)}
+            className="rounded"
+          />
+          <span className="text-sm text-gray-600">Use Database Data</span>
+        </label>
+        {useDatabase && (
+          <button
+            onClick={fetchReviewsFromDatabase}
+            disabled={isLoadingFromDB}
+            className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {isLoadingFromDB ? 'Loading...' : 'Refresh'}
+          </button>
+        )}
+      </div>
+
       {/* Progress Review Modal */}
       <ProgressReviewModal 
         isOpen={isProgressModalOpen}
         onClose={() => setIsProgressModalOpen(false)}
         review={selectedReview}
         onSave={handleSaveProgressReview}
+        useDatabase={useDatabase}
       />
 
       {/* Review Details Modal */}
@@ -1161,6 +1392,7 @@ const PerformanceReviews = () => {
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         review={selectedReview}
+        useDatabase={useDatabase}
       />
 
       {/* New Review Modal */}
@@ -1175,6 +1407,7 @@ const PerformanceReviews = () => {
         isOpen={isDocumentsModalOpen}
         onClose={() => setIsDocumentsModalOpen(false)}
         review={selectedReview}
+        useDatabase={useDatabase}
       />
 
       <div className="mb-6 flex justify-between items-center">
@@ -1788,7 +2021,7 @@ function buildReviewFromTask(task, assigneeId) {
     completedDate: null,
     overallRating: null,
     cycle: deriveCycle(task.startDate),
-    progress: 0,              // supervisor progress
+    progress: 0,
     grade: null,
     supervisorComments: null,
     lastUpdated: now,

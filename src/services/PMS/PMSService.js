@@ -296,6 +296,37 @@ class PMSService {
       throw error;
     }
   }
+
+  // NEW: Performance Reviews from database
+  async getPerformanceReviewsFromDB(filters = {}) {
+    try {
+      const response = await axios.get('/pms/performance-reviews', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching performance reviews from database:", error);
+      throw error;
+    }
+  }
+
+  async getPerformanceReviewDetails(assignmentId) {
+    try {
+      const response = await axios.get(`/pms/performance-reviews/${assignmentId}/details`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching performance review details:", error);
+      throw error;
+    }
+  }
+
+  async getAssignmentDocuments(assignmentId) {
+    try {
+      const response = await axios.get(`/pms/performance-reviews/${assignmentId}/documents`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching assignment documents:", error);
+      throw error;
+    }
+  }
   // --- end added methods ---
 }
 
