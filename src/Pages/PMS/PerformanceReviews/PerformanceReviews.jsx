@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify'; // Add this import
+import { toast } from 'react-toastify';
 import { 
   Calendar, 
   Filter, 
@@ -29,14 +29,13 @@ import {
   Upload 
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
-import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
-import PMSService from "@services/PMS/PMSService"; // Add this missing import
+import PMSService from "@services/PMS/PMSService"; // Remove PMSDummyDataStore import
 import EmployeeDocumentsModal from './EmployeeDocumentsModal';
 import { permissions } from '../../../config/permissions';
 import { useAuth } from '../../../contexts/AuthContext';
 
 // Progress Review Modal Component
-const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = false }) => {
+const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove useDatabase prop
   // **FIXED**: Initialize with supervisor progress from performance_reviews table, not self-reported
   const [progress, setProgress] = useState(0); // Start with 0, will be set in useEffect
   const [grade, setGrade] = useState(review?.grade || '');
@@ -85,7 +84,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
 
   // Fetch detailed task and submission data when using database
   useEffect(() => {
-    if (isOpen && review && useDatabase && review.id) {
+    if (isOpen && review && review.id) { // Remove useDatabase check
       // Fetch task details if using database
       const fetchTaskDetails = async () => {
         try {
@@ -97,7 +96,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
       };
       fetchTaskDetails();
     }
-  }, [isOpen, review, useDatabase]);
+  }, [isOpen, review]);
 
   // **FIXED**: Initialize with supervisor progress from performance_reviews table
   useEffect(() => {
@@ -133,7 +132,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
 
   // Get the linked task if available
   const getLinkedTask = () => {
-    if (useDatabase && taskDetails) {
+    if (taskDetails) { // Remove useDatabase check
       return {
         id: taskDetails.assignment.id,
         name: taskDetails.assignment.task_name,
@@ -142,10 +141,8 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
         endDate: taskDetails.assignment.end_date,
         weights: taskDetails.assignment.weights
       };
-    } else if (review?.taskId) {
-      return PMSDummyDataStore.getTaskById(review.taskId);
     }
-    return null;
+    return null; // Remove dummy data fallback
   };
 
   const linkedTask = getLinkedTask();
@@ -275,11 +272,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
                 Task: {linkedTask.name}
               </div>
             )}
-            {useDatabase && (
-              <div className="text-xs text-green-600 mt-1">
-                ✓ Database Data
-              </div>
-            )}
+            {/* Remove useDatabase indicator */}
           </div>
           <button
             onClick={onClose}
@@ -291,7 +284,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
         </div>
 
         {/* Display database-specific information */}
-        {useDatabase && taskDetails && (
+        {taskDetails && ( // Remove useDatabase check
           <div className="p-6 border-b border-gray-100 bg-blue-50">
             <h3 className="text-sm font-medium text-blue-900 mb-2">Task Information</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -299,7 +292,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
                 <span className="text-blue-700">Submissions:</span> {taskDetails.submissions.length}
               </div>
               <div>
-                <span className="text-blue-700">Latest Progress:</span> {review.selfReportedProgress}%
+                <span className="text-blue-700">Latest Progress:</span> {review.selfReportedProgress}% 
               </div>
               <div>
                 <span className="text-blue-700">Priority:</span> {review.priority || 'Medium'}
@@ -812,19 +805,19 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
 };
 
 // Performance Review Details Modal - Updated to use backend data
-const ReviewDetailsModal = ({ isOpen, onClose, review, useDatabase = false }) => {
+const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatabase prop
   const [reviewDetails, setReviewDetails] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Fetch review details when modal opens
   useEffect(() => {
-    if (isOpen && review && useDatabase && review.id) {
+    if (isOpen && review && review.id) { // Remove useDatabase check
       fetchReviewDetails();
-    } else if (isOpen && review && !useDatabase) {
-      // Use dummy data for non-database mode
+    } else if (isOpen && review) {
+      // Use review data directly if no ID
       setReviewDetails(review);
     }
-  }, [isOpen, review, useDatabase]);
+  }, [isOpen, review]);
 
   const fetchReviewDetails = async () => {
     setIsLoadingDetails(true);
@@ -897,11 +890,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review, useDatabase = false }) =>
             <div className="text-sm text-gray-600 mt-1">
               <span className="font-medium">{review.employeeName}</span> • {review.position || 'Employee'}
             </div>
-            {useDatabase && (
-              <div className="text-xs text-green-600 mt-1">
-                ✓ Database Data • Assignment ID: {review.id}
-              </div>
-            )}
+            {/* Remove useDatabase indicator */}
           </div>
           <button
             onClick={onClose}
@@ -1011,7 +1000,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review, useDatabase = false }) =>
               </div>
 
               {/* Database-specific Task Information */}
-              {useDatabase && reviewDetails.submissions && (
+              {reviewDetails.submissions && ( // Remove useDatabase check
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                   <h3 className="text-sm font-medium text-blue-900 mb-3">Task Submission Details</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -1166,15 +1155,13 @@ const PerformanceReviews = () => {
   const [selectedReview, setSelectedReview] = useState(null);
   
   const [isLoadingFromDB, setIsLoadingFromDB] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Add this missing state
-  const [useDatabase, setUseDatabase] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  // Remove useDatabase state - always use database
 
-  // Enhanced sample review data with progress and grade fields
-  const [reviewData, setReviewData] = useState(() => 
-    useDatabase ? [] : PMSDummyDataStore.getPerformanceReviews()
-  );
+  // Enhanced sample review data with progress and grade fields - Remove dummy data initialization
+  const [reviewData, setReviewData] = useState([]);
 
-  // Function to fetch reviews from database
+  // Function to fetch reviews from database - Always fetch from database
   const fetchReviewsFromDatabase = async () => {
     setIsLoadingFromDB(true);
     try {
@@ -1183,26 +1170,17 @@ const PerformanceReviews = () => {
       setReviewData(data);
     } catch (error) {
       console.error('Error fetching reviews from database:', error);
-      // Fallback to dummy data
-      setReviewData(PMSDummyDataStore.getPerformanceReviews());
+      // Remove dummy data fallback
+      setReviewData([]);
     } finally {
       setIsLoadingFromDB(false);
     }
   };
 
-  // Subscribe to store updates so this view refreshes automatically
+  // Subscribe to store updates so this view refreshes automatically - Remove dummy data subscription
   useEffect(() => {
-    if (useDatabase) {
-      fetchReviewsFromDatabase();
-    } else {
-      const unsubscribe = PMSDummyDataStore.subscribe(() => {
-        setReviewData(PMSDummyDataStore.getPerformanceReviews());
-      });
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [useDatabase]);
+    fetchReviewsFromDatabase();
+  }, []);
 
   // Handle opening progress review modal
   const openProgressModal = (review) => {
@@ -1219,7 +1197,7 @@ const PerformanceReviews = () => {
   // Handle opening documents modal with database data
   const openDocumentsModal = async (review) => {
     setSelectedReview(review);
-    if (useDatabase && review.id) {
+    if (review.id) { // Remove useDatabase check
       try {
         const documents = await PMSService.getAssignmentDocuments(review.id);
         setSelectedReview({
@@ -1238,7 +1216,7 @@ const PerformanceReviews = () => {
     try {
       setIsLoading(true);
       
-      if (useDatabase && updatedReview.id) {
+      if (updatedReview.id) { // Remove useDatabase check
         // For real database, call the API
         const reviewData = {
           progress: updatedReview.progress,
@@ -1248,18 +1226,14 @@ const PerformanceReviews = () => {
           performance_metrics: updatedReview.performanceMetrics
         };
         
-        console.log('Sending review data:', reviewData); // Debug log
+        console.log('Sending review data:', reviewData);
         
         const response = await PMSService.updatePerformanceReview(updatedReview.id, reviewData);
-        console.log('Response received:', response); // Debug log
+        console.log('Response received:', response);
         
         // Refresh the reviews list
         const freshData = await PMSService.getPerformanceReviewsFromDB();
         setReviewData(freshData);
-      } else {
-        // For dummy data store
-        PMSDummyDataStore.updatePerformanceReview(updatedReview.id, updatedReview);
-        setReviewData(PMSDummyDataStore.getPerformanceReviews());
       }
       
       // Show success message
@@ -1283,37 +1257,10 @@ const PerformanceReviews = () => {
     }
   };
 
-  // Handle creating new review
+  // Handle creating new review - Remove dummy data creation
   const handleCreateReview = (reviewDataForm) => {
-    const newReview = {
-      id: Date.now(),
-      employeeName: reviewDataForm.employeeName,
-      employeeId: reviewDataForm.employeeId,
-      position: reviewDataForm.employeePosition,
-      department: reviewDataForm.employeeDepartment,
-      manager: reviewDataForm.supervisorName,
-      type: reviewDataForm.reviewType === "performance" ? "Performance Review" :
-            reviewDataForm.reviewType === "quarterly" ? "Quarterly Review" :
-            reviewDataForm.reviewType === "annual" ? "Annual Review" :
-            reviewDataForm.reviewType === "probation" ? "Probation Review" : "Progress Check-in",
-      status: "Draft",
-      startDate: reviewDataForm.startDate,
-      dueDate: reviewDataForm.dueDate,
-      completedDate: null,
-      overallRating: null,
-      cycle: reviewDataForm.reviewCycle.replace('_',' '),
-      progress: 0,
-      grade: null,
-      supervisorComments: reviewDataForm.reviewNotes,
-      lastUpdated: new Date().toISOString(),
-      selfReportedProgress: 0,
-      selfReportedLastUpdated: null,
-      selfReportedAuthor: null,
-      taskId: reviewDataForm.taskId || null,
-      performanceMetrics: null
-    };
-    PMSDummyDataStore.addPerformanceReview(newReview);
-    setReviewData(PMSDummyDataStore.getPerformanceReviews());
+    // This function is no longer needed since we're not creating dummy reviews
+    console.log('New review creation not implemented - use database API');
   };
 
   // Filter reviews based on active tab and search query
@@ -1410,35 +1357,14 @@ const PerformanceReviews = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Add toggle for data source */}
-      <div className="mb-4 flex items-center gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={useDatabase}
-            onChange={(e) => setUseDatabase(e.target.checked)}
-            className="rounded"
-          />
-          <span className="text-sm text-gray-600">Use Database Data</span>
-        </label>
-        {useDatabase && (
-          <button
-            onClick={fetchReviewsFromDatabase}
-            disabled={isLoadingFromDB}
-            className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {isLoadingFromDB ? 'Loading...' : 'Refresh'}
-          </button>
-        )}
-      </div>
-
+      {/* Remove database toggle */}
+      
       {/* Progress Review Modal */}
       <ProgressReviewModal 
         isOpen={isProgressModalOpen}
         onClose={() => setIsProgressModalOpen(false)}
         review={selectedReview}
         onSave={handleSaveProgressReview}
-        useDatabase={useDatabase}
       />
 
       {/* Review Details Modal */}
@@ -1446,7 +1372,6 @@ const PerformanceReviews = () => {
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         review={selectedReview}
-        useDatabase={useDatabase}
       />
 
       {/* New Review Modal */}
@@ -1461,7 +1386,6 @@ const PerformanceReviews = () => {
         isOpen={isDocumentsModalOpen}
         onClose={() => setIsDocumentsModalOpen(false)}
         review={selectedReview}
-        useDatabase={useDatabase}
       />
 
       <div className="mb-6 flex justify-between items-center">
@@ -1469,13 +1393,7 @@ const PerformanceReviews = () => {
           <h1 className="text-2xl font-bold text-gray-900">Performance Reviews</h1>
           <p className="text-gray-600">Manage and track employee performance evaluations</p>
         </div>
-        {/* <button 
-          onClick={() => setIsNewReviewModalOpen(true)} 
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          <span>New Review</span>
-        </button> */}
+        {/* Remove new review button if not needed */}
       </div>
 
       {/* Status Summary Cards - moved here (below header, above table) */}
@@ -1831,7 +1749,7 @@ const PerformanceReviews = () => {
                             </div>
                           </div>
                           <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
-                        </div>
+                                               </div>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>
                       )}
@@ -1878,10 +1796,8 @@ const PerformanceReviews = () => {
                             }
                             // fallback: look up the linked task and use its weights
                             if (review?.taskId) {
-                              const task = PMSDummyDataStore.getTaskById(review.taskId);
-                              if (task?.weights && task.weights.length > 0) {
-                                return task.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
-                              }
+                              // Remove dummy data lookup - weights should come from database
+                              return 0;
                             }
                             return 0;
                           })()}%
@@ -2056,33 +1972,3 @@ const PerformanceReviews = () => {
 };
 
 export default PerformanceReviews;
-
-// Utility to generate review object for each new task assignment
-function buildReviewFromTask(task, assigneeId) {
-  const now = new Date().toISOString();
-  return {
-    id: reviewIdCounter++,
-    taskId: task.id,
-    employeeName: resolveEmployeeName(assigneeId),
-    employeeId: "EMP" + assigneeId.toString().padStart(3, "0"),
-    position: "", // unknown in dummy scope
-    department: task.department || "",
-    manager: task.creator?.name || "Supervisor",
-    type: "Performance Review",
-    status: "Draft",
-    startDate: task.startDate,
-    dueDate: task.endDate,
-    completedDate: null,
-    overallRating: null,
-    cycle: deriveCycle(task.startDate),
-    progress: 0,
-    grade: null,
-    supervisorComments: null,
-    lastUpdated: now,
-    selfReportedProgress: 0,
-    selfReportedLastUpdated: null,
-    selfReportedAuthor: null,
-    performanceMetrics: null,
-    weights: task.weights // Add weights from the linked task
-  };
-}
