@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify'; // Add this import
 import { 
   Calendar, 
   Filter, 
@@ -233,28 +234,22 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave, useDatabase = fa
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
       // Create updated review object including supervisor-selected status
       const updatedReview = {
         ...review,
-        progress: progress,
+        progress: parseInt(progress), // Ensure this is an integer
         grade: grade,
         supervisorComments: comments,
         status: statusState,
         lastUpdated: new Date().toISOString(),
-        performanceMetrics: performanceMetrics // Include performance metrics
+        performanceMetrics: performanceMetrics // Include performance metrics as JSON object
       };
       
-      // In a real app, update review on server and optionally update KPI status:
-      // await PMSService.updateReview(review.id, updatedReview);
-      
-      onSave(updatedReview);
+      await onSave(updatedReview);
       onClose();
     } catch (error) {
       console.error("Error updating review:", error);
-      alert("Failed to update review");
+      alert("Failed to update review: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -1157,7 +1152,8 @@ const PerformanceReviews = () => {
   const [selectedReview, setSelectedReview] = useState(null);
   
   const [isLoadingFromDB, setIsLoadingFromDB] = useState(false);
-  const [useDatabase, setUseDatabase] = useState(true); // Toggle between dummy data and database
+  const [isLoading, setIsLoading] = useState(false); // Add this missing state
+  const [useDatabase, setUseDatabase] = useState(true);
 
   // Enhanced sample review data with progress and grade fields
   const [reviewData, setReviewData] = useState(() => 
@@ -1224,9 +1220,53 @@ const PerformanceReviews = () => {
   };
 
   // Handle saving progress review
-  const handleSaveProgressReview = (updatedReview) => {
-    PMSDummyDataStore.updatePerformanceReview(updatedReview.id, updatedReview);
-    setReviewData(PMSDummyDataStore.getPerformanceReviews());
+  const handleSaveProgressReview = async (updatedReview) => {
+    try {
+      setIsLoading(true);
+      
+      if (useDatabase && updatedReview.id) {
+        // For real database, call the API
+        const reviewData = {
+          progress: updatedReview.progress,
+          grade: updatedReview.grade,
+          supervisor_comments: updatedReview.supervisorComments,
+          status: updatedReview.status,
+          performance_metrics: updatedReview.performanceMetrics
+        };
+        
+        console.log('Sending review data:', reviewData); // Debug log
+        
+        const response = await PMSService.updatePerformanceReview(updatedReview.id, reviewData);
+        console.log('Response received:', response); // Debug log
+        
+        // Refresh the reviews list
+        const freshData = await PMSService.getPerformanceReviewsFromDB();
+        setReviewData(freshData);
+      } else {
+        // For dummy data store
+        PMSDummyDataStore.updatePerformanceReview(updatedReview.id, updatedReview);
+        setReviewData(PMSDummyDataStore.getPerformanceReviews());
+      }
+      
+      // Show success message
+      toast.success("Performance review updated successfully");
+    } catch (error) {
+      console.error("Error saving review:", error);
+      
+      let errorMessage = "Failed to save review";
+      
+      if (error.response?.data?.message) {
+        errorMessage += ": " + error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage += ": " + error.response.data.error;
+      } else if (error.message) {
+        errorMessage += ": " + error.message;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle creating new review
@@ -1745,7 +1785,7 @@ const PerformanceReviews = () => {
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
-              </tr>
+                           </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredReviews.length > 0 ? (

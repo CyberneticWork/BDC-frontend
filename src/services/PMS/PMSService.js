@@ -327,6 +327,17 @@ class PMSService {
       throw error;
     }
   }
+
+  // NEW: Update Performance Review
+  async updatePerformanceReview(assignmentId, reviewData) {
+    try {
+      const response = await axios.put(`/pms/performance-reviews/${assignmentId}`, reviewData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating performance review:", error);
+      throw error;
+    }
+  }
   // --- end added methods ---
 }
 
