@@ -435,7 +435,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                             type="range"
                             min="0"
                             max="100"
-                            step="5"
+                            step="1"
                             value={metricValue}
                             onChange={(e) => handleMetricChange(metricKey, e.target.value)}
                             onClick={(e) => e.stopPropagation()}
@@ -461,7 +461,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.jobKnowledge}
                           onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -483,7 +483,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.qualityOfWork}
                           onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -505,7 +505,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.productivity}
                           onChange={(e) => handleMetricChange('productivity', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -527,7 +527,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.communicationSkills}
                           onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -549,7 +549,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.teamwork}
                           onChange={(e) => handleMetricChange('teamwork', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -571,7 +571,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.behaviorAtWork}
                           onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -593,7 +593,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.problemSolving}
                           onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -615,7 +615,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.attendance}
                           onChange={(e) => handleMetricChange('attendance', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -637,7 +637,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.adaptability}
                           onChange={(e) => handleMetricChange('adaptability', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -659,7 +659,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.selfDevelopment}
                           onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -681,7 +681,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.discipline}
                           onChange={(e) => handleMetricChange('discipline', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -703,7 +703,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.adherenceToGuidelines}
                           onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -1160,17 +1160,25 @@ const PerformanceReviews = () => {
 
   // Enhanced sample review data with progress and grade fields - Remove dummy data initialization
   const [reviewData, setReviewData] = useState([]);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 8,
+    total: 0
+  });
 
   // Function to fetch reviews from database - Always fetch from database
-  const fetchReviewsFromDatabase = async () => {
+  const fetchReviewsFromDatabase = async (page = 1) => {
     setIsLoadingFromDB(true);
     try {
-      const data = await PMSService.getPerformanceReviewsFromDB();
-      console.log('Fetched performance reviews from database:', data);
-      setReviewData(data);
+      const res = await PMSService.getPerformanceReviewsFromDB({
+        page,
+        per_page: pagination.per_page
+      });
+      setReviewData(res.data || []);
+      if (res.meta) setPagination(res.meta);
     } catch (error) {
       console.error('Error fetching reviews from database:', error);
-      // Remove dummy data fallback
       setReviewData([]);
     } finally {
       setIsLoadingFromDB(false);
@@ -1179,91 +1187,16 @@ const PerformanceReviews = () => {
 
   // Subscribe to store updates so this view refreshes automatically - Remove dummy data subscription
   useEffect(() => {
-    fetchReviewsFromDatabase();
-  }, []);
+    fetchReviewsFromDatabase(pagination.current_page);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.current_page]);
 
-  // Handle opening progress review modal
-  const openProgressModal = (review) => {
-    setSelectedReview(review);
-    setIsProgressModalOpen(true);
+  const goToPage = (p) => {
+    if (p < 1 || p > pagination.last_page || p === pagination.current_page) return;
+    setPagination(prev => ({ ...prev, current_page: p }));
   };
 
-  // Handle opening details modal
-  const openDetailsModal = (review) => {
-    setSelectedReview(review);
-    setIsDetailsModalOpen(true);
-  };
-
-  // Handle opening documents modal with database data
-  const openDocumentsModal = async (review) => {
-    setSelectedReview(review);
-    if (review.id) { // Remove useDatabase check
-      try {
-        const documents = await PMSService.getAssignmentDocuments(review.id);
-        setSelectedReview({
-          ...review,
-          documents: documents
-        });
-      } catch (error) {
-        console.error('Error fetching documents:', error);
-      }
-    }
-    setIsDocumentsModalOpen(true);
-  };
-
-  // Handle saving progress review
-  const handleSaveProgressReview = async (updatedReview) => {
-    try {
-      setIsLoading(true);
-      
-      if (updatedReview.id) { // Remove useDatabase check
-        // For real database, call the API
-        const reviewData = {
-          progress: updatedReview.progress,
-          grade: updatedReview.grade,
-          supervisor_comments: updatedReview.supervisorComments,
-          status: updatedReview.status,
-          performance_metrics: updatedReview.performanceMetrics
-        };
-        
-        console.log('Sending review data:', reviewData);
-        
-        const response = await PMSService.updatePerformanceReview(updatedReview.id, reviewData);
-        console.log('Response received:', response);
-        
-        // Refresh the reviews list
-        const freshData = await PMSService.getPerformanceReviewsFromDB();
-        setReviewData(freshData);
-      }
-      
-      // Show success message
-      toast.success("Performance review updated successfully");
-    } catch (error) {
-      console.error("Error saving review:", error);
-      
-      let errorMessage = "Failed to save review";
-      
-      if (error.response?.data?.message) {
-        errorMessage += ": " + error.response.data.message;
-      } else if (error.response?.data?.error) {
-        errorMessage += ": " + error.response.data.error;
-      } else if (error.message) {
-        errorMessage += ": " + error.message;
-      }
-      
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle creating new review - Remove dummy data creation
-  const handleCreateReview = (reviewDataForm) => {
-    // This function is no longer needed since we're not creating dummy reviews
-    console.log('New review creation not implemented - use database API');
-  };
-
-  // Filter reviews based on active tab and search query
+  // Filter AFTER fetching current page (only page data shown)
   const filteredReviews = reviewData.filter(review => {
     const matchesTab = 
       activeTab === 'all' || 
@@ -1354,6 +1287,64 @@ const PerformanceReviews = () => {
   const { user } = useAuth(); // Assuming user object has a 'role' property
   const userRole = user?.role || 'user'; // Default to 'user' if not available
   const userPermissions = permissions[userRole]?.performanceReviews || {};
+
+  // >>> ADD MISSING HANDLERS (restored) <<<
+  const openProgressModal = (review) => {
+    setSelectedReview(review);
+    setIsProgressModalOpen(true);
+  };
+
+  const openDetailsModal = (review) => {
+    setSelectedReview(review);
+    setIsDetailsModalOpen(true);
+  };
+
+  const openDocumentsModal = async (review) => {
+    setSelectedReview(review);
+    // Optional: fetch documents if you have an endpoint
+    // try {
+    //   const docs = await PMSService.getAssignmentDocuments(review.id);
+    //   setSelectedReview(prev => ({ ...prev, documents: docs }));
+    // } catch (e) { console.error(e); }
+    setIsDocumentsModalOpen(true);
+  };
+
+  const handleSaveProgressReview = async (updatedReview) => {
+    try {
+      setIsLoading(true);
+      const payload = {
+        progress: updatedReview.progress,
+        grade: updatedReview.grade,
+        supervisor_comments: updatedReview.supervisorComments,
+        status: updatedReview.status,
+        performance_metrics: updatedReview.performanceMetrics
+      };
+      await PMSService.updatePerformanceReview(updatedReview.id, payload);
+      toast.success('Review updated');
+      await fetchReviewsFromDatabase(pagination.current_page);
+    } catch (e) {
+      console.error('Update failed', e);
+      toast.error(e?.response?.data?.message || 'Failed to update review');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateReview = async (formData) => {
+    try {
+      setIsLoading(true);
+      await PMSService.createReview(formData); // adjust if endpoint differs
+      toast.success('Review created');
+      setIsNewReviewModalOpen(false);
+      await fetchReviewsFromDatabase(1);
+      setPagination(p => ({ ...p, current_page: 1 }));
+    } catch (e) {
+      console.error('Create failed', e);
+      toast.error(e?.response?.data?.message || 'Failed to create review');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -1790,6 +1781,7 @@ const PerformanceReviews = () => {
                       <div className="text-center">
                         <span className="text-sm font-bold text-indigo-600">
                           {(() => {
+                           
                             // try weights on review first
                             if (review?.weights && review.weights.length > 0) {
                               return review.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
@@ -1867,44 +1859,58 @@ const PerformanceReviews = () => {
           </table>
         </div>
 
-        {/* Pagination - Same as before */}
-        <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-              Previous
+        {/* Pagination - dynamic */}
+        <div className="px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-t border-gray-200">
+          <div className="text-sm text-gray-600">
+            Showing {pagination.from || 0} to {pagination.to || 0} of {pagination.total} reviews
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => goToPage(pagination.current_page - 1)}
+              disabled={pagination.current_page === 1}
+              className="px-3 py-2 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-50"
+            >
+              Prev
             </button>
-            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            {Array.from({ length: pagination.last_page }, (_, i) => i + 1)
+              .filter(p => {
+                const c = pagination.current_page;
+                // window around current page
+                return p === 1 || p === pagination.last_page || (p >= c - 2 && p <= c + 2);
+              })
+              .reduce((acc, p, _, arr) => {
+                if (acc.length) {
+                  const prev = acc[acc.length - 1];
+                  if (p - prev.p > 1) acc.push({ gap: true, key: `gap-${p}-${prev.p}` });
+                }
+                acc.push({ p, key: p });
+                return acc;
+              }, [])
+              .map(item =>
+                item.gap ? (
+                  <span key={item.key} className="px-2 text-gray-400">…</span>
+                ) : (
+                  <button
+                    key={item.key}
+                    onClick={() => goToPage(item.p)}
+                    className={`px-3 py-2 text-sm border rounded-lg ${
+                      item.p === pagination.current_page
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.p}
+                  </button>
+                )
+              )
+            }
+            <button
+              onClick={() => goToPage(pagination.current_page + 1)}
+              disabled={pagination.current_page === pagination.last_page}
+              className="px-3 py-2 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-50"
+            >
               Next
             </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">1</span> to <span className="font-medium">{filteredReviews.length}</span> of{" "}
-                <span className="font-medium">{filteredReviews.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                  <span className="sr-only">Previous</span>
-                  <ChevronDown className="h-5 w-5 transform rotate-90" />
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  1
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-indigo-500 bg-indigo-50 text-sm font-medium text-indigo-600">
-                  2
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  3
-                </button>
-                <button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                  <span className="sr-only">Next</span>
-                  <ChevronDown className="h-5 w-5 transform -rotate-90" />
-                </button>
-              </nav>
-            </div>
           </div>
         </div>
       </div>
