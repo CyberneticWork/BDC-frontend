@@ -479,12 +479,12 @@ const ManageCourses = ({ onViewCourse }) => {
         </div>
         {user && user.role !== "user" && (
           <div className="flex space-x-4">
-            <button
+            {/* <button
               onClick={testApiConnection}
               className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
             >
               Test API
-            </button>
+            </button> */}
             <button
               onClick={() => setShowCreateModal(true)}
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
@@ -863,33 +863,7 @@ const ManageCourses = ({ onViewCourse }) => {
                             </button>
                           </div>
                         )}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Duration (hours) *
-                          </label>
-                          <div className="flex items-center">
-                            <input
-                              type="number"
-                              min="0"
-                              value={formData.duration}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  duration: e.target.value,
-                                })
-                              }
-                              className={`w-full px-3 py-2 border rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                fieldErrors.duration
-                                  ? "border-red-500"
-                                  : "border-gray-300"
-                              }`}
-                              placeholder="e.g., 2"
-                            />
-                            <span className="px-3 py-2 bg-gray-50 border border-l-0 border-gray-300 rounded-r-lg text-gray-600 text-sm">
-                              hours
-                            </span>
-                          </div>
-                        </div>
+                        {/* module-level duration removed — modules should not have duration */}
                       </div>
                       {module.path && (
                         <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
