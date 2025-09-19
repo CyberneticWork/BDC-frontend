@@ -395,6 +395,15 @@ const LMSService = {
         // Add module file if exists
         if (module.file) {
           formData.append(`modules[${index}][file]`, module.file);
+          // Send original filename so backend can preserve it if desired
+          try {
+            formData.append(
+              `modules[${index}][original_file_name]`,
+              module.file.name
+            );
+          } catch (e) {
+            // ignore
+          }
         }
       });
     }
@@ -405,6 +414,15 @@ const LMSService = {
         if (attachment.file) {
           // Only upload new files
           formData.append(`attachments[${index}]`, attachment.file);
+          // Provide original filename for backend
+          try {
+            formData.append(
+              `attachments_original_names[${index}]`,
+              attachment.file.name
+            );
+          } catch (e) {
+            // ignore
+          }
         }
       });
     }
