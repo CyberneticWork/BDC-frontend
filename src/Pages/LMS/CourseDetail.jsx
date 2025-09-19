@@ -125,8 +125,13 @@ const CourseDetail = ({ courseId, onBack }) => {
       }
     } catch (error) {
       console.error("Failed to mark module as complete:", error);
-      // Show error message to user (you might want to add a toast notification here)
-      alert("Failed to update module progress. Please try again.");
+      // Show error message to user
+      Swal.fire({
+        icon: "error",
+        title: "Update Failed",
+        text: "Failed to update module progress. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
     }
   };
 
@@ -482,7 +487,12 @@ const CourseDetail = ({ courseId, onBack }) => {
                 <button
                   onClick={() => {
                     // In a real app, this would navigate to take exam
-                    alert(`Take exam: ${exam.title}`);
+                    Swal.fire({
+                      icon: "info",
+                      title: "Take Exam",
+                      text: `Take exam: ${exam.title}`,
+                      confirmButtonColor: "#3B82F6",
+                    });
                   }}
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center text-sm"
                 >

@@ -380,10 +380,20 @@ const ManageCourses = ({ onViewCourse }) => {
     try {
       console.log("Testing API connection from ManageCourses...");
       const result = await LMSService.testApiConnection();
-      alert(`API connection successful: ${result.message}`);
+      Swal.fire({
+        icon: "success",
+        title: "API Connection",
+        text: `API connection successful: ${result.message}`,
+        confirmButtonColor: "#10B981",
+      });
     } catch (error) {
       console.error("API connection test failed:", error);
-      alert("API connection failed. Check console for details.");
+      Swal.fire({
+        icon: "error",
+        title: "API Connection Failed",
+        text: "API connection failed. Check console for details.",
+        confirmButtonColor: "#EF4444",
+      });
     }
   };
 

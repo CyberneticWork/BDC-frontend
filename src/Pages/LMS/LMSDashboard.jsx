@@ -210,7 +210,12 @@ const LMSDashboard = ({
       setShowCertificateModal(true);
     } catch (error) {
       console.error("Error fetching certificate:", error);
-      alert("Failed to retrieve your certificate. Please try again later.");
+      Swal.fire({
+        icon: "error",
+        title: "Certificate Error",
+        text: "Failed to retrieve your certificate. Please try again later.",
+        confirmButtonColor: "#EF4444",
+      });
     }
   };
 
@@ -242,11 +247,21 @@ const LMSDashboard = ({
       await refreshDashboardData();
 
       // Show success message (you might want to add a toast notification here)
-      alert("Successfully enrolled in the course!");
+      Swal.fire({
+        icon: "success",
+        title: "Enrolled",
+        text: "Successfully enrolled in the course!",
+        confirmButtonColor: "#10B981",
+      });
     } catch (error) {
       console.error("Enrollment failed:", error);
       console.error("Error details:", error.response?.data || error.message);
-      alert("Failed to enroll in the course. Please try again.");
+      Swal.fire({
+        icon: "error",
+        title: "Enrollment Failed",
+        text: "Failed to enroll in the course. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setEnrollingCourseId(null);
     }
@@ -277,7 +292,12 @@ const LMSDashboard = ({
       setShowDebugModal(true);
     } catch (e) {
       console.error("Failed to fetch exam-results for debug", e);
-      alert("Failed to load exam results. Check console for details.");
+      Swal.fire({
+        icon: "error",
+        title: "Debug Error",
+        text: "Failed to load exam results. Check console for details.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setLoadingDebug(false);
     }
