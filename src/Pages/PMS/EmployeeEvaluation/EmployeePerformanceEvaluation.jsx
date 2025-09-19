@@ -81,13 +81,51 @@ const EmployeePerformanceEvaluation = () => {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const response = await PMSService.getEmployeesByCompany(1); // initial load
+        // Use the new getAllEmployees method
+        const response = await PMSService.getAllEmployees();
         const list = Array.isArray(response) ? response : (response?.data || []);
-        setEmployees(list);
+        
+        // Also fetch employees who have task assignments to ensure they're included
+        const assignments = await PMSService.getKpiTaskAssignments();
+        const employeesFromAssignments = [];
+        
+        if (Array.isArray(assignments)) {
+          assignments.forEach(task => {
+            if (task.employee_id && task.employee_name) {
+              // Check if this employee is already in the main list
+              const existsInMain = list.find(emp => 
+                emp.id === task.employee_id || 
+                emp.attendance_employee_no === task.employee_id
+              );
+              
+              if (!existsInMain) {
+                // Add employee from assignment data
+                employeesFromAssignments.push({
+                  id: task.employee_id,
+                  full_name: task.employee_name,
+                  attendance_employee_no: task.employee_id,
+                  department: task.department || '',
+                  company: task.company || ''
+                });
+              }
+            }
+          });
+        }
+        
+        // Combine both lists and remove duplicates
+        const combinedEmployees = [...list, ...employeesFromAssignments];
+        const uniqueEmployees = combinedEmployees.filter((emp, index, self) => 
+          index === self.findIndex(e => 
+            (e.id === emp.id) || 
+            (e.attendance_employee_no === emp.attendance_employee_no)
+          )
+        );
+        
+        setEmployees(uniqueEmployees);
         
         // Get employees with task assignments
-        if (list.length > 0) {
-          fetchEmployeesWithTasks(list);
+        if (uniqueEmployees.length > 0) {
+          fetchEmployeesWithTasks(uniqueEmployees);
         }
       } catch (error) {
         console.error("Error fetching employees:", error);
@@ -120,7 +158,19 @@ const EmployeePerformanceEvaluation = () => {
       if (Array.isArray(assignments)) {
         assignments.forEach(task => {
           if (task.employee_id) {
-            taskMap[task.employee_id] = (taskMap[task.employee_id] || 0) + 1;
+            // Handle both numeric IDs and attendance numbers
+            const employeeKey = task.employee_id;
+            taskMap[employeeKey] = (taskMap[employeeKey] || 0) + 1;
+            
+            // Also map by actual employee ID if it's different
+            const matchingEmployee = empList.find(emp => 
+              emp.attendance_employee_no === task.employee_id || 
+              emp.id === task.employee_id
+            );
+            
+            if (matchingEmployee && matchingEmployee.id !== employeeKey) {
+              taskMap[matchingEmployee.id] = (taskMap[matchingEmployee.id] || 0) + 1;
+            }
           }
         });
       }
@@ -132,61 +182,29 @@ const EmployeePerformanceEvaluation = () => {
     }
   };
 
-  // Debounced search handler - queries backend by name/id/attendance no
+  // Debounced search handler - now filters client-side only
   const handleSearchChange = (e) => {
     const val = e.target.value || "";
     setSearchTerm(val);
     setSelectedEmployee(""); // clear selection when typing
     setSelectedEmployeeName("");
-
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-
-    // If empty, restore the initial list (or refetch)
-    if (val.trim() === "") {
-      searchDebounceRef.current = setTimeout(async () => {
-        try {
-          setSearchLoading(true);
-          const response = await PMSService.getEmployeesByCompany(1);
-          const list = Array.isArray(response) ? response : (response?.data || []);
-          setEmployees(list);
-        } catch {
-          setEmployees([]);
-        } finally {
-          setSearchLoading(false);
-        }
-      }, 250);
-      return;
-    }
-
-    // Debounce backend search
-    searchDebounceRef.current = setTimeout(async () => {
-      try {
-        setSearchLoading(true);
-        // PMSService.getEmployeesByCompany supports search param
-        const response = await PMSService.getEmployeesByCompany(1, null, val);
-        const list = Array.isArray(response) ? response : (response?.data || []);
-        setEmployees(list);
-      } catch (err) {
-        console.error("Search error:", err);
-        setEmployees([]);
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 350);
+    setSearchLoading(false); // No backend call, so no loading
   };
 
-  // Filter employees client-side as a fallback: match name, id or attendance number
+  // Filter employees client-side as a fallback: match name, id or attendance no
   const filteredEmployees = (employees || []).filter(emp => {
     const q = (searchTerm || "").toString().toLowerCase().trim();
     if (!q) return true;
+    
     const fullname = (emp.full_name || emp.name || "").toString().toLowerCase();
     const empId = (emp.id || "").toString().toLowerCase();
     const attendance = (emp.attendance_employee_no || "").toString().toLowerCase();
+    
     return fullname.includes(q) || empId.includes(q) || attendance.includes(q);
   }).sort((a, b) => {
     // Sort to prioritize employees with tasks
-    const aHasTasks = employeesWithTasks[a.id] || 0;
-    const bHasTasks = employeesWithTasks[b.id] || 0;
+    const aHasTasks = employeesWithTasks[a.id] || employeesWithTasks[a.attendance_employee_no] || 0;
+    const bHasTasks = employeesWithTasks[b.id] || employeesWithTasks[b.attendance_employee_no] || 0;
     return bHasTasks - aHasTasks; // Sort by task count desc
   });
 
@@ -645,7 +663,9 @@ const EmployeePerformanceEvaluation = () => {
                         "Showing all employees matching search"}
                     </div>
                     {filteredEmployees.map(emp => {
-                      const hasAssignedTasks = employeesWithTasks[emp.id] > 0;
+                      const hasAssignedTasks = (employeesWithTasks[emp.id] || employeesWithTasks[emp.attendance_employee_no] || 0) > 0;
+                      const taskCount = employeesWithTasks[emp.id] || employeesWithTasks[emp.attendance_employee_no] || 0;
+                      
                       return (
                         <div 
                           key={emp.id} 
@@ -664,7 +684,7 @@ const EmployeePerformanceEvaluation = () => {
                               {hasAssignedTasks && (
                                 <span className="ml-2 px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full flex items-center">
                                   <ClipboardCheck className="w-3 h-3 mr-1" />
-                                  {employeesWithTasks[emp.id]}
+                                  {taskCount}
                                 </span>
                               )}
                             </div>

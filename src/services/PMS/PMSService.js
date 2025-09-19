@@ -179,15 +179,31 @@ class PMSService {
   }
 
   // Fetch employees by company, optional department and search term
-  async getEmployeesByCompany(companyId, departmentId = null, search = "") {
+  async getEmployeesByCompany(companyId = null, departmentId = null, search = "") {
     try {
-      const params = { company_id: companyId };
+      const params = {};
+      if (companyId) params.company_id = companyId;
       if (departmentId) params.department_id = departmentId;
       if (search) params.search = search;
+      
       const response = await axios.get('/pms/employees-by-company', { params });
       return response.data;
     } catch (error) {
       console.error("Error fetching employees by company:", error);
+      throw error;
+    }
+  }
+
+  // Get all employees (not company specific)
+  async getAllEmployees(search = "") {
+    try {
+      const params = {};
+      if (search) params.search = search;
+      
+      const response = await axios.get('/employees', { params }); // Use general employees endpoint
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching all employees:", error);
       throw error;
     }
   }
