@@ -789,17 +789,7 @@ const ManageCourses = ({ onViewCourse }) => {
                           Module {index + 1}: {module.title}
                         </h6>
                         <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              // You can trigger a file input click or show a modal here
-                              // For now, just alert or log for demonstration
-                              alert("Attach or replace file for this module.");
-                            }}
-                            className="text-blue-500 hover:text-blue-700"
-                            title="Attach/Replace File"
-                          >
-                            <Upload className="h-4 w-4" />
-                          </button>
+                          
                           <button
                             onClick={() => removeModule(module.id || module.tempId)}
                             className="text-red-500 hover:text-red-700"
@@ -871,7 +861,7 @@ const ManageCourses = ({ onViewCourse }) => {
                               >
                                 View
                               </button>
-                              <button
+                              {/* <button
                                 type="button"
                                 onClick={() =>
                                   updateModuleFile(module.id || module.tempId, null)
@@ -879,7 +869,7 @@ const ManageCourses = ({ onViewCourse }) => {
                                 className="text-red-500 hover:text-red-700 text-xs"
                               >
                                 Remove
-                              </button>
+                              </button> */}
                             </div>
                           </div>
                         )}
