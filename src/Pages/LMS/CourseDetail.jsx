@@ -463,7 +463,12 @@ const CourseDetail = ({ courseId, onBack }) => {
                       {exam.title}
                     </h4>
                     <p className="text-xs text-gray-500">
-                      {exam.totalQuestions} questions
+                      {exam.totalQuestions ??
+                        exam.total_questions ??
+                        (Array.isArray(exam.questions)
+                          ? exam.questions.length
+                          : "0")}{" "}
+                      questions
                     </p>
                   </div>
                 </div>

@@ -624,11 +624,21 @@ const LMSDashboard = ({
                     {exam.duration ? " minutes" : ""}
                   </span>
                   <span className="mx-2">•</span>
-                  <span>{exam.totalQuestions} questions</span>
+                  <span>
+                    {exam.totalQuestions ??
+                      exam.total_questions ??
+                      (Array.isArray(exam.questions)
+                        ? exam.questions.length
+                        : "0")}{" "}
+                    questions
+                  </span>
                 </div>
 
                 <div className="text-xs text-gray-400 mb-4">
-                  Passing Score: {exam.passingScore}%
+                  Passing Score:{" "}
+                  {(exam.passingScore ?? exam.passing_score) != null
+                    ? `${exam.passingScore ?? exam.passing_score}%`
+                    : "N/A"}
                   {exam.courseId && (
                     <span className="ml-2">
                       • Related to:{" "}

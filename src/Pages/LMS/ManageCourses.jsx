@@ -504,7 +504,7 @@ const ManageCourses = ({ onViewCourse }) => {
               {course.description}
             </p>
 
-              <div className="flex items-center text-sm text-gray-500 mb-4">
+            <div className="flex items-center text-sm text-gray-500 mb-4">
               <Clock className="h-4 w-4 mr-1" />
               <span>
                 {course.duration}
@@ -863,17 +863,22 @@ const ManageCourses = ({ onViewCourse }) => {
                               min="0"
                               value={formData.duration}
                               onChange={(e) =>
-                                setFormData({ ...formData, duration: e.target.value })
+                                setFormData({
+                                  ...formData,
+                                  duration: e.target.value,
+                                })
                               }
                               className={`w-full px-3 py-2 border rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                fieldErrors.duration ? "border-red-500" : "border-gray-300"
+                                fieldErrors.duration
+                                  ? "border-red-500"
+                                  : "border-gray-300"
                               }`}
                               placeholder="e.g., 2"
                             />
-                            <span className="px-3 py-2 bg-gray-50 border border-l-0 border-gray-300 rounded-r-lg text-gray-600 text-sm">hours</span>
+                            <span className="px-3 py-2 bg-gray-50 border border-l-0 border-gray-300 rounded-r-lg text-gray-600 text-sm">
+                              hours
+                            </span>
                           </div>
-                            className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs file:mr-2 file:py-1 file:px-3 file:rounded-l file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                          />
                         </div>
                       </div>
                       {module.path && (
