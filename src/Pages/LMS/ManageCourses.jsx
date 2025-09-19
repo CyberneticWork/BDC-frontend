@@ -556,10 +556,11 @@ const ManageCourses = ({ onViewCourse }) => {
                       <div
                         className="bg-green-500 h-2 rounded-full"
                         style={{
-                          width: `${(course.modules?.filter((m) => m.completed).length /
+                          width: `${
+                            (course.modules?.filter((m) => m.completed).length /
                               course.modules?.length) *
-                            100 || 0
-                            }%`,
+                              100 || 0
+                          }%`,
                         }}
                       ></div>
                     </div>
@@ -672,8 +673,9 @@ const ManageCourses = ({ onViewCourse }) => {
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.title ? "border-red-500" : "border-gray-300"
-                      }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      fieldErrors.title ? "border-red-500" : "border-gray-300"
+                    }`}
                     placeholder="Enter course title"
                   />
                   {fieldErrors.title && (
@@ -690,22 +692,25 @@ const ManageCourses = ({ onViewCourse }) => {
                     type="number"
                     value={formData.duration}
                     onChange={(e) => {
-                     
-                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      const value = e.target.value.replace(/[^0-9]/g, "");
                       setFormData({ ...formData, duration: value });
                     }}
                     onKeyDown={(e) => {
-                     
-                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                      if (["e", "E", "+", "-", "."].includes(e.key)) {
                         e.preventDefault();
                       }
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.duration ? "border-red-500" : "border-gray-300"
-                      }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      fieldErrors.duration
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                     placeholder="e.g., 2 (hours)"
                   />
                   {fieldErrors.duration && (
-                    <p className="mt-1 text-sm text-red-600">{fieldErrors.duration}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {fieldErrors.duration}
+                    </p>
                   )}
                 </div>
               </div>
@@ -720,10 +725,11 @@ const ManageCourses = ({ onViewCourse }) => {
                     setFormData({ ...formData, description: e.target.value })
                   }
                   rows={4}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.description
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    fieldErrors.description
                       ? "border-red-500"
                       : "border-gray-300"
-                    }`}
+                  }`}
                   placeholder="Enter course description"
                 />
                 {fieldErrors.description && (
@@ -807,9 +813,10 @@ const ManageCourses = ({ onViewCourse }) => {
                           Module {index + 1}: {module.title}
                         </h6>
                         <div className="flex items-center space-x-2">
-                          
                           <button
-                            onClick={() => removeModule(module.id || module.tempId)}
+                            onClick={() =>
+                              removeModule(module.id || module.tempId)
+                            }
                             className="text-red-500 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -859,7 +866,7 @@ const ManageCourses = ({ onViewCourse }) => {
                             </button>
                           </div>
                         )}
-                        
+
                         {/* module-level duration removed — modules should not have duration */}
                       </div>
                       {module.path && (
@@ -872,10 +879,12 @@ const ManageCourses = ({ onViewCourse }) => {
                                 <Video className="h-5 w-5 text-blue-500 mr-2" />
                               )}
                               <span className="text-sm text-gray-700">
-                                Existing file:{handleFileSelect}
-                                {module.path.includes(".pdf")
-                                  ? "PDF Document"
-                                  : "Video File"}
+                                Existing file:{" "}
+                                {module.path
+                                  ? decodeURIComponent(
+                                      module.path.split("/").pop()
+                                    )
+                                  : "Attached file"}
                               </span>
                             </div>
                             <button
