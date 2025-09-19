@@ -859,38 +859,7 @@ const ManageCourses = ({ onViewCourse }) => {
                             </button>
                           </div>
                         )}
-                        {!module.file && module.path && (
-                          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2">
-                            <div className="flex items-center">
-                              {module.path.includes(".pdf") ? (
-                                <FileText className="h-5 w-5 text-red-500 mr-2" />
-                              ) : (
-                                <Video className="h-5 w-5 text-blue-500 mr-2" />
-                              )}
-                              <span className="text-sm text-gray-700">
-                                Existing file attached
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => window.open(module.path, "_blank")}
-                                className="text-blue-600 hover:text-blue-800 text-xs underline"
-                              >
-                                View
-                              </button>
-                              {/* <button
-                                type="button"
-                                onClick={() =>
-                                  updateModuleFile(module.id || module.tempId, null)
-                                }
-                                className="text-red-500 hover:text-red-700 text-xs"
-                              >
-                                Remove
-                              </button> */}
-                            </div>
-                          </div>
-                        )}
+                        
                         {/* module-level duration removed — modules should not have duration */}
                       </div>
                       {module.path && (
@@ -903,7 +872,7 @@ const ManageCourses = ({ onViewCourse }) => {
                                 <Video className="h-5 w-5 text-blue-500 mr-2" />
                               )}
                               <span className="text-sm text-gray-700">
-                                Existing file:{" "}
+                                Existing file:{handleFileSelect}
                                 {module.path.includes(".pdf")
                                   ? "PDF Document"
                                   : "Video File"}
