@@ -218,7 +218,10 @@ const CourseDetail = ({ courseId, onBack }) => {
 
         <div className="flex items-center text-sm text-gray-500 mb-4">
           <Clock className="h-4 w-4 mr-1" />
-          <span>{course.duration}</span>
+          <span>
+            {course.duration}
+            {course.duration ? " hours" : ""}
+          </span>
           <span className="mx-2">•</span>
           <span>{totalModules} modules</span>
           <span className="mx-2">•</span>

@@ -622,9 +622,12 @@ const ExamManagement = ({ onTakeExam }) => {
             </p>
 
             <div className="space-y-2 mb-4">
-              <div className="flex items-center text-sm text-gray-500">
+                <div className="flex items-center text-sm text-gray-500">
                 <Clock className="h-4 w-4 mr-1" />
-                <span>{exam.duration}</span>
+                <span>
+                  {exam.duration}
+                  {exam.duration ? " minutes" : ""}
+                </span>
               </div>
               <div className="flex items-center text-sm text-gray-500">
                 <Target className="h-4 w-4 mr-1" />

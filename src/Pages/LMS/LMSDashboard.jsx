@@ -466,7 +466,10 @@ const LMSDashboard = ({
 
                 <div className="flex items-center text-sm text-gray-500 mb-4">
                   <Clock className="h-4 w-4 mr-1" />
-                  <span>{course.duration}</span>
+                  <span>
+                    {course.duration}
+                    {course.duration ? " hours" : ""}
+                  </span>
                   <span className="mx-2">•</span>
                   <span>{course.modules.length} modules</span>
                 </div>
@@ -616,7 +619,10 @@ const LMSDashboard = ({
 
                 <div className="flex items-center text-sm text-gray-500 mb-4">
                   <Clock className="h-4 w-4 mr-1" />
-                  <span>{exam.duration}</span>
+                  <span>
+                    {exam.duration}
+                    {exam.duration ? " minutes" : ""}
+                  </span>
                   <span className="mx-2">•</span>
                   <span>{exam.totalQuestions} questions</span>
                 </div>
