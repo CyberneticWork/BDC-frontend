@@ -338,6 +338,40 @@ class PMSService {
       throw error;
     }
   }
+
+  // Calculate employee performance evaluation
+  async calculateEmployeePerformance(data) {
+    try {
+      const response = await axios.post('/pms/employee-performance/calculate', data);
+      return response.data;
+    } catch (error) {
+      console.error("Error calculating employee performance:", error);
+      throw error;
+    }
+  }
+
+  // Save employee performance evaluation
+  async saveEmployeePerformance(data) {
+    try {
+      const response = await axios.post('/pms/employee-performance/save', data);
+      return response.data;
+    } catch (error) {
+      console.error("Error saving employee performance:", error);
+      throw error;
+    }
+  }
+
+  // Get employee performance evaluations
+  async getEmployeePerformanceEvaluations(employeeId = null) {
+    try {
+      const params = employeeId ? { employee_id: employeeId } : {};
+      const response = await axios.get('/pms/employee-performance', { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching employee performance evaluations:", error);
+      throw error;
+    }
+  }
   // --- end added methods ---
 }
 
