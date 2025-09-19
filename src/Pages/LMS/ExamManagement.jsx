@@ -785,13 +785,17 @@ const ExamManagement = ({ onTakeExam }) => {
                     Duration *
                   </label>
                   <input
-                    type="number"
+                   type="number"
                     value={formData.duration}
                     onChange={(e) => {
-                      setFormData({ ...formData, duration: e.target.value });
-                      // Clear error when user starts typing
-                      if (fieldErrors.duration) {
-                        setFieldErrors((prev) => ({ ...prev, duration: "" }));
+                     
+                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      setFormData({ ...formData, duration: value });
+                    }}
+                    onKeyDown={(e) => {
+                     
+                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                        e.preventDefault();
                       }
                     }}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${

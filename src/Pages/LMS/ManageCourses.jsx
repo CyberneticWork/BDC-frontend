@@ -538,11 +538,10 @@ const ManageCourses = ({ onViewCourse }) => {
                       <div
                         className="bg-green-500 h-2 rounded-full"
                         style={{
-                          width: `${
-                            (course.modules?.filter((m) => m.completed).length /
+                          width: `${(course.modules?.filter((m) => m.completed).length /
                               course.modules?.length) *
-                              100 || 0
-                          }%`,
+                            100 || 0
+                            }%`,
                         }}
                       ></div>
                     </div>
@@ -655,9 +654,8 @@ const ManageCourses = ({ onViewCourse }) => {
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      fieldErrors.title ? "border-red-500" : "border-gray-300"
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.title ? "border-red-500" : "border-gray-300"
+                      }`}
                     placeholder="Enter course title"
                   />
                   {fieldErrors.title && (
@@ -673,20 +671,23 @@ const ManageCourses = ({ onViewCourse }) => {
                   <input
                     type="number"
                     value={formData.duration}
-                    onChange={(e) =>
-                      setFormData({ ...formData, duration: e.target.value })
-                    }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      fieldErrors.duration
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                    placeholder="e.g., 2 hours"
+                    onChange={(e) => {
+                     
+                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      setFormData({ ...formData, duration: value });
+                    }}
+                    onKeyDown={(e) => {
+                     
+                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.duration ? "border-red-500" : "border-gray-300"
+                      }`}
+                    placeholder="e.g., 2 (hours)"
                   />
                   {fieldErrors.duration && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {fieldErrors.duration}
-                    </p>
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors.duration}</p>
                   )}
                 </div>
               </div>
@@ -701,11 +702,10 @@ const ManageCourses = ({ onViewCourse }) => {
                     setFormData({ ...formData, description: e.target.value })
                   }
                   rows={4}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    fieldErrors.description
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.description
                       ? "border-red-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   placeholder="Enter course description"
                 />
                 {fieldErrors.description && (
