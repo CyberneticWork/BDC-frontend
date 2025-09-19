@@ -383,10 +383,20 @@ const ManageCourses = ({ onViewCourse }) => {
     try {
       console.log("Testing API connection from ManageCourses...");
       const result = await LMSService.testApiConnection();
-      alert(`API connection successful: ${result.message}`);
+      Swal.fire({
+        icon: "success",
+        title: "API Connection",
+        text: `API connection successful: ${result.message}`,
+        confirmButtonColor: "#10B981",
+      });
     } catch (error) {
       console.error("API connection test failed:", error);
-      alert("API connection failed. Check console for details.");
+      Swal.fire({
+        icon: "error",
+        title: "API Connection Failed",
+        text: "API connection failed. Check console for details.",
+        confirmButtonColor: "#EF4444",
+      });
     }
   };
 
@@ -436,13 +446,18 @@ const ManageCourses = ({ onViewCourse }) => {
 
   // Set or replace a file for a specific module
   const updateModuleFile = (moduleId, file) => {
-    console.log('updateModuleFile called with moduleId:', moduleId, 'file:', file);
+    console.log(
+      "updateModuleFile called with moduleId:",
+      moduleId,
+      "file:",
+      file
+    );
     setFormData({
       ...formData,
       modules: formData.modules.map((m) => {
-        console.log('checking module:', m.id || m.tempId, 'vs', moduleId);
+        console.log("checking module:", m.id || m.tempId, "vs", moduleId);
         if ((m.id || m.tempId) === moduleId) {
-          console.log('updating module file to:', file);
+          console.log("updating module file to:", file);
           return {
             ...m,
             file, // keep any existing data
@@ -516,7 +531,10 @@ const ManageCourses = ({ onViewCourse }) => {
 
             <div className="flex items-center text-sm text-gray-500 mb-4">
               <Clock className="h-4 w-4 mr-1" />
-              <span>{course.duration}</span>
+              <span>
+                {course.duration}
+                {course.duration ? " hours" : ""}
+              </span>
               <span className="mx-2">•</span>
               <span>{course.modules.length} modules</span>
             </div>
@@ -873,24 +891,7 @@ const ManageCourses = ({ onViewCourse }) => {
                             </div>
                           </div>
                         )}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            {module.file || module.path
-                              ? "Replace File (optional)"
-                              : "Attach File (PDF / Video)"}
-                          </label>
-                          <input
-                            type="file"
-                            accept=".pdf,.mp4,.avi,.mov,.wmv"
-                            onChange={(e) =>
-                              updateModuleFile(
-                                module.id || module.tempId,
-                                e.target.files[0] || null
-                              )
-                            }
-                            className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs file:mr-2 file:py-1 file:px-3 file:rounded-l file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                          />
-                        </div>
+                        {/* module-level duration removed — modules should not have duration */}
                       </div>
                       {module.path && (
                         <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">

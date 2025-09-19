@@ -210,7 +210,12 @@ const LMSDashboard = ({
       setShowCertificateModal(true);
     } catch (error) {
       console.error("Error fetching certificate:", error);
-      alert("Failed to retrieve your certificate. Please try again later.");
+      Swal.fire({
+        icon: "error",
+        title: "Certificate Error",
+        text: "Failed to retrieve your certificate. Please try again later.",
+        confirmButtonColor: "#EF4444",
+      });
     }
   };
 
@@ -242,11 +247,21 @@ const LMSDashboard = ({
       await refreshDashboardData();
 
       // Show success message (you might want to add a toast notification here)
-      alert("Successfully enrolled in the course!");
+      Swal.fire({
+        icon: "success",
+        title: "Enrolled",
+        text: "Successfully enrolled in the course!",
+        confirmButtonColor: "#10B981",
+      });
     } catch (error) {
       console.error("Enrollment failed:", error);
       console.error("Error details:", error.response?.data || error.message);
-      alert("Failed to enroll in the course. Please try again.");
+      Swal.fire({
+        icon: "error",
+        title: "Enrollment Failed",
+        text: "Failed to enroll in the course. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setEnrollingCourseId(null);
     }
@@ -277,7 +292,12 @@ const LMSDashboard = ({
       setShowDebugModal(true);
     } catch (e) {
       console.error("Failed to fetch exam-results for debug", e);
-      alert("Failed to load exam results. Check console for details.");
+      Swal.fire({
+        icon: "error",
+        title: "Debug Error",
+        text: "Failed to load exam results. Check console for details.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setLoadingDebug(false);
     }
@@ -466,7 +486,10 @@ const LMSDashboard = ({
 
                 <div className="flex items-center text-sm text-gray-500 mb-4">
                   <Clock className="h-4 w-4 mr-1" />
-                  <span>{course.duration}</span>
+                  <span>
+                    {course.duration}
+                    {course.duration ? " hours" : ""}
+                  </span>
                   <span className="mx-2">•</span>
                   <span>{course.modules.length} modules</span>
                 </div>
@@ -616,13 +639,26 @@ const LMSDashboard = ({
 
                 <div className="flex items-center text-sm text-gray-500 mb-4">
                   <Clock className="h-4 w-4 mr-1" />
-                  <span>{exam.duration}</span>
+                  <span>
+                    {exam.duration}
+                    {exam.duration ? " minutes" : ""}
+                  </span>
                   <span className="mx-2">•</span>
-                  <span>{exam.totalQuestions} questions</span>
+                  <span>
+                    {exam.totalQuestions ??
+                      exam.total_questions ??
+                      (Array.isArray(exam.questions)
+                        ? exam.questions.length
+                        : "0")}{" "}
+                    questions
+                  </span>
                 </div>
 
                 <div className="text-xs text-gray-400 mb-4">
-                  Passing Score: {exam.passingScore}%
+                  Passing Score:{" "}
+                  {(exam.passingScore ?? exam.passing_score) != null
+                    ? `${exam.passingScore ?? exam.passing_score}%`
+                    : "N/A"}
                   {exam.courseId && (
                     <span className="ml-2">
                       • Related to:{" "}

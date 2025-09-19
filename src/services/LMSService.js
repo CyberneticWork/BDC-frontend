@@ -417,7 +417,30 @@ const LMSService = {
   // Get all exams with optional params
   async getExams(params = {}) {
     const response = await axios.get("/exams", { params });
-    return response.data;
+    const payload = response.data;
+
+    // Normalize exams array whether API returns { data: [...] } or an array
+    const examsArray = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+      ? payload.data
+      : [];
+
+    const mapped = examsArray.map((e) => ({
+      ...e,
+      totalQuestions:
+        e.totalQuestions ??
+        e.total_questions ??
+        (Array.isArray(e.questions)
+          ? e.questions.length
+          : e.questions_count ?? null),
+    }));
+
+    if (Array.isArray(payload)) {
+      return { data: mapped };
+    }
+
+    return { ...payload, data: mapped };
   },
 
   // Get specific exam by ID
