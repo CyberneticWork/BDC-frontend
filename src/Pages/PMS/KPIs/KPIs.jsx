@@ -24,6 +24,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService";
+import Swal from "sweetalert2";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -1110,6 +1111,16 @@ const KPIs = () => {
   const handleAddKpi = async (formData) => {
     setIsSubmitting(true);
     try {
+      // Validation: ensure at least one assignee is present
+      if (!formData.assignees || formData.assignees.length === 0) {
+        setIsSubmitting(false);
+        return Swal.fire({
+          icon: "warning",
+          title: "Add Assignee",
+          text: "Please add at least one assignee before creating the KPI task.",
+        });
+      }
+
       const data = {
         task_name: formData.name,
         description: formData.description,
@@ -1125,8 +1136,14 @@ const KPIs = () => {
       
       const result = await PMSService.createKpiTaskAssignment(data);
       
-      // Show success message
-      alert("KPI task assignment created successfully.");
+      // Show success message using SweetAlert
+      await Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "KPI task assignment created successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
       setIsAddModalOpen(false);
       
       // Refresh the KPI list to get the latest data from server
@@ -1134,7 +1151,11 @@ const KPIs = () => {
       
     } catch (e) {
       console.error(e);
-      alert("Failed to create KPI task assignment");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to create KPI task assignment. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1157,7 +1178,13 @@ const KPIs = () => {
       };
       
       const result = await PMSService.updateKpiTaskAssignment(currentKpi.id, data);
-      alert("KPI task updated successfully.");
+      await Swal.fire({
+        icon: "success",
+        title: "Updated",
+        text: "KPI task updated successfully.",
+        timer: 1400,
+        showConfirmButton: false,
+      });
       setIsEditModalOpen(false);
       
       // FIX: Ensure we refresh the list after update
@@ -1165,7 +1192,11 @@ const KPIs = () => {
       
     } catch (e) {
       console.error(e);
-      alert("Failed to update KPI task");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to update KPI task. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1175,7 +1206,13 @@ const KPIs = () => {
     setIsSubmitting(true);
     try {
       const result = await PMSService.deleteKpiTaskAssignment(currentKpi.id);
-      alert("KPI task deleted successfully.");
+      await Swal.fire({
+        icon: "success",
+        title: "Deleted",
+        text: "KPI task deleted successfully.",
+        timer: 1400,
+        showConfirmButton: false,
+      });
       setIsDeleteModalOpen(false);
       
       // FIX: Ensure we refresh the list after deletion
@@ -1183,7 +1220,11 @@ const KPIs = () => {
       
     } catch (e) {
       console.error(e);
-      alert("Failed to delete KPI task");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to delete KPI task. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }

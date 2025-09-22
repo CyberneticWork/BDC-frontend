@@ -33,6 +33,7 @@ import PMSService from "@services/PMS/PMSService"; // Remove PMSDummyDataStore i
 import EmployeeDocumentsModal from './EmployeeDocumentsModal';
 import { permissions } from '../../../config/permissions';
 import { useAuth } from '../../../contexts/AuthContext';
+import Swal from "sweetalert2";
 
 // Progress Review Modal Component
 const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove useDatabase prop
@@ -234,25 +235,111 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
+    // New: require progress to be set (> 0)
+    if (isNaN(progress) || progress <= 0 || progress > 100) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Set Progress",
+        text: "Please set the progress bar to a value between 1 and 100 before saving.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // New: require status to be selected
+    if (!statusState || statusState.trim() === "") {
+      await Swal.fire({
+        icon: "warning",
+        title: "Status Required",
+        text: "Please select a review status before saving.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Existing validations
+    if (!grade || !grade.trim()) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Grade Required",
+        text: "Please select a performance grade before saving.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    if (!comments || !comments.trim()) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Comments Required",
+        text: "Please provide supervisor comments.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Validate metrics values (0-100)
+    for (const [key, val] of Object.entries(performanceMetrics)) {
+      const v = Number(val);
+      if (isNaN(v) || v < 0 || v > 100) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Invalid Metric Value",
+          text: `Metric "${key}" must be between 0 and 100.`,
+          confirmButtonColor: "#F59E0B",
+        });
+        return;
+      }
+    }
+
+    // Confirmation dialog
+    const confirm = await Swal.fire({
+      title: "Confirm Update",
+      text: "Are you sure you want to save this review update?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#4F46E5",
+      cancelButtonColor: "#D1D5DB",
+      confirmButtonText: "Yes, save",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsSubmitting(true);
     try {
-      // Create updated review object including supervisor-selected status
+      // Build update payload
       const updatedReview = {
         ...review,
-        progress: parseInt(progress), // Ensure this is an integer
-        grade: grade,
+        progress: parseInt(progress, 10),
+        grade,
         supervisorComments: comments,
         status: statusState,
-        lastUpdated: new Date().toISOString(),
-        performanceMetrics: performanceMetrics // Include performance metrics as JSON object
+        performanceMetrics,
+        lastUpdated: new Date().toISOString()
       };
-      
+
+      // Call parent handler (which calls backend via PMSService.updatePerformanceReview)
       await onSave(updatedReview);
+
+      await Swal.fire({
+        icon: "success",
+        title: "Saved",
+        text: "Performance review updated successfully.",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+
       onClose();
     } catch (error) {
       console.error("Error updating review:", error);
-      alert("Failed to update review: " + error.message);
+      await Swal.fire({
+        icon: "error",
+        title: "Update Failed",
+        text: error?.response?.data?.message || "Failed to update the review. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -730,8 +817,12 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
               onChange={(e) => setStatusState(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
             >
+              <option value="">Select status</option>
               {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            {!statusState && (
+              <div className="text-sm text-red-600 mt-1">Please select a review status.</div>
+            )}
           </div>
 
           {/* Grade Section */}
@@ -777,13 +868,14 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 mr-3"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+              disabled={isSubmitting || Number(progress) <= 0 || !statusState}
+              className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2 ${ (isSubmitting || Number(progress) <= 0 || !statusState) ? 'opacity-60 cursor-not-allowed' : '' }`}
             >
               {isSubmitting ? (
                 <>
@@ -1680,7 +1772,7 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left textxs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Status
                     <ArrowDownUp className="h-3 w-3" />

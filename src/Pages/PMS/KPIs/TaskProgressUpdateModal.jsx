@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { X, Loader2, Upload, File, AlertCircle, Clock, Calendar, BarChart, ChevronDown, ChevronUp } from "lucide-react";
+import Swal from "sweetalert2";
 
 export const TaskProgressUpdateModal = ({ 
   isOpen, 
@@ -111,23 +112,48 @@ export const TaskProgressUpdateModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Enhanced validation
     if (!progressNote.trim()) {
-      alert("Please add a note about your progress");
+      await Swal.fire({
+        icon: "warning",
+        title: "Missing note",
+        text: "Please add a note about your progress.",
+        confirmButtonColor: "#3085d6",
+      });
       return;
     }
 
     if (currentMetricValue === undefined || currentMetricValue === null || isNaN(currentMetricValue)) {
-      alert("Please set a valid progress percentage");
+      await Swal.fire({
+        icon: "warning",
+        title: "Invalid value",
+        text: "Please set a valid progress percentage.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    // Require the user to fill the progress bar (must be > 0)
+    if (Number(currentMetricValue) <= 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Set your progress",
+        text: "Please move the progress bar to indicate your progress before submitting.",
+        confirmButtonColor: "#3085d6",
+      });
       return;
     }
 
     if (currentMetricValue < 0 || currentMetricValue > 100) {
-      alert("Progress percentage must be between 0 and 100");
+      await Swal.fire({
+        icon: "warning",
+        title: "Out of range",
+        text: "Progress percentage must be between 0 and 100.",
+        confirmButtonColor: "#3085d6",
+      });
       return;
     }
-
     setIsSubmitting(true);
     try {
       // Create current timestamp
@@ -167,13 +193,26 @@ export const TaskProgressUpdateModal = ({
       
       await onSubmit(progressData);
       
+      await Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Progress submitted successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+ 
       setProgressNote("");
       setSelectedFile(null);
       setCurrentMetricValue(0);
       onClose();
     } catch (error) {
       console.error("Error updating progress:", error);
-      alert("Failed to update progress. Please try again.");
+      await Swal.fire({
+        icon: "error",
+        title: "Update failed",
+        text: "Failed to update progress. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setIsSubmitting(false);
     }
