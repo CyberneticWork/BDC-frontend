@@ -113,7 +113,7 @@ const LMS = ({ initialView }) => {
                 }`}
               >
                 <Settings className="h-4 w-4 mr-2" />
-                Manage Courses
+                Courses
               </button>
               <button
                 onClick={handleViewExams}
@@ -124,7 +124,7 @@ const LMS = ({ initialView }) => {
                 }`}
               >
                 <FileText className="h-4 w-4 mr-2" />
-                Manage Exams
+                Exams
               </button>
               <button
                 onClick={handleViewProgress}
