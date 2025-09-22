@@ -962,10 +962,20 @@ const ExamManagement = ({ onTakeExam }) => {
                 </button>
                 <button
                   onClick={editingExam ? handleUpdateExam : handleCreateExam}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center"
+                  disabled={loading}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Save className="h-4 w-4 mr-2" />
-                  {editingExam ? "Update Exam" : "Create Exam"}
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {editingExam ? "Updating..." : "Creating..."}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {editingExam ? "Update Exam" : "Create Exam"}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
