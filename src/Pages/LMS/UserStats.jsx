@@ -204,26 +204,10 @@ export default function UserStats() {
       const res = filterUserId
         ? await LMSService.getUserCourseProgress(filterUserId, params)
         : await LMSService.getAllUsersCourseProgress(params);
-      const serverRows = res.data || [];
-      const term = (courseSearch || "").trim().toLowerCase();
-      const filteredRows = term
-        ? serverRows.filter((row) => {
-            const userStr = (
-              (row.user?.name || "") + " " + (row.user?.email || "")
-            ).toLowerCase();
-            const courseStr = (
-              row.course?.title || row.course_title || ""
-            ).toLowerCase();
-            return (
-              userStr.includes(term) ||
-              courseStr.includes(term)
-            );
-          })
-        : serverRows;
       setCourseData({
-        data: filteredRows,
+        data: res.data || [],
         last_page: res.last_page || 1,
-        total: res.total || serverRows.length,
+        total: res.total || (res.data ? res.data.length : 0),
       });
     } catch (e) {
       console.error("Failed to load course progress", e);
@@ -245,24 +229,10 @@ export default function UserStats() {
       const res = filterUserId
         ? await LMSService.getUserExamProgress(filterUserId, params)
         : await LMSService.getAllUsersExamProgress(params);
-      const serverRows = res.data || [];
-      const term = (examSearch || "").trim().toLowerCase();
-      const filteredRows = term
-        ? serverRows.filter((row) => {
-            const userStr = (
-              (row.user?.name || "") + " " + (row.user?.email || "")
-            ).toLowerCase();
-            const examStr = (row.exam?.title || "").toLowerCase();
-            return (
-              userStr.includes(term) ||
-              examStr.includes(term)
-            );
-          })
-        : serverRows;
       setExamData({
-        data: filteredRows,
+        data: res.data || [],
         last_page: res.last_page || 1,
-        total: res.total || serverRows.length,
+        total: res.total || (res.data ? res.data.length : 0),
       });
     } catch (e) {
       console.error("Failed to load exam progress", e);
