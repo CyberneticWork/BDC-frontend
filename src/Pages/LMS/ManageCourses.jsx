@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Plus,
   Edit,
@@ -41,6 +41,7 @@ const ManageCourses = ({ onViewCourse }) => {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [enrollingCourseId, setEnrollingCourseId] = useState(null);
+  const attachmentsInputRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -397,9 +398,17 @@ const ManageCourses = ({ onViewCourse }) => {
 
     const validFiles = [];
     const errors = [];
+    const existingKeys = new Set(
+      (selectedFiles || []).map((f) => `${f.name}|${f.size}`)
+    );
 
     files.forEach((file) => {
       console.log("Validating file:", file.name);
+      const key = `${file.name}|${file.size}`;
+      if (existingKeys.has(key)) {
+        // Skip duplicates already selected
+        return;
+      }
       if (!allowedTypes.includes(file.type)) {
         errors.push(
           `${file.name}: Invalid file type. Only PDF and video files are allowed.`
@@ -418,8 +427,14 @@ const ManageCourses = ({ onViewCourse }) => {
     } else {
       console.log("All files valid, setting selected files");
       setUploadError("");
-      setSelectedFiles([...selectedFiles, ...validFiles]);
+      setSelectedFiles([...(selectedFiles || []), ...validFiles]);
     }
+
+    // Reset the input so selecting the same file again will trigger onChange
+    try {
+      if (attachmentsInputRef.current) attachmentsInputRef.current.value = "";
+      if (event && event.target) event.target.value = "";
+    } catch {}
   };
 
   const removeSelectedFile = (index) => {
@@ -1035,6 +1050,7 @@ const ManageCourses = ({ onViewCourse }) => {
                         multiple
                         accept=".pdf,.mp4,.avi,.mov,.wmv"
                         onChange={handleFileSelect}
+                        ref={attachmentsInputRef}
                         className="hidden"
                       />
                     </div>
