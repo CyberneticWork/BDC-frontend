@@ -66,6 +66,7 @@ const LMS = ({ initialView }) => {
           <CourseDetail
             courseId={selectedCourseId}
             onBack={handleBackToDashboard}
+            onTakeExam={handleTakeExam}
           />
         );
       case "progress":

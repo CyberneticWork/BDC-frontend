@@ -16,13 +16,17 @@ import {
 import LMSService from "../../services/LMSService";
 import { useAuth } from "../../contexts/AuthContext";
 import CertificateModal from "../../components/CertificateModal";
+import Swal from "sweetalert2";
 
-const CourseDetail = ({ courseId, onBack }) => {
+const CourseDetail = ({ courseId, onBack, onTakeExam }) => {
   const [course, setCourse] = useState(null);
   const [currentModule, setCurrentModule] = useState(null);
   const [showCertificate, setShowCertificate] = useState(false);
+  const [showExamCertificate, setShowExamCertificate] = useState(false);
+  const [examCertificateData, setExamCertificateData] = useState(null);
   const [relatedExams, setRelatedExams] = useState([]);
   const [courseProgress, setCourseProgress] = useState(null);
+  const [passedExams, setPassedExams] = useState({});
   const { user } = useAuth();
 
   useEffect(() => {
@@ -43,6 +47,10 @@ const CourseDetail = ({ courseId, onBack }) => {
         }
         // Load related exams
         setRelatedExams(examsResponse.data || []);
+        // Check which exams have been passed
+        if (examsResponse.data && examsResponse.data.length > 0) {
+          await checkPassedExams(examsResponse.data);
+        }
         // Set course-specific progress from API if available
         const cp = progress.enrolledCourses?.find(
           (c) => c.id === parseInt(courseId)
@@ -54,6 +62,20 @@ const CourseDetail = ({ courseId, onBack }) => {
     };
     load();
   }, [courseId]);
+
+  const checkPassedExams = async (examsList) => {
+    const passedStatus = {};
+    for (const exam of examsList) {
+      try {
+        const hasPassed = await LMSService.hasUserPassedExam(exam.id);
+        passedStatus[exam.id] = hasPassed;
+      } catch (error) {
+        console.error(`Failed to check exam status for ${exam.id}:`, error);
+        passedStatus[exam.id] = false;
+      }
+    }
+    setPassedExams(passedStatus);
+  };
   const displayName = user?.name || user?.fullName || "Participant";
   const handleModuleComplete = async (moduleId) => {
     try {
@@ -167,6 +189,38 @@ const CourseDetail = ({ courseId, onBack }) => {
       win.print();
       win.close();
     }, 400);
+  };
+
+  const handleViewExamCertificate = async (examId) => {
+    try {
+      // Get the exam data
+      const exam = relatedExams.find((e) => e.id === examId);
+
+      // Get certificate data from the service
+      const certificate = await LMSService.getExamCertificate(examId);
+      if (!certificate) {
+        throw new Error("Certificate not available");
+      }
+
+      // Set certificate data and show modal
+      setExamCertificateData({
+        ...certificate,
+        examTitle: certificate.examTitle || exam?.title,
+        examDescription: certificate.examDescription || exam?.description,
+        passingScore:
+          certificate.passingScore || exam?.passing_score || exam?.passingScore,
+        userName: user?.name || user?.fullName || "User",
+      });
+      setShowExamCertificate(true);
+    } catch (error) {
+      console.error("Error fetching certificate:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Certificate Unavailable",
+        text: "Unable to load the certificate. Please try again later.",
+        confirmButtonColor: "#EF4444",
+      });
+    }
   };
 
   if (!course) {
@@ -484,42 +538,81 @@ const CourseDetail = ({ courseId, onBack }) => {
                   <span>Duration: {exam.duration}</span>
                   <span>Passing: {exam.passingScore}%</span>
                 </div>
-                <button
-                  onClick={() => {
-                    // In a real app, this would navigate to take exam
-                    Swal.fire({
-                      icon: "info",
-                      title: "Take Exam",
-                      text: `Take exam: ${exam.title}`,
-                      confirmButtonColor: "#3B82F6",
-                    });
-                  }}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center text-sm"
-                >
-                  <Target className="h-4 w-4 mr-2" />
-                  Take Exam
-                </button>
+                {(() => {
+                  // Check if exam status is still loading
+                  if (passedExams[exam.id] === undefined) {
+                    return (
+                      <button
+                        disabled
+                        className="w-full bg-gray-100 text-gray-500 px-3 py-2 rounded-lg font-medium flex items-center justify-center text-sm"
+                      >
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
+                        Checking status...
+                      </button>
+                    );
+                  }
+
+                  // If exam is passed, show View Certificate button
+                  if (passedExams[exam.id]) {
+                    return (
+                      <button
+                        onClick={() => handleViewExamCertificate(exam.id)}
+                        className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center text-sm"
+                      >
+                        <Award className="h-4 w-4 mr-2" />
+                        View Certificate
+                      </button>
+                    );
+                  }
+
+                  // Otherwise, show Take Exam button
+                  return (
+                    <button
+                      onClick={() => onTakeExam(exam.id)}
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center text-sm"
+                    >
+                      <Target className="h-4 w-4 mr-2" />
+                      Take Exam
+                    </button>
+                  );
+                })()}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Certificate Modal */}
-      {showCertificate && (
-        <CertificateModal
-          selectedCertificate={{
-            course_title: course.title,
-            issued_date: new Date().toISOString().split("T")[0],
-            course_id: courseId,
-            id: courseId,
-            type: "course",
-          }}
-          onClose={() => setShowCertificate(false)}
-          displayName={displayName}
-          certificateType="course"
-        />
-      )}
+      {/* Certificate Modals */}
+      <>
+        {/* Certificate Modal */}
+        {showCertificate && (
+          <CertificateModal
+            selectedCertificate={{
+              course_title: course.title,
+              issued_date: new Date().toISOString().split("T")[0],
+              course_id: courseId,
+              id: courseId,
+              type: "course",
+            }}
+            onClose={() => setShowCertificate(false)}
+            displayName={displayName}
+            certificateType="course"
+          />
+        )}
+
+        {/* Exam Certificate Modal */}
+        {showExamCertificate && examCertificateData && (
+          <CertificateModal
+            selectedCertificate={examCertificateData}
+            onClose={() => {
+              setShowExamCertificate(false);
+              setExamCertificateData(null);
+            }}
+            displayName={examCertificateData.userName}
+            certificateType="exam"
+          />
+        )}
+      </>
     </div>
   );
 };
