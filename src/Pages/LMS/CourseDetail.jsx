@@ -207,7 +207,8 @@ const CourseDetail = ({ courseId, onBack, onTakeExam }) => {
         ...certificate,
         examTitle: certificate.examTitle || exam?.title,
         examDescription: certificate.examDescription || exam?.description,
-        passingScore: certificate.passingScore || exam?.passing_score || exam?.passingScore,
+        passingScore:
+          certificate.passingScore || exam?.passing_score || exam?.passingScore,
         userName: user?.name || user?.fullName || "User",
       });
       setShowExamCertificate(true);
