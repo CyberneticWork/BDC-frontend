@@ -38,17 +38,17 @@ const TakeExam = ({ examId, onBack }) => {
       setExam(examData);
       setUserAnswers(new Array(examData.questions.length).fill(null));
 
-      // Parse duration and set timer (assuming format like "30 minutes")
-      const durationMatch = examData.duration.match(/(\d+)/);
-      if (durationMatch) {
-        const minutes = parseInt(durationMatch[1]);
-        const timeInSeconds = Math.max(minutes * 60, 300);
-        console.log("Setting timer to:", timeInSeconds, "seconds");
-        setTimeLeft(timeInSeconds);
-      } else {
-        console.log("Duration parsing failed, setting default 30 minutes");
-        setTimeLeft(30 * 60);
+      // Parse duration: support numeric minutes or strings like "30" or "30 minutes"
+      let minutes = 30;
+      if (typeof examData.duration === "number") {
+        minutes = examData.duration;
+      } else if (typeof examData.duration === "string") {
+        const m = examData.duration.match(/(\d+)/);
+        if (m) minutes = parseInt(m[1]);
       }
+      const timeInSeconds = Math.max(0, Math.floor(minutes * 60));
+      console.log("Setting timer to:", timeInSeconds, "seconds");
+      setTimeLeft(timeInSeconds || 0);
     } catch (err) {
       setError("Failed to load exam");
       console.error("Error loading exam:", err);
