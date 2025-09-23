@@ -258,6 +258,24 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
       return;
     }
 
+    // Map UI status -> backend status and validate
+    const BACKEND_ALLOWED_STATUSES = ['Draft','In Progress','Pending Manager','Pending Employee','Completed'];
+    const STATUS_SEND_MAP = {
+      // keep UI short, but send backend-expected value
+      'Pending': 'Pending Manager'
+    };
+
+    const mappedStatus = STATUS_SEND_MAP[statusState] ?? statusState;
+    if (!BACKEND_ALLOWED_STATUSES.includes(mappedStatus)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid Status",
+        text: `Selected status "${statusState}" is not allowed. Choose one of: ${BACKEND_ALLOWED_STATUSES.join(', ')}`,
+        confirmButtonColor: "#EF4444"
+      });
+      return;
+    }
+
     // Existing validations
     if (!grade || !grade.trim()) {
       await Swal.fire({
@@ -315,7 +333,8 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
         progress: parseInt(progress, 10),
         grade,
         supervisorComments: comments,
-        status: statusState,
+        // send mapped backend-friendly status
+        status: mappedStatus,
         performanceMetrics,
         lastUpdated: new Date().toISOString()
       };
@@ -1131,16 +1150,16 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
                       <p className="text-xs text-gray-500">Review Type</p>
                       <p className="font-medium text-gray-900">{reviewDetails.type}</p>
                     </div>
-                    <div>
+                    {/* <div>
                       <p className="text-xs text-gray-500">Review Cycle</p>
                       <p className="font-medium text-gray-900">{reviewDetails.cycle}</p>
-                    </div>
+                    </div> */}
                     <div>
                       <p className="text-xs text-gray-500">Department</p>
                       <p className="font-medium text-gray-900">{reviewDetails.department}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Manager</p>
+                      <p className="text-xs text-gray-500">Position</p>
                       <p className="font-medium text-gray-900">{reviewDetails.manager}</p>
                     </div>
                   </div>
@@ -1625,7 +1644,7 @@ const PerformanceReviews = () => {
           </div>
 
           {/* Search - filter button removed */}
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
@@ -1633,12 +1652,12 @@ const PerformanceReviews = () => {
               <input
                 type="text"
                 className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-64"
-                placeholder="Search employee or position..."
+                placeholder="Search Reviews"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Reviews Table - Enhanced with Progress and Grade */}

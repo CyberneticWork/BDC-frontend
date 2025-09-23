@@ -71,6 +71,12 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
   
+  // New: companies and departments to power the top-level filters
+  const [companiesForFilter, setCompaniesForFilter] = useState([]);
+  const [departmentsForFilter, setDepartmentsForFilter] = useState([]);
+  const [isLoadingFilterCompanies, setIsLoadingFilterCompanies] = useState(false);
+  const [isLoadingFilterDepartments, setIsLoadingFilterDepartments] = useState(false);
+  
   // Fetch KPI task names from backend
   useEffect(() => {
     const fetchTasks = async () => {
@@ -1154,12 +1160,20 @@ const KPIs = () => {
   const [filteredKpis, setFilteredKpis] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  // Remove searchTerm state
+  // const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all"); // <--- ADDED
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(7); // Changed from 10 to 7 for at least 7 rows per page
 
+  // New: companies and departments to power the top-level filters
+  const [companiesForFilter, setCompaniesForFilter] = useState([]);
+  const [departmentsForFilter, setDepartmentsForFilter] = useState([]);
+  const [isLoadingFilterCompanies, setIsLoadingFilterCompanies] = useState(false);
+  const [isLoadingFilterDepartments, setIsLoadingFilterDepartments] = useState(false);
+  
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -1231,26 +1245,40 @@ const KPIs = () => {
 
   useEffect(() => {
     applyFilters();
-  }, [kpis, searchTerm, statusFilter, departmentFilter]);
+  }, [kpis, statusFilter, departmentFilter, companyFilter]); // Removed searchTerm
 
   const applyFilters = () => {
     let filtered = kpis;
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (kpi) =>
-          kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          kpi.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          kpi.owner.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
+    // Filter by status
     if (statusFilter !== "all") {
       filtered = filtered.filter((kpi) => kpi.status === statusFilter);
     }
 
+    // Filter by department (support both id and name on KPI objects)
     if (departmentFilter !== "all") {
-      filtered = filtered.filter((kpi) => kpi.department === departmentFilter);
+      filtered = filtered.filter((kpi) => {
+        const kDeptId = kpi.department_id ?? kpi.departmentId ?? (kpi.department && (kpi.department.id ?? null));
+        if (kDeptId != null && kDeptId !== "") {
+          return String(kDeptId) === String(departmentFilter);
+        }
+        // fallback: compare by department name
+        const deptNameFromFilter = (departmentsForFilter.find(d => String(d.id) === String(departmentFilter))?.name || "").toLowerCase();
+        return String(kpi.department || kpi.departmentName || "").toLowerCase() === deptNameFromFilter;
+      });
+    }
+
+    // New: Filter by company (support both id and name on KPI objects)
+    if (companyFilter !== "all") {
+      filtered = filtered.filter((kpi) => {
+        const kCompanyId = kpi.company_id ?? kpi.companyId ?? (kpi.company && (kpi.company.id ?? null));
+        if (kCompanyId != null && kCompanyId !== "") {
+          return String(kCompanyId) === String(companyFilter);
+        }
+        // fallback: compare by company name
+        const compNameFromFilter = (companiesForFilter.find(c => String(c.id) === String(companyFilter))?.name || "").toLowerCase();
+        return String(kpi.companyName || kpi.company || "").toLowerCase() === compNameFromFilter;
+      });
     }
 
     setFilteredKpis(filtered);
@@ -1416,6 +1444,7 @@ const KPIs = () => {
     return "text-red-600";
   };
 
+  // Update getUniqueValues to include company
   const getUniqueValues = (key) => {
     return [...new Set(kpis.map((kpi) => kpi[key]))];
   };
@@ -1457,6 +1486,56 @@ const KPIs = () => {
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewKpi, setViewKpi] = useState(null);
+
+  // Load companies for the top filter on mount
+  useEffect(() => {
+    let mounted = true;
+    const loadCompanies = async () => {
+      setIsLoadingFilterCompanies(true);
+      try {
+        const data = await PMSService.getCompanies();
+        if (!mounted) return;
+        setCompaniesForFilter(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Error loading companies for filter:", err);
+        if (mounted) setCompaniesForFilter([]);
+      } finally {
+        if (mounted) setIsLoadingFilterCompanies(false);
+      }
+    };
+    loadCompanies();
+    return () => { mounted = false; };
+  }, []);
+
+  // When companyFilter changes, load departments for that company (and clear department selection on 'all')
+  useEffect(() => {
+    let mounted = true;
+    const loadDepartments = async () => {
+      if (!companyFilter || companyFilter === "all") {
+        setDepartmentsForFilter([]);
+        // keep departmentFilter as 'all' when no company selected
+        setDepartmentFilter("all");
+        return;
+      }
+      setIsLoadingFilterDepartments(true);
+      try {
+        const data = await PMSService.getDepartmentsByCompany(companyFilter);
+        if (!mounted) return;
+        setDepartmentsForFilter(Array.isArray(data) ? data : []);
+        // If current departmentFilter isn't in the returned list, reset it
+        if (departmentFilter !== "all" && !((Array.isArray(data) ? data : []).some(d => String(d.id) === String(departmentFilter)))) {
+          setDepartmentFilter("all");
+        }
+      } catch (err) {
+        console.error("Error loading departments for company filter:", err);
+        if (mounted) setDepartmentsForFilter([]);
+      } finally {
+        if (mounted) setIsLoadingFilterDepartments(false);
+      }
+    };
+    loadDepartments();
+    return () => { mounted = false; };
+  }, [companyFilter]); // note: departmentFilter may be reset inside
 
   if (isLoading) {
     return (
@@ -1611,16 +1690,47 @@ const KPIs = () => {
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search KPIs, departments, or owners..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
+          {/* Company select - now uses API */}
+          <div className="relative">
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">All Companies</option>
+              {companiesForFilter.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {isLoadingFilterCompanies && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+              </div>
+            )}
           </div>
+ 
+          {/* Department select: show company-specific departments when a company is selected */}
+          <div className="relative">
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              disabled={companyFilter === "all" && getUniqueValues("department").length === 0}
+            >
+              <option value="all">All Departments</option>
+              {companyFilter !== "all"
+                ? departmentsForFilter.map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                : getUniqueValues("department").map((dept) => <option key={dept} value={dept}>{dept}</option>)
+              }
+            </select>
+            {isLoadingFilterDepartments && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+              </div>
+            )}
+          </div>
+
+          {/* Existing: Status select */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -1630,18 +1740,6 @@ const KPIs = () => {
             <option value="active">Active</option>
             <option value="attention">Need Attention</option>
             <option value="inactive">Inactive</option>
-          </select>
-          <select
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="all">All Departments</option>
-            {getUniqueValues("department").map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
-              </option>
-            ))}
           </select>
         </div>
       </div>
@@ -1655,9 +1753,9 @@ const KPIs = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   KPI Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Performance
-                </th>
+                </th> */}
                 {/* Category column removed */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Weights
@@ -1775,7 +1873,7 @@ const KPIs = () => {
                           const start = new Date(kpi.startDate);
                           const end = new Date(kpi.endDate);
                           const today = new Date();
-                          const totalDays = Math.ceil((end - start) / (1000 * 60 * 24));
+                          const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
                           const daysElapsed = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
                           const percentage = Math.min(Math.max(Math.round((daysElapsed / totalDays) * 100), 0), 100);
                           return `${percentage}% of timeline elapsed`;
@@ -1846,12 +1944,11 @@ const KPIs = () => {
       {/* Empty State */}
       {filteredKpis.length === 0 && !isLoading && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-         
           <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No KPIs found</h3>
           <p className="text-gray-600 mb-6">
-            {searchTerm || statusFilter !== "all" || departmentFilter !== "all"
-              ? "Try adjusting your search criteria or filters"
+            {statusFilter !== "all" || departmentFilter !== "all" || companyFilter !== "all"
+              ? "Try adjusting your filter criteria"
               : "Get started by creating your first KPI"}
           </p>
         </div>
