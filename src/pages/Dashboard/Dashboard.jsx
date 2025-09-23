@@ -54,6 +54,21 @@ import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
 import LMS from "../LMS/LMS";
 import UserStats from "../LMS/UserStats";
 
+// Import Accounting components
+import AccountingDashboard from "../Accounting/Dashboard";
+import ChartOfAccounts from "../Accounting/ChartOfAccounts";
+import Transactions from "../Accounting/Transactions";
+import Ledger from "../Accounting/Ledger";
+import TrialBalance from "../Accounting/TrialBalance";
+import IncomeStatement from "../Accounting/IncomeStatement";
+import BalanceSheet from "../Accounting/BalanceSheet";
+import CashFlowStatement from "../Accounting/CashFlowStatement";
+import Invoices from "../Accounting/Invoices";
+import Expenses from "../Accounting/Expenses";
+import AccountingReports from "../Accounting/Reports";
+import AccountingSettings from "../Accounting/Settings";
+import UsersAndRoles from "../Accounting/UsersAndRoles";
+
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
@@ -463,7 +478,11 @@ const Dashboard = ({ user, onLogout }) => {
 
   useEffect(() => {
     const parts = location.pathname.split("/").filter(Boolean);
-    if (parts[0] === "dashboard" && parts[1] === "pms" && parts[2] === "evaluation") {
+    if (
+      parts[0] === "dashboard" &&
+      parts[1] === "pms" &&
+      parts[2] === "evaluation"
+    ) {
       setActiveItem("employeeEvaluation");
     } else {
       const section = parts[1] || "dashboard";
@@ -476,7 +495,8 @@ const Dashboard = ({ user, onLogout }) => {
   const handleSetActiveItem = (id) => {
     setActiveItem(id);
     if (id === "dashboard") navigate("/dashboard", { replace: false });
-    else if (id === "employeeEvaluation") navigate("/dashboard/pms/evaluation", { replace: false });
+    else if (id === "employeeEvaluation")
+      navigate("/dashboard/pms/evaluation", { replace: false });
     else navigate(`/dashboard/${id}`, { replace: false });
   };
 
@@ -660,7 +680,6 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="kpis" action="view">
                 <KPIs />
               </ProtectedComponent>
-            
             ) : activeItem === "employeeEvaluation" ? (
               <EmployeePerformanceEvaluation />
             ) : activeItem === "myKPIs" ? (
@@ -690,6 +709,58 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "lmsUserStats" ? (
               <ProtectedComponent module="lmsUserStats" action="view">
                 <UserStats />
+              </ProtectedComponent>
+            ) : activeItem === "accountingDashboard" ? (
+              <ProtectedComponent module="accountingDashboard" action="view">
+                <AccountingDashboard />
+              </ProtectedComponent>
+            ) : activeItem === "chartOfAccounts" ? (
+              <ProtectedComponent module="chartOfAccounts" action="view">
+                <ChartOfAccounts />
+              </ProtectedComponent>
+            ) : activeItem === "transactions" ? (
+              <ProtectedComponent module="transactions" action="view">
+                <Transactions />
+              </ProtectedComponent>
+            ) : activeItem === "ledger" ? (
+              <ProtectedComponent module="ledger" action="view">
+                <Ledger />
+              </ProtectedComponent>
+            ) : activeItem === "trialBalance" ? (
+              <ProtectedComponent module="trialBalance" action="view">
+                <TrialBalance />
+              </ProtectedComponent>
+            ) : activeItem === "incomeStatement" ? (
+              <ProtectedComponent module="incomeStatement" action="view">
+                <IncomeStatement />
+              </ProtectedComponent>
+            ) : activeItem === "balanceSheet" ? (
+              <ProtectedComponent module="balanceSheet" action="view">
+                <BalanceSheet />
+              </ProtectedComponent>
+            ) : activeItem === "cashFlowStatement" ? (
+              <ProtectedComponent module="cashFlowStatement" action="view">
+                <CashFlowStatement />
+              </ProtectedComponent>
+            ) : activeItem === "invoices" ? (
+              <ProtectedComponent module="invoices" action="view">
+                <Invoices />
+              </ProtectedComponent>
+            ) : activeItem === "expenses" ? (
+              <ProtectedComponent module="expenses" action="view">
+                <Expenses />
+              </ProtectedComponent>
+            ) : activeItem === "accountingReports" ? (
+              <ProtectedComponent module="accountingReports" action="view">
+                <AccountingReports />
+              </ProtectedComponent>
+            ) : activeItem === "accountingSettings" ? (
+              <ProtectedComponent module="accountingSettings" action="view">
+                <AccountingSettings />
+              </ProtectedComponent>
+            ) : activeItem === "usersAndRoles" ? (
+              <ProtectedComponent module="usersAndRoles" action="view">
+                <UsersAndRoles />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">
