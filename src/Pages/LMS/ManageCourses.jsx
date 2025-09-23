@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Plus,
   Edit,
@@ -39,6 +39,9 @@ const ManageCourses = ({ onViewCourse }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadError, setUploadError] = useState("");
   const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [enrollingCourseId, setEnrollingCourseId] = useState(null);
+  const attachmentsInputRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -93,22 +96,67 @@ const ManageCourses = ({ onViewCourse }) => {
 
   useEffect(() => {
     loadCourses();
-    setEnrolledCourses(LMSService.getEnrolledCourses());
   }, []);
 
-  const handleEnroll = (courseId) => {
-    LMSService.enrollInCourse(courseId);
-    setEnrolledCourses(LMSService.getEnrolledCourses());
-    loadCourses(); // Refresh to show enrolled status
+  const handleEnroll = async (courseId) => {
+    try {
+      setEnrollingCourseId(courseId);
+      await LMSService.enrollInCourse(courseId, user?.id);
+      await loadCourses();
+      Swal.fire({
+        icon: "success",
+        title: "Enrolled",
+        text: "Successfully enrolled in the course!",
+        confirmButtonColor: "#10B981",
+      });
+    } catch (error) {
+      console.error("Enrollment failed:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Enrollment Failed",
+        text: "Failed to enroll in the course. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
+    } finally {
+      setEnrollingCourseId(null);
+    }
   };
 
   const loadCourses = async () => {
     try {
+      setCoursesLoading(true);
       const res = await LMSService.fetchCourses();
-      // API returns pagination with created_at fields; UI expects createdAt, updatedAt already mapped in service
-      setCourses(res.data);
+
+      // Merge enrollment status from API
+      let userEnrollments = [];
+      try {
+        const enrollmentsResponse = await LMSService.getEnrollments();
+        userEnrollments = enrollmentsResponse.data || [];
+      } catch (err) {
+        console.warn("Could not fetch user enrollments:", err);
+      }
+
+      const coursesWithEnrollment = res.data.map((course) => ({
+        ...course,
+        enrolled: userEnrollments.some((en) => en.course_id === course.id),
+      }));
+
+      setCourses(coursesWithEnrollment);
+      // Load detailed user progress (completed/total modules per course)
+      try {
+        const progressData = await LMSService.getUserProgress();
+        setEnrolledCourses(
+          progressData.enrolledCourses ||
+            coursesWithEnrollment.filter((c) => c.enrolled)
+        );
+      } catch (progressError) {
+        console.warn("Could not fetch user progress:", progressError);
+        setEnrolledCourses(coursesWithEnrollment.filter((c) => c.enrolled));
+      }
     } catch (e) {
       console.error("Failed to load courses", e);
+    } finally {
+      setCoursesLoading(false);
     }
   };
 
@@ -350,9 +398,17 @@ const ManageCourses = ({ onViewCourse }) => {
 
     const validFiles = [];
     const errors = [];
+    const existingKeys = new Set(
+      (selectedFiles || []).map((f) => `${f.name}|${f.size}`)
+    );
 
     files.forEach((file) => {
       console.log("Validating file:", file.name);
+      const key = `${file.name}|${file.size}`;
+      if (existingKeys.has(key)) {
+        // Skip duplicates already selected
+        return;
+      }
       if (!allowedTypes.includes(file.type)) {
         errors.push(
           `${file.name}: Invalid file type. Only PDF and video files are allowed.`
@@ -371,8 +427,14 @@ const ManageCourses = ({ onViewCourse }) => {
     } else {
       console.log("All files valid, setting selected files");
       setUploadError("");
-      setSelectedFiles([...selectedFiles, ...validFiles]);
+      setSelectedFiles([...(selectedFiles || []), ...validFiles]);
     }
+
+    // Reset the input so selecting the same file again will trigger onChange
+    try {
+      if (attachmentsInputRef.current) attachmentsInputRef.current.value = "";
+      if (event && event.target) event.target.value = "";
+    } catch {}
   };
 
   const removeSelectedFile = (index) => {
@@ -513,110 +575,166 @@ const ManageCourses = ({ onViewCourse }) => {
 
       {/* Courses List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map((course) => (
-          <div
-            key={course.id}
-            className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300"
-          >
-            <div className="flex items-center mb-4">
-              <BookOpen className="h-8 w-8 text-blue-600 mr-3" />
-              <h4 className="text-lg font-semibold text-gray-900">
-                {course.title}
-              </h4>
-            </div>
-
-            <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-              {course.description}
-            </p>
-
-            <div className="flex items-center text-sm text-gray-500 mb-4">
-              <Clock className="h-4 w-4 mr-1" />
-              <span>
-                {course.duration}
-                {course.duration ? " hours" : ""}
-              </span>
-              <span className="mx-2">•</span>
-              <span>{course.modules.length} modules</span>
-            </div>
-
-            <div className="text-xs text-gray-400 mb-4">
-              Created by:{" "}
-              {LMSService.getCourseCreator(course.id)?.name || "Unknown"}
-            </div>
-
-            <div className="flex space-x-2">
-              {user && user.role === "user" ? (
-                // For regular users, show enroll/continue functionality
-                course.enrolled ? (
-                  <div className="w-full space-y-2">
-                    <div className="text-sm text-green-600 font-medium">
-                      Enrolled
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{
-                          width: `${
-                            (course.modules?.filter((m) => m.completed).length /
-                              course.modules?.length) *
-                              100 || 0
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {course.modules?.filter((m) => m.completed).length || 0}{" "}
-                      of {course.modules?.length || 0} modules completed
-                    </p>
-                    <button
-                      onClick={() => onViewCourse(course.id)}
-                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center mt-2"
-                    >
-                      <Play className="h-4 w-4 mr-2" />
-                      Continue Course
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleEnroll(course.id)}
-                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Enroll Now
-                  </button>
-                )
-              ) : (
-                // For admin/HR users, show management buttons
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => onViewCourse(course.id)}
-                    className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                  >
-                    <BookOpen className="h-4 w-4 mr-1" />
-                    View
-                  </button>
-                  {isCourseOwner(course) && (
-                    <button
-                      onClick={() => handleEditCourse(course)}
-                      className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </button>
-                  )}
-                  {isCourseOwner(course) && (
-                    <button
-                      onClick={() => handleDeleteCourse(course.id)}
-                      className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              )}
+        {coursesLoading && (
+          <div className="col-span-full flex justify-center items-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading courses...</p>
             </div>
           </div>
-        ))}
+        )}
+        {!coursesLoading &&
+          courses.map((course) => (
+            <div
+              key={course.id}
+              className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300"
+            >
+              <div className="flex items-center mb-4">
+                <BookOpen className="h-8 w-8 text-blue-600 mr-3" />
+                <h4 className="text-lg font-semibold text-gray-900">
+                  {course.title}
+                </h4>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                {course.description}
+              </p>
+
+              <div className="flex items-center text-sm text-gray-500 mb-4">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>
+                  {course.duration}
+                  {course.duration ? " hours" : ""}
+                </span>
+                <span className="mx-2">•</span>
+                <span>{course.modules.length} modules</span>
+              </div>
+
+              <div className="text-xs text-gray-400 mb-4">
+                Created by:{" "}
+                {LMSService.getCourseCreator(course.id)?.name || "Unknown"}
+              </div>
+
+              <div className="flex space-x-2">
+                {user && user.role === "user" ? (
+                  // For regular users, show enroll/continue functionality
+                  course.enrolled ? (
+                    <div className="w-full space-y-2">
+                      <div className="text-sm text-green-600 font-medium">
+                        Enrolled
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{
+                            width: (() => {
+                              const enrolledCourse = enrolledCourses.find(
+                                (ec) => ec.id === course.id
+                              );
+                              if (
+                                enrolledCourse &&
+                                enrolledCourse.completed_modules !== undefined
+                              ) {
+                                return enrolledCourse.total_modules > 0
+                                  ? `${
+                                      (enrolledCourse.completed_modules /
+                                        enrolledCourse.total_modules) *
+                                      100
+                                    }%`
+                                  : "0%";
+                              } else {
+                                return course.modules &&
+                                  course.modules.length > 0
+                                  ? `${
+                                      (course.modules.filter((m) => m.completed)
+                                        .length /
+                                        course.modules.length) *
+                                      100
+                                    }%`
+                                  : "0%";
+                              }
+                            })(),
+                          }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {(() => {
+                          const enrolledCourse = enrolledCourses.find(
+                            (ec) => ec.id === course.id
+                          );
+                          if (
+                            enrolledCourse &&
+                            enrolledCourse.completed_modules !== undefined
+                          ) {
+                            return `${enrolledCourse.completed_modules} of ${enrolledCourse.total_modules} modules completed`;
+                          } else {
+                            const completed =
+                              course.modules?.filter((m) => m.completed)
+                                .length || 0;
+                            const total = course.modules?.length || 0;
+                            return `${completed} of ${total} modules completed`;
+                          }
+                        })()}
+                      </p>
+                      <button
+                        onClick={() => onViewCourse(course.id)}
+                        className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center mt-2"
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Continue Course
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleEnroll(course.id)}
+                      disabled={enrollingCourseId === course.id}
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center"
+                    >
+                      {enrollingCourseId === course.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Enrolling...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Enroll Now
+                        </>
+                      )}
+                    </button>
+                  )
+                ) : (
+                  // For admin/HR users, show management buttons
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => onViewCourse(course.id)}
+                      className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <BookOpen className="h-4 w-4 mr-1" />
+                      View
+                    </button>
+                    {isCourseOwner(course) && (
+                      <button
+                        onClick={() => handleEditCourse(course)}
+                        className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </button>
+                    )}
+                    {isCourseOwner(course) && (
+                      <button
+                        onClick={() => handleDeleteCourse(course.id)}
+                        className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
       </div>
 
       {courses.length === 0 && (
@@ -932,6 +1050,7 @@ const ManageCourses = ({ onViewCourse }) => {
                         multiple
                         accept=".pdf,.mp4,.avi,.mov,.wmv"
                         onChange={handleFileSelect}
+                        ref={attachmentsInputRef}
                         className="hidden"
                       />
                     </div>
