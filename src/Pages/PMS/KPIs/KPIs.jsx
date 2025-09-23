@@ -271,8 +271,36 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     }));
   };
 
+  // Helper: today's date in yyyy-mm-dd for min attribute
+  const getToday = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Prevent start date in the past
+    if (formData.startDate && formData.startDate < getToday()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid Start Date",
+        text: "Start date cannot be in the past. Please choose today or a future date.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Existing end-date validation (keeps ensuring end > start)
+    if (formData.endDate && formData.startDate && formData.endDate < formData.startDate) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid Date Range",
+        text: "End date must be after start date.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
     // Add computed names to formData before submitting
     const enrichedFormData = {
       ...formData,
@@ -609,6 +637,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                     value={formData.startDate}
                     onChange={handleChange}
                     required
+                    min={getToday()}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
