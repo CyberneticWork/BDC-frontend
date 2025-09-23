@@ -1231,13 +1231,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
 const PerformanceReviews = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState({
-    status: [],
-    type: [],
-    department: [],
-    period: '',
-  });
+  // filters removed: showFilters / selectedFilters
 
   // State for modals
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
@@ -1263,6 +1257,14 @@ const PerformanceReviews = () => {
   const fetchReviewsFromDatabase = async (page = 1) => {
     setIsLoadingFromDB(true);
     try {
+      // DO NOT call hooks here: useAuth() must be used at component top-level.
+      // Use `user` from component scope instead (already obtained via useAuth at top of component).
+      if (!user) {
+        console.error('User not authenticated');
+        setReviewData([]);
+        return;
+      }
+
       const res = await PMSService.getPerformanceReviewsFromDB({
         page,
         per_page: pagination.per_page
@@ -1271,6 +1273,15 @@ const PerformanceReviews = () => {
       if (res.meta) setPagination(res.meta);
     } catch (error) {
       console.error('Error fetching reviews from database:', error);
+      
+      // Handle authentication errors specifically
+      if (error.response?.status === 401) {
+        console.error('Authentication failed - redirecting to login');
+        toast.error('Session expired. Please log in again.');
+        // Optionally redirect to login:
+        // window.location.href = '/login';
+      }
+      
       setReviewData([]);
     } finally {
       setIsLoadingFromDB(false);
@@ -1313,18 +1324,8 @@ const PerformanceReviews = () => {
       review.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
       review.employeeId.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Check if review matches selected filters
-    const matchesStatus = selectedFilters.status.length === 0 || 
-                         selectedFilters.status.includes(review.status);
-    const matchesType = selectedFilters.type.length === 0 || 
-                       selectedFilters.type.includes(review.type);
-    const matchesDepartment = selectedFilters.department.length === 0 || 
-                            selectedFilters.department.includes(review.department);
-    const matchesPeriod = !selectedFilters.period || 
-                         review.cycle.includes(selectedFilters.period);
-
-    return matchesTab && matchesSearch && matchesStatus && 
-           matchesType && matchesDepartment && matchesPeriod;
+    // Filters removed - only tabs + search apply
+    return matchesTab && matchesSearch;
   });
 
   // Helper function to get appropriate status badge color
@@ -1623,7 +1624,7 @@ const PerformanceReviews = () => {
             </button>
           </div>
 
-          {/* Search and Filter */}
+          {/* Search - filter button removed */}
           <div className="flex gap-2">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1637,118 +1638,8 @@ const PerformanceReviews = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button
-              className={`border ${showFilters ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'} rounded-lg px-3 py-2 flex items-center gap-2`}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4" />
-              <span className="text-sm font-medium">Filter</span>
-            </button>
           </div>
         </div>
-
-        {/* Filters Panel */}
-        {showFilters && (
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-medium text-gray-700">Filters</h3>
-              <button
-                className="text-sm text-indigo-600 hover:text-indigo-800"
-                onClick={clearFilters}
-              >
-                Clear all
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <div className="space-y-1">
-                  {['Completed', 'In Progress', 'Pending'].map(status => (
-                    <div key={status} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`status-${status}`}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        checked={selectedFilters.status.includes(status)}
-                        onChange={() => handleFilterChange('status', status)}
-                      />
-                      <label htmlFor={`status-${status}`} className="ml-2 text-sm text-gray-700">
-                        {status}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Review Type Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Review Type
-                </label>
-                <div className="space-y-1">
-                  {['Annual Performance Review', 'Quarterly Review', 'Probation Review'].map(type => (
-                    <div key={type} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`type-${type}`}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        checked={selectedFilters.type.includes(type)}
-                        onChange={() => handleFilterChange('type', type)}
-                      />
-                      <label htmlFor={`type-${type}`} className="ml-2 text-sm text-gray-700">
-                        {type}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Department Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department
-                </label>
-                <div className="space-y-1">
-                  {['Engineering', 'Marketing', 'Sales', 'Design', 'Product', 'Support'].map(dept => (
-                    <div key={dept} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`dept-${dept}`}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        checked={selectedFilters.department.includes(dept)}
-                        onChange={() => handleFilterChange('department', dept)}
-                      />
-                      <label htmlFor={`dept-${dept}`} className="ml-2 text-sm text-gray-700">
-                        {dept}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Period Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Review Period
-                </label>
-                <select
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                  value={selectedFilters.period}
-                  onChange={(e) => handleFilterChange('period', e.target.value)}
-                >
-                  <option value="">All Periods</option>
-                  <option value="2025 Annual">2025 Annual</option>
-                  <option value="2025 Q3">2025 Q3</option>
-                  <option value="2025 Q2">2025 Q2</option>
-                  <option value="2025 Q1">2025 Q1</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Reviews Table - Enhanced with Progress and Grade */}
         <div className="overflow-x-auto">
@@ -1779,7 +1670,7 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
-                <th scope="col" className="px-6 py-3 text-left textxs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Status
                     <ArrowDownUp className="h-3 w-3" />
@@ -1868,6 +1759,7 @@ const PerformanceReviews = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {review.grade ? (
+                       
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getGradeBadgeClass(review.grade)}`}>
                           {review.grade}
                         </span>

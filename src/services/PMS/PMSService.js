@@ -316,10 +316,14 @@ class PMSService {
   // NEW: Performance Reviews from database
   async getPerformanceReviewsFromDB(filters = {}) {
     try {
+      console.log('Making performance reviews request with filters:', filters);
       const response = await axios.get('/pms/performance-reviews', { params: filters });
+      console.log('Performance reviews response:', response.data);
       return response.data; // { data:[], meta:{} }
     } catch (error) {
       console.error("Error fetching performance reviews from database:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
       throw error;
     }
   }
