@@ -1845,11 +1845,11 @@ const PerformanceReviews = () => {
                         )}
 
                         {/* Show Edit Review only if not "user" role and has edit permission */}
-                        {userRole !== 'user' && userPermissions.edit && (
+                        {/* {userRole !== 'user' && userPermissions.edit && (
                           <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
                             <Edit className="h-4 w-4" />
                           </button>
-                        )}
+                        )} */}
                       </div>
                     </td>
                   </tr>
