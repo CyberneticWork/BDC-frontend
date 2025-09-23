@@ -165,7 +165,7 @@ const Sidebar = ({
         { id: "expenses", name: "Expenses" },
         { id: "accountingReports", name: "Reports" },
         { id: "accountingSettings", name: "Settings" },
-        { id: "usersAndRoles", name: "Users & Roles" },
+       
       ],
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },

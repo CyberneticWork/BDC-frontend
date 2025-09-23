@@ -758,10 +758,6 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="accountingSettings" action="view">
                 <AccountingSettings />
               </ProtectedComponent>
-            ) : activeItem === "usersAndRoles" ? (
-              <ProtectedComponent module="usersAndRoles" action="view">
-                <UsersAndRoles />
-              </ProtectedComponent>
             ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">
