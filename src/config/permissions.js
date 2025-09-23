@@ -162,5 +162,9 @@ export const permissions = {
     myProgress: { view: true },
     accounting: { view: true },
     accountingDashboard: { view: true },
+    pms: { view: true },
+    pmsDashboard: { view: true },
+    performanceReviews: { view: true, edit: true },
+    myKPIs: { view: true },
   },
 };

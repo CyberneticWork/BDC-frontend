@@ -14,29 +14,11 @@ import {
   ChevronUp
 } from "lucide-react";
 
-export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
+export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] }) => {
   const [activeTab, setActiveTab] = useState("details");
   const [showAllMetrics, setShowAllMetrics] = useState({});
 
   if (!isOpen || !kpi) return null;
-
-  // Get all employee updates for this KPI
-  const getAllUpdates = () => {
-    const allUpdates = [];
-    kpi.assigneeUpdates.forEach((assignee) => {
-      assignee.updates.forEach((update) => {
-        allUpdates.push({
-          ...update,
-          employeeId: assignee.employeeId,
-        });
-      });
-    });
-
-    // Sort by date, newest first
-    return allUpdates.sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
-    );
-  };
 
   const toggleShowAllMetrics = (updateId) => {
     setShowAllMetrics((prev) => ({
@@ -151,13 +133,13 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
             </button>
             <button
               className={`px-6 py-4 text-sm font-medium border-b-2 transition-all ${
-                activeTab === "updates"
+                activeTab === "submissions"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
-              onClick={() => setActiveTab("updates")}
+              onClick={() => setActiveTab("submissions")}
             >
-              Updates
+              Progress Submissions ({submissions.length})
             </button>
           </div>
         </div>
@@ -240,30 +222,36 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
                   <p className="text-gray-800">{kpi.department}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Owner</h3>
-                  <p className="text-gray-800">{kpi.owner}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Total Submissions</h3>
+                  <p className="text-gray-800">{submissions.length}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Last Updated</h3>
                   <p className="text-gray-800">{new Date(kpi.lastUpdated).toLocaleString()}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Documents Submitted</h3>
-                  <p className="text-gray-800">{kpi.documentCount || 0}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Current Progress</h3>
+                  <p className="text-gray-800">
+                    {submissions.length > 0 ? submissions[0].progress_percentage : 0}%
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === "updates" && (
+          {activeTab === "submissions" && (
             <div className="space-y-6">
-              <h3 className="text-sm font-medium text-gray-500">Task Updates</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-500">Progress History</h3>
+                <span className="text-xs text-gray-400">Sorted by most recent</span>
+              </div>
+              
               <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
-                {getAllUpdates().length > 0 ? (
-                  getAllUpdates().map((update, idx) => (
-                    <div key={idx} className="bg-gray-50 p-4 rounded-lg">
+                {submissions.length > 0 ? (
+                  submissions.map((submission, idx) => (
+                    <div key={submission.id} className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex items-start gap-3">
-                        {update.documentName ? (
+                        {submission.document_name ? (
                           <div className="flex-shrink-0 bg-indigo-100 rounded-lg p-2">
                             <File className="w-5 h-5 text-indigo-600" />
                           </div>
@@ -273,61 +261,62 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
                           </div>
                         )}
                         <div className="flex-1">
-                          {update.documentName && (
-                            <div className="flex items-center gap-2">
+                          {/* Document info */}
+                          {submission.document_name && (
+                            <div className="flex items-center gap-2 mb-2">
                               <span className="text-sm font-medium text-indigo-600">
-                                {update.documentName}
+                                {submission.document_name}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {update.documentSize}
+                                {submission.document_size}
                               </span>
-                              <button className="p-1 text-gray-400 hover:text-indigo-600">
-                                <Download className="h-3 w-3" />
-                              </button>
+                              {submission.document_path && (
+                                <button className="p-1 text-gray-400 hover:text-indigo-600">
+                                  <Download className="h-3 w-3" />
+                                </button>
+                              )}
                             </div>
                           )}
 
-                          {/* Performance Metrics Display */}
-                          {update.progressPercentage !== undefined && (
-                            <div className="mt-3 mb-3">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-gray-700 font-medium flex items-center gap-1">
-                                  <BarChart3 className="h-3 w-3 text-gray-500" />
-                                  Overall Progress: {update.progressPercentage}%
-                                </span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div 
-                                  className={`h-1.5 rounded-full ${
-                                    update.progressPercentage < 30 ? 'bg-red-500' : 
-                                    update.progressPercentage < 70 ? 'bg-yellow-500' : 
-                                    'bg-green-500'
-                                  }`}
-                                  style={{ width: `${update.progressPercentage}%` }}
-                                ></div>
-                              </div>
+                          {/* Progress Bar */}
+                          <div className="mt-3 mb-3">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-gray-700 font-medium flex items-center gap-1">
+                                <BarChart3 className="h-3 w-3 text-gray-500" />
+                                Progress: {submission.progress_percentage}%
+                              </span>
                             </div>
-                          )}
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  submission.progress_percentage < 30 ? 'bg-red-500' : 
+                                  submission.progress_percentage < 70 ? 'bg-yellow-500' : 
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${submission.progress_percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
 
-                          {/* Performance Metrics Details */}
-                          {update.performanceMetrics && (
+                          {/* Performance Metrics */}
+                          {submission.performance_metrics && (
                             <div className="mt-3 mb-3 bg-gray-100 rounded-lg p-3">
                               <div 
                                 className="flex justify-between items-center cursor-pointer"
-                                onClick={() => toggleShowAllMetrics(`${idx}-${update.date}`)}
+                                onClick={() => toggleShowAllMetrics(`${submission.id}-${submission.created_at}`)}
                               >
                                 <h4 className="text-xs font-semibold text-gray-700">Performance Metrics:</h4>
-                                {showAllMetrics[`${idx}-${update.date}`] ? (
+                                {showAllMetrics[`${submission.id}-${submission.created_at}`] ? (
                                   <ChevronUp className="h-4 w-4 text-gray-500" />
                                 ) : (
                                   <ChevronDown className="h-4 w-4 text-gray-500" />
                                 )}
                               </div>
                               
-                              {showAllMetrics[`${idx}-${update.date}`] ? (
+                              {showAllMetrics[`${submission.id}-${submission.created_at}`] ? (
                                 // Show all metrics when expanded
-                                <div className="grid grid-cols-2 gap-3 mt-2">
-                                  {Object.entries(update.performanceMetrics).map(([key, value]) => {
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                                  {Object.entries(submission.performance_metrics).map(([key, value]) => {
                                     // Convert camelCase to display format
                                     const displayName = key.replace(/([A-Z])/g, ' $1')
                                       .replace(/^./, str => str.toUpperCase());
@@ -338,10 +327,10 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
                                           <span className="text-xs text-gray-600">{displayName}:</span>
                                           <span className="text-xs font-medium">{value}%</span>
                                         </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-1">
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5">
                                           <div 
-                                            className="h-1 rounded-full bg-indigo-500"
-                                            style={{ width: `${value}%` }}
+                                            className="h-1.5 rounded-full bg-indigo-500"
+                                            style={{ width: `${Math.min(value, 100)}%` }}
                                           ></div>
                                         </div>
                                       </div>
@@ -351,7 +340,7 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
                               ) : (
                                 // Show top 4 metrics when collapsed
                                 <div className="grid grid-cols-2 gap-2 mt-2">
-                                  {Object.entries(update.performanceMetrics)
+                                  {Object.entries(submission.performance_metrics)
                                     .sort((a, b) => b[1] - a[1])
                                     .slice(0, 4)
                                     .map(([key, value]) => {
@@ -371,11 +360,19 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
                             </div>
                           )}
                           
-                          <p className="text-sm text-gray-800">{update.note}</p>
+                          {/* Note */}
+                          <p className="text-sm text-gray-800 mb-2">{submission.note}</p>
+                          
+                          {/* Timestamp and employee info */}
                           <div className="flex items-center justify-between mt-2">
                             <p className="text-xs text-gray-500">
-                              By {update.author || "Unknown"} • {new Date(update.date).toLocaleString()}
+                              Submitted on {new Date(submission.created_at).toLocaleString()}
                             </p>
+                            {submission.employee && (
+                              <p className="text-xs text-gray-500">
+                                by {submission.employee.full_name}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -383,7 +380,13 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null }) => {
                   ))
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No updates found for this task</p>
+                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <BarChart3 className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No submissions yet</h3>
+                    <p className="text-gray-500">
+                      No progress submissions have been made for this task yet.
+                    </p>
                   </div>
                 )}
               </div>
