@@ -297,6 +297,51 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     }));
   };
 
+  // Add: select-all handler to fetch employees from backend and populate assignees
+  const handleSelectAllAssignees = async () => {
+    // require company or department to be selected
+    if (!formData.company && !formData.department) {
+      // simple UX: do nothing if neither selected (you can replace with toast/alert)
+      return;
+    }
+
+    try {
+      setIsLoadingEmployees(true);
+
+      // PMSService.getEmployeesByCompany(companyId, departmentId)
+      const resp = await PMSService.getEmployeesByCompany(
+        formData.company || null,
+        formData.department || null,
+        "" // optional search
+      );
+
+      // Normalize response (support array or { data: [...] })
+      const list = Array.isArray(resp) ? resp : (resp?.data || []);
+
+      // Map to the same shape used elsewhere in this file
+      const mapped = list.map(e => ({
+        id: e.attendance_employee_no ?? String(e.id ?? ""),
+        name: e.full_name || e.name || "",
+        department: e.department || e.department_name || ""
+      }));
+
+      // Set all employees as assignees (replace existing list) using mapped ids
+      const ids = mapped.map(emp => String(emp.id));
+
+      setFormData(prev => ({
+        ...prev,
+        assignees: ids
+      }));
+
+      // Update local cached companyEmployees with the mapped shape (keeps findEmployee working)
+      setCompanyEmployees(mapped);
+    } catch (err) {
+      console.error("Failed to select all assignees", err);
+    } finally {
+      setIsLoadingEmployees(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w/full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
@@ -601,9 +646,6 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
               {/* Added employees */}
               <div className="mt-3 flex flex-wrap gap-2">
-                {formData.assignees && formData.assignees.length === 0 && (
-                  <div className="text-xs text-gray-500">No employees added</div>
-                )}
                 {formData.assignees && formData.assignees.map((id) => {
                   const emp = findEmployee(id);
                   if (!emp) return null;
@@ -616,6 +658,20 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                     </div>
                   );
                 })}
+              </div>
+
+              {/* New: Select All button */}
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handleSelectAllAssignees}
+                  disabled={isLoadingEmployees || (!formData.company && !formData.department)}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    isLoadingEmployees ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {isLoadingEmployees ? 'Selecting...' : 'Select all employees for selected Company / Department'}
+                </button>
               </div>
             </div>
 
@@ -741,13 +797,18 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   if (!isOpen || !kpi) return null;
 
   const getEmployee = (id) => {
-    const normalizedId = typeof id === "string" ? parseInt(id, 10) : id;
-    // try numeric match first, then fallback to string match
-    return (
-      employees.find(e => e.id === normalizedId || String(e.id) === String(id)) ||
-      { id: normalizedId, name: "Unknown", department: "" }
-    );
+    const stringId = String(id);
+    
+    // Find employee by matching the ID (attendance_employee_no)
+    const employee = employees.find(e => String(e.id) === stringId);
+    
+    return employee || { 
+      id: stringId, 
+      name: `Employee ${stringId}`, 
+      department: "Unknown Department" 
+    };
   };
+
   const updatesFor = (empId) => (kpi.assigneeUpdates || []).find(u => u.employeeId === empId);
 
   const getStatusBadge = (status) => {
@@ -1060,10 +1121,14 @@ const KPIs = () => {
   // Change this to match the employee ID you're assigning tasks to
   const [currentEmployeeId, setCurrentEmployeeId] = useState("2"); // Or whichever ID you're using
 
+  // Add a state to store all employees for modals
+  const [allEmployeesForModals, setAllEmployeesForModals] = useState([]);
+
   useEffect(() => {
     fetchKpis();
   }, []);
 
+  // Fetch KPI tasks and assignments
   const fetchKpis = async () => {
     setIsLoading(true);
     setError(null);
@@ -1078,6 +1143,39 @@ const KPIs = () => {
       setIsLoading(false);
     }
   };
+
+  // Fetch all employees for modals
+  useEffect(() => {
+    const fetchEmployeesForModals = async () => {
+      try {
+        // Fetch all companies first
+        const companies = await PMSService.getCompanies();
+        let allEmployees = [];
+        
+        // Fetch employees for each company
+        for (const company of companies) {
+          try {
+            const companyEmployees = await PMSService.getEmployeesByCompany(company.id, null, "");
+            const list = Array.isArray(companyEmployees) ? companyEmployees : (companyEmployees?.data || []);
+            const mapped = list.map(e => ({
+              id: e.attendance_employee_no ?? String(e.id ?? ""),
+              name: e.full_name || e.name || "",
+              department: e.department || e.department_name || ""
+            }));
+            allEmployees = [...allEmployees, ...mapped];
+          } catch (err) {
+            console.error(`Error fetching employees for company ${company.id}:`, err);
+          }
+        }
+        
+        setAllEmployeesForModals(allEmployees);
+      } catch (err) {
+        console.error("Error fetching employees for modals:", err);
+      }
+    };
+
+    fetchEmployeesForModals();
+  }, []);
 
   useEffect(() => {
     applyFilters();
@@ -1370,12 +1468,12 @@ const KPIs = () => {
         employees={employees}
       />
 
-      {/* View Modal */}
+      {/* View Modal - Updated to pass allEmployeesForModals */}
       <TaskViewModal
         isOpen={isViewModalOpen}
         onClose={() => { setIsViewModalOpen(false); setViewKpi(null); }}
         kpi={viewKpi}
-        employees={employees}
+        employees={allEmployeesForModals} // Pass the comprehensive employee list
       />
 
       {/* DeleteConfirmationModal usage remains unchanged */}
