@@ -788,16 +788,14 @@ const ExamManagement = ({ onTakeExam }) => {
                     Duration *
                   </label>
                   <input
-                   type="number"
+                    type="number"
                     value={formData.duration}
                     onChange={(e) => {
-                     
-                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      const value = e.target.value.replace(/[^0-9]/g, "");
                       setFormData({ ...formData, duration: value });
                     }}
                     onKeyDown={(e) => {
-                     
-                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                      if (["e", "E", "+", "-", "."].includes(e.key)) {
                         e.preventDefault();
                       }
                     }}
