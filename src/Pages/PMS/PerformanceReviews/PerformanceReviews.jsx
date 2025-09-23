@@ -65,7 +65,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
 
   // keep only the grades you mentioned
   const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
-  const statusOptions = ['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'];
+  const statusOptions = ['Completed', 'In Progress', 'Pending'];
 
   // Map from task name to performance metric key
   const taskNameToMetricKey = {
@@ -1288,6 +1288,16 @@ const PerformanceReviews = () => {
     setPagination(prev => ({ ...prev, current_page: p }));
   };
 
+  // Add helper to normalize statuses (map Pending Manager / Pending Employee / Draft -> Pending)
+  const normalizeStatus = (status) => {
+    if (!status) return status;
+    const s = String(status).trim();
+    if (s === 'Pending Manager' || s === 'Pending Employee' || s === 'Draft' || s.toLowerCase().includes('pending')) {
+      return 'Pending';
+    }
+    return s;
+  };
+
   // Filter AFTER fetching current page (only page data shown)
   const filteredReviews = reviewData.filter(review => {
     const matchesTab = 
@@ -1319,17 +1329,14 @@ const PerformanceReviews = () => {
 
   // Helper function to get appropriate status badge color
   const getStatusBadgeClass = (status) => {
-    switch (status) {
+    const s = normalizeStatus(status);
+    switch (s) {
       case 'Completed':
         return 'bg-green-100 text-green-800';
       case 'In Progress':
         return 'bg-blue-100 text-blue-800';
-      case 'Pending Manager':
+      case 'Pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Pending Employee':
-        return 'bg-purple-100 text-purple-800';
-      case 'Draft':
-        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -1489,7 +1496,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">In Progress</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'In Progress').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'In Progress').length}
               </div>
             </div>
           </div>
@@ -1503,7 +1510,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">Pending Approval</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'Pending Manager' || r.status === 'Pending Employee').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'Pending').length}
               </div>
             </div>
           </div>
@@ -1517,7 +1524,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">Completed</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'Completed').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'Completed').length}
               </div>
             </div>
           </div>
@@ -1531,7 +1538,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">Draft</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'Draft').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'Draft').length}
               </div>
             </div>
           </div>
@@ -1659,7 +1666,7 @@ const PerformanceReviews = () => {
                   Status
                 </label>
                 <div className="space-y-1">
-                  {['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'].map(status => (
+                  {['Completed', 'In Progress', 'Pending'].map(status => (
                     <div key={status} className="flex items-center">
                       <input
                         type="checkbox"
@@ -1767,7 +1774,7 @@ const PerformanceReviews = () => {
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
+                  <div className="flex itemscenter gap-1">
                     Progress
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
@@ -1856,7 +1863,7 @@ const PerformanceReviews = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(review.status)}`}>
-                        {review.status}
+                        {normalizeStatus(review.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -22,6 +22,8 @@ import {
   Loader2,
   Plus,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService";
 import Swal from "sweetalert2";
@@ -231,10 +233,18 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const filteredEmployees = companyEmployees.filter(emp => {
     const q = empSearch?.toLowerCase?.() || "";
     if (!q) return true;
-    return (
-      (emp.name || "").toLowerCase().includes(q) ||
-      (emp.department || "").toLowerCase().includes(q) ||
-      (String(emp.id) || "").includes(q)
+    
+    // Enhanced search: name, department, attendance number, and employee ID
+    const searchFields = [
+      emp.name || "",
+      emp.department || "",
+      String(emp.id) || "", // attendance_employee_no
+      String(emp.employee_id) || "", // numeric employee ID if available
+      String(emp.attendance_employee_no) || "" // explicit attendance number field
+    ];
+    
+    return searchFields.some(field => 
+      field.toLowerCase().includes(q)
     );
   });
   
@@ -299,44 +309,80 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   // Add: select-all handler to fetch employees from backend and populate assignees
   const handleSelectAllAssignees = async () => {
-    // require company or department to be selected
-    if (!formData.company && !formData.department) {
-      // simple UX: do nothing if neither selected (you can replace with toast/alert)
+    // require company to be selected
+    if (!formData.company) {
+      // show quick feedback
+      await Swal.fire({
+        icon: "warning",
+        title: "Select Company",
+        text: "Please select a company (and optional department) before selecting all employees.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
       return;
     }
 
     try {
       setIsLoadingEmployees(true);
 
-      // PMSService.getEmployeesByCompany(companyId, departmentId)
+      // If department is selected, pass it; otherwise pass null to fetch all company employees
+      const deptParam = formData.department ? formData.department : null;
+
+      // PMSService.getEmployeesByCompany(companyId, departmentId, search)
       const resp = await PMSService.getEmployeesByCompany(
-        formData.company || null,
-        formData.department || null,
-        "" // optional search
+        formData.company,
+        deptParam,
+        "" // empty search to get all
       );
 
       // Normalize response (support array or { data: [...] })
       const list = Array.isArray(resp) ? resp : (resp?.data || []);
 
-      // Map to the same shape used elsewhere in this file
+      if (!Array.isArray(list) || list.length === 0) {
+        await Swal.fire({
+          icon: "info",
+          title: "No employees",
+          text: "No employees found for the selected company/department.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        return;
+      }
+
+      // Map to the same shape used elsewhere in this file (attendance_employee_no used as id)
       const mapped = list.map(e => ({
         id: e.attendance_employee_no ?? String(e.id ?? ""),
         name: e.full_name || e.name || "",
         department: e.department || e.department_name || ""
       }));
 
-      // Set all employees as assignees (replace existing list) using mapped ids
+      // Use attendance numbers as assignee identifiers (strings)
       const ids = mapped.map(emp => String(emp.id));
 
+      // Replace assignees with the full set for the selected company/department
       setFormData(prev => ({
         ...prev,
         assignees: ids
       }));
 
-      // Update local cached companyEmployees with the mapped shape (keeps findEmployee working)
+      // Update local cached companyEmployees so UI chip lookups work
       setCompanyEmployees(mapped);
+
+      // Feedback: show count
+      await Swal.fire({
+        icon: "success",
+        title: "Selected",
+        text: `Assigned KPI to ${ids.length} employee${ids.length > 1 ? "s" : ""}.`,
+        timer: 1400,
+        showConfirmButton: false,
+      });
     } catch (err) {
       console.error("Failed to select all assignees", err);
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to select employees. See console for details.",
+      });
     } finally {
       setIsLoadingEmployees(false);
     }
@@ -604,7 +650,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   type="text"
                   value={empSearch}
                   onChange={(e) => setEmpSearch(e.target.value)}
-                  placeholder="Search employees by name or department..."
+                  placeholder="Search by name, department, attendance number, or employee ID..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   disabled={!formData.company}
                 />
@@ -617,19 +663,25 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 <p className="text-xs text-amber-600 mt-1">Please select a company to search employees</p>
               )}
 
-              {/* Search results */}
+              {/* Search results - Enhanced display */}
               {empSearch && filteredEmployees.length > 0 && formData.company && (
                 <div className="mt-2 max-h-40 overflow-auto border border-gray-100 rounded-lg bg-white shadow-sm">
                   {filteredEmployees.map(emp => (
                     <div key={emp.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
                       <div>
                         <div className="text-sm font-medium">{emp.name}</div>
-                        <div className="text-xs text-gray-500">{emp.department}</div>
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                          <span>ID: {emp.id}</span>
+                          {emp.employee_id && emp.employee_id !== emp.id && (
+                            <span>• EMP ID: {emp.employee_id}</span>
+                          )}
+                          <span>• {emp.department}</span>
+                        </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => addEmployee(emp)}
-                        className="px-3 py-1 bg-purple-600 text-white rounded-md text-sm"
+                        className="px-3 py-1 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition-colors"
                       >
                         Add
                       </button>
@@ -1106,7 +1158,7 @@ const KPIs = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(7); // Changed from 10 to 7 for at least 7 rows per page
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1723,7 +1775,7 @@ const KPIs = () => {
                           const start = new Date(kpi.startDate);
                           const end = new Date(kpi.endDate);
                           const today = new Date();
-                          const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                          const totalDays = Math.ceil((end - start) / (1000 * 60 * 24));
                           const daysElapsed = Math.ceil((today - start) / (1000 * 60 * 60 * 24));
                           const percentage = Math.min(Math.max(Math.round((daysElapsed / totalDays) * 100), 0), 100);
                           return `${percentage}% of timeline elapsed`;
@@ -1752,12 +1804,49 @@ const KPIs = () => {
           </table>
         </div>
         
-        {/* Pagination section remains unchanged */}
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredKpis.length)} of {filteredKpis.length} KPIs
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  currentPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  currentPage === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Empty State */}
       {filteredKpis.length === 0 && !isLoading && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+         
           <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No KPIs found</h3>
           <p className="text-gray-600 mb-6">
