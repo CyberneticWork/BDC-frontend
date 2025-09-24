@@ -1847,7 +1847,7 @@ const KPIs = () => {
                     </div>
                                    </td>
                   {/* Performance */}
-                  <td className="px-6 py-4">
+                  {/* <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
@@ -1866,7 +1866,7 @@ const KPIs = () => {
                         </div>
                       </div>
                     </div>
-                  </td>
+                  </td> */}
   
                   {/* Weights */}
                   <td className="px-6 py-4">

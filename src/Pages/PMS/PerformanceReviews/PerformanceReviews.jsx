@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { 
   Calendar, 
@@ -1273,17 +1273,10 @@ const PerformanceReviews = () => {
   });
 
   // Function to fetch reviews from database - Always fetch from database
-  const fetchReviewsFromDatabase = async (page = 1) => {
+  // stable via useCallback so we can call it from effects reliably
+  const fetchReviewsFromDatabase = useCallback(async (page = 1) => {
     setIsLoadingFromDB(true);
     try {
-      // DO NOT call hooks here: useAuth() must be used at component top-level.
-      // Use `user` from component scope instead (already obtained via useAuth at top of component).
-      if (!user) {
-        console.error('User not authenticated');
-        setReviewData([]);
-        return;
-      }
-
       const res = await PMSService.getPerformanceReviewsFromDB({
         page,
         per_page: pagination.per_page
@@ -1292,27 +1285,30 @@ const PerformanceReviews = () => {
       if (res.meta) setPagination(res.meta);
     } catch (error) {
       console.error('Error fetching reviews from database:', error);
-      
-      // Handle authentication errors specifically
-      if (error.response?.status === 401) {
-        console.error('Authentication failed - redirecting to login');
-        toast.error('Session expired. Please log in again.');
-        // Optionally redirect to login:
-        // window.location.href = '/login';
-      }
-      
       setReviewData([]);
     } finally {
       setIsLoadingFromDB(false);
     }
-  };
+  }, [pagination.per_page]);
+  
+  // refresh flag - set true when any modal action modifies data
+  const [needsRefresh, setNeedsRefresh] = useState(false);
 
-  // Subscribe to store updates so this view refreshes automatically - Remove dummy data subscription
+  // when flagged, re-fetch current page once
+  useEffect(() => {
+    if (!needsRefresh) return;
+    (async () => {
+      await fetchReviewsFromDatabase(pagination.current_page);
+      setNeedsRefresh(false);
+    })();
+  }, [needsRefresh, fetchReviewsFromDatabase, pagination.current_page]);
+
+   // Subscribe to store updates so this view refreshes automatically - Remove dummy data subscription
   useEffect(() => {
     fetchReviewsFromDatabase(pagination.current_page);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.current_page]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchReviewsFromDatabase, pagination.current_page]);
+ 
   const goToPage = (p) => {
     if (p < 1 || p > pagination.last_page || p === pagination.current_page) return;
     setPagination(prev => ({ ...prev, current_page: p }));
@@ -1438,9 +1434,12 @@ const PerformanceReviews = () => {
         status: updatedReview.status,
         performance_metrics: updatedReview.performanceMetrics
       };
+      // call backend (see [`PMSService.updatePerformanceReview`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js))
       await PMSService.updatePerformanceReview(updatedReview.id, payload);
       toast.success('Review updated');
-      await fetchReviewsFromDatabase(pagination.current_page);
+      // mark for refresh and close modal
+      setNeedsRefresh(true);
+      setIsProgressModalOpen(false);
     } catch (e) {
       console.error('Update failed', e);
       toast.error(e?.response?.data?.message || 'Failed to update review');
@@ -1452,11 +1451,12 @@ const PerformanceReviews = () => {
   const handleCreateReview = async (formData) => {
     try {
       setIsLoading(true);
-      await PMSService.createReview(formData); // adjust if endpoint differs
+      await PMSService.createReview(formData);
       toast.success('Review created');
       setIsNewReviewModalOpen(false);
-      await fetchReviewsFromDatabase(1);
+      // reset to first page and request refresh
       setPagination(p => ({ ...p, current_page: 1 }));
+      setNeedsRefresh(true);
     } catch (e) {
       console.error('Create failed', e);
       toast.error(e?.response?.data?.message || 'Failed to create review');
@@ -1465,6 +1465,17 @@ const PerformanceReviews = () => {
     }
   };
 
+  // When modals are closed without a save we still want to ensure latest data is shown.
+  // If the modal closed and needsRefresh is false, we still re-fetch once to keep UI consistent.
+  useEffect(() => {
+    if (!isProgressModalOpen && !isDetailsModalOpen && !isNewReviewModalOpen && !isDocumentsModalOpen) {
+      // small debounce to avoid double fetches
+      const t = setTimeout(() => fetchReviewsFromDatabase(pagination.current_page), 200);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProgressModalOpen, isDetailsModalOpen, isNewReviewModalOpen, isDocumentsModalOpen]);
+ 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Remove database toggle */}
@@ -1555,12 +1566,12 @@ const PerformanceReviews = () => {
             <div className="p-3 rounded-lg bg-gray-100 text-gray-600 mr-4">
               <FileText className="h-6 w-6" />
             </div>
-            <div>
+            {/* <div>
               <div className="text-sm font-medium text-gray-500">Draft</div>
               <div className="text-xl font-semibold text-gray-900">
                 {reviewData.filter(r => normalizeStatus(r.status) === 'Draft').length}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -1741,6 +1752,7 @@ const PerformanceReviews = () => {
                               <div
                                 className={`h-1.5 rounded-full ${
                                   review.selfReportedProgress < 30 ? 'bg-red-500' :
+                                 
                                   review.selfReportedProgress < 70 ? 'bg-yellow-500' :
                                   'bg-green-500'
                                 }`}
