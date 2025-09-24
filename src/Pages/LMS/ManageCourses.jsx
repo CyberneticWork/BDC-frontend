@@ -170,9 +170,9 @@ const ManageCourses = ({ onViewCourse }) => {
         enrolled: userEnrollments.some((en) => en.course_id === course.id),
       }));
 
-  setCourses(coursesWithEnrollment);
-  // Preload creator names for display
-  ensureCreatorNames(coursesWithEnrollment);
+      setCourses(coursesWithEnrollment);
+      // Preload creator names for display
+      ensureCreatorNames(coursesWithEnrollment);
       // Load detailed user progress (completed/total modules per course)
       try {
         const progressData = await LMSService.getUserProgress();
@@ -642,7 +642,9 @@ const ManageCourses = ({ onViewCourse }) => {
               </div>
 
               <div className="text-xs text-gray-400 mb-4">
-                Created by: {creatorNames[course.createdBy] ?? `User ${course.createdBy ?? "Unknown"}`}
+                Created by:{" "}
+                {creatorNames[course.createdBy] ??
+                  `User ${course.createdBy ?? "Unknown"}`}
               </div>
 
               <div className="flex space-x-2">
@@ -744,7 +746,9 @@ const ManageCourses = ({ onViewCourse }) => {
                       View
                     </button>
                     <button
-                      onClick={() => isCourseOwner(course) && handleEditCourse(course)}
+                      onClick={() =>
+                        isCourseOwner(course) && handleEditCourse(course)
+                      }
                       disabled={!isCourseOwner(course)}
                       className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -752,7 +756,9 @@ const ManageCourses = ({ onViewCourse }) => {
                       Edit
                     </button>
                     <button
-                      onClick={() => isCourseOwner(course) && handleDeleteCourse(course.id)}
+                      onClick={() =>
+                        isCourseOwner(course) && handleDeleteCourse(course.id)
+                      }
                       disabled={!isCourseOwner(course)}
                       className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
