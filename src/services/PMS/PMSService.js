@@ -83,13 +83,19 @@ class PMSService {
     }
   }
 
-  async getKpiPerformance() {
+  /**
+   * Get KPI performance stats for dashboard cards.
+   * params: { start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }
+   * returns: { onTarget, needAttention, totalInWindow, startDate, endDate }
+   */
+  async getKpiPerformance(params = {}) {
     try {
-      const response = await axios.get('/pms/dashboard/KPIs');
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching KPI performance:", error);
-      throw error;
+      const res = await axios.get('/pms/dashboard/KPIs', { params });
+      // backend returns { data: { onTarget, needAttention, ... } }
+      return res.data?.data ?? res.data;
+    } catch (err) {
+      console.error('PMSService.getKpiPerformance error', err?.response?.data ?? err);
+      throw err;
     }
   }
 

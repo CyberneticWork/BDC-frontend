@@ -25,7 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import PMSService from "../../../services/PMS/PMSService";
+import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
 
 // Task Modal Component (shared between Add and Edit)
@@ -1200,7 +1200,7 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   );
 };
 
-const KPIs = () => {
+const KPIs = (/* props */) => {
   const [kpis, setKpis] = useState([]);
   const [filteredKpis, setFilteredKpis] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1234,6 +1234,20 @@ const KPIs = () => {
 
   // Add a state to store all employees for modals
   const [allEmployeesForModals, setAllEmployeesForModals] = useState([]);
+
+  // New states for KPI performance stats
+  const [isLoadingKpiStats, setIsLoadingKpiStats] = useState(false);
+  const [kpiStats, setKpiStats] = useState({
+    onTarget: 0,
+    needAttention: 0,
+    totalInWindow: 0,
+    startDate: null,
+    endDate: null
+  });
+
+  // Optional date-range state (you may already have these controls)
+  const [filterStartDate, setFilterStartDate] = useState(null);
+  const [filterEndDate, setFilterEndDate] = useState(null);
 
   useEffect(() => {
     fetchKpis();
@@ -1288,6 +1302,30 @@ const KPIs = () => {
     fetchEmployeesForModals();
   }, []);
 
+  // New: fetch KPI performance stats
+  const fetchKpiStats = async (startDate = null, endDate = null) => {
+    setIsLoadingKpiStats(true);
+    try {
+      const params = {};
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      const data = await PMSService.getKpiPerformance(params);
+      setKpiStats({
+        onTarget: data.onTarget ?? 0,
+        needAttention: data.needAttention ?? 0,
+        totalInWindow: data.totalInWindow ?? 0,
+        startDate: data.startDate ?? startDate,
+        endDate: data.endDate ?? endDate
+      });
+    } catch (err) {
+      console.error('Failed to load KPI performance stats', err);
+      setKpiStats(s => ({ ...s, onTarget: 0, needAttention: 0 }));
+    } finally {
+      setIsLoadingKpiStats(false);
+    }
+  };
+
+  // Filter and pagination effects
   useEffect(() => {
     applyFilters();
   }, [kpis, statusFilter, departmentFilter, companyFilter]); // Removed searchTerm
@@ -1582,6 +1620,11 @@ const KPIs = () => {
     return () => { mounted = false; };
   }, [companyFilter]); // note: departmentFilter may be reset inside
 
+  // initial load - you can pass date range here if you have controls
+  useEffect(() => {
+    fetchKpiStats(filterStartDate, filterEndDate);
+  }, [filterStartDate, filterEndDate]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1699,37 +1742,45 @@ const KPIs = () => {
               <p className="text-sm font-medium text-gray-600">Total KPIs</p>
               <p className="text-2xl font-bold text-gray-900">{kpis.length}</p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <BarChart3 className="w-6 h-6 text-purple-600" />
+            <div className="p-3 bg-indigo-50 rounded-xl">
+              {/* icon */}
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">On Target</p>
-              <p className="text-2xl font-bold text-green-600">
-                {kpis.filter((k) => k.current >= k.target).length}
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoadingKpiStats ? '—' : kpiStats.onTarget}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {kpiStats.startDate && kpiStats.endDate ? `${kpiStats.startDate} → ${kpiStats.endDate}` : 'This month'}
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-green-50 rounded-xl">
+              <svg className="w-6 h-6 text-green-600" /*...*/></svg>
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Need Attention</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {kpis.filter((k) => k.status === "attention").length}
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoadingKpiStats ? '—' : kpiStats.needAttention}
               </p>
+              <p className="text-xs text-gray-400 mt-1">No submissions in period</p>
             </div>
-            <div className="p-3 bg-yellow-100 rounded-xl">
-              <AlertCircle className="w-6 h-6 text-yellow-600" />
+            <div className="p-3 bg-red-50 rounded-xl">
+              <svg className="w-6 h-6 text-red-600" /*...*/></svg>
             </div>
           </div>
         </div>
+
+        {/* other existing cards... */}
       </div>
 
       {/* Filters */}
