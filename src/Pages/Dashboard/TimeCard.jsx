@@ -1380,7 +1380,7 @@ const TimeCard = () => {
                     <option value="">Select Status</option>
                     <option value="IN">IN</option>
                     <option value="OUT">OUT</option>
-                    <option value="Leave">Leave</option>
+                    {/* <option value="Leave">Leave</option> */}
                   </select>
                   {addErrors.status && <div className="text-red-500 text-xs mt-1">{addErrors.status}</div>}
                 </div>
