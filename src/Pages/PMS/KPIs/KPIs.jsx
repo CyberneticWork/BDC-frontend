@@ -301,6 +301,22 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       return;
     }
 
+    // Validate weights total: must not exceed 100%
+    const totalWeights = Array.isArray(formData.weights)
+      ? formData.weights.reduce((sum, w) => sum + (Number(w.percentage) || 0), 0)
+      : 0;
+    
+    if (totalWeights > 100) {
+      // show validation and keep current form data intact
+      Swal.fire({
+        icon: "warning",
+        title: "Weights sum exceeds 100%",
+        html: `The total of all performance criteria weights is <strong>${totalWeights}%</strong>. Please adjust so the total does not exceed <strong>100%</strong>.`,
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+    
     // Add computed names to formData before submitting
     const enrichedFormData = {
       ...formData,
