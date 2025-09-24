@@ -1667,10 +1667,10 @@ const KPIs = () => {
               <Plus className="w-4 h-4" />
               Add KPI Task
             </button>
-             <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+             {/* <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                <Download className="w-4 h-4" />
                Export
-             </button>
+             </button> */}
             </div>
         </div>
       </div>
