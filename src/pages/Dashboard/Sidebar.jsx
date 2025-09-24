@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
   PieChart,
   BookOpen, // Add for LMS
+  Calculator, // Add for Accounting
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -43,6 +44,7 @@ const Sidebar = ({
     timeAttendance: false,
     pms: false,
     lms: false,
+    accounting: false,
   });
 
   const menuItems = [
@@ -145,6 +147,27 @@ const Sidebar = ({
         { id: "lmsUserStats", name: "User Stats", icon: BarChart3 },
       ],
     },
+    {
+      id: "accounting",
+      name: "Accounting",
+      icon: Calculator,
+      badge: null,
+      subItems: [
+        { id: "accountingDashboard", name: "Dashboard" },
+        { id: "chartOfAccounts", name: "Chart of Accounts" },
+        { id: "transactions", name: "Transactions" },
+        { id: "ledger", name: "Ledger" },
+        { id: "trialBalance", name: "Trial Balance" },
+        { id: "incomeStatement", name: "Income Statement" },
+        { id: "balanceSheet", name: "Balance Sheet" },
+        { id: "cashFlowStatement", name: "Cash Flow Statement" },
+        { id: "invoices", name: "Invoices" },
+        { id: "expenses", name: "Expenses" },
+        { id: "accountingReports", name: "Reports" },
+        { id: "accountingSettings", name: "Settings" },
+       
+      ],
+    },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
   ];
@@ -176,6 +199,7 @@ const Sidebar = ({
         path.includes("timeAttendance") || activeItem === "timeAttendance",
       pms: path.includes("pms") || activeItem === "pms",
       lms: path.includes("lms") || activeItem === "lms",
+      accounting: path.includes("accounting") || activeItem === "accounting",
     });
   }, [activeItem]);
 
@@ -208,6 +232,9 @@ const Sidebar = ({
   };
   const toggleLMS = () => {
     setExpandedItems((prev) => ({ ...prev, lms: !prev.lms }));
+  };
+  const toggleAccounting = () => {
+    setExpandedItems((prev) => ({ ...prev, accounting: !prev.accounting }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -305,6 +332,10 @@ const Sidebar = ({
                         },
                         pms: { toggle: togglePMS, expanded: expandedItems.pms },
                         lms: { toggle: toggleLMS, expanded: expandedItems.lms },
+                        accounting: {
+                          toggle: toggleAccounting,
+                          expanded: expandedItems.accounting,
+                        },
                       };
                       const top = topDropdowns[item.id] || {
                         toggle: () => {},
@@ -313,58 +344,57 @@ const Sidebar = ({
 
                       return (
                         <button
-  onClick={top.toggle}
-  className={`
+                          onClick={top.toggle}
+                          className={`
     w-full flex items-right justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
     transition-all duration-200 group
     ${
       activeItem === item.id ||
-      item.subItems.some(
-        (subItem) => activeItem === subItem.id
-      )
+      item.subItems.some((subItem) => activeItem === subItem.id)
         ? "bg-indigo-50 text-indigo-700"
         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
     }
   `}
->
-  <div className="flex items-center gap-3">
-    <item.icon
-      className={`h-5 w-5 ${
-        activeItem === item.id ||
-        item.subItems.some(
-          (subItem) => activeItem === subItem.id
-        )
-          ? "text-indigo-600"
-          : "text-gray-400 group-hover:text-gray-600"
-      }`}
-    />
-  </div>
-  <span className="flex-10 text-left mr-10">{item.name}</span> {/* Changed here */}
-  <div className="flex items-center gap-2">
-    {item.badge && (
-      <span
-        className={`
+                        >
+                          <div className="flex items-center gap-3">
+                            <item.icon
+                              className={`h-5 w-5 ${
+                                activeItem === item.id ||
+                                item.subItems.some(
+                                  (subItem) => activeItem === subItem.id
+                                )
+                                  ? "text-indigo-600"
+                                  : "text-gray-400 group-hover:text-gray-600"
+                              }`}
+                            />
+                          </div>
+                          <span className="flex-10 text-left mr-10">
+                            {item.name}
+                          </span>{" "}
+                          {/* Changed here */}
+                          <div className="flex items-center gap-2">
+                            {item.badge && (
+                              <span
+                                className={`
           px-2 py-0.5 text-xs rounded-full font-medium
           ${
             activeItem === item.id ||
-            item.subItems.some(
-              (subItem) => activeItem === subItem.id
-            )
+            item.subItems.some((subItem) => activeItem === subItem.id)
               ? "bg-indigo-100 text-indigo-700"
               : "bg-gray-100 text-gray-600"
           }
         `}
-      >
-        {item.badge}
-      </span>
-    )}
-    {top.expanded ? (
-      <ChevronDown className="h-4 w-4 text-gray-500" />
-    ) : (
-      <ChevronRight className="h-4 w-4 text-gray-500" />
-    )}
-  </div>
-</button>
+                              >
+                                {item.badge}
+                              </span>
+                            )}
+                            {top.expanded ? (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                            )}
+                          </div>
+                        </button>
                       );
                     })()}
 
@@ -377,6 +407,8 @@ const Sidebar = ({
                           ? expandedItems.pms
                           : item.id === "lms"
                           ? expandedItems.lms
+                          : item.id === "accounting"
+                          ? expandedItems.accounting
                           : false;
                       if (!topExpanded) return null;
                       return (

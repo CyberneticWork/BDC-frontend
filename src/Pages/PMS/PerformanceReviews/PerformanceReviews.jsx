@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import { 
   Calendar, 
   Filter, 
@@ -28,12 +29,16 @@ import {
   Upload 
 } from 'lucide-react';
 import NewReviewModal from "./NewReviewModal";
-import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+import PMSService from "@services/PMS/PMSService"; // Remove PMSDummyDataStore import
 import EmployeeDocumentsModal from './EmployeeDocumentsModal';
+import { permissions } from '../../../config/permissions';
+import { useAuth } from '../../../contexts/AuthContext';
+import Swal from "sweetalert2";
 
 // Progress Review Modal Component
-const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
-  const [progress, setProgress] = useState(review?.progress || 0);
+const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove useDatabase prop
+  // **FIXED**: Initialize with supervisor progress from performance_reviews table, not self-reported
+  const [progress, setProgress] = useState(0); // Start with 0, will be set in useEffect
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
   const [statusState, setStatusState] = useState(review?.status || 'In Progress');
@@ -56,9 +61,11 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     adherenceToGuidelines: 0
   });
 
+  const [taskDetails, setTaskDetails] = useState(null);
+
   // keep only the grades you mentioned
   const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
-  const statusOptions = ['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'];
+  const statusOptions = ['Completed', 'In Progress', 'Pending'];
 
   // Map from task name to performance metric key
   const taskNameToMetricKey = {
@@ -76,43 +83,36 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     "Adherence to the given Guidelines": "adherenceToGuidelines"
   };
 
-  // Get the linked task if available
-  const getLinkedTask = () => {
-    if (review?.taskId) {
-      return PMSDummyDataStore.getTaskById(review.taskId);
+  // Fetch detailed task and submission data when using database
+  useEffect(() => {
+    if (isOpen && review && review.id) { // Remove useDatabase check
+      // Fetch task details if using database
+      const fetchTaskDetails = async () => {
+        try {
+          const details = await PMSService.getPerformanceReviewDetails(review.id);
+          setTaskDetails(details);
+        } catch (error) {
+          console.error('Error fetching task details:', error);
+        }
+      };
+      fetchTaskDetails();
     }
-    return null;
-  };
+  }, [isOpen, review]);
 
-  const linkedTask = getLinkedTask();
-  const taskSpecificMetricKey = linkedTask ? taskNameToMetricKey[linkedTask.name] : null;
-
-  // Calculate overall progress from the performance metrics
-  const calculateOverallProgress = (metrics) => {
-    if (taskSpecificMetricKey) {
-      // If task-specific, use only that metric's value
-      return metrics[taskSpecificMetricKey] || 0;
-    } else {
-      // Fallback to average of all metrics
-      const values = Object.values(metrics);
-      const sum = values.reduce((acc, val) => acc + val, 0);
-      return Math.round(sum / values.length);
-    }
-  };
-
-  // sync local state when review prop changes (modal reopened with different review)
+  // **FIXED**: Initialize with supervisor progress from performance_reviews table
   useEffect(() => {
     if (review) {
-      setProgress(review.progress || 0);
+      // Use supervisor progress from performance_reviews table (0 if not set)
+      setProgress(review.progress || 0); // This comes from performance_reviews.progress column
       setGrade(review.grade || '');
       setComments(review.supervisorComments || '');
       setStatusState(review.status || 'In Progress');
       
-      // Load performance metrics if they exist
-      if (review.performanceMetrics) {
+      // Initialize performance metrics from supervisor review if exists, otherwise start fresh
+      if (review.performanceMetrics && Object.values(review.performanceMetrics).some(v => v > 0)) {
         setPerformanceMetrics(review.performanceMetrics);
       } else {
-        // Reset metrics if not present
+        // Start with fresh metrics
         setPerformanceMetrics({
           jobKnowledge: 0,
           qualityOfWork: 0,
@@ -130,6 +130,38 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       }
     }
   }, [review]);
+
+  // Get the linked task if available
+  const getLinkedTask = () => {
+    if (taskDetails) { // Remove useDatabase check
+      return {
+        id: taskDetails.assignment.id,
+        name: taskDetails.assignment.task_name,
+        description: taskDetails.assignment.description,
+        startDate: taskDetails.assignment.start_date,
+        endDate: taskDetails.assignment.end_date,
+        weights: taskDetails.assignment.weights
+      };
+    }
+    return null; // Remove dummy data fallback
+  };
+
+  const linkedTask = getLinkedTask();
+  const taskSpecificMetricKey = linkedTask ? taskNameToMetricKey[linkedTask.name] : null;
+
+  // Calculate overall progress from the performance metrics
+  const calculateOverallProgress = (metrics) => {
+    if (taskSpecificMetricKey) {
+      // If task-specific, use only that metric's value
+      return metrics[taskSpecificMetricKey] || 0;
+    } else {
+      // Fallback to average of all metrics
+      const values = Object.values(metrics);
+      if (values.length === 0) return 0;
+      const sum = values.reduce((acc, val) => acc + val, 0);
+      return Math.round(sum / values.length);
+    }
+  };
 
   // Update progress whenever performanceMetrics changes
   useEffect(() => {
@@ -166,8 +198,19 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
 
   // Apply self-reported metrics from the review (if present)
   const applySelfReportedMetrics = () => {
-    if (review?.performanceMetrics) {
-      setPerformanceMetrics(review.performanceMetrics);
+    // Check if there are self-reported metrics from employee submissions
+    if (taskDetails?.submissions && taskDetails.submissions.length > 0) {
+      const latestSubmission = taskDetails.submissions[0]; // First one is latest due to ordering
+      if (latestSubmission.performance_metrics) {
+        setPerformanceMetrics(latestSubmission.performance_metrics);
+        setShowCategoryDetails(true);
+        return;
+      }
+    }
+    
+    // Fallback to review's self-reported metrics if available
+    if (review?.selfReportedMetrics) {
+      setPerformanceMetrics(review.selfReportedMetrics);
       setShowCategoryDetails(true);
     } else {
       alert("No self-reported performance metrics available for this review.");
@@ -192,31 +235,130 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
+    // New: require progress to be set (> 0)
+    if (isNaN(progress) || progress <= 0 || progress > 100) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Set Progress",
+        text: "Please set the progress bar to a value between 1 and 100 before saving.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // New: require status to be selected
+    if (!statusState || statusState.trim() === "") {
+      await Swal.fire({
+        icon: "warning",
+        title: "Status Required",
+        text: "Please select a review status before saving.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Map UI status -> backend status and validate
+    const BACKEND_ALLOWED_STATUSES = ['Draft','In Progress','Pending Manager','Pending Employee','Completed'];
+    const STATUS_SEND_MAP = {
+      // keep UI short, but send backend-expected value
+      'Pending': 'Pending Manager'
+    };
+
+    const mappedStatus = STATUS_SEND_MAP[statusState] ?? statusState;
+    if (!BACKEND_ALLOWED_STATUSES.includes(mappedStatus)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid Status",
+        text: `Selected status "${statusState}" is not allowed. Choose one of: ${BACKEND_ALLOWED_STATUSES.join(', ')}`,
+        confirmButtonColor: "#EF4444"
+      });
+      return;
+    }
+
+    // Existing validations
+    if (!grade || !grade.trim()) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Grade Required",
+        text: "Please select a performance grade before saving.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    if (!comments || !comments.trim()) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Comments Required",
+        text: "Please provide supervisor comments.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Validate metrics values (0-100)
+    for (const [key, val] of Object.entries(performanceMetrics)) {
+      const v = Number(val);
+      if (isNaN(v) || v < 0 || v > 100) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Invalid Metric Value",
+          text: `Metric "${key}" must be between 0 and 100.`,
+          confirmButtonColor: "#F59E0B",
+        });
+        return;
+      }
+    }
+
+    // Confirmation dialog
+    const confirm = await Swal.fire({
+      title: "Confirm Update",
+      text: "Are you sure you want to save this review update?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#4F46E5",
+      cancelButtonColor: "#D1D5DB",
+      confirmButtonText: "Yes, save",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Create updated review object including supervisor-selected status
+      // Build update payload
       const updatedReview = {
         ...review,
-        progress: progress,
-        grade: grade,
+        progress: parseInt(progress, 10),
+        grade,
         supervisorComments: comments,
-        status: statusState,
-        lastUpdated: new Date().toISOString(),
-        performanceMetrics: performanceMetrics // Include performance metrics
+        // send mapped backend-friendly status
+        status: mappedStatus,
+        performanceMetrics,
+        lastUpdated: new Date().toISOString()
       };
-      
-      // In a real app, update review on server and optionally update KPI status:
-      // await PMSService.updateReview(review.id, updatedReview);
-      
-      onSave(updatedReview);
+
+      // Call parent handler (which calls backend via PMSService.updatePerformanceReview)
+      await onSave(updatedReview);
+
+      await Swal.fire({
+        icon: "success",
+        title: "Saved",
+        text: "Performance review updated successfully.",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+
       onClose();
     } catch (error) {
       console.error("Error updating review:", error);
-      alert("Failed to update review");
+      await Swal.fire({
+        icon: "error",
+        title: "Update Failed",
+        text: error?.response?.data?.message || "Failed to update the review. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -229,13 +371,14 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Review Progress</h2>
             <div className="text-sm text-gray-600 mt-1">
-              <span className="font-medium">{review.employeeName}</span> • {review.position}
+              <span className="font-medium">{review.employeeName}</span> • {review.position || 'Employee'}
             </div>
             {linkedTask && (
               <div className="text-sm text-indigo-600 mt-1">
                 Task: {linkedTask.name}
               </div>
             )}
+            {/* Remove useDatabase indicator */}
           </div>
           <button
             onClick={onClose}
@@ -245,6 +388,27 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
             <X size={20} />
           </button>
         </div>
+
+        {/* Display database-specific information */}
+        {taskDetails && ( // Remove useDatabase check
+          <div className="p-6 border-b border-gray-100 bg-blue-50">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">Task Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-blue-700">Submissions:</span> {taskDetails.submissions.length}
+              </div>
+              <div>
+                <span className="text-blue-700">Latest Progress:</span> {review.selfReportedProgress}% 
+              </div>
+              <div>
+                <span className="text-blue-700">Priority:</span> {review.priority || 'Medium'}
+              </div>
+              <div>
+                <span className="text-blue-700">Documents:</span> {review.documentCount || 0}
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Progress Section */}
@@ -268,12 +432,20 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {/* Current Progress Display */}
+                  {/* Current Progress Display - FIXED to show supervisor progress */}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-indigo-600">{progress}%</div>
-                    <div className="text-xs text-gray-500">Overall Score</div>
+                    <div className="text-xs text-gray-500">Supervisor Rating</div>
                   </div>
                   
+                  {/* Show employee's self-reported progress separately if available */}
+                  {review?.selfReportedProgress > 0 && (
+                    <div className="text-center border-l border-gray-200 pl-3">
+                      <div className="text-lg font-medium text-blue-600">{review.selfReportedProgress}%</div>
+                      <div className="text-xs text-gray-500">Employee Self-Report</div>
+                    </div>
+                  )}
+
                   {/* Enhanced Toggle Button */}
                   <button
                     type="button"
@@ -369,7 +541,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                             type="range"
                             min="0"
                             max="100"
-                            step="5"
+                            step="1"
                             value={metricValue}
                             onChange={(e) => handleMetricChange(metricKey, e.target.value)}
                             onClick={(e) => e.stopPropagation()}
@@ -395,7 +567,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.jobKnowledge}
                           onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -417,7 +589,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.qualityOfWork}
                           onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -439,7 +611,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.productivity}
                           onChange={(e) => handleMetricChange('productivity', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -461,7 +633,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.communicationSkills}
                           onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -483,7 +655,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.teamwork}
                           onChange={(e) => handleMetricChange('teamwork', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -505,7 +677,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.behaviorAtWork}
                           onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -527,7 +699,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.problemSolving}
                           onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -549,7 +721,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.attendance}
                           onChange={(e) => handleMetricChange('attendance', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -571,7 +743,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.adaptability}
                           onChange={(e) => handleMetricChange('adaptability', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -593,7 +765,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.selfDevelopment}
                           onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -615,7 +787,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.discipline}
                           onChange={(e) => handleMetricChange('discipline', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -637,7 +809,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                           type="range"
                           min="0"
                           max="100"
-                          step="5"
+                          step="1"
                           value={performanceMetrics.adherenceToGuidelines}
                           onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
                           onClick={(e) => e.stopPropagation()}
@@ -664,8 +836,12 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
               onChange={(e) => setStatusState(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
             >
+              <option value="">Select status</option>
               {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            {!statusState && (
+              <div className="text-sm text-red-600 mt-1">Please select a review status.</div>
+            )}
           </div>
 
           {/* Grade Section */}
@@ -711,13 +887,14 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 mr-3"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+              disabled={isSubmitting || Number(progress) <= 0 || !statusState}
+              className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2 ${ (isSubmitting || Number(progress) <= 0 || !statusState) ? 'opacity-60 cursor-not-allowed' : '' }`}
             >
               {isSubmitting ? (
                 <>
@@ -738,8 +915,70 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   );
 };
 
-// Performance Review Details Modal
-const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
+// Performance Review Details Modal - Updated to use backend data
+const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatabase prop
+  const [reviewDetails, setReviewDetails] = useState(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // Fetch review details when modal opens
+  useEffect(() => {
+    if (isOpen && review && review.id) { // Remove useDatabase check
+      fetchReviewDetails();
+    } else if (isOpen && review) {
+      // Use review data directly if no ID
+      setReviewDetails(review);
+    }
+  }, [isOpen, review]);
+
+  const fetchReviewDetails = async () => {
+    setIsLoadingDetails(true);
+    try {
+      const details = await PMSService.getPerformanceReviewDetails(review.id);
+      
+      // Transform backend data to match the expected format
+      const transformedDetails = {
+        id: review.id,
+        taskName: details.assignment.task_name,
+        employeeName: details.assignment.employee_name,
+        employeeId: details.assignment.employee_id,
+        position: review.position || 'Employee',
+        department: details.assignment.department,
+        company: details.assignment.company,
+        type: 'Performance Review',
+        status: review.status,
+        startDate: details.assignment.start_date,
+        dueDate: details.assignment.end_date,
+        completedDate: review.completedDate,
+        cycle: review.cycle,
+        description: details.assignment.description,
+        priority: review.priority,
+        weights: details.assignment.weights,
+        manager: 'Supervisor',
+        overallRating: review.overallRating,
+        grade: review.grade,
+        progress: review.progress,
+        supervisorComments: review.supervisorComments,
+        lastUpdated: review.lastUpdated,
+        selfReportedProgress: review.selfReportedProgress,
+        selfReportedLastUpdated: review.selfReportedLastUpdated,
+        selfReportedAuthor: review.selfReportedAuthor,
+        submissionCount: details.submissions.length,
+        latestSubmissionNote: details.submissions.length > 0 ? details.submissions[0].note : null,
+        documentCount: review.documentCount,
+        performanceMetrics: review.performanceMetrics,
+        submissions: details.submissions
+      };
+      
+      setReviewDetails(transformedDetails);
+    } catch (error) {
+      console.error('Error fetching review details:', error);
+      // Fallback to basic review data
+      setReviewDetails(review);
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
   if (!isOpen || !review) return null;
 
   // Helper function to get grade color
@@ -760,8 +999,9 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Performance Review Details</h2>
             <div className="text-sm text-gray-600 mt-1">
-              <span className="font-medium">{review.employeeName}</span> • {review.position}
+              <span className="font-medium">{review.employeeName}</span> • {review.position || 'Employee'}
             </div>
+            {/* Remove useDatabase indicator */}
           </div>
           <button
             onClick={onClose}
@@ -772,180 +1012,223 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Status and Progress Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg ${
-                  review.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                  review.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                  review.status.includes('Pending') ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {review.status === 'Completed' ? <CheckSquare className="h-5 w-5" /> :
-                   review.status === 'In Progress' ? <Clock className="h-5 w-5" /> :
-                   review.status.includes('Pending') ? <Users className="h-5 w-5" /> :
-                   <FileText className="h-5 w-5" />}
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Status</p>
-                  <p className="font-medium text-gray-900">{review.status}</p>
-                </div>
-              </div>
+          {isLoadingDetails ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-4" />
+              <p className="text-gray-500">Loading review details...</p>
             </div>
-
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
-                  <PieChart className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Progress (Supervisor)</p>
-                  <p className="font-medium text-gray-900">{review.progress || 0}% Complete</p>
-                </div>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                <div 
-                  className={`h-2.5 rounded-full ${
-                    (review.progress || 0) < 30 ? 'bg-red-500' : 
-                    (review.progress || 0) < 70 ? 'bg-yellow-500' : 
-                    'bg-green-500'
-                  }`}
-                  style={{ width: `${review.progress || 0}%` }}
-                ></div>
-              </div>
-
-              {/* NEW: Self-Reported Progress (if available) */}
-              {typeof review.selfReportedProgress === 'number' && (
-                <div className="mt-4 pt-3 border-t border-gray-100">
+          ) : reviewDetails ? (
+            <>
+              {/* Status and Progress Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
-                      <BarChart className="h-5 w-5" />
+                    <div className={`p-2 rounded-lg ${
+                      reviewDetails.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                      reviewDetails.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                      reviewDetails.status.includes('Pending') ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {reviewDetails.status === 'Completed' ? <CheckSquare className="h-5 w-5" /> :
+                       reviewDetails.status === 'In Progress' ? <Clock className="h-5 w-5" /> :
+                       reviewDetails.status.includes('Pending') ? <Users className="h-5 w-5" /> :
+                       <FileText className="h-5 w-5" />}
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Self-Reported Progress</p>
-                      <p className="font-medium text-indigo-900">{review.selfReportedProgress}%</p>
+                      <p className="text-xs text-gray-500">Status</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.status}</p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+                      <PieChart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Supervisor Progress</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.progress || 0}% Complete</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                    <div 
                       className={`h-2.5 rounded-full ${
-                        review.selfReportedProgress < 30 ? 'bg-red-500' :
-                        review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                        (reviewDetails.progress || 0) < 30 ? 'bg-red-500' : 
+                        (reviewDetails.progress || 0) < 70 ? 'bg-yellow-500' : 
                         'bg-green-500'
                       }`}
-                      style={{ width: `${review.selfReportedProgress}%` }}
+                      style={{ width: `${reviewDetails.progress || 0}%` }}
                     ></div>
                   </div>
 
-                  {review.selfReportedLastUpdated && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Last reported on {new Date(review.selfReportedLastUpdated).toLocaleString()}
-                      {review.selfReportedAuthor ? ` by ${review.selfReportedAuthor}` : ''}
-                    </p>
+                  {/* Self-Reported Progress (if available) - shown separately */}
+                  {typeof reviewDetails.selfReportedProgress === 'number' && (
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-blue-50 text-blue-700">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Employee Self-Reported</p>
+                          <p className="font-medium text-gray-900">{reviewDetails.selfReportedProgress}%</p>
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="h-1.5 rounded-full bg-blue-500"
+                          style={{ width: `${reviewDetails.selfReportedProgress}%` }}
+                        ></div>
+                      </div>
+                      {reviewDetails.selfReportedLastUpdated && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Last updated by {reviewDetails.selfReportedAuthor} on {new Date(reviewDetails.selfReportedLastUpdated).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                      <Award className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Grade</p>
+                      <p className="font-medium text-gray-900">
+                        {reviewDetails.grade ? (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getGradeColor(reviewDetails.grade)}`}>
+                            {reviewDetails.grade}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">Not graded</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Database-specific Task Information */}
+              {reviewDetails.submissions && ( // Remove useDatabase check
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                  <h3 className="text-sm font-medium text-blue-900 mb-3">Task Submission Details</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-blue-700">Task:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.taskName}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Submissions:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.submissionCount || 0}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Documents:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.documentCount || 0}</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Priority:</span>
+                      <p className="font-medium text-blue-900">{reviewDetails.priority || 'Medium'}</p>
+                    </div>
+                  </div>
+                  {reviewDetails.latestSubmissionNote && (
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <span className="text-blue-700 text-sm">Latest Note:</span>
+                      <p className="text-blue-900 text-sm mt-1">{reviewDetails.latestSubmissionNote}</p>
+                    </div>
                   )}
                 </div>
               )}
-            </div>
 
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
-                  <Award className="h-5 w-5" />
-                </div>
+              {/* Review Information and Timeline */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-xs text-gray-500">Grade</p>
-                  {review.grade ? (
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${getGradeColor(review.grade)}`}>
-                      {review.grade}
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Review Information</h3>
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Review Type</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.type}</p>
                     </div>
-                  ) : (
-                    <p className="font-medium text-gray-500">Not graded</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Review Info Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Review Information</h3>
-              <div className="bg-gray-50 rounded-xl p-4 space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500">Review Type</p>
-                  <p className="font-medium text-gray-900">{review.type}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Review Cycle</p>
-                  <p className="font-medium text-gray-900">{review.cycle}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Department</p>
-                  <p className="font-medium text-gray-900">{review.department}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Manager</p>
-                  <p className="font-medium text-gray-900">{review.manager}</p>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Timeline</h3>
-              <div className="bg-gray-50 rounded-xl p-4 space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500">Start Date</p>
-                  <p className="font-medium text-gray-900">{new Date(review.startDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Due Date</p>
-                  <p className="font-medium text-gray-900">{new Date(review.dueDate).toLocaleDateString()}</p>
-                </div>
-                {review.completedDate && (
-                  <div>
-                    <p className="text-xs text-gray-500">Completion Date</p>
-                    <p className="font-medium text-gray-900">{new Date(review.completedDate).toLocaleDateString()}</p>
+                    {/* <div>
+                      <p className="text-xs text-gray-500">Review Cycle</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.cycle}</p>
+                    </div> */}
+                    <div>
+                      <p className="text-xs text-gray-500">Department</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.department}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Position</p>
+                      <p className="font-medium text-gray-900">{reviewDetails.manager}</p>
+                    </div>
                   </div>
-                )}
-                {review.lastUpdated && (
-                  <div>
-                    <p className="text-xs text-gray-500">Last Updated</p>
-                    <p className="font-medium text-gray-900">{new Date(review.lastUpdated).toLocaleDateString()}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Supervisor Comments */}
-          {review.supervisorComments && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Supervisor Comments</h3>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-gray-700 whitespace-pre-line">{review.supervisorComments}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Rating Section */}
-          {review.overallRating && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Performance Rating</h3>
-              <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={`w-5 h-5 ${i < Math.floor(review.overallRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`}
-                      fill={i < Math.floor(review.overallRating) ? 'currentColor' : 'none'}
-                    />
-                  ))}
                 </div>
-                <span className="text-lg font-bold text-gray-900">{review.overallRating}</span>
-                <span className="text-sm text-gray-500">out of 5</span>
+
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Timeline</h3>
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Start Date</p>
+                      <p className="font-medium text-gray-900">{new Date(reviewDetails.startDate).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Due Date</p>
+                      <p className="font-medium text-gray-900">{new Date(reviewDetails.dueDate).toLocaleDateString()}</p>
+                    </div>
+                    {reviewDetails.completedDate && (
+                      <div>
+                        <p className="text-xs text-gray-500">Completion Date</p>
+                        <p className="font-medium text-gray-900">{new Date(reviewDetails.completedDate).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                    {reviewDetails.lastUpdated && (
+                      <div>
+                        <p className="text-xs text-gray-500">Last Updated</p>
+                        <p className="font-medium text-gray-900">{new Date(reviewDetails.lastUpdated).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Supervisor Comments */}
+              {reviewDetails.supervisorComments && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Supervisor Comments</h3>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-gray-700 whitespace-pre-line">{reviewDetails.supervisorComments}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Rating Section */}
+              {reviewDetails.overallRating && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Performance Rating</h3>
+                  <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3">
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star 
+                          key={i} 
+                          className={`w-5 h-5 ${i < Math.floor(reviewDetails.overallRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`}
+                          fill={i < Math.floor(reviewDetails.overallRating) ? 'currentColor' : 'none'}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-lg font-bold text-gray-900">{reviewDetails.overallRating}</span>
+                    <span className="text-sm text-gray-500">out of 5</span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <FileText className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No Details Available</h3>
+              <p className="text-gray-500 mt-2">Unable to load review details at this time.</p>
             </div>
           )}
 
@@ -967,13 +1250,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => {
 const PerformanceReviews = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState({
-    status: [],
-    type: [],
-    department: [],
-    period: '',
-  });
+  // filters removed: showFilters / selectedFilters
 
   // State for modals
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
@@ -982,77 +1259,76 @@ const PerformanceReviews = () => {
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   
-  // Enhanced sample review data with progress and grade fields
-  const [reviewData, setReviewData] = useState(() => PMSDummyDataStore.getPerformanceReviews());
+  const [isLoadingFromDB, setIsLoadingFromDB] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  // Remove useDatabase state - always use database
 
-  // Subscribe to store updates so this view refreshes automatically
+  // Enhanced sample review data with progress and grade fields - Remove dummy data initialization
+  const [reviewData, setReviewData] = useState([]);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 8,
+    total: 0
+  });
+
+  // Function to fetch reviews from database - Always fetch from database
+  const fetchReviewsFromDatabase = async (page = 1) => {
+    setIsLoadingFromDB(true);
+    try {
+      // DO NOT call hooks here: useAuth() must be used at component top-level.
+      // Use `user` from component scope instead (already obtained via useAuth at top of component).
+      if (!user) {
+        console.error('User not authenticated');
+        setReviewData([]);
+        return;
+      }
+
+      const res = await PMSService.getPerformanceReviewsFromDB({
+        page,
+        per_page: pagination.per_page
+      });
+      setReviewData(res.data || []);
+      if (res.meta) setPagination(res.meta);
+    } catch (error) {
+      console.error('Error fetching reviews from database:', error);
+      
+      // Handle authentication errors specifically
+      if (error.response?.status === 401) {
+        console.error('Authentication failed - redirecting to login');
+        toast.error('Session expired. Please log in again.');
+        // Optionally redirect to login:
+        // window.location.href = '/login';
+      }
+      
+      setReviewData([]);
+    } finally {
+      setIsLoadingFromDB(false);
+    }
+  };
+
+  // Subscribe to store updates so this view refreshes automatically - Remove dummy data subscription
   useEffect(() => {
-    const unsubscribe = PMSDummyDataStore.subscribe(() => {
-      setReviewData(PMSDummyDataStore.getPerformanceReviews());
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+    fetchReviewsFromDatabase(pagination.current_page);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.current_page]);
 
-  // Handle opening progress review modal
-  const openProgressModal = (review) => {
-    setSelectedReview(review);
-    setIsProgressModalOpen(true);
+  const goToPage = (p) => {
+    if (p < 1 || p > pagination.last_page || p === pagination.current_page) return;
+    setPagination(prev => ({ ...prev, current_page: p }));
   };
 
-  // Handle opening details modal
-  const openDetailsModal = (review) => {
-    setSelectedReview(review);
-    setIsDetailsModalOpen(true);
+  // Add helper to normalize statuses (map Pending Manager / Pending Employee / Draft -> Pending)
+  const normalizeStatus = (status) => {
+    if (!status) return status;
+    const s = String(status).trim();
+    if (s === 'Pending Manager' || s === 'Pending Employee' || s === 'Draft' || s.toLowerCase().includes('pending')) {
+      return 'Pending';
+    }
+    return s;
   };
 
-  // Handle opening documents modal
-  const openDocumentsModal = (review) => {
-    setSelectedReview(review);
-    setIsDocumentsModalOpen(true);
-  };
-
-  // Handle saving progress review
-  const handleSaveProgressReview = (updatedReview) => {
-    PMSDummyDataStore.updatePerformanceReview(updatedReview.id, updatedReview);
-    setReviewData(PMSDummyDataStore.getPerformanceReviews());
-  };
-
-  // Handle creating new review
-  const handleCreateReview = (reviewDataForm) => {
-    const newReview = {
-      id: Date.now(),
-      employeeName: reviewDataForm.employeeName,
-      employeeId: reviewDataForm.employeeId,
-      position: reviewDataForm.employeePosition,
-      department: reviewDataForm.employeeDepartment,
-      manager: reviewDataForm.supervisorName,
-      type: reviewDataForm.reviewType === "performance" ? "Performance Review" :
-            reviewDataForm.reviewType === "quarterly" ? "Quarterly Review" :
-            reviewDataForm.reviewType === "annual" ? "Annual Review" :
-            reviewDataForm.reviewType === "probation" ? "Probation Review" : "Progress Check-in",
-      status: "Draft",
-      startDate: reviewDataForm.startDate,
-      dueDate: reviewDataForm.dueDate,
-      completedDate: null,
-      overallRating: null,
-      cycle: reviewDataForm.reviewCycle.replace('_',' '),
-      progress: 0,
-      grade: null,
-      supervisorComments: reviewDataForm.reviewNotes,
-      lastUpdated: new Date().toISOString(),
-      selfReportedProgress: 0,
-      selfReportedLastUpdated: null,
-      selfReportedAuthor: null,
-      taskId: reviewDataForm.taskId || null,
-      performanceMetrics: null
-    };
-    PMSDummyDataStore.addPerformanceReview(newReview);
-    setReviewData(PMSDummyDataStore.getPerformanceReviews());
-  };
-
-  // Filter reviews based on active tab and search query
+  // Filter AFTER fetching current page (only page data shown)
   const filteredReviews = reviewData.filter(review => {
     const matchesTab = 
       activeTab === 'all' || 
@@ -1067,33 +1343,20 @@ const PerformanceReviews = () => {
       review.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
       review.employeeId.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Check if review matches selected filters
-    const matchesStatus = selectedFilters.status.length === 0 || 
-                         selectedFilters.status.includes(review.status);
-    const matchesType = selectedFilters.type.length === 0 || 
-                       selectedFilters.type.includes(review.type);
-    const matchesDepartment = selectedFilters.department.length === 0 || 
-                            selectedFilters.department.includes(review.department);
-    const matchesPeriod = !selectedFilters.period || 
-                         review.cycle.includes(selectedFilters.period);
-
-    return matchesTab && matchesSearch && matchesStatus && 
-           matchesType && matchesDepartment && matchesPeriod;
+    // Filters removed - only tabs + search apply
+    return matchesTab && matchesSearch;
   });
 
   // Helper function to get appropriate status badge color
   const getStatusBadgeClass = (status) => {
-    switch (status) {
+    const s = normalizeStatus(status);
+    switch (s) {
       case 'Completed':
         return 'bg-green-100 text-green-800';
       case 'In Progress':
         return 'bg-blue-100 text-blue-800';
-      case 'Pending Manager':
+      case 'Pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Pending Employee':
-        return 'bg-purple-100 text-purple-800';
-      case 'Draft':
-        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -1139,8 +1402,73 @@ const PerformanceReviews = () => {
     });
   };
 
+  // Get current user role (adjust based on your auth setup)
+  const { user } = useAuth(); // Assuming user object has a 'role' property
+  const userRole = user?.role || 'user'; // Default to 'user' if not available
+  const userPermissions = permissions[userRole]?.performanceReviews || {};
+
+  // >>> ADD MISSING HANDLERS (restored) <<<
+  const openProgressModal = (review) => {
+    setSelectedReview(review);
+    setIsProgressModalOpen(true);
+  };
+
+  const openDetailsModal = (review) => {
+    setSelectedReview(review);
+    setIsDetailsModalOpen(true);
+  };
+
+  const openDocumentsModal = async (review) => {
+    setSelectedReview(review);
+    // Optional: fetch documents if you have an endpoint
+    // try {
+    //   const docs = await PMSService.getAssignmentDocuments(review.id);
+    //   setSelectedReview(prev => ({ ...prev, documents: docs }));
+    // } catch (e) { console.error(e); }
+    setIsDocumentsModalOpen(true);
+  };
+
+  const handleSaveProgressReview = async (updatedReview) => {
+    try {
+      setIsLoading(true);
+      const payload = {
+        progress: updatedReview.progress,
+        grade: updatedReview.grade,
+        supervisor_comments: updatedReview.supervisorComments,
+        status: updatedReview.status,
+        performance_metrics: updatedReview.performanceMetrics
+      };
+      await PMSService.updatePerformanceReview(updatedReview.id, payload);
+      toast.success('Review updated');
+      await fetchReviewsFromDatabase(pagination.current_page);
+    } catch (e) {
+      console.error('Update failed', e);
+      toast.error(e?.response?.data?.message || 'Failed to update review');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateReview = async (formData) => {
+    try {
+      setIsLoading(true);
+      await PMSService.createReview(formData); // adjust if endpoint differs
+      toast.success('Review created');
+      setIsNewReviewModalOpen(false);
+      await fetchReviewsFromDatabase(1);
+      setPagination(p => ({ ...p, current_page: 1 }));
+    } catch (e) {
+      console.error('Create failed', e);
+      toast.error(e?.response?.data?.message || 'Failed to create review');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Remove database toggle */}
+      
       {/* Progress Review Modal */}
       <ProgressReviewModal 
         isOpen={isProgressModalOpen}
@@ -1175,13 +1503,7 @@ const PerformanceReviews = () => {
           <h1 className="text-2xl font-bold text-gray-900">Performance Reviews</h1>
           <p className="text-gray-600">Manage and track employee performance evaluations</p>
         </div>
-        {/* <button 
-          onClick={() => setIsNewReviewModalOpen(true)} 
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          <span>New Review</span>
-        </button> */}
+        {/* Remove new review button if not needed */}
       </div>
 
       {/* Status Summary Cards - moved here (below header, above table) */}
@@ -1194,7 +1516,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">In Progress</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'In Progress').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'In Progress').length}
               </div>
             </div>
           </div>
@@ -1208,7 +1530,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">Pending Approval</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'Pending Manager' || r.status === 'Pending Employee').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'Pending').length}
               </div>
             </div>
           </div>
@@ -1222,7 +1544,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">Completed</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'Completed').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'Completed').length}
               </div>
             </div>
           </div>
@@ -1236,7 +1558,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">Draft</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => r.status === 'Draft').length}
+                {reviewData.filter(r => normalizeStatus(r.status) === 'Draft').length}
               </div>
             </div>
           </div>
@@ -1321,8 +1643,8 @@ const PerformanceReviews = () => {
             </button>
           </div>
 
-          {/* Search and Filter */}
-          <div className="flex gap-2">
+          {/* Search - filter button removed */}
+          {/* <div className="flex gap-2">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
@@ -1330,123 +1652,13 @@ const PerformanceReviews = () => {
               <input
                 type="text"
                 className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-64"
-                placeholder="Search employee or position..."
+                placeholder="Search Reviews"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button
-              className={`border ${showFilters ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'} rounded-lg px-3 py-2 flex items-center gap-2`}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4" />
-              <span className="text-sm font-medium">Filter</span>
-            </button>
-          </div>
+          </div> */}
         </div>
-
-        {/* Filters Panel */}
-        {showFilters && (
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-medium text-gray-700">Filters</h3>
-              <button
-                className="text-sm text-indigo-600 hover:text-indigo-800"
-                onClick={clearFilters}
-              >
-                Clear all
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <div className="space-y-1">
-                  {['Completed', 'In Progress', 'Pending Manager', 'Pending Employee', 'Draft'].map(status => (
-                    <div key={status} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`status-${status}`}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        checked={selectedFilters.status.includes(status)}
-                        onChange={() => handleFilterChange('status', status)}
-                      />
-                      <label htmlFor={`status-${status}`} className="ml-2 text-sm text-gray-700">
-                        {status}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Review Type Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Review Type
-                </label>
-                <div className="space-y-1">
-                  {['Annual Performance Review', 'Quarterly Review', 'Probation Review'].map(type => (
-                    <div key={type} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`type-${type}`}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        checked={selectedFilters.type.includes(type)}
-                        onChange={() => handleFilterChange('type', type)}
-                      />
-                      <label htmlFor={`type-${type}`} className="ml-2 text-sm text-gray-700">
-                        {type}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Department Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department
-                </label>
-                <div className="space-y-1">
-                  {['Engineering', 'Marketing', 'Sales', 'Design', 'Product', 'Support'].map(dept => (
-                    <div key={dept} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`dept-${dept}`}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        checked={selectedFilters.department.includes(dept)}
-                        onChange={() => handleFilterChange('department', dept)}
-                      />
-                      <label htmlFor={`dept-${dept}`} className="ml-2 text-sm text-gray-700">
-                        {dept}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Period Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Review Period
-                </label>
-                <select
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                  value={selectedFilters.period}
-                  onChange={(e) => handleFilterChange('period', e.target.value)}
-                >
-                  <option value="">All Periods</option>
-                  <option value="2025 Annual">2025 Annual</option>
-                  <option value="2025 Q3">2025 Q3</option>
-                  <option value="2025 Q2">2025 Q2</option>
-                  <option value="2025 Q1">2025 Q1</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Reviews Table - Enhanced with Progress and Grade */}
         <div className="overflow-x-auto">
@@ -1472,7 +1684,7 @@ const PerformanceReviews = () => {
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
+                  <div className="flex itemscenter gap-1">
                     Progress
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
@@ -1505,7 +1717,7 @@ const PerformanceReviews = () => {
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
-              </tr>
+                           </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredReviews.length > 0 ? (
@@ -1537,7 +1749,7 @@ const PerformanceReviews = () => {
                             </div>
                           </div>
                           <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
-                        </div>
+                                               </div>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>
                       )}
@@ -1561,11 +1773,12 @@ const PerformanceReviews = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(review.status)}`}>
-                        {review.status}
+                        {normalizeStatus(review.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {review.grade ? (
+                       
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getGradeBadgeClass(review.grade)}`}>
                           {review.grade}
                         </span>
@@ -1578,16 +1791,15 @@ const PerformanceReviews = () => {
                       <div className="text-center">
                         <span className="text-sm font-bold text-indigo-600">
                           {(() => {
+                           
                             // try weights on review first
                             if (review?.weights && review.weights.length > 0) {
                               return review.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
                             }
                             // fallback: look up the linked task and use its weights
                             if (review?.taskId) {
-                              const task = PMSDummyDataStore.getTaskById(review.taskId);
-                              if (task?.weights && task.weights.length > 0) {
-                                return task.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
-                              }
+                              // Remove dummy data lookup - weights should come from database
+                              return 0;
                             }
                             return 0;
                           })()}%
@@ -1599,30 +1811,45 @@ const PerformanceReviews = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button 
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          onClick={() => openDetailsModal(review)}
-                          title="View Details"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button 
-                          className="text-indigo-600 hover:text-indigo-900 p-1"
-                          onClick={() => openProgressModal(review)}
-                          title="Update Progress"
-                        >
-                          <ListChecks className="h-4 w-4" />
-                        </button>
-                        <button 
-                          className="text-amber-600 hover:text-amber-900 p-1"
-                          onClick={() => openDocumentsModal(review)}
-                          title="View Documents"
-                        >
-                          <File className="h-4 w-4" />
-                        </button>
-                        <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
-                          <Edit className="h-4 w-4" />
-                        </button>
+                        {/* Always show View Details for all roles with view permission */}
+                        {userPermissions.view && (
+                          <button 
+                            className="text-blue-600 hover:text-blue-900 p-1"
+                            onClick={() => openDetailsModal(review)}
+                            title="View Details"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Show Update Progress only if not "user" role and has edit permission */}
+                        {userRole !== 'user' && userPermissions.edit && (
+                          <button 
+                            className="text-indigo-600 hover:text-indigo-900 p-1"
+                            onClick={() => openProgressModal(review)}
+                            title="Update Progress"
+                          >
+                            <ListChecks className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Show View Documents only if not "user" role and has edit permission */}
+                        {userRole !== 'user' && userPermissions.edit && (
+                          <button 
+                            className="text-amber-600 hover:text-amber-900 p-1"
+                            onClick={() => openDocumentsModal(review)}
+                            title="View Documents"
+                          >
+                            <File className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Show Edit Review only if not "user" role and has edit permission */}
+                        {/* {userRole !== 'user' && userPermissions.edit && (
+                          <button className="text-green-600 hover:text-green-900 p-1" title="Edit Review">
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )} */}
                       </div>
                     </td>
                   </tr>
@@ -1642,44 +1869,58 @@ const PerformanceReviews = () => {
           </table>
         </div>
 
-        {/* Pagination - Same as before */}
-        <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-              Previous
+        {/* Pagination - dynamic */}
+        <div className="px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-t border-gray-200">
+          <div className="text-sm text-gray-600">
+            Showing {pagination.from || 0} to {pagination.to || 0} of {pagination.total} reviews
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => goToPage(pagination.current_page - 1)}
+              disabled={pagination.current_page === 1}
+              className="px-3 py-2 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-50"
+            >
+              Prev
             </button>
-            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            {Array.from({ length: pagination.last_page }, (_, i) => i + 1)
+              .filter(p => {
+                const c = pagination.current_page;
+                // window around current page
+                return p === 1 || p === pagination.last_page || (p >= c - 2 && p <= c + 2);
+              })
+              .reduce((acc, p, _, arr) => {
+                if (acc.length) {
+                  const prev = acc[acc.length - 1];
+                  if (p - prev.p > 1) acc.push({ gap: true, key: `gap-${p}-${prev.p}` });
+                }
+                acc.push({ p, key: p });
+                return acc;
+              }, [])
+              .map(item =>
+                item.gap ? (
+                  <span key={item.key} className="px-2 text-gray-400">…</span>
+                ) : (
+                  <button
+                    key={item.key}
+                    onClick={() => goToPage(item.p)}
+                    className={`px-3 py-2 text-sm border rounded-lg ${
+                      item.p === pagination.current_page
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.p}
+                  </button>
+                )
+              )
+            }
+            <button
+              onClick={() => goToPage(pagination.current_page + 1)}
+              disabled={pagination.current_page === pagination.last_page}
+              className="px-3 py-2 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-50"
+            >
               Next
             </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">1</span> to <span className="font-medium">{filteredReviews.length}</span> of{" "}
-                <span className="font-medium">{filteredReviews.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                  <span className="sr-only">Previous</span>
-                  <ChevronDown className="h-5 w-5 transform rotate-90" />
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  1
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-indigo-500 bg-indigo-50 text-sm font-medium text-indigo-600">
-                  2
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  3
-                </button>
-                <button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                  <span className="sr-only">Next</span>
-                  <ChevronDown className="h-5 w-5 transform -rotate-90" />
-                </button>
-              </nav>
-            </div>
           </div>
         </div>
       </div>
@@ -1693,7 +1934,7 @@ const PerformanceReviews = () => {
             </div>
             <div>
               <div className="text-sm font-medium text-gray-500">In Progress</div>
-              <div className="text-xl font-semibold text-gray-900">
+                           <div className="text-xl font-semibold text-gray-900">
                 {reviewData.filter(r => r.status === 'In Progress').length}
               </div>
             </div>
@@ -1747,33 +1988,3 @@ const PerformanceReviews = () => {
 };
 
 export default PerformanceReviews;
-
-// Utility to generate review object for each new task assignment
-function buildReviewFromTask(task, assigneeId) {
-  const now = new Date().toISOString();
-  return {
-    id: reviewIdCounter++,
-    taskId: task.id,
-    employeeName: resolveEmployeeName(assigneeId),
-    employeeId: "EMP" + assigneeId.toString().padStart(3, "0"),
-    position: "", // unknown in dummy scope
-    department: task.department || "",
-    manager: task.creator?.name || "Supervisor",
-    type: "Performance Review",
-    status: "Draft",
-    startDate: task.startDate,
-    dueDate: task.endDate,
-    completedDate: null,
-    overallRating: null,
-    cycle: deriveCycle(task.startDate),
-    progress: 0,              // supervisor progress
-    grade: null,
-    supervisorComments: null,
-    lastUpdated: now,
-    selfReportedProgress: 0,
-    selfReportedLastUpdated: null,
-    selfReportedAuthor: null,
-    performanceMetrics: null,
-    weights: task.weights // Add weights from the linked task
-  };
-}

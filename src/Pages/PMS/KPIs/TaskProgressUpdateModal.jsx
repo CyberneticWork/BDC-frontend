@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { X, Loader2, Upload, File, AlertCircle, Clock, Calendar, BarChart, ChevronDown, ChevronUp } from "lucide-react";
+import Swal from "sweetalert2";
 
 export const TaskProgressUpdateModal = ({ 
   isOpen, 
@@ -41,22 +42,42 @@ export const TaskProgressUpdateModal = ({
       .replace(/^./, str => str.toUpperCase());
   };
 
-  // Get metric key from task name
+  // Get metric key from task name - Updated to be more flexible
   const getMetricKeyFromTask = () => {
-    return task ? taskNameToMetricKey[task.name] || null : null;
+    if (!task || !task.name) return null;
+    
+    // Direct match first
+    if (taskNameToMetricKey[task.name]) {
+      return taskNameToMetricKey[task.name];
+    }
+    
+    // Try partial matching if direct match fails
+    const taskNameLower = task.name.toLowerCase();
+    for (const [key, value] of Object.entries(taskNameToMetricKey)) {
+      if (key.toLowerCase().includes(taskNameLower) || taskNameLower.includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+    
+    // Return a generic key if no match found
+    return 'generalPerformance';
   };
 
   // Get display name for the current metric
   const getCurrentMetricDisplayName = () => {
-    return task ? task.name : "";
+    return task ? task.name : "Task Performance";
   };
 
   if (!isOpen || !task) return null;
 
   // Get previous updates by this employee
   const getMyPreviousUpdates = () => {
+    if (!task.assigneeUpdates || !Array.isArray(task.assigneeUpdates)) {
+      return [];
+    }
+    
     const myUpdates = task.assigneeUpdates.find(
-      au => au.employeeId === parseInt(employeeId)
+      au => au.employeeId === parseInt(employeeId) || au.employeeId === employeeId
     )?.updates || [];
     
     return myUpdates;
@@ -91,11 +112,48 @@ export const TaskProgressUpdateModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Enhanced validation
     if (!progressNote.trim()) {
-      alert("Please add a note about your progress");
+      await Swal.fire({
+        icon: "warning",
+        title: "Missing note",
+        text: "Please add a note about your progress.",
+        confirmButtonColor: "#3085d6",
+      });
       return;
     }
 
+    if (currentMetricValue === undefined || currentMetricValue === null || isNaN(currentMetricValue)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Invalid value",
+        text: "Please set a valid progress percentage.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    // Require the user to fill the progress bar (must be > 0)
+    if (Number(currentMetricValue) <= 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Set your progress",
+        text: "Please move the progress bar to indicate your progress before submitting.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    if (currentMetricValue < 0 || currentMetricValue > 100) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Out of range",
+        text: "Progress percentage must be between 0 and 100.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Create current timestamp
@@ -104,42 +162,57 @@ export const TaskProgressUpdateModal = ({
       // Create full performance metrics object with current value
       const metricKey = getMetricKeyFromTask();
       const performanceMetrics = {};
+      
+      // Ensure currentMetricValue is a valid integer
+      const progressValue = parseInt(currentMetricValue);
+      
       // Set value only for the current metric, leave others at 0
       Object.keys(taskNameToMetricKey).forEach(taskName => {
         const key = taskNameToMetricKey[taskName];
-        performanceMetrics[key] = key === metricKey ? currentMetricValue : 0;
+        performanceMetrics[key] = key === metricKey ? progressValue : 0;
       });
       
-      // Prepare document data (optional)
-      const documentData = selectedFile ? {
-        documentName: selectedFile.name,
-        documentSize: (selectedFile.size / 1024).toFixed(1) + " KB",
-        documentType: selectedFile.type,
-      } : {
-        documentName: null,
-        documentSize: null,
-        documentType: null,
+      // Add the task name with its percentage to performance metrics
+      performanceMetrics[task.name] = progressValue;
+      
+      // Progress data structure expected by the API
+      const progressData = {
+        note: progressNote.trim(),
+        progressPercentage: progressValue, // Use validated integer
+        performanceMetrics: performanceMetrics,
+        date: now,
+        author: employeeName || "Employee",
+        // Include file and metadata
+        file: selectedFile,
+        documentName: selectedFile?.name || null,
+        documentSize: selectedFile ? (selectedFile.size / 1024).toFixed(1) + " KB" : null,
+        documentType: selectedFile?.type || null,
       };
       
-      // In a real implementation, you'd upload the file to a server here
-      const progressData = {
-        note: progressNote,
-        employeeId,
-        date: now, // This will be used as the last update date
-        progressPercentage: currentMetricValue,
-        performanceMetrics: performanceMetrics,
-        ...documentData, // Include document data if available
-      };
+      console.log("Submitting progress data:", progressData); // Debug log
       
       await onSubmit(progressData);
       
+      await Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Progress submitted successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+ 
       setProgressNote("");
       setSelectedFile(null);
       setCurrentMetricValue(0);
       onClose();
     } catch (error) {
       console.error("Error updating progress:", error);
-      alert("Failed to update progress. Please try again.");
+      await Swal.fire({
+        icon: "error",
+        title: "Update failed",
+        text: "Failed to update progress. Please try again.",
+        confirmButtonColor: "#EF4444",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -147,6 +220,8 @@ export const TaskProgressUpdateModal = ({
 
   // Calculate task completion percentage based on timeline
   const getTimelinePercentage = () => {
+    if (!task.startDate || !task.endDate) return 0;
+    
     const startDate = new Date(task.startDate);
     const endDate = new Date(task.endDate);
     const today = new Date();
@@ -188,7 +263,9 @@ export const TaskProgressUpdateModal = ({
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium">
-                      {new Date(task.startDate).toLocaleDateString()} — {new Date(task.endDate).toLocaleDateString()}
+                      {task.startDate && task.endDate ? (
+                        `${new Date(task.startDate).toLocaleDateString()} — ${new Date(task.endDate).toLocaleDateString()}`
+                      ) : 'Date not specified'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -285,7 +362,7 @@ export const TaskProgressUpdateModal = ({
               ></textarea>
             </div>
 
-            {/* Performance Category Section - Now focused on just the relevant metric */}
+            {/* Performance Category Section - Always show regardless of task name */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -296,49 +373,71 @@ export const TaskProgressUpdateModal = ({
               </div>
 
               <div className="bg-gray-50 p-4 rounded-lg">
-                {metricKey ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Your Progress in this Category:</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                      <div 
-                        className={`h-2.5 rounded-full ${
-                          currentMetricValue < 30 ? 'bg-red-500' : 
-                          currentMetricValue < 70 ? 'bg-yellow-500' : 
-                          'bg-green-500'
-                        }`}
-                        style={{ width: `${currentMetricValue}%` }}
-                      ></div>
-                    </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Your Progress in this Task:</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                    <div 
+                      className={`h-2.5 rounded-full ${
+                        currentMetricValue < 30 ? 'bg-red-500' : 
+                        currentMetricValue < 70 ? 'bg-yellow-500' : 
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${currentMetricValue}%` }}
+                    ></div>
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Rate your {getCurrentMetricDisplayName()} progress (0-100%):
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={currentMetricValue}
-                        onChange={(e) => setCurrentMetricValue(parseInt(e.target.value))}
-                        className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500 mt-2">
-                        <span>Not started (0%)</span>
-                        <span>In progress (50%)</span>
-                        <span>Completed (100%)</span>
-                      </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Rate your {getCurrentMetricDisplayName()} progress (0-100%):
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"  // Changed from "5" to "1" for 1% increments
+                      value={currentMetricValue}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value, 10);
+                        console.log("Range value changed:", value); // Debug log
+                        setCurrentMetricValue(value);
+                      }}
+                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-2">
+                      <span>Not started (0%)</span>
+                      <span>In progress (50%)</span>
+                      <span>Completed (100%)</span>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-gray-600">
-                    Unable to determine the metric for this task. Please contact your supervisor.
-                  </p>
-                )}
+                </div>
               </div>
             </div>
+
+            {/* Previous Updates */}
+            {myPreviousUpdates.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Previous Submissions</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {myPreviousUpdates.slice(-3).map((update, idx) => (
+                    <div key={idx} className="bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-600">
+                          {new Date(update.date).toLocaleDateString()}
+                        </span>
+                        {update.progressPercentage !== undefined && (
+                          <span className="text-xs font-bold text-indigo-600">
+                            {update.progressPercentage}%
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-700">{update.note}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
