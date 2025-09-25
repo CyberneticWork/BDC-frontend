@@ -18,15 +18,26 @@ const timeCardService = {
     return response.data;
   },
 
-  // Add these methods:
+  // Updated to match the new backend update method
   updateTimeCard: async (id, data) => {
-    const response = await axios.put(`/time-cards/${id}`, data);
-    return response.data;
+    try {
+      const response = await axios.put(`/time-cards/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating time card:", error);
+      throw error;
+    }
   },
 
+  // Updated to match the new backend destroy method
   deleteTimeCard: async (id) => {
-    const response = await axios.delete(`/time-cards/${id}`);
-    return response.data;
+    try {
+      const response = await axios.delete(`/time-cards/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting time card:", error);
+      throw error;
+    }
   },
 
   async searchEmployeeTimeCards(search) {
@@ -87,17 +98,18 @@ const timeCardService = {
     const res = await axios.get('/companies');
     return res.data;
   },
-async fetchTodayStats() {
+
+  async fetchTodayStats() {
     const response = await axios.get('/dashboard/stats/today');
     return response.data;
-},
+  },
+
   async fetchAbsentees({ date, search = "" }) {
     const response = await axios.get('/attendance/absentees', {
       params: { date, search }
     });
     return response.data;
   },
-
 
   downloadTemplate: async () => {
     const url = '/attendance-template';
