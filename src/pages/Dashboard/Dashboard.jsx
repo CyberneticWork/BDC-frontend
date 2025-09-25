@@ -57,6 +57,7 @@ import UserStats from "../LMS/UserStats";
 // Import Accounting components
 import AccountingDashboard from "../Accounting/Dashboard";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
+import AccountList from "../Accounting/AccountList";
 import Transactions from "../Accounting/Transactions";
 import Ledger from "../Accounting/Ledger";
 import TrialBalance from "../Accounting/TrialBalance";
@@ -717,6 +718,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">
                 <ChartOfAccounts />
+              </ProtectedComponent>
+            ) : activeItem === "accountList" ? (
+              <ProtectedComponent module="accountList" action="view">
+                <AccountList />
               </ProtectedComponent>
             ) : activeItem === "transactions" ? (
               <ProtectedComponent module="transactions" action="view">

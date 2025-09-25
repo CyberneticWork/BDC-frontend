@@ -17,6 +17,45 @@ const staticData = {
     { id: 7, name: "Revenue", type: "Income", balance: 50000 },
     { id: 8, name: "Expenses", type: "Expense", balance: 40000 },
   ],
+  // New Account List data
+  accountList: [
+    {
+      id: 1,
+      accountName: "Petty Cash",
+      accountSubCategory: "Current Assets",
+      accountGroup: "Bank",
+      openingBalance: 5000
+    },
+    {
+      id: 2,
+      accountName: "Office Supplies",
+      accountSubCategory: "Expenses",
+      accountGroup: "Distribution Expenses",
+      openingBalance: 0
+    }
+  ],
+  accountCategories: [
+    {
+      id: 1,
+      accountType: "ASSETS",
+      accountCategoryName: "Current Assets"
+    },
+    {
+      id: 2,
+      accountType: "EXPENSES",
+      accountCategoryName: "Operating Expenses"
+    }
+  ],
+  accountGroups: [
+    {
+      id: 1,
+      accountGroupName: "Bank"
+    },
+    {
+      id: 2,
+      accountGroupName: "Distribution Expenses"
+    }
+  ],
   transactions: [
     {
       id: 1,
@@ -111,3 +150,53 @@ export const updateSettings = (newSettings) => {
 };
 
 // Add more functions as needed
+
+// Account List functions
+export const getAccountList = () => staticData.accountList;
+export const addAccount = (account) => {
+  const newAccount = {
+    ...account,
+    id: Date.now()
+  };
+  staticData.accountList.push(newAccount);
+  return newAccount;
+};
+
+export const updateAccount = (id, updatedAccount) => {
+  const index = staticData.accountList.findIndex(account => account.id === id);
+  if (index !== -1) {
+    staticData.accountList[index] = { ...staticData.accountList[index], ...updatedAccount };
+    return staticData.accountList[index];
+  }
+  return null;
+};
+
+export const deleteAccount = (id) => {
+  const index = staticData.accountList.findIndex(account => account.id === id);
+  if (index !== -1) {
+    return staticData.accountList.splice(index, 1)[0];
+  }
+  return null;
+};
+
+// Account Categories functions
+export const getAccountCategories = () => staticData.accountCategories;
+export const addAccountCategory = (category) => {
+  const newCategory = {
+    ...category,
+    id: Date.now()
+  };
+  staticData.accountCategories.push(newCategory);
+  return newCategory;
+};
+
+// Account Groups functions
+export const getAccountGroups = () => staticData.accountGroups;
+export const addAccountGroup = (group) => {
+  const newGroup = {
+    ...group,
+    id: Date.now()
+  };
+  staticData.accountGroups.push(newGroup);
+  return newGroup;
+};

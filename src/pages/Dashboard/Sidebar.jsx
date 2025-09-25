@@ -45,6 +45,7 @@ const Sidebar = ({
     pms: false,
     lms: false,
     accounting: false,
+    chartOfAccounts: false,
   });
 
   const menuItems = [
@@ -154,7 +155,13 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "accountingDashboard", name: "Dashboard" },
-        { id: "chartOfAccounts", name: "Chart of Accounts" },
+        {
+          id: "chartOfAccounts",
+          name: "Chart of Accounts",
+          subItems: [
+            { id: "accountList", name: "Account List" },
+          ],
+        },
         { id: "transactions", name: "Transactions" },
         { id: "ledger", name: "Ledger" },
         { id: "trialBalance", name: "Trial Balance" },
@@ -200,6 +207,7 @@ const Sidebar = ({
       pms: path.includes("pms") || activeItem === "pms",
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",
+      chartOfAccounts: path.includes("chartOfAccounts") || activeItem === "chartOfAccounts" || activeItem === "accountList",
     });
   }, [activeItem]);
 
@@ -235,6 +243,9 @@ const Sidebar = ({
   };
   const toggleAccounting = () => {
     setExpandedItems((prev) => ({ ...prev, accounting: !prev.accounting }));
+  };
+  const toggleChartOfAccounts = () => {
+    setExpandedItems((prev) => ({ ...prev, chartOfAccounts: !prev.chartOfAccounts }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -431,6 +442,10 @@ const Sidebar = ({
                               timeAttendance: {
                                 toggle: toggleTimeAttendance,
                                 expanded: expandedItems.timeAttendance,
+                              },
+                              chartOfAccounts: {
+                                toggle: toggleChartOfAccounts,
+                                expanded: expandedItems.chartOfAccounts,
                               },
                             };
 
