@@ -1739,11 +1739,16 @@ const KPIs = (/* props */) => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total KPIs</p>
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="total">📊</span>
+                Total KPIs
+              </p>
               <p className="text-2xl font-bold text-gray-900">{kpis.length}</p>
             </div>
             <div className="p-3 bg-indigo-50 rounded-xl">
-              {/* icon */}
+              <div className="p-2 bg-indigo-100 rounded-full">
+                <BarChart3 className="w-6 h-6 text-indigo-600" />
+              </div>
             </div>
           </div>
         </div>
@@ -1751,16 +1756,21 @@ const KPIs = (/* props */) => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">On Target</p>
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="ontarget">✅</span>
+                On Target
+              </p>
               <p className="text-2xl font-bold text-gray-900">
-                {isLoadingKpiStats ? '—' : kpiStats.onTarget}
+                {isLoadingKpiStats ? "—" : kpiStats.onTarget}
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                {kpiStats.startDate && kpiStats.endDate ? `${kpiStats.startDate} → ${kpiStats.endDate}` : 'This month'}
+                {kpiStats.startDate && kpiStats.endDate ? `${kpiStats.startDate} → ${kpiStats.endDate}` : "This month"}
               </p>
             </div>
             <div className="p-3 bg-green-50 rounded-xl">
-              <svg className="w-6 h-6 text-green-600" /*...*/></svg>
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
             </div>
           </div>
         </div>
@@ -1768,20 +1778,25 @@ const KPIs = (/* props */) => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Need Attention</p>
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="attention">⚠️</span>
+                Need Attention
+              </p>
               <p className="text-2xl font-bold text-gray-900">
-                {isLoadingKpiStats ? '—' : kpiStats.needAttention}
+                {isLoadingKpiStats ? "—" : kpiStats.needAttention}
               </p>
               <p className="text-xs text-gray-400 mt-1">No submissions in period</p>
             </div>
-            <div className="p-3 bg-red-50 rounded-xl">
-              <svg className="w-6 h-6 text-red-600" /*...*/></svg>
+            <div className="p-3 bg-yellow-50 rounded-xl">
+              <div className="p-2 bg-yellow-100 rounded-full">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
             </div>
           </div>
         </div>
 
         {/* other existing cards... */}
-      </div>
+           </div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -2042,7 +2057,7 @@ const KPIs = (/* props */) => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No KPIs found</h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-4">
             {statusFilter !== "all" || departmentFilter !== "all" || companyFilter !== "all"
               ? "Try adjusting your filter criteria"
               : "Get started by creating your first KPI"}
