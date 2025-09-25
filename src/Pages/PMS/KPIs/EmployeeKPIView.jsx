@@ -356,10 +356,13 @@ const EmployeeKPIView = () => {
     const totalDuration = end - start;
     const elapsedDuration = today - start;
     
-    if (elapsedDuration <= 0) return 0;
-    if (elapsedDuration >= totalDuration) return 100;
+    if (elapsedDuration <= 0) return { percentage: 0, status: 'not-started' };
+    if (elapsedDuration >= totalDuration) return { percentage: 100, status: 'overdue' };
     
-    return Math.round((elapsedDuration / totalDuration) * 100);
+    return { 
+      percentage: Math.round((elapsedDuration / totalDuration) * 100), 
+      status: 'on-track' 
+    };
   };
 
   if (isLoading) {
@@ -558,7 +561,10 @@ const EmployeeKPIView = () => {
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
-                              Timeline ({getTimelinePercentage(task.startDate, task.endDate)}% elapsed)
+                              Timeline ({(() => {
+                                const timeline = getTimelinePercentage(task.startDate, task.endDate);
+                                return timeline.status === 'overdue' ? 'Overdue' : `${timeline.percentage}% elapsed`;
+                              })()})
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -569,12 +575,21 @@ const EmployeeKPIView = () => {
                           </div>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full bg-indigo-500`}
-                            style={{
-                              width: `${getTimelinePercentage(task.startDate, task.endDate)}%`,
-                            }}
-                          ></div>
+                          {(() => {
+                            const timeline = getTimelinePercentage(task.startDate, task.endDate);
+                            return (
+                              <div
+                                className={`h-2 rounded-full ${
+                                  timeline.status === 'not-started' ? 'bg-gray-400' :
+                                  timeline.status === 'overdue' ? 'bg-red-500' :
+                                  'bg-blue-500'
+                                }`}
+                                style={{
+                                  width: `${timeline.percentage}%`,
+                                }}
+                              ></div>
+                            );
+                          })()}
                         </div>
                       </div>
                       

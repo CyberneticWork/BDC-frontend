@@ -53,7 +53,7 @@ class PMSService {
   }
 
   // Dashboard Statistics
-  async getDashboardStats() {
+  async getPMSDashboardStats() {
     try {
       const response = await axios.get('/pms/dashboard/stats');
       return response.data;
@@ -63,9 +63,11 @@ class PMSService {
     }
   }
 
-  async getRecentReviews() {
+  async getRecentPerformanceReviews(limit = 5) {
     try {
-      const response = await axios.get('/pms/dashboard/recent-reviews');
+      const response = await axios.get('/pms/performance-reviews', { 
+        params: { per_page: limit, recent: true } 
+      });
       return response.data;
     } catch (error) {
       console.error("Error fetching recent reviews:", error);
