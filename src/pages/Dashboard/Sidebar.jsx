@@ -47,6 +47,7 @@ const Sidebar = ({
     accounting: false,
     chartOfAccounts: false,
     transactions: false,
+    financeReports: false,
   });
 
   const menuItems = [
@@ -171,6 +172,12 @@ const Sidebar = ({
           subItems: [
             { id: "transactionsList", name: "Transaction List" },
             { id: "invoices", name: "Invoices" },
+          ],
+        },
+        {
+          id: "financeReports",
+          name: "Finance Reports",
+          subItems: [
             { id: "trialBalance", name: "Trial Balance" },
             { id: "incomeStatement", name: "Income Statement" },
             { id: "balanceSheet", name: "Balance Sheet" },
@@ -179,12 +186,10 @@ const Sidebar = ({
         },
         { id: "ledger", name: "Ledger" },
         { id: "expenses", name: "Expenses" },
-        { id: "accountingReports", name: "Reports" },
         { id: "accountingSettings", name: "Settings" },
        
       ],
     },
-    { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
   ];
 
@@ -217,7 +222,8 @@ const Sidebar = ({
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",
       chartOfAccounts: path.includes("chartOfAccounts") || activeItem === "chartOfAccounts" || activeItem === "accountList",
-      transactions: path.includes("transactions") || activeItem === "transactions" || ["transactionsList", "invoices", "trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
+      transactions: path.includes("transactions") || activeItem === "transactions" || ["transactionsList", "invoices"].includes(activeItem),
+      financeReports: path.includes("financeReports") || activeItem === "financeReports" || ["trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
     });
   }, [activeItem]);
 
@@ -259,6 +265,9 @@ const Sidebar = ({
   };
   const toggleTransactions = () => {
     setExpandedItems((prev) => ({ ...prev, transactions: !prev.transactions }));
+  };
+  const toggleFinanceReports = () => {
+    setExpandedItems((prev) => ({ ...prev, financeReports: !prev.financeReports }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -468,6 +477,10 @@ const Sidebar = ({
                               transactions: {
                                 toggle: toggleTransactions,
                                 expanded: expandedItems.transactions,
+                              },
+                              financeReports: {
+                                toggle: toggleFinanceReports,
+                                expanded: expandedItems.financeReports,
                               },
                             };
 
