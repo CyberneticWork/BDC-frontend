@@ -580,7 +580,7 @@ const ExamManagement = ({ onTakeExam }) => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900">Exam Management</h1>
+          <h1 className="text-4xl font-bold text-gray-900">Exam</h1>
           <p className="text-gray-600 text-lg mt-2">
             Create, edit, and manage exams for your courses
           </p>
@@ -639,10 +639,10 @@ const ExamManagement = ({ onTakeExam }) => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+            {/* <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
               <span>Created: {exam.created_at || exam.createdAt}</span>
               <span>Updated: {exam.updated_at || exam.updatedAt}</span>
-            </div>
+            </div> */}
 
             <div className="flex space-x-2">
               {(() => {

@@ -67,7 +67,7 @@ import Invoices from "../Accounting/Invoices";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
-import UsersAndRoles from "../Accounting/UsersAndRoles";
+
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -757,10 +757,6 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "accountingSettings" ? (
               <ProtectedComponent module="accountingSettings" action="view">
                 <AccountingSettings />
-              </ProtectedComponent>
-            ) : activeItem === "usersAndRoles" ? (
-              <ProtectedComponent module="usersAndRoles" action="view">
-                <UsersAndRoles />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">

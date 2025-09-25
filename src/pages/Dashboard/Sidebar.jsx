@@ -141,8 +141,8 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "lmsDashboard", name: "LMS Dashboard", icon: Home },
-        { id: "manageExams", name: "Manage Exams", icon: FileText },
-        { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
+        { id: "manageExams", name: "Exams", icon: FileText },
+        { id: "manageCourses", name: "Courses", icon: BookOpen },
         { id: "myProgress", name: "My Progress", icon: BarChart3 },
         { id: "lmsUserStats", name: "User Stats", icon: BarChart3 },
       ],
@@ -165,7 +165,7 @@ const Sidebar = ({
         { id: "expenses", name: "Expenses" },
         { id: "accountingReports", name: "Reports" },
         { id: "accountingSettings", name: "Settings" },
-        { id: "usersAndRoles", name: "Users & Roles" },
+       
       ],
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },

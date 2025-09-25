@@ -413,12 +413,12 @@ export default function UserStats() {
           icon={Target}
           accent="green"
         />
-        <Card
+        {/* <Card
           title="Exam Attempts"
           value={stats?.total_exam_attempts ?? "-"}
           icon={Target}
           accent="yellow"
-        />
+        /> */}
         <Card
           title="Exam Pass Rate"
           value={`${stats?.exam_pass_rate ?? 0}%`}
