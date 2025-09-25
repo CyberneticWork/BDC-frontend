@@ -58,6 +58,8 @@ import UserStats from "../LMS/UserStats";
 import AccountingDashboard from "../Accounting/Dashboard";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
 import AccountList from "../Accounting/AccountList";
+import Customer from "../Accounting/Customer";
+import Center from "../Accounting/Center";
 import Transactions from "../Accounting/Transactions";
 import Ledger from "../Accounting/Ledger";
 import TrialBalance from "../Accounting/TrialBalance";
@@ -714,6 +716,14 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "accountingDashboard" ? (
               <ProtectedComponent module="accountingDashboard" action="view">
                 <AccountingDashboard />
+              </ProtectedComponent>
+            ) : activeItem === "customer" ? (
+              <ProtectedComponent module="customer" action="view">
+                <Customer />
+              </ProtectedComponent>
+            ) : activeItem === "center" ? (
+              <ProtectedComponent module="center" action="view">
+                <Center />
               </ProtectedComponent>
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">

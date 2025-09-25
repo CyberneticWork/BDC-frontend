@@ -156,6 +156,8 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "accountingDashboard", name: "Dashboard" },
+        { id: "customer", name: "Customer" },
+        { id: "center", name: "Center" },
         {
           id: "chartOfAccounts",
           name: "Chart of Accounts",
@@ -168,6 +170,7 @@ const Sidebar = ({
           name: "Transactions",
           subItems: [
             { id: "transactionsList", name: "Transaction List" },
+            { id: "invoices", name: "Invoices" },
             { id: "trialBalance", name: "Trial Balance" },
             { id: "incomeStatement", name: "Income Statement" },
             { id: "balanceSheet", name: "Balance Sheet" },
@@ -175,7 +178,6 @@ const Sidebar = ({
           ],
         },
         { id: "ledger", name: "Ledger" },
-        { id: "invoices", name: "Invoices" },
         { id: "expenses", name: "Expenses" },
         { id: "accountingReports", name: "Reports" },
         { id: "accountingSettings", name: "Settings" },
@@ -215,7 +217,7 @@ const Sidebar = ({
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",
       chartOfAccounts: path.includes("chartOfAccounts") || activeItem === "chartOfAccounts" || activeItem === "accountList",
-      transactions: path.includes("transactions") || activeItem === "transactions" || ["transactionsList", "trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
+      transactions: path.includes("transactions") || activeItem === "transactions" || ["transactionsList", "invoices", "trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
     });
   }, [activeItem]);
 
@@ -277,6 +279,11 @@ const Sidebar = ({
   };
 
   const filteredMenuItems = filterMenuItems(menuItems);
+  
+  // Debug log for Customer and Center permissions
+  console.log('Customer permission:', hasPermission('customer', 'view'));
+  console.log('Center permission:', hasPermission('center', 'view'));
+  console.log('Accounting menu items:', filteredMenuItems.find(item => item.id === 'accounting')?.subItems);
 
   return (
     <>
