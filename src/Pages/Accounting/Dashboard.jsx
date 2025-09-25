@@ -1,3 +1,4 @@
+// To fix: Run `npm install feather-icons` in your project root to resolve the missing dependency.
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
