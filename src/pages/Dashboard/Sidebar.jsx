@@ -46,6 +46,7 @@ const Sidebar = ({
     lms: false,
     accounting: false,
     chartOfAccounts: false,
+    transactions: false,
   });
 
   const menuItems = [
@@ -162,12 +163,18 @@ const Sidebar = ({
             { id: "accountList", name: "Account List" },
           ],
         },
-        { id: "transactions", name: "Transactions" },
+        {
+          id: "transactions",
+          name: "Transactions",
+          subItems: [
+            { id: "transactionsList", name: "Transaction List" },
+            { id: "trialBalance", name: "Trial Balance" },
+            { id: "incomeStatement", name: "Income Statement" },
+            { id: "balanceSheet", name: "Balance Sheet" },
+            { id: "cashFlowStatement", name: "Cash Flow Statement" },
+          ],
+        },
         { id: "ledger", name: "Ledger" },
-        { id: "trialBalance", name: "Trial Balance" },
-        { id: "incomeStatement", name: "Income Statement" },
-        { id: "balanceSheet", name: "Balance Sheet" },
-        { id: "cashFlowStatement", name: "Cash Flow Statement" },
         { id: "invoices", name: "Invoices" },
         { id: "expenses", name: "Expenses" },
         { id: "accountingReports", name: "Reports" },
@@ -208,6 +215,7 @@ const Sidebar = ({
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",
       chartOfAccounts: path.includes("chartOfAccounts") || activeItem === "chartOfAccounts" || activeItem === "accountList",
+      transactions: path.includes("transactions") || activeItem === "transactions" || ["transactionsList", "trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
     });
   }, [activeItem]);
 
@@ -246,6 +254,9 @@ const Sidebar = ({
   };
   const toggleChartOfAccounts = () => {
     setExpandedItems((prev) => ({ ...prev, chartOfAccounts: !prev.chartOfAccounts }));
+  };
+  const toggleTransactions = () => {
+    setExpandedItems((prev) => ({ ...prev, transactions: !prev.transactions }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -446,6 +457,10 @@ const Sidebar = ({
                               chartOfAccounts: {
                                 toggle: toggleChartOfAccounts,
                                 expanded: expandedItems.chartOfAccounts,
+                              },
+                              transactions: {
+                                toggle: toggleTransactions,
+                                expanded: expandedItems.transactions,
                               },
                             };
 
