@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
+import {
+  getCenters,
+  addCenter,
+  updateCenter,
+  deleteCenter
+} from '../../services/AccountingService';
 
 const Center = () => {
   const [centers, setCenters] = useState([]);
@@ -8,6 +14,11 @@ const Center = () => {
   const [formData, setFormData] = useState({
     centerName: ''
   });
+
+  useEffect(() => {
+    // Load initial data from service
+    setCenters(getCenters());
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -19,18 +30,14 @@ const Center = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newCenter = {
-      id: Date.now(),
-      ...formData,
-      createdDate: new Date().toLocaleDateString(),
-      status: 'Active'
-    };
+    const newCenter = addCenter(formData);
     setCenters(prev => [...prev, newCenter]);
     setFormData({ centerName: '' });
     setShowCreateForm(false);
   };
 
   const handleDelete = (id) => {
+    deleteCenter(id);
     setCenters(prev => prev.filter(center => center.id !== id));
   };
 
@@ -194,7 +201,7 @@ const Center = () => {
 
       {/* Create Center Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">Create New Center</h2>

@@ -14,55 +14,28 @@ import {
   X,
   DollarSign
 } from "lucide-react";
+import {
+  getInvoiceData,
+  addInvoice,
+  updateInvoice,
+  deleteInvoice
+} from '../../services/AccountingService';
 
 const Invoices = () => {
-  const [invoices, setInvoices] = useState([
-    {
-      id: "INV-001",
-      customer: "Acme Corporation",
-      customerEmail: "billing@acme.com",
-      amount: 5420.00,
-      date: "2024-01-15",
-      dueDate: "2024-02-15",
-      status: "paid",
-      items: [
-        { description: "Web Development Services", quantity: 1, rate: 5000, amount: 5000 },
-        { description: "Domain & Hosting", quantity: 1, rate: 420, amount: 420 }
-      ]
-    },
-    {
-      id: "INV-002",
-      customer: "Tech Solutions Ltd",
-      customerEmail: "accounts@techsolutions.com",
-      amount: 8750.00,
-      date: "2024-01-18",
-      dueDate: "2024-02-18",
-      status: "pending",
-      items: [
-        { description: "Software Development", quantity: 1, rate: 8000, amount: 8000 },
-        { description: "Project Management", quantity: 1, rate: 750, amount: 750 }
-      ]
-    },
-    {
-      id: "INV-003",
-      customer: "Global Enterprises",
-      customerEmail: "finance@global.com",
-      amount: 3200.00,
-      date: "2024-01-20",
-      dueDate: "2024-02-05",
-      status: "overdue",
-      items: [
-        { description: "Consulting Services", quantity: 40, rate: 80, amount: 3200 }
-      ]
-    }
-  ]);
-
-  const [filteredInvoices, setFilteredInvoices] = useState(invoices);
+  const [invoices, setInvoices] = useState([]);
+  const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  useEffect(() => {
+    // Load initial data from service
+    const initialInvoices = getInvoiceData();
+    setInvoices(initialInvoices);
+    setFilteredInvoices(initialInvoices);
+  }, []);
 
   useEffect(() => {
     let filtered = invoices;
@@ -119,7 +92,7 @@ const Invoices = () => {
     if (!invoice) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-semibold">Invoice Details - {invoice.id}</h3>

@@ -15,6 +15,10 @@ import {
   AlertCircle,
   CheckCircle
 } from "lucide-react";
+import {
+  getBalanceSheetData,
+  getPreviousBalanceSheetData
+} from '../../services/AccountingService';
 
 const BalanceSheet = () => {
   const [selectedDate, setSelectedDate] = useState("2024-01-31");
@@ -29,80 +33,10 @@ const BalanceSheet = () => {
   const [comparisonPeriod, setComparisonPeriod] = useState("previous-month");
 
   // Sample balance sheet data
-  const [balanceSheetData, setBalanceSheetData] = useState({
-    assets: {
-      currentAssets: {
-        cash: 25000,
-        accountsReceivable: 18000,
-        inventory: 12000,
-        prepaidExpenses: 3000,
-        shortTermInvestments: 5000
-      },
-      fixedAssets: {
-        propertyPlantEquipment: 85000,
-        accumulatedDepreciation: -25000,
-        intangibleAssets: 15000,
-        longTermInvestments: 20000
-      }
-    },
-    liabilities: {
-      currentLiabilities: {
-        accountsPayable: 12000,
-        shortTermDebt: 8000,
-        accruedExpenses: 5000,
-        taxesPayable: 3000
-      },
-      longTermLiabilities: {
-        longTermDebt: 45000,
-        deferredTaxLiabilities: 8000,
-        otherLongTermLiabilities: 5000
-      }
-    },
-    equity: {
-      commonStock: 50000,
-      retainedEarnings: 35000,
-      additionalPaidInCapital: 15000,
-      treasuryStock: -5000
-    }
-  });
+  const [balanceSheetData, setBalanceSheetData] = useState(getBalanceSheetData());
 
   // Previous period data for comparison
-  const previousPeriodData = {
-    assets: {
-      currentAssets: {
-        cash: 22000,
-        accountsReceivable: 16000,
-        inventory: 14000,
-        prepaidExpenses: 2500,
-        shortTermInvestments: 4000
-      },
-      fixedAssets: {
-        propertyPlantEquipment: 85000,
-        accumulatedDepreciation: -22000,
-        intangibleAssets: 15000,
-        longTermInvestments: 18000
-      }
-    },
-    liabilities: {
-      currentLiabilities: {
-        accountsPayable: 10000,
-        shortTermDebt: 7000,
-        accruedExpenses: 4500,
-        taxesPayable: 2500
-      },
-      longTermLiabilities: {
-        longTermDebt: 48000,
-        deferredTaxLiabilities: 7500,
-        otherLongTermLiabilities: 5000
-      }
-    },
-    equity: {
-      commonStock: 50000,
-      retainedEarnings: 32000,
-      additionalPaidInCapital: 15000,
-      treasuryStock: -5000
-    }
-  };
+  const previousPeriodData = getPreviousBalanceSheetData();
 
   const calculateTotals = (data) => {
     const currentAssets = Object.values(data.assets.currentAssets).reduce((sum, val) => sum + val, 0);

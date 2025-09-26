@@ -17,6 +17,10 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from "lucide-react";
+import {
+  getCashFlowData,
+  getPreviousCashFlowData
+} from '../../services/AccountingService';
 
 const CashFlowStatement = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("current-month");
@@ -29,58 +33,10 @@ const CashFlowStatement = () => {
   const [comparisonPeriod, setComparisonPeriod] = useState("previous-month");
 
   // Sample cash flow data
-  const [cashFlowData, setCashFlowData] = useState({
-    operatingActivities: {
-      netIncome: 25000,
-      depreciationAmortization: 5000,
-      changeInAccountsReceivable: -3000,
-      changeInInventory: 2000,
-      changeInAccountsPayable: 1500,
-      changeInAccruedExpenses: 800,
-      otherOperatingActivities: -500
-    },
-    investingActivities: {
-      purchaseOfEquipment: -15000,
-      saleOfInvestments: 8000,
-      purchaseOfInvestments: -5000,
-      otherInvestingActivities: 1000
-    },
-    financingActivities: {
-      proceedsFromLongTermDebt: 20000,
-      repaymentOfLongTermDebt: -8000,
-      dividendsPaid: -5000,
-      stockRepurchase: -3000,
-      otherFinancingActivities: 500
-    },
-    beginningCash: 18000
-  });
+  const [cashFlowData, setCashFlowData] = useState(getCashFlowData());
 
   // Previous period data for comparison
-  const previousPeriodData = {
-    operatingActivities: {
-      netIncome: 22000,
-      depreciationAmortization: 4500,
-      changeInAccountsReceivable: -2000,
-      changeInInventory: 1500,
-      changeInAccountsPayable: 1000,
-      changeInAccruedExpenses: 600,
-      otherOperatingActivities: -300
-    },
-    investingActivities: {
-      purchaseOfEquipment: -10000,
-      saleOfInvestments: 5000,
-      purchaseOfInvestments: -3000,
-      otherInvestingActivities: 500
-    },
-    financingActivities: {
-      proceedsFromLongTermDebt: 15000,
-      repaymentOfLongTermDebt: -6000,
-      dividendsPaid: -4000,
-      stockRepurchase: -2000,
-      otherFinancingActivities: 200
-    },
-    beginningCash: 15000
-  };
+  const previousPeriodData = getPreviousCashFlowData();
 
   const calculateTotals = (data) => {
     const operatingCashFlow = Object.values(data.operatingActivities).reduce((sum, val) => sum + val, 0);

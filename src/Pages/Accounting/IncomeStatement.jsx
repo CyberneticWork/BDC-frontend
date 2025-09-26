@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight
 } from "lucide-react";
+import { getIncomeStatementData } from '../../services/AccountingService';
 
 const IncomeStatement = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("current-month");
@@ -25,37 +26,7 @@ const IncomeStatement = () => {
   const [loading, setLoading] = useState(false);
 
   // Sample financial data
-  const [financialData, setFinancialData] = useState({
-    revenue: {
-      salesRevenue: 85000,
-      serviceRevenue: 25000,
-      otherRevenue: 3000
-    },
-    costOfGoodsSold: {
-      directMaterials: 20000,
-      directLabor: 15000,
-      manufacturingOverhead: 8000
-    },
-    operatingExpenses: {
-      salariesAndWages: 18000,
-      rentExpense: 6000,
-      utilitiesExpense: 2500,
-      advertisingExpense: 4000,
-      insuranceExpense: 1500,
-      depreciationExpense: 3000,
-      officeSupplies: 800,
-      professionalFees: 2200
-    },
-    otherIncome: {
-      interestIncome: 500,
-      dividendIncome: 200,
-      gainOnSale: 1500
-    },
-    otherExpenses: {
-      interestExpense: 1200,
-      lossOnSale: 300
-    }
-  });
+  const [financialData, setFinancialData] = useState(getIncomeStatementData());
 
   const calculations = {
     totalRevenue: Object.values(financialData.revenue).reduce((sum, val) => sum + val, 0),

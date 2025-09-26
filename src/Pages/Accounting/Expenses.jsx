@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { getExpenses } from "../../services/AccountingService";
+import {
+  getEnhancedExpenses,
+  getExpenseCategories,
+  addEnhancedExpense,
+  updateEnhancedExpense,
+  deleteEnhancedExpense
+} from "../../services/AccountingService";
 
 const Expenses = () => {
   const [expenses, setExpenses] = useState([]);
@@ -19,19 +25,7 @@ const Expenses = () => {
   });
 
   // Expense categories
-  const expenseCategories = [
-    "Office Supplies",
-    "Travel & Transportation",
-    "Utilities",
-    "Marketing & Advertising",
-    "Professional Services",
-    "Software & Technology",
-    "Insurance",
-    "Rent & Facilities",
-    "Equipment",
-    "Meals & Entertainment",
-    "Other"
-  ];
+  const expenseCategories = getExpenseCategories();
 
   useEffect(() => {
     fetchExpenses();
@@ -43,61 +37,8 @@ const Expenses = () => {
 
   const fetchExpenses = () => {
     try {
-      const expenseData = getExpenses();
-      // Add mock data with more detail
-      const enhancedExpenses = [
-        {
-          id: 1,
-          description: "Office Supplies - Stationery",
-          amount: 245.50,
-          category: "Office Supplies",
-          date: "2024-01-15",
-          vendor: "OfficeMax",
-          reference: "INV-2024-001",
-          status: "Paid"
-        },
-        {
-          id: 2,
-          description: "Software License - Adobe Creative Suite",
-          amount: 599.99,
-          category: "Software & Technology",
-          date: "2024-01-10",
-          vendor: "Adobe Systems",
-          reference: "SUB-2024-012",
-          status: "Paid"
-        },
-        {
-          id: 3,
-          description: "Business Travel - Client Meeting",
-          amount: 1250.00,
-          category: "Travel & Transportation",
-          date: "2024-01-08",
-          vendor: "Delta Airlines",
-          reference: "TRV-2024-003",
-          status: "Pending"
-        },
-        {
-          id: 4,
-          description: "Marketing Campaign - Social Media Ads",
-          amount: 800.00,
-          category: "Marketing & Advertising",
-          date: "2024-01-05",
-          vendor: "Meta Platforms",
-          reference: "AD-2024-001",
-          status: "Paid"
-        },
-        {
-          id: 5,
-          description: "Legal Consultation",
-          amount: 1500.00,
-          category: "Professional Services",
-          date: "2024-01-03",
-          vendor: "Smith & Associates Law",
-          reference: "LEG-2024-001",
-          status: "Paid"
-        }
-      ];
-      setExpenses(enhancedExpenses);
+      const expenseData = getEnhancedExpenses();
+      setExpenses(expenseData);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching expenses:", error);

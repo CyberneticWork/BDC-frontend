@@ -12,39 +12,13 @@ import {
   CheckCircle,
   AlertTriangle
 } from "lucide-react";
+import { getTrialBalanceAccounts } from '../../services/AccountingService';
 
 const TrialBalance = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("current");
   const [searchTerm, setSearchTerm] = useState("");
   const [showZeroBalances, setShowZeroBalances] = useState(false);
-  const [accounts, setAccounts] = useState([
-    // Assets
-    { code: "1001", name: "Cash", type: "Asset", debit: 25000, credit: 0, balance: 25000 },
-    { code: "1002", name: "Accounts Receivable", type: "Asset", debit: 15000, credit: 0, balance: 15000 },
-    { code: "1003", name: "Inventory", type: "Asset", debit: 8000, credit: 0, balance: 8000 },
-    { code: "1004", name: "Equipment", type: "Asset", debit: 30000, credit: 0, balance: 30000 },
-    { code: "1005", name: "Accumulated Depreciation - Equipment", type: "Asset", debit: 0, credit: 5000, balance: -5000 },
-    
-    // Liabilities
-    { code: "2001", name: "Accounts Payable", type: "Liability", debit: 0, credit: 8000, balance: -8000 },
-    { code: "2002", name: "Notes Payable", type: "Liability", debit: 0, credit: 12000, balance: -12000 },
-    { code: "2003", name: "Accrued Expenses", type: "Liability", debit: 0, credit: 3000, balance: -3000 },
-    
-    // Equity
-    { code: "3001", name: "Owner's Capital", type: "Equity", debit: 0, credit: 40000, balance: -40000 },
-    { code: "3002", name: "Retained Earnings", type: "Equity", debit: 0, credit: 8000, balance: -8000 },
-    
-    // Revenue
-    { code: "4001", name: "Sales Revenue", type: "Revenue", debit: 0, credit: 25000, balance: -25000 },
-    { code: "4002", name: "Service Revenue", type: "Revenue", debit: 0, credit: 10000, balance: -10000 },
-    
-    // Expenses
-    { code: "5001", name: "Cost of Goods Sold", type: "Expense", debit: 15000, credit: 0, balance: 15000 },
-    { code: "5002", name: "Rent Expense", type: "Expense", debit: 3000, credit: 0, balance: 3000 },
-    { code: "5003", name: "Utilities Expense", type: "Expense", debit: 1500, credit: 0, balance: 1500 },
-    { code: "5004", name: "Salaries Expense", type: "Expense", debit: 8000, credit: 0, balance: 8000 },
-    { code: "5005", name: "Depreciation Expense", type: "Expense", debit: 2500, credit: 0, balance: 2500 }
-  ]);
+  const [accounts, setAccounts] = useState(getTrialBalanceAccounts());
 
   const [filteredAccounts, setFilteredAccounts] = useState(accounts);
   const [loading, setLoading] = useState(false);

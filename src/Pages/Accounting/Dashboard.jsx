@@ -14,6 +14,7 @@ import {
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import feather from 'feather-icons';
+import { getDashboardCharts } from '../../services/AccountingService';
 
 // Register ChartJS components
 ChartJS.register(
@@ -55,37 +56,8 @@ const StatCard = ({ title, value, change, icon, color }) => {
 };
 
 const FinancialChart = ({ type }) => {
-  const incomeData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-    datasets: [{
-      label: 'Income',
-      data: [12000, 19000, 15000, 18000, 14000, 21000, 22000],
-      backgroundColor: 'rgba(16, 185, 129, 0.1)',
-      borderColor: 'rgba(16, 185, 129, 1)',
-      borderWidth: 2,
-      tension: 0.3,
-      fill: true
-    }]
-  };
-
-  const revenueExpensesData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-    datasets: [
-      {
-        label: 'Revenue',
-        data: [12000, 19000, 15000, 18000, 14000, 21000, 22000],
-        backgroundColor: 'rgba(16, 185, 129, 0.8)',
-        borderRadius: 4
-      },
-      {
-        label: 'Expenses',
-        data: [8000, 12000, 10000, 11000, 9000, 14000, 13000],
-        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-        borderRadius: 4
-      }
-    ]
-  };
-
+  const chartData = getDashboardCharts();
+  
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -119,9 +91,9 @@ const FinancialChart = ({ type }) => {
       </h3>
       <div className="chart-container" style={{ height: '300px' }}>
         {type === 'income' ? (
-          <Line data={incomeData} options={options} />
+          <Line data={chartData.incomeData} options={options} />
         ) : (
-          <Bar data={revenueExpensesData} options={options} />
+          <Bar data={chartData.revenueExpensesData} options={options} />
         )}
       </div>
     </div>

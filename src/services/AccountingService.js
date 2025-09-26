@@ -5,7 +5,37 @@ const staticData = {
     totalAssets: 100000,
     totalLiabilities: 50000,
     netIncome: 10000,
-    charts: [], // Placeholder for chart data
+    charts: {
+      incomeData: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+        datasets: [{
+          label: 'Income',
+          data: [12000, 19000, 15000, 18000, 14000, 21000, 22000],
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      revenueExpensesData: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+        datasets: [
+          {
+            label: 'Revenue',
+            data: [12000, 19000, 15000, 18000, 14000, 21000, 22000],
+            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+            borderRadius: 4
+          },
+          {
+            label: 'Expenses',
+            data: [8000, 12000, 10000, 11000, 9000, 14000, 13000],
+            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+            borderRadius: 4
+          }
+        ]
+      }
+    }
   },
   chartOfAccounts: [
     { id: 1, name: "Cash", type: "Asset", balance: 20000 },
@@ -55,6 +85,367 @@ const staticData = {
       id: 2,
       accountGroupName: "Distribution Expenses"
     }
+  ],
+  customers: [
+    {
+      id: 1,
+      customerCategory: 'Corporate',
+      customerType: 'Premium',
+      customerName: 'Acme Corporation',
+      phoneNumber: '+1-555-0123',
+      brNumberNic: 'BR123456789',
+      email: 'billing@acme.com',
+      address: '123 Business Ave, Suite 100',
+      city: 'New York',
+      createdDate: '2024-01-10'
+    },
+    {
+      id: 2,
+      customerCategory: 'Individual',
+      customerType: 'Regular',
+      customerName: 'John Smith',
+      phoneNumber: '+1-555-0456',
+      brNumberNic: 'NIC987654321',
+      email: 'john.smith@email.com',
+      address: '456 Main Street',
+      city: 'Los Angeles',
+      createdDate: '2024-01-15'
+    },
+    {
+      id: 3,
+      customerCategory: 'Corporate',
+      customerType: 'VIP',
+      customerName: 'Tech Solutions Ltd',
+      phoneNumber: '+1-555-0789',
+      brNumberNic: 'BR567890123',
+      email: 'accounts@techsolutions.com',
+      address: '789 Tech Park, Building A',
+      city: 'San Francisco',
+      createdDate: '2024-01-20'
+    }
+  ],
+  customerCategories: [
+    'Individual',
+    'Corporate',
+    'Government',
+    'NGO'
+  ],
+  customerTypes: [
+    'Regular',
+    'Premium',
+    'VIP',
+    'Wholesale'
+  ],
+  centers: [
+    {
+      id: 1,
+      centerName: 'Main Office',
+      createdDate: '2024-01-01',
+      status: 'Active'
+    },
+    {
+      id: 2,
+      centerName: 'Branch Office A',
+      createdDate: '2024-01-05',
+      status: 'Active'
+    },
+    {
+      id: 3,
+      centerName: 'Warehouse Center',
+      createdDate: '2024-01-10',
+      status: 'Active'
+    }
+  ],
+  // Income Statement data
+  incomeStatementData: {
+    revenue: {
+      salesRevenue: 85000,
+      serviceRevenue: 25000,
+      otherRevenue: 3000
+    },
+    costOfGoodsSold: {
+      directMaterials: 20000,
+      directLabor: 15000,
+      manufacturingOverhead: 8000
+    },
+    operatingExpenses: {
+      salariesAndWages: 18000,
+      rentExpense: 6000,
+      utilitiesExpense: 2500,
+      advertisingExpense: 4000,
+      insuranceExpense: 1500,
+      depreciationExpense: 3000,
+      officeSupplies: 800,
+      professionalFees: 2200
+    },
+    otherIncome: {
+      interestIncome: 500,
+      dividendIncome: 200,
+      gainOnSale: 1500
+    },
+    otherExpenses: {
+      interestExpense: 1200,
+      lossOnSale: 300
+    }
+  },
+  // Balance Sheet data
+  balanceSheetData: {
+    assets: {
+      currentAssets: {
+        cash: 25000,
+        accountsReceivable: 18000,
+        inventory: 12000,
+        prepaidExpenses: 3000,
+        shortTermInvestments: 5000
+      },
+      fixedAssets: {
+        propertyPlantEquipment: 85000,
+        accumulatedDepreciation: -25000,
+        intangibleAssets: 15000,
+        longTermInvestments: 20000
+      }
+    },
+    liabilities: {
+      currentLiabilities: {
+        accountsPayable: 12000,
+        shortTermDebt: 8000,
+        accruedExpenses: 5000,
+        taxesPayable: 3000
+      },
+      longTermLiabilities: {
+        longTermDebt: 45000,
+        deferredTaxLiabilities: 8000,
+        otherLongTermLiabilities: 5000
+      }
+    },
+    equity: {
+      commonStock: 50000,
+      retainedEarnings: 35000,
+      additionalPaidInCapital: 15000,
+      treasuryStock: -5000
+    }
+  },
+  // Previous period balance sheet data for comparison
+  previousBalanceSheetData: {
+    assets: {
+      currentAssets: {
+        cash: 22000,
+        accountsReceivable: 16000,
+        inventory: 14000,
+        prepaidExpenses: 2500,
+        shortTermInvestments: 4000
+      },
+      fixedAssets: {
+        propertyPlantEquipment: 85000,
+        accumulatedDepreciation: -22000,
+        intangibleAssets: 15000,
+        longTermInvestments: 18000
+      }
+    },
+    liabilities: {
+      currentLiabilities: {
+        accountsPayable: 10000,
+        shortTermDebt: 7000,
+        accruedExpenses: 4500,
+        taxesPayable: 2500
+      },
+      longTermLiabilities: {
+        longTermDebt: 48000,
+        deferredTaxLiabilities: 7500,
+        otherLongTermLiabilities: 5000
+      }
+    },
+    equity: {
+      commonStock: 50000,
+      retainedEarnings: 32000,
+      additionalPaidInCapital: 15000,
+      treasuryStock: -5000
+    }
+  },
+  // Cash Flow Statement data
+  cashFlowData: {
+    operatingActivities: {
+      netIncome: 25000,
+      depreciationAmortization: 5000,
+      changeInAccountsReceivable: -3000,
+      changeInInventory: 2000,
+      changeInAccountsPayable: 1500,
+      changeInAccruedExpenses: 800,
+      otherOperatingActivities: -500
+    },
+    investingActivities: {
+      purchaseOfEquipment: -15000,
+      saleOfInvestments: 8000,
+      purchaseOfInvestments: -5000,
+      otherInvestingActivities: 1000
+    },
+    financingActivities: {
+      proceedsFromLongTermDebt: 20000,
+      repaymentOfLongTermDebt: -8000,
+      dividendsPaid: -5000,
+      stockRepurchase: -3000,
+      otherFinancingActivities: 500
+    },
+    beginningCash: 18000
+  },
+  // Previous period cash flow data for comparison
+  previousCashFlowData: {
+    operatingActivities: {
+      netIncome: 22000,
+      depreciationAmortization: 4500,
+      changeInAccountsReceivable: -2000,
+      changeInInventory: 1500,
+      changeInAccountsPayable: 1000,
+      changeInAccruedExpenses: 600,
+      otherOperatingActivities: -300
+    },
+    investingActivities: {
+      purchaseOfEquipment: -10000,
+      saleOfInvestments: 5000,
+      purchaseOfInvestments: -3000,
+      otherInvestingActivities: 500
+    },
+    financingActivities: {
+      proceedsFromLongTermDebt: 15000,
+      repaymentOfLongTermDebt: -6000,
+      dividendsPaid: -4000,
+      stockRepurchase: -2000,
+      otherFinancingActivities: 200
+    },
+    beginningCash: 15000
+  },
+  // Trial Balance data
+  trialBalanceAccounts: [
+    // Assets
+    { code: "1001", name: "Cash", type: "Asset", debit: 25000, credit: 0, balance: 25000 },
+    { code: "1002", name: "Accounts Receivable", type: "Asset", debit: 15000, credit: 0, balance: 15000 },
+    { code: "1003", name: "Inventory", type: "Asset", debit: 8000, credit: 0, balance: 8000 },
+    { code: "1004", name: "Equipment", type: "Asset", debit: 30000, credit: 0, balance: 30000 },
+    { code: "1005", name: "Accumulated Depreciation - Equipment", type: "Asset", debit: 0, credit: 5000, balance: -5000 },
+    // Liabilities
+    { code: "2001", name: "Accounts Payable", type: "Liability", debit: 0, credit: 8000, balance: -8000 },
+    { code: "2002", name: "Notes Payable", type: "Liability", debit: 0, credit: 12000, balance: -12000 },
+    { code: "2003", name: "Accrued Expenses", type: "Liability", debit: 0, credit: 3000, balance: -3000 },
+    // Equity
+    { code: "3001", name: "Owner's Capital", type: "Equity", debit: 0, credit: 40000, balance: -40000 },
+    { code: "3002", name: "Retained Earnings", type: "Equity", debit: 0, credit: 8000, balance: -8000 },
+    // Revenue
+    { code: "4001", name: "Sales Revenue", type: "Revenue", debit: 0, credit: 25000, balance: -25000 },
+    { code: "4002", name: "Service Revenue", type: "Revenue", debit: 0, credit: 10000, balance: -10000 },
+    // Expenses
+    { code: "5001", name: "Cost of Goods Sold", type: "Expense", debit: 15000, credit: 0, balance: 15000 },
+    { code: "5002", name: "Rent Expense", type: "Expense", debit: 3000, credit: 0, balance: 3000 },
+    { code: "5003", name: "Utilities Expense", type: "Expense", debit: 1500, credit: 0, balance: 1500 },
+    { code: "5004", name: "Salaries Expense", type: "Expense", debit: 8000, credit: 0, balance: 8000 },
+    { code: "5005", name: "Depreciation Expense", type: "Expense", debit: 2500, credit: 0, balance: 2500 }
+  ],
+  // Enhanced invoice data
+  invoiceData: [
+    {
+      id: "INV-001",
+      customer: "Acme Corporation",
+      customerEmail: "billing@acme.com",
+      amount: 5420.00,
+      date: "2024-01-15",
+      dueDate: "2024-02-15",
+      status: "paid",
+      items: [
+        { description: "Web Development Services", quantity: 1, rate: 5000, amount: 5000 },
+        { description: "Domain & Hosting", quantity: 1, rate: 420, amount: 420 }
+      ]
+    },
+    {
+      id: "INV-002",
+      customer: "Tech Solutions Ltd",
+      customerEmail: "accounts@techsolutions.com",
+      amount: 8750.00,
+      date: "2024-01-18",
+      dueDate: "2024-02-18",
+      status: "pending",
+      items: [
+        { description: "Software Development", quantity: 1, rate: 8000, amount: 8000 },
+        { description: "Project Management", quantity: 1, rate: 750, amount: 750 }
+      ]
+    },
+    {
+      id: "INV-003",
+      customer: "Global Enterprises",
+      customerEmail: "finance@global.com",
+      amount: 3200.00,
+      date: "2024-01-20",
+      dueDate: "2024-02-05",
+      status: "overdue",
+      items: [
+        { description: "Consulting Services", quantity: 40, rate: 80, amount: 3200 }
+      ]
+    }
+  ],
+  // Enhanced expenses data
+  enhancedExpenses: [
+    {
+      id: 1,
+      description: "Office Supplies - Stationery",
+      amount: 245.50,
+      category: "Office Supplies",
+      date: "2024-01-15",
+      vendor: "OfficeMax",
+      reference: "INV-2024-001",
+      status: "Paid"
+    },
+    {
+      id: 2,
+      description: "Software License - Adobe Creative Suite",
+      amount: 599.99,
+      category: "Software & Technology",
+      date: "2024-01-10",
+      vendor: "Adobe Systems",
+      reference: "SUB-2024-012",
+      status: "Paid"
+    },
+    {
+      id: 3,
+      description: "Business Travel - Client Meeting",
+      amount: 1250.00,
+      category: "Travel & Transportation",
+      date: "2024-01-08",
+      vendor: "Delta Airlines",
+      reference: "TRV-2024-003",
+      status: "Pending"
+    },
+    {
+      id: 4,
+      description: "Monthly Internet Service",
+      amount: 150.00,
+      category: "Utilities",
+      date: "2024-01-01",
+      vendor: "TechNet ISP",
+      reference: "UTIL-2024-001",
+      status: "Paid"
+    },
+    {
+      id: 5,
+      description: "Marketing Campaign - Q1",
+      amount: 2500.00,
+      category: "Marketing & Advertising",
+      date: "2024-01-05",
+      vendor: "Creative Agency",
+      reference: "MKT-2024-001",
+      status: "Paid"
+    }
+  ],
+  // Expense categories
+  expenseCategories: [
+    "Office Supplies",
+    "Travel & Transportation",
+    "Utilities",
+    "Marketing & Advertising",
+    "Professional Services",
+    "Software & Technology",
+    "Insurance",
+    "Rent & Facilities",
+    "Equipment",
+    "Meals & Entertainment",
+    "Other"
   ],
   transactions: [
     {
@@ -458,6 +849,22 @@ export const getReports = () => staticData.reports;
 export const getSettings = () => staticData.settings;
 export const getUsersAndRoles = () => staticData.usersAndRoles;
 
+// New exports for added data
+export const getCustomers = () => staticData.customers;
+export const getCustomerCategories = () => staticData.customerCategories;
+export const getCustomerTypes = () => staticData.customerTypes;
+export const getCenters = () => staticData.centers;
+export const getIncomeStatementData = () => staticData.incomeStatementData;
+export const getBalanceSheetData = () => staticData.balanceSheetData;
+export const getPreviousBalanceSheetData = () => staticData.previousBalanceSheetData;
+export const getCashFlowData = () => staticData.cashFlowData;
+export const getPreviousCashFlowData = () => staticData.previousCashFlowData;
+export const getTrialBalanceAccounts = () => staticData.trialBalanceAccounts;
+export const getInvoiceData = () => staticData.invoiceData;
+export const getEnhancedExpenses = () => staticData.enhancedExpenses;
+export const getExpenseCategories = () => staticData.expenseCategories;
+export const getDashboardCharts = () => staticData.dashboard.charts;
+
 // Placeholder functions for future API calls
 export const addTransaction = (transaction) => {
   staticData.transactions.push(transaction);
@@ -656,4 +1063,115 @@ export const addAccountGroup = (group) => {
   };
   staticData.accountGroups.push(newGroup);
   return newGroup;
+};
+
+// Customer functions
+export const addCustomer = (customer) => {
+  const newCustomer = {
+    ...customer,
+    id: Date.now(),
+    createdDate: new Date().toLocaleDateString()
+  };
+  staticData.customers.push(newCustomer);
+  return newCustomer;
+};
+
+export const updateCustomer = (id, updatedCustomer) => {
+  const index = staticData.customers.findIndex(customer => customer.id === id);
+  if (index !== -1) {
+    staticData.customers[index] = { ...staticData.customers[index], ...updatedCustomer };
+    return staticData.customers[index];
+  }
+  return null;
+};
+
+export const deleteCustomer = (id) => {
+  const index = staticData.customers.findIndex(customer => customer.id === id);
+  if (index !== -1) {
+    return staticData.customers.splice(index, 1)[0];
+  }
+  return null;
+};
+
+// Center functions
+export const addCenter = (center) => {
+  const newCenter = {
+    ...center,
+    id: Date.now(),
+    createdDate: new Date().toLocaleDateString(),
+    status: 'Active'
+  };
+  staticData.centers.push(newCenter);
+  return newCenter;
+};
+
+export const updateCenter = (id, updatedCenter) => {
+  const index = staticData.centers.findIndex(center => center.id === id);
+  if (index !== -1) {
+    staticData.centers[index] = { ...staticData.centers[index], ...updatedCenter };
+    return staticData.centers[index];
+  }
+  return null;
+};
+
+export const deleteCenter = (id) => {
+  const index = staticData.centers.findIndex(center => center.id === id);
+  if (index !== -1) {
+    return staticData.centers.splice(index, 1)[0];
+  }
+  return null;
+};
+
+// Invoice functions
+export const addInvoice = (invoice) => {
+  const newInvoice = {
+    ...invoice,
+    id: `INV-${String(staticData.invoiceData.length + 1).padStart(3, '0')}`
+  };
+  staticData.invoiceData.push(newInvoice);
+  return newInvoice;
+};
+
+export const updateInvoice = (id, updatedInvoice) => {
+  const index = staticData.invoiceData.findIndex(invoice => invoice.id === id);
+  if (index !== -1) {
+    staticData.invoiceData[index] = { ...staticData.invoiceData[index], ...updatedInvoice };
+    return staticData.invoiceData[index];
+  }
+  return null;
+};
+
+export const deleteInvoice = (id) => {
+  const index = staticData.invoiceData.findIndex(invoice => invoice.id === id);
+  if (index !== -1) {
+    return staticData.invoiceData.splice(index, 1)[0];
+  }
+  return null;
+};
+
+// Enhanced expense functions
+export const addEnhancedExpense = (expense) => {
+  const newExpense = {
+    ...expense,
+    id: Date.now()
+  };
+  staticData.enhancedExpenses.push(newExpense);
+  return newExpense;
+};
+
+export const updateEnhancedExpense = (id, updatedExpense) => {
+  const index = staticData.enhancedExpenses.findIndex(expense => expense.id === id);
+  if (index !== -1) {
+    staticData.enhancedExpenses[index] = { ...staticData.enhancedExpenses[index], ...updatedExpense };
+    return staticData.enhancedExpenses[index];
+  }
+  return null;
+};
+
+export const deleteEnhancedExpense = (id) => {
+  const index = staticData.enhancedExpenses.findIndex(expense => expense.id === id);
+  if (index !== -1) {
+    return staticData.enhancedExpenses.splice(index, 1)[0];
+  }
+  return null;
 };

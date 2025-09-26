@@ -22,6 +22,7 @@ const SalesOrder = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
@@ -81,11 +82,271 @@ const SalesOrder = () => {
     count: filteredOrders.length
   };
 
+  const handleAddNewOrder = (newOrderData) => {
+    const addedOrder = addSalesOrder(newOrderData);
+    const updatedOrders = getSalesOrders();
+    setSalesOrders(updatedOrders);
+    setFilteredOrders(updatedOrders);
+    setShowNewOrderModal(false);
+  };
+
+  const NewSalesOrderModal = ({ onClose, onSave }) => {
+    const [formData, setFormData] = useState({
+      customer: '',
+      date: new Date().toISOString().split('T')[0],
+      dueDate: '',
+      status: 'Pending',
+      items: [{ productName: '', quantity: 1, unitPrice: 0, total: 0 }]
+    });
+
+    const [subtotal, setSubtotal] = useState(0);
+    const [taxRate] = useState(0.1); // 10% tax rate
+    const [tax, setTax] = useState(0);
+    const [totalAmount, setTotalAmount] = useState(0);
+
+    useEffect(() => {
+      const newSubtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+      const newTax = newSubtotal * taxRate;
+      const newTotal = newSubtotal + newTax;
+      
+      setSubtotal(newSubtotal);
+      setTax(newTax);
+      setTotalAmount(newTotal);
+    }, [formData.items, taxRate]);
+
+    const handleInputChange = (field, value) => {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleItemChange = (index, field, value) => {
+      const updatedItems = [...formData.items];
+      updatedItems[index][field] = value;
+      
+      // Recalculate total for this item
+      if (field === 'quantity' || field === 'unitPrice') {
+        updatedItems[index].total = updatedItems[index].quantity * updatedItems[index].unitPrice;
+      }
+      
+      setFormData(prev => ({ ...prev, items: updatedItems }));
+    };
+
+    const addItem = () => {
+      setFormData(prev => ({
+        ...prev,
+        items: [...prev.items, { productName: '', quantity: 1, unitPrice: 0, total: 0 }]
+      }));
+    };
+
+    const removeItem = (index) => {
+      if (formData.items.length > 1) {
+        const updatedItems = formData.items.filter((_, i) => i !== index);
+        setFormData(prev => ({ ...prev, items: updatedItems }));
+      }
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      
+      // Validate form
+      if (!formData.customer || !formData.dueDate) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      if (formData.items.some(item => !item.productName || item.quantity <= 0 || item.unitPrice <= 0)) {
+        alert('Please fill in all item details correctly');
+        return;
+      }
+
+      const orderData = {
+        ...formData,
+        subtotal,
+        tax,
+        totalAmount
+      };
+      
+      onSave(orderData);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold">Create New Sales Order</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
+                <input
+                  type="text"
+                  value={formData.customer}
+                  onChange={(e) => handleInputChange('customer', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Order Date</label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => handleInputChange('date', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Due Date *</label>
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => handleInputChange('dueDate', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => handleInputChange('status', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Items Section */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-medium text-gray-700">Order Items</h4>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </button>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 px-4 py-2 text-left">Product Name *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-center">Quantity *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Unit Price *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Total</th>
+                      <th className="border border-gray-300 px-4 py-2 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formData.items.map((item, index) => (
+                      <tr key={index}>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="text"
+                            value={item.productName}
+                            onChange={(e) => handleItemChange(index, 'productName', e.target.value)}
+                            className="w-full border-0 focus:ring-0 focus:outline-none"
+                            placeholder="Enter product name"
+                            required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                            className="w-full border-0 focus:ring-0 focus:outline-none text-center"
+                            min="1"
+                            required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-full border-0 focus:ring-0 focus:outline-none text-right"
+                            step="0.01"
+                            min="0"
+                            required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-right font-medium">
+                          ${item.total.toFixed(2)}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="text-red-600 hover:text-red-800 disabled:text-gray-400"
+                            disabled={formData.items.length === 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-4 py-2 text-right font-semibold">Subtotal:</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right font-semibold">${subtotal.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-4 py-2"></td>
+                    </tr>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-4 py-2 text-right font-semibold">Tax (10%):</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right font-semibold">${tax.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-4 py-2"></td>
+                    </tr>
+                    <tr className="bg-gray-100 font-bold">
+                      <td colSpan="3" className="border border-gray-300 px-4 py-2 text-right">Total Amount:</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right">${totalAmount.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-4 py-2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Create Sales Order
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
   const OrderViewModal = ({ order, onClose }) => {
     if (!order) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-semibold">Sales Order Details - {order.orderNumber}</h3>
@@ -175,7 +436,10 @@ const SalesOrder = () => {
               <h1 className="text-2xl font-bold text-gray-900">Sales Orders</h1>
               <p className="text-gray-600 mt-1">Manage and track your sales orders</p>
             </div>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+            <button 
+              onClick={() => setShowNewOrderModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
               <Plus className="h-5 w-5" />
               New Sales Order
             </button>
@@ -334,6 +598,13 @@ const SalesOrder = () => {
               setShowViewModal(false);
               setSelectedOrder(null);
             }}
+          />
+        )}
+        
+        {showNewOrderModal && (
+          <NewSalesOrderModal
+            onClose={() => setShowNewOrderModal(false)}
+            onSave={handleAddNewOrder}
           />
         )}
       </div>

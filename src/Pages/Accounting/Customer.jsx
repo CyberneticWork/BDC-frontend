@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
+import {
+  getCustomers,
+  getCustomerCategories,
+  getCustomerTypes,
+  addCustomer,
+  updateCustomer,
+  deleteCustomer
+} from '../../services/AccountingService';
 
 const Customer = () => {
   const [customers, setCustomers] = useState([]);
@@ -16,19 +24,13 @@ const Customer = () => {
     city: ''
   });
 
-  const customerCategories = [
-    'Individual',
-    'Corporate',
-    'Government',
-    'NGO'
-  ];
+  const customerCategories = getCustomerCategories();
+  const customerTypes = getCustomerTypes();
 
-  const customerTypes = [
-    'Regular',
-    'Premium',
-    'VIP',
-    'Wholesale'
-  ];
+  useEffect(() => {
+    // Load initial data from service
+    setCustomers(getCustomers());
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -40,11 +42,7 @@ const Customer = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newCustomer = {
-      id: Date.now(),
-      ...formData,
-      createdDate: new Date().toLocaleDateString()
-    };
+    const newCustomer = addCustomer(formData);
     setCustomers(prev => [...prev, newCustomer]);
     setFormData({
       customerCategory: '',
@@ -60,6 +58,7 @@ const Customer = () => {
   };
 
   const handleDelete = (id) => {
+    deleteCustomer(id);
     setCustomers(prev => prev.filter(customer => customer.id !== id));
   };
 
@@ -183,7 +182,7 @@ const Customer = () => {
 
       {/* Create Customer Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">Create New Customer</h2>
