@@ -7,7 +7,6 @@ import {
   Clock,
   DollarSign,
   PieChart,
-  LogOut,
 } from "lucide-react";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
@@ -58,9 +57,6 @@ import UserStats from "../LMS/UserStats";
 // Import Accounting components
 import AccountingDashboard from "../Accounting/Dashboard";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
-import AccountList from "../Accounting/AccountList";
-import Customer from "../Accounting/Customer";
-import Center from "../Accounting/Center";
 import Transactions from "../Accounting/Transactions";
 import Ledger from "../Accounting/Ledger";
 import TrialBalance from "../Accounting/TrialBalance";
@@ -68,13 +64,6 @@ import IncomeStatement from "../Accounting/IncomeStatement";
 import BalanceSheet from "../Accounting/BalanceSheet";
 import CashFlowStatement from "../Accounting/CashFlowStatement";
 import Invoices from "../Accounting/Invoices";
-import SalesOrder from "../Accounting/SalesOrder";
-import SalesReturn from "../Accounting/SalesReturn";
-import GRN from "../Accounting/GRN";
-import PurchaseReturn from "../Accounting/PurchaseReturn";
-import PurchaseOrder from "../Accounting/PurchaseOrder";
-import StockTransfer from "../Accounting/StockTransfer";
-import StockVerification from "../Accounting/StockVerification";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
@@ -86,7 +75,6 @@ import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { useSidebarState } from "../../hooks/useResponsive";
 
 ChartJS.register(
   CategoryScale,
@@ -158,22 +146,22 @@ const DashboardStats = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {stats.map((stat, index) => (
         <div
           key={index}
-          className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 border border-gray-100"
+          className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 border border-gray-100"
         >
           <div className="flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-1 truncate">
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-1">
                 {stat.name}
               </p>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">
+              <p className="text-3xl font-bold text-gray-900 mt-2">
                 {stat.value}
               </p>
               <p
-                className={`text-xs sm:text-sm mt-2 sm:mt-3 font-semibold ${
+                className={`text-sm mt-3 font-semibold ${
                   stat.change.startsWith("+")
                     ? "text-green-600"
                     : "text-red-600"
@@ -182,8 +170,8 @@ const DashboardStats = () => {
                 {stat.change} from last month
               </p>
             </div>
-            <div className="bg-blue-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg flex-shrink-0">
-              <stat.icon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            <div className="bg-blue-100 p-4 rounded-2xl shadow-lg">
+              <stat.icon className="h-8 w-8 text-blue-600" />
             </div>
           </div>
         </div>
@@ -318,15 +306,15 @@ const DashboardCharts = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
-      <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
-        <div className="flex items-center mb-4 sm:mb-6">
-          <div className="bg-blue-100 p-2 rounded-xl mr-2 sm:mr-3">
-            <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
+        <div className="flex items-center mb-6">
+          <div className="bg-blue-100 p-2 rounded-xl mr-3">
+            <Clock className="h-6 w-6 text-blue-600" />
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-gray-800">Weekly Attendance</h3>
+          <h3 className="text-xl font-bold text-gray-800">Weekly Attendance</h3>
         </div>
-        <div className="h-64 sm:h-72 lg:h-80">
+        <div className="h-80">
           <Bar
             data={attendanceData}
             options={{
@@ -337,9 +325,9 @@ const DashboardCharts = () => {
                   position: "top",
                   labels: {
                     usePointStyle: true,
-                    padding: 15,
+                    padding: 20,
                     font: {
-                      size: window.innerWidth < 640 ? 10 : 12,
+                      size: 12,
                       weight: "bold",
                     },
                   },
@@ -356,7 +344,7 @@ const DashboardCharts = () => {
                       return value.toLocaleString();
                     },
                     font: {
-                      size: window.innerWidth < 640 ? 9 : 11,
+                      size: 11,
                     },
                   },
                 },
@@ -366,7 +354,7 @@ const DashboardCharts = () => {
                   },
                   ticks: {
                     font: {
-                      size: window.innerWidth < 640 ? 9 : 11,
+                      size: 11,
                     },
                   },
                 },
@@ -376,16 +364,16 @@ const DashboardCharts = () => {
         </div>
       </div>
 
-      <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
-        <div className="flex items-center mb-4 sm:mb-6">
-          <div className="bg-green-100 p-2 rounded-xl mr-2 sm:mr-3">
-            <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
+        <div className="flex items-center mb-6">
+          <div className="bg-green-100 p-2 rounded-xl mr-3">
+            <Building2 className="h-6 w-6 text-green-600" />
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-gray-800">
+          <h3 className="text-xl font-bold text-gray-800">
             Department Distribution
           </h3>
         </div>
-        <div className="h-64 sm:h-72 lg:h-80">
+        <div className="h-80">
           <Pie
             data={departmentData}
             options={{
@@ -393,12 +381,12 @@ const DashboardCharts = () => {
               maintainAspectRatio: false,
               plugins: {
                 legend: {
-                  position: window.innerWidth < 1024 ? "bottom" : "right",
+                  position: "right",
                   labels: {
                     usePointStyle: true,
-                    padding: window.innerWidth < 640 ? 10 : 15,
+                    padding: 20,
                     font: {
-                      size: window.innerWidth < 640 ? 10 : 12,
+                      size: 12,
                       weight: "bold",
                     },
                   },
@@ -457,21 +445,21 @@ const QuickActions = ({ setActiveItem }) => {
   ];
 
   return (
-    <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 mb-6 sm:mb-8">
-      <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6">Quick Actions</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+    <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-8">
+      <h3 className="text-xl font-bold text-gray-800 mb-6">Quick Actions</h3>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {actions.map((action, index) => (
           <button
             key={index}
             onClick={() => setActiveItem(action.action)}
-            className="group flex flex-col items-center justify-center p-4 sm:p-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-white hover:to-gray-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
+            className="group flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-white hover:to-gray-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
           >
             <div
-              className={`${action.iconBg} p-2 sm:p-3 rounded-lg sm:rounded-xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform duration-300`}
+              className={`${action.iconBg} p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform duration-300`}
             >
-              <action.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${action.iconColor}`} />
+              <action.icon className={`h-6 w-6 ${action.iconColor}`} />
             </div>
-            <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors duration-300 text-center">
+            <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors duration-300">
               {action.label}
             </span>
           </button>
@@ -483,7 +471,7 @@ const QuickActions = ({ setActiveItem }) => {
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeItem, setActiveItem] = useState("dashboard");
-  const { isOpen, setIsOpen, toggle, close } = useSidebarState();
+  const [isOpen, setIsOpen] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -527,18 +515,17 @@ const Dashboard = ({ user, onLogout }) => {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
       />
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
-        <nav className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-10">
-          <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
-            <div className="flex justify-between h-14 sm:h-16">
+      <div className="flex-1 flex flex-col min-h-screen">
+        <nav className="bg-white shadow-lg border-b border-gray-200">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16">
               <div className="flex items-center lg:hidden">
                 <button
-                  data-hamburger
                   onClick={() => setIsOpen(true)}
                   className="text-gray-500 hover:text-gray-700 focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
                 >
                   <svg
-                    className="h-5 w-5 sm:h-6 sm:w-6"
+                    className="h-6 w-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -553,21 +540,21 @@ const Dashboard = ({ user, onLogout }) => {
                 </button>
               </div>
               <div className="hidden lg:flex items-center">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <Building2 className="h-3 w-3 sm:h-5 sm:w-5 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-white" />
                   </div>
-                  <span className="text-lg sm:text-xl font-bold text-gray-900">
+                  <span className="text-xl font-bold text-gray-900">
                     HRM Dashboard
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 sm:gap-4">
-                <span className="text-gray-700 flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
-                  <span className="hidden sm:inline">Welcome,</span> {user.name.split(' ')[0]}
-                  <span className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs sm:text-sm font-semibold px-2 sm:px-3 py-1 rounded-full">
+              <div className="flex items-center gap-4">
+                <span className="text-gray-700 flex items-center gap-2">
+                  Welcome, {user.name}
+                  <span className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-semibold px-3 py-1 rounded-full">
                     <svg
-                      className="w-3 h-3 sm:w-4 sm:h-4"
+                      className="w-4 h-4"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                       xmlns="http://www.w3.org/2000/svg"
@@ -579,17 +566,16 @@ const Dashboard = ({ user, onLogout }) => {
                 </span>
                 <button
                   onClick={onLogout}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl text-sm sm:text-base"
+                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
-                  <span className="hidden sm:inline">Logout</span>
-                  <LogOut className="h-4 w-4 sm:hidden" />
+                  Logout
                 </button>
               </div>
             </div>
           </div>
         </nav>
-        <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8 flex-1">
-          <div className="h-full">
+        <div className="py-6 sm:px-6 lg:px-8 flex-1">
+          <div className="px-4 py-6 sm:px-0 h-full">
             {activeItem === "employeeMaster" ? (
               <ProtectedComponent module="employeeMaster" action="view">
                 <EmployeeMaster />
@@ -728,28 +714,12 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="accountingDashboard" action="view">
                 <AccountingDashboard />
               </ProtectedComponent>
-            ) : activeItem === "customer" ? (
-              <ProtectedComponent module="customer" action="view">
-                <Customer />
-              </ProtectedComponent>
-            ) : activeItem === "center" ? (
-              <ProtectedComponent module="center" action="view">
-                <Center />
-              </ProtectedComponent>
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">
                 <ChartOfAccounts />
               </ProtectedComponent>
-            ) : activeItem === "accountList" ? (
-              <ProtectedComponent module="accountList" action="view">
-                <AccountList />
-              </ProtectedComponent>
             ) : activeItem === "transactions" ? (
               <ProtectedComponent module="transactions" action="view">
-                <Transactions />
-              </ProtectedComponent>
-            ) : activeItem === "transactionsList" ? (
-              <ProtectedComponent module="transactionsList" action="view">
                 <Transactions />
               </ProtectedComponent>
             ) : activeItem === "ledger" ? (
@@ -776,34 +746,6 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="invoices" action="view">
                 <Invoices />
               </ProtectedComponent>
-            ) : activeItem === "salesOrder" ? (
-              <ProtectedComponent module="salesOrder" action="view">
-                <SalesOrder />
-              </ProtectedComponent>
-            ) : activeItem === "salesReturn" ? (
-              <ProtectedComponent module="salesReturn" action="view">
-                <SalesReturn />
-              </ProtectedComponent>
-            ) : activeItem === "grn" ? (
-              <ProtectedComponent module="grn" action="view">
-                <GRN />
-              </ProtectedComponent>
-            ) : activeItem === "purchaseReturn" ? (
-              <ProtectedComponent module="purchaseReturn" action="view">
-                <PurchaseReturn />
-              </ProtectedComponent>
-            ) : activeItem === "purchaseOrder" ? (
-              <ProtectedComponent module="purchaseOrder" action="view">
-                <PurchaseOrder />
-              </ProtectedComponent>
-            ) : activeItem === "stockTransfer" ? (
-              <ProtectedComponent module="stockTransfer" action="view">
-                <StockTransfer />
-              </ProtectedComponent>
-            ) : activeItem === "stockVerification" ? (
-              <ProtectedComponent module="stockVerification" action="view">
-                <StockVerification />
-              </ProtectedComponent>
             ) : activeItem === "expenses" ? (
               <ProtectedComponent module="expenses" action="view">
                 <Expenses />
@@ -817,12 +759,12 @@ const Dashboard = ({ user, onLogout }) => {
                 <AccountingSettings />
               </ProtectedComponent>
             ) : (
-              <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-                <div className="text-center mb-4 sm:mb-6 lg:mb-8">
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+              <div className="space-y-8">
+                <div className="text-center mb-8">
+                  <h1 className="text-4xl font-bold text-gray-900 mb-2">
                     HRM Dashboard
                   </h1>
-                  <p className="text-gray-600 text-sm sm:text-base lg:text-lg">
+                  <p className="text-gray-600 text-lg">
                     Welcome to your comprehensive HR management system
                   </p>
                 </div>

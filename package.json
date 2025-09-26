@@ -15,7 +15,6 @@
     "axios": "^1.10.0",
     "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
-    "feather-icons": "^4.29.2",
     "framer-motion": "^12.23.6",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
