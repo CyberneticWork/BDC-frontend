@@ -156,6 +156,37 @@ class PMSService {
     }
   }
 
+  // KPI Tasks CRUD operations
+  async createKpiTask(taskData) {
+    try {
+      const response = await axios.post('/kpi-tasks', taskData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating KPI task:", error);
+      throw error;
+    }
+  }
+
+  async updateKpiTask(id, taskData) {
+    try {
+      const response = await axios.put(`/kpi-tasks/${id}`, taskData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating KPI task:", error);
+      throw error;
+    }
+  }
+
+  async deleteKpiTask(id) {
+    try {
+      const response = await axios.delete(`/kpi-tasks/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting KPI task:", error);
+      throw error;
+    }
+  }
+
   async getCreatorRoles() {
     try {
       const response = await axios.get('/creator-roles');
@@ -400,7 +431,6 @@ class PMSService {
       throw error;
     }
   }
-  // --- end added methods ---
 }
 
 // Change the export to export an instance instead of the class

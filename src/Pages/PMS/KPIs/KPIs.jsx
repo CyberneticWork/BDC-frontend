@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
+import AddKpiTaskModal from "./AddKpiTaskModal";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -56,6 +57,9 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
 
+  // Local state for the small "+" Add KPI Task modal used inside TaskModal
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  
   // Creator roles from backend
   const [creatorRoles, setCreatorRoles] = useState([]);
   const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
@@ -77,21 +81,23 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const [isLoadingFilterCompanies, setIsLoadingFilterCompanies] = useState(false);
   const [isLoadingFilterDepartments, setIsLoadingFilterDepartments] = useState(false);
   
-  // Fetch KPI task names from backend
+  // NEW: fetch tasks function moved outside useEffect so it can be called after create
+  const fetchTaskOptions = async () => {
+    setIsLoadingTasks(true);
+    try {
+      const tasks = await PMSService.getKpiTasks(); // [`PMSService.getKpiTasks`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js)
+      setTaskOptions(Array.isArray(tasks) ? tasks : []);
+    } catch (e) {
+      console.error("Error fetching KPI task names:", e);
+      setTaskOptions([]);
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
+
+  // Fetch KPI task names from backend on mount
   useEffect(() => {
-    const fetchTasks = async () => {
-      setIsLoadingTasks(true);
-      try {
-        const tasks = await PMSService.getKpiTasks(); // [{id, task_name}]
-        setTaskOptions(Array.isArray(tasks) ? tasks : []);
-      } catch (e) {
-        console.error("Error fetching KPI task names:", e);
-        setTaskOptions([]);
-      } finally {
-        setIsLoadingTasks(false);
-      }
-    };
-    fetchTasks();
+    fetchTaskOptions();
   }, []);
 
   // Fetch companies from backend
@@ -466,25 +472,63 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 Task Name*
               </label>
               <div className="relative">
-                <select
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none"
-                  disabled={isLoadingTasks}
-                >
-                  <option value="">Select task name</option>
-                  {taskOptions.map(t => (
-                    <option key={t.id} value={t.task_name}>{t.task_name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  {/* Select with visible dropdown icon */}
+                  <div className="relative flex-1">
+                    <select
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none pr-10" /* space for icon */
+                      disabled={isLoadingTasks}
+                    >
+                      <option value="">Select task name</option>
+                      {taskOptions.map((t) => (
+                        <option
+                          key={t.id ?? t.task_name}
+                          value={t.task_name}
+                        >
+                          {t.task_name}
+                        </option>
+                      ))}
+                    </select>
+                    {/* dropdown icon */}
+                    <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddTaskModalOpen(true)}
+                    className="inline-flex items-center justify-center w-9 h-9 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                    title="Add new KPI task"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {isLoadingTasks && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                     <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
                   </div>
                 )}
               </div>
+               {/* Add KPI Task Modal */}
+               <AddKpiTaskModal
+                 isOpen={isAddTaskModalOpen}
+                 onClose={() => setIsAddTaskModalOpen(false)}
+                 onCreated={async (newTask) => {
+                   // refresh authoritative list from backend so dropdown shows exact DB rows
+                   await fetchTaskOptions();
+                   // select the created task (backend record should set task_name)
+                   if (newTask && newTask.task_name) {
+                     setFormData(prev => ({ ...prev, name: newTask.task_name }));
+                   }
+                   setIsAddTaskModalOpen(false);
+                 }}
+               />
             </div>
 
             <div>
@@ -1225,6 +1269,9 @@ const KPIs = (/* props */) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentKpi, setCurrentKpi] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add missing state for the small "Add Task" (+) modal next to Task Name select
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   
   // Shared employees list used by TaskModal and TaskViewModal
   const [employees, setEmployees] = useState([]);
