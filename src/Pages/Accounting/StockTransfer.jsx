@@ -1,0 +1,344 @@
+import React, { useState, useEffect } from "react";
+import {
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Edit,
+  Trash2,
+  ArrowRightLeft,
+  CheckCircle,
+  Clock,
+  Truck,
+  X,
+  MapPin,
+  User
+} from "lucide-react";
+import { getStockTransfers, addStockTransfer, updateStockTransfer } from "../../services/AccountingService";
+
+const StockTransfer = () => {
+  const [stockTransfers, setStockTransfers] = useState([]);
+  const [filteredTransfers, setFilteredTransfers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedTransfer, setSelectedTransfer] = useState(null);
+
+  useEffect(() => {
+    const transfers = getStockTransfers();
+    setStockTransfers(transfers);
+    setFilteredTransfers(transfers);
+  }, []);
+
+  useEffect(() => {
+    let filtered = stockTransfers;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (transfer) =>
+          transfer.transferNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          transfer.fromLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          transfer.toLocation.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((transfer) => transfer.status.toLowerCase() === statusFilter);
+    }
+
+    setFilteredTransfers(filtered);
+  }, [searchTerm, statusFilter, stockTransfers]);
+
+  const getStatusIcon = (status) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "in transit":
+        return <Truck className="h-4 w-4 text-blue-500" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <ArrowRightLeft className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "in transit":
+        return "bg-blue-100 text-blue-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const summary = {
+    total: filteredTransfers.reduce((sum, transfer) => sum + transfer.totalValue, 0),
+    completed: filteredTransfers.filter(transfer => transfer.status.toLowerCase() === 'completed').reduce((sum, transfer) => sum + transfer.totalValue, 0),
+    inTransit: filteredTransfers.filter(transfer => transfer.status.toLowerCase() === 'in transit').reduce((sum, transfer) => sum + transfer.totalValue, 0),
+    count: filteredTransfers.length
+  };
+
+  const TransferViewModal = ({ transfer, onClose }) => {
+    if (!transfer) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold">Stock Transfer Details - {transfer.transferNumber}</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            <div>
+              <h4 className="font-semibold text-gray-700 mb-2">Transfer Information</h4>
+              <p><strong>Transfer Number:</strong> {transfer.transferNumber}</p>
+              <p><strong>Date:</strong> {new Date(transfer.date).toLocaleDateString()}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <strong>Status:</strong>
+                {getStatusIcon(transfer.status)}
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(transfer.status)}`}>
+                  {transfer.status}
+                </span>
+              </div>
+              <p className="mt-2"><strong>Total Value:</strong> ${transfer.totalValue.toFixed(2)}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-700 mb-2">Location & Personnel</h4>
+              <p><strong>From:</strong> {transfer.fromLocation}</p>
+              <p><strong>To:</strong> {transfer.toLocation}</p>
+              <p><strong>Transferred By:</strong> {transfer.transferredBy}</p>
+              <p><strong>Received By:</strong> {transfer.receivedBy}</p>
+              {transfer.remarks && <p className="mt-2"><strong>Remarks:</strong> {transfer.remarks}</p>}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h4 className="font-semibold text-gray-700 mb-4">Transfer Items</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-gray-300 px-4 py-2 text-left">Product</th>
+                    <th className="border border-gray-300 px-4 py-2 text-center">Quantity</th>
+                    <th className="border border-gray-300 px-4 py-2 text-right">Unit Price</th>
+                    <th className="border border-gray-300 px-4 py-2 text-right">Total Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transfer.items.map((item, index) => (
+                    <tr key={index}>
+                      <td className="border border-gray-300 px-4 py-2">{item.productName}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-center">{item.quantity}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right">${item.unitPrice.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right">${item.total.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-100 font-bold">
+                    <td colSpan="3" className="border border-gray-300 px-4 py-2 text-right">Total Value:</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right">${transfer.totalValue.toFixed(2)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Stock Transfers</h1>
+              <p className="text-gray-600 mt-1">Manage inter-location stock movements</p>
+            </div>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              New Stock Transfer
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Transfers</p>
+                <p className="text-2xl font-bold text-gray-900">{summary.count}</p>
+              </div>
+              <ArrowRightLeft className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Value</p>
+                <p className="text-2xl font-bold text-gray-900">${summary.total.toFixed(2)}</p>
+              </div>
+              <MapPin className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-2xl font-bold text-green-600">${summary.completed.toFixed(2)}</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">In Transit</p>
+                <p className="text-2xl font-bold text-blue-600">${summary.inTransit.toFixed(2)}</p>
+              </div>
+              <Truck className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Filters and Search */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search stock transfers..."
+                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="in transit">In Transit</option>
+                <option value="completed">Completed</option>
+              </select>
+              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                More Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stock Transfers Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer Number</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transferred By</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredTransfers.map((transfer) => (
+                  <tr key={transfer.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <ArrowRightLeft className="h-5 w-5 text-gray-400 mr-2" />
+                        <span className="text-sm font-medium text-gray-900">{transfer.transferNumber}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{transfer.fromLocation}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{transfer.toLocation}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(transfer.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ${transfer.totalValue.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {transfer.transferredBy}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(transfer.status)}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(transfer.status)}`}>
+                          {transfer.status}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedTransfer(transfer);
+                            setShowViewModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button className="text-green-600 hover:text-green-900">
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button className="text-red-600 hover:text-red-900">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Modals */}
+        {showViewModal && (
+          <TransferViewModal
+            transfer={selectedTransfer}
+            onClose={() => {
+              setShowViewModal(false);
+              setSelectedTransfer(null);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default StockTransfer;
