@@ -197,6 +197,39 @@ class PMSService {
     }
   }
 
+  // Create a new creator role
+  async createCreatorRole(roleData) {
+    try {
+      const response = await axios.post('/creator-roles', roleData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating creator role:", error);
+      throw error;
+    }
+  }
+
+  // Update an existing creator role
+  async updateCreatorRole(id, roleData) {
+    try {
+      const response = await axios.put(`/creator-roles/${id}`, roleData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating creator role:", error);
+      throw error;
+    }
+  }
+
+  // Delete a creator role
+  async deleteCreatorRole(id) {
+    try {
+      const response = await axios.delete(`/creator-roles/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting creator role:", error);
+      throw error;
+    }
+  }
+  
   async getCompanies() {
     try {
       const response = await axios.get('/pms/companies');

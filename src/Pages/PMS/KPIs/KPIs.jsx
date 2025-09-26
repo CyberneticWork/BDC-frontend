@@ -28,6 +28,7 @@ import {
 import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
 import AddKpiTaskModal from "./AddKpiTaskModal";
+import AddCreatorRoleModal from "./AddCreatorRoleModal";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -63,6 +64,9 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   // Creator roles from backend
   const [creatorRoles, setCreatorRoles] = useState([]);
   const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
+
+  // Local state to open Add Creator Role modal
+  const [isAddCreatorRoleModalOpen, setIsAddCreatorRoleModalOpen] = useState(false);
 
   // NEW: backend-driven state
   const [taskOptions, setTaskOptions] = useState([]);
@@ -179,13 +183,13 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     };
   }, [formData.company, formData.department, empSearch]);
   
-  // Fetch creator roles once
+  // Fetch creator roles once (extracted to a function so we can refresh on new create)
   useEffect(() => {
     let mounted = true;
-    const fetchRoles = async () => {
+    const fetchCreatorRoles = async () => {
       setIsLoadingCreatorRoles(true);
       try {
-        const roles = await PMSService.getCreatorRoles(); // calls /creator-roles
+        const roles = await PMSService.getCreatorRoles(); // [`PMSService.getCreatorRoles`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js)
         if (!mounted) return;
         setCreatorRoles(Array.isArray(roles) ? roles : []);
       } catch (err) {
@@ -195,7 +199,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
         if (mounted) setIsLoadingCreatorRoles(false);
       }
     };
-    fetchRoles();
+    fetchCreatorRoles();
     return () => { mounted = false; };
   }, []);
 
@@ -549,29 +553,64 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Creator Role*
               </label>
-              <div className="relative">
-                <select
-                  name="creatorRole"
-                  value={formData.creatorRole}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
-                  disabled={isLoadingCreatorRoles}
-                >
-                  <option value="">Select Creator Role</option>
-                  {creatorRoles.map((r) => (
-                    // Use the role name string so the UI can call .split() safely
-                    <option key={r.id} value={r.role_name}>
-                      {r.role_name || r.name || `Role ${r.id}`}
-                    </option>
-                  ))}
-                </select>
-                {isLoadingCreatorRoles && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <select
+                    name="creatorRole"
+                    value={formData.creatorRole}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none pr-10"
+                    disabled={isLoadingCreatorRoles}
+                  >
+                    <option value="">Select Creator Role</option>
+                    {creatorRoles.map((r) => (
+                      // Use the role name string so the UI can call .split() safely
+                      <option key={r.id ?? r.role_name} value={r.role_name}>
+                        {r.role_name || r.name || `Role ${r.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  {/* dropdown icon */}
+                  <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
                   </div>
-                )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddCreatorRoleModalOpen(true)}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                  title="Add new Creator Role"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
+              {isLoadingCreatorRoles && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              )}
+              
+              {/* Add Creator Role Modal */}
+              <AddCreatorRoleModal
+                isOpen={isAddCreatorRoleModalOpen}
+                onClose={() => setIsAddCreatorRoleModalOpen(false)}
+                onCreated={async (newRole) => {
+                  // refresh authoritative list and select created role
+                  try {
+                    const roles = await PMSService.getCreatorRoles();
+                    setCreatorRoles(Array.isArray(roles) ? roles : []);
+                    if (newRole && (newRole.role_name || newRole.name)) {
+                      setFormData(prev => ({ ...prev, creatorRole: newRole.role_name || newRole.name }));
+                    }
+                  } catch (err) {
+                    console.error("Failed to refresh creator roles after create:", err);
+                  } finally {
+                    setIsAddCreatorRoleModalOpen(false);
+                  }
+                }}
+              />
             </div>
 
             {/* Weights Section - Collapsible Dropdown */}
@@ -1761,7 +1800,7 @@ const KPIs = (/* props */) => {
               </div>
               Key Performance Indicators
             </h1>
-            <p className="text-gray-600 mt-2">
+                       <p className="text-gray-600 mt-2">
               Monitor and track your organization's key performance metrics
             </p>
           </div>
