@@ -18,10 +18,261 @@ import {
   X,
   User,
   Shield,
+  File,
+  FileText,
+  Download,
+  Target,
+  Building2,
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
-import { TaskViewModal } from "../KPIs/TaskViewModal";
+
+// Complete TaskViewModal specifically for TaskApproval page
+const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [], employees = [] }) => {
+  const [activeTab, setActiveTab] = useState("details");
+
+  if (!isOpen || !kpi) return null;
+
+  // Helper functions
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      active: "bg-green-100 text-green-800",
+      attention: "bg-yellow-100 text-yellow-800",
+      inactive: "bg-red-100 text-red-800",
+    };
+    return statusConfig[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const getCompletionStatusBadge = (status) => {
+    const statusConfig = {
+      "not-started": "bg-gray-100 text-gray-800",
+      pending: "bg-blue-100 text-blue-800",
+      "in-progress": "bg-yellow-100 text-yellow-800",
+      completed: "bg-green-100 text-green-800",
+    };
+    return statusConfig[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const getApprovalStatusBadge = (status) => {
+    const statusConfig = {
+      pending: "bg-yellow-100 text-yellow-800",
+      approved: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800",
+    };
+    return statusConfig[status] || "bg-gray-100 text-gray-800";
+  };
+
+  // Get employee name by ID
+  const getEmployeeName = (employeeId) => {
+    const employee = employees.find(emp => emp.id === employeeId);
+    return employee ? employee.name : `Employee ${employeeId}`;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Not set";
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "Not set";
+    return new Date(dateString).toLocaleString();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">{kpi.name}</h2>
+            <div className="flex items-center gap-3">
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
+                  kpi.status
+                )}`}
+              >
+                {kpi.status?.charAt(0).toUpperCase() + kpi.status?.slice(1) || "Active"}
+              </span>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
+                  kpi.completion_status
+                )}`}
+              >
+                {kpi.completion_status?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Not Started"}
+              </span>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusBadge(
+                  kpi.approval_status
+                )}`}
+              >
+                {kpi.approval_status === "approved" && <CheckCircle className="w-3 h-3 mr-1" />}
+                {kpi.approval_status === "rejected" && <XCircle className="w-3 h-3 mr-1" />}
+                {kpi.approval_status === "pending" && <Clock className="w-3 h-3 mr-1" />}
+                {kpi.approval_status?.charAt(0).toUpperCase() + kpi.approval_status?.slice(1) || "Pending"}
+              </span>
+            </div>
+            <p className="text-gray-600 text-sm mt-1">{kpi.description}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Single Details Tab (removed submissions tab) */}
+        <div className="p-6">
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="col-span-full flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                    <Target className="w-4 h-4 mr-2 text-indigo-500" />
+                    Task Information
+                  </h3>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Department:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {kpi.departmentName || kpi.department || "Not specified"}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Company:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {kpi.companyName || kpi.company || "Not specified"}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Start Date:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatDate(kpi.startDate || kpi.start_date)}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">End Date:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatDate(kpi.endDate || kpi.end_date)}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Priority:</span>
+                  <span className="text-sm font-medium text-gray-900 capitalize">
+                    {kpi.priority || "Medium"}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Frequency:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {kpi.frequency || "Monthly"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Creator Information */}
+            {kpi.creator && (
+              <div className="bg-blue-50 p-4 rounded-xl">
+                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                  <User className="w-4 h-4 mr-2 text-blue-500" />
+                  Creator Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Creator Role:</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {kpi.creator.role || "Not specified"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Created Date:</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {formatDateTime(kpi.creator.date || kpi.lastUpdated)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Assignment Details */}
+            <div className="bg-green-50 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                <Users className="w-4 h-4 mr-2 text-green-500" />
+                Assignment Details
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Assigned Employees:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {kpi.assignees?.length || 0} employee(s)
+                  </span>
+                </div>
+                
+                {kpi.assignees && kpi.assignees.length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-sm text-gray-500 block mb-2">Employee List:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {kpi.assignees.map((assigneeId, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-white border border-gray-200"
+                        >
+                          <User className="w-3 h-3 mr-1" />
+                          {getEmployeeName(assigneeId)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Performance Criteria Weights */}
+            {kpi.weights && kpi.weights.length > 0 && (
+              <div className="bg-indigo-50 p-4 rounded-xl">
+                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                  <Target className="w-4 h-4 mr-2 text-indigo-500" />
+                  Performance Criteria
+                </h3>
+                <div className="space-y-3">
+                  {kpi.weights.map((weight, idx) => (
+                    <div key={idx} className="bg-white p-3 rounded-lg border border-indigo-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-sm font-medium text-gray-900">{weight.title}</h4>
+                        <span className="text-sm font-bold text-indigo-600">{weight.percentage}%</span>
+                      </div>
+                      {weight.description && (
+                        <p className="text-sm text-gray-600">{weight.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end p-6 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Approval Confirmation Modal
 const ApprovalModal = ({ isOpen, onClose, onConfirm, isSubmitting, kpiName }) => {
@@ -72,7 +323,7 @@ const TaskApproval = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // Changed from "pending" to "all"
+  const [statusFilter, setStatusFilter] = useState("all");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,7 +338,6 @@ const TaskApproval = () => {
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
-  // const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); // removed modal state: rejection uses Swal confirm now
   const [currentTask, setCurrentTask] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -100,6 +350,26 @@ const TaskApproval = () => {
   
   // All employees for view modal
   const [allEmployeesForModals, setAllEmployeesForModals] = useState([]);
+
+  // Add state for submissions
+  const [submissions, setSubmissions] = useState({});
+
+  // Add function to fetch submissions for a task
+  const fetchSubmissionsForTask = async (taskId) => {
+    try {
+      const submissionData = await PMSService.getTaskProgressSubmissions(taskId);
+      return Array.isArray(submissionData) ? submissionData : [];
+    } catch (error) {
+      console.error(`Error fetching submissions for task ${taskId}:`, error);
+      return [];
+    }
+  };
+
+  // Get submissions for current task
+  const getCurrentTaskSubmissions = () => {
+    if (!currentTask) return [];
+    return submissions[currentTask.id] || [];
+  };
 
   // Fetch tasks that need approval
   const fetchTasks = async () => {
@@ -288,6 +558,7 @@ const TaskApproval = () => {
   const handleApproveTask = async () => {
     if (!currentTask) return;
     
+    const prevPage = currentPage; // preserve current page
     setIsSubmitting(true);
     try {
       // Call backend
@@ -303,16 +574,16 @@ const TaskApproval = () => {
       
       setIsApproveModalOpen(false);
 
-      // Update local state immediately for better UX
+      // Optimistic UI update (keeps UI snappy)
       setTasks(prev => prev.map(t => t.id === currentTask.id ? { ...t, approval_status: 'approved' } : t));
       setFilteredTasks(prev => prev.map(t => t.id === currentTask.id ? { ...t, approval_status: 'approved' } : t));
-      setStats(prev => ({ ...prev, approved: prev.approved + 1, pending: Math.max(prev.pending - 1, 0) }));
+
+      // Refresh authoritative data from server and restore page
+      await fetchTasks();
+      setCurrentPage(prevPage);
 
       // Clear selection
       setCurrentTask(null);
-
-      // Don't change the page - keep showing the same items
-      // Don't call fetchTasks() here to avoid resetting the view
 
     } catch (e) {
       console.error(e);
@@ -329,6 +600,7 @@ const TaskApproval = () => {
   // Handle task rejection (no reason). Show confirm dialog, then call API.
   const handleRejectTask = async () => {
     if (!currentTask) return;
+    const prevPage = currentPage; // preserve current page
     setIsSubmitting(true);
     try {
       await PMSService.rejectKpiTask(currentTask.id); // optional reason omitted
@@ -341,10 +613,13 @@ const TaskApproval = () => {
         showConfirmButton: false,
       });
 
-      // Update local state immediately
+      // Optimistic UI update
       setTasks(prev => prev.map(t => t.id === currentTask.id ? { ...t, approval_status: 'rejected' } : t));
       setFilteredTasks(prev => prev.map(t => t.id === currentTask.id ? { ...t, approval_status: 'rejected' } : t));
-      setStats(prev => ({ ...prev, rejected: prev.rejected + 1, pending: Math.max(prev.pending - 1, 0) }));
+
+      // Refresh authoritative data from server and restore page
+      await fetchTasks();
+      setCurrentPage(prevPage);
 
       setCurrentTask(null);
     } catch (e) {
@@ -359,17 +634,28 @@ const TaskApproval = () => {
     }
   };
  
-   // Open view modal
-   const openViewModal = (task) => {
-     setCurrentTask(task);
-     setIsViewModalOpen(true);
-   };
+  // Open view modal
+  const openViewModal = async (task) => {
+    setCurrentTask(task);
+    setIsViewModalOpen(true);
+   
+    // Fetch submissions for this task
+    try {
+      const taskSubmissions = await fetchSubmissionsForTask(task.id);
+      setSubmissions(prev => ({
+        ...prev,
+        [task.id]: taskSubmissions
+      }));
+    } catch (error) {
+      console.error("Error loading task submissions:", error);
+    }
+  };
  
-   // Open approve modal
-   const openApproveModal = (task) => {
-     setCurrentTask(task);
-     setIsApproveModalOpen(true);
-   };
+  // Open approve modal
+  const openApproveModal = (task) => {
+    setCurrentTask(task);
+    setIsApproveModalOpen(true);
+  };
  
   // Open reject confirmation and act immediately if confirmed
   const openRejectModal = async (task) => {
@@ -436,8 +722,12 @@ const TaskApproval = () => {
       {/* View Modal */}
       <TaskViewModal
         isOpen={isViewModalOpen}
-        onClose={() => setIsViewModalOpen(false)}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setCurrentTask(null);
+        }}
         kpi={currentTask}
+        submissions={getCurrentTaskSubmissions()}
         employees={allEmployeesForModals}
       />
       
@@ -449,8 +739,6 @@ const TaskApproval = () => {
         isSubmitting={isSubmitting}
         kpiName={currentTask?.name}
       />
-      
-      {/* Rejection now uses SweetAlert confirm; no inline modal */}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-800 to-indigo-900 px-4 sm:px-8 py-6 sm:py-8 rounded-xl mb-6">
@@ -507,7 +795,7 @@ const TaskApproval = () => {
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Search box */}
+          {/* Search box
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -517,7 +805,7 @@ const TaskApproval = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
-          </div>
+          </div> */}
           
           {/* Company select */}
           <div className="relative">
