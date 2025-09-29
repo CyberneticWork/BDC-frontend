@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart3,
   ClipboardCheck,
@@ -10,287 +10,530 @@ import {
   PieChart,
   Calendar,
   ArrowUpRight,
+  Loader2,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+import PMSService from "@services/PMS/PMSService";
 
 const PMSDashboard = () => {
-  // Replace local hard-coded arrays with store pulls
-  const recentReviews = PMSDummyDataStore.getRecentReviews();
-  const upcomingDeadlines = PMSDummyDataStore.getUpcomingDeadlines();
+  const [dashboardStats, setDashboardStats] = useState({
+    activeReviews: 0,
+    goalProgress: 0,
+    upcomingDeadlines: 0,
+    totalKpiTasks: 0,
+    completedTasks: 0,
+    progressIncrease: 0,
+  });
 
-  // Derive KPI summary (dummy, can compute from tasks if needed)
+  const [recentReviews, setRecentReviews] = useState([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
+  const [kpiStats, setKpiStats] = useState({
+    onTarget: 0,
+    needAttention: 0,
+    totalInWindow: 0,
+  });
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch all dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Check if user is authenticated before making requests
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+        if (!token) {
+          setError("Please log in to view dashboard data");
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          // Fetch dashboard statistics
+          const stats = await PMSService.getPMSDashboardStats();
+          setDashboardStats(stats);
+        } catch (statsError) {
+          console.warn("Failed to fetch dashboard stats:", statsError);
+          // Set default values if stats fail
+          setDashboardStats({
+            activeReviews: 0,
+            goalProgress: 0,
+            upcomingDeadlines: 0,
+            totalKpiTasks: 0,
+            completedTasks: 0,
+            progressIncrease: 0,
+          });
+        }
+
+        try {
+          // Fetch recent performance reviews
+          const reviews = await PMSService.getRecentPerformanceReviews(5);
+          setRecentReviews(reviews?.data || []);
+        } catch (reviewsError) {
+          console.warn("Failed to fetch recent reviews:", reviewsError);
+          setRecentReviews([]);
+        }
+
+        try {
+          // Fetch upcoming deadlines
+          const deadlines = await PMSService.getUpcomingDeadlines();
+          setUpcomingDeadlines(deadlines || []);
+        } catch (deadlinesError) {
+          console.warn("Failed to fetch upcoming deadlines:", deadlinesError);
+          setUpcomingDeadlines([]);
+        }
+
+        try {
+          // Fetch KPI performance stats for cards
+          const kpiPerf = await PMSService.getKpiPerformance();
+          setKpiStats(kpiPerf);
+        } catch (kpiError) {
+          console.warn("Failed to fetch KPI performance:", kpiError);
+          setKpiStats({
+            onTarget: 0,
+            needAttention: 0,
+            totalInWindow: 0,
+          });
+        }
+      } catch (err) {
+        console.error("Dashboard data fetch error:", err);
+
+        // Handle authentication errors specifically
+        if (err?.response?.status === 401) {
+          setError("Authentication required. Please log in again.");
+        } else {
+          setError("Failed to load dashboard data");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Derive KPI performance data from real stats
   const kpiData = [
-    { category: "Exceeded", percentage: 22 },
-    { category: "Met", percentage: 58 },
-    { category: "Partially Met", percentage: 15 },
-    { category: "Not Met", percentage: 5 },
-  ];
+    {
+      category: "On Target",
+      percentage:
+        kpiStats.totalInWindow > 0
+          ? Math.round((kpiStats.onTarget / kpiStats.totalInWindow) * 100)
+          : 0,
+      color: "bg-blue-500",
+      icon: CheckCircle2,
+      iconColor: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      category: "Need Attention",
+      percentage:
+        kpiStats.totalInWindow > 0
+          ? Math.round((kpiStats.needAttention / kpiStats.totalInWindow) * 100)
+          : 0,
+      color: "bg-orange-500",
+      icon: AlertTriangle,
+      iconColor: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+    {
+      category: "In Progress",
+      percentage:
+        kpiStats.totalInWindow > 0
+          ? Math.round(
+              ((kpiStats.totalInWindow - kpiStats.onTarget - kpiStats.needAttention) /
+                kpiStats.totalInWindow) *
+                100
+            )
+          : 0,
+      color: "bg-gray-500",
+      icon: Clock,
+      iconColor: "text-gray-600",
+      bgColor: "bg-gray-50",
+    },
+  ].filter((item) => item.percentage > 0);
 
-  // PMS modules quick access cards
+  // PMS modules quick access cards (keep existing)
   const pmsModules = [
     {
       id: "performanceReviews",
       name: "Performance Reviews",
       icon: ClipboardCheck,
-      color: "bg-blue-100 text-blue-600",
+      color: "bg-slate-100 border-slate-200",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
       description: "Manage review cycles and assessments",
-      count: 24,
-      path: "/pms/performanceReviews",
+      count: dashboardStats.activeReviews,
     },
     {
       id: "goals",
       name: "Goals & OKRs",
       icon: Target,
-      color: "bg-green-100 text-green-600",
+      color: "bg-slate-100 border-slate-200",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
       description: "Track objectives and key results",
-      count: 68,
-      path: "/pms/goals",
+      count: dashboardStats.completedTasks,
     },
     {
       id: "kpis",
       name: "KPIs",
       icon: PieChart,
-      color: "bg-purple-100 text-purple-600",
+      color: "bg-slate-100 border-slate-200",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
       description: "Monitor key performance indicators",
-      count: 35,
-      path: "/pms/kpis",
+      count: dashboardStats.totalKpiTasks,
     },
     {
       id: "360feedback",
       name: "360° Feedback",
       icon: Users,
-      color: "bg-orange-100 text-orange-600",
+      color: "bg-slate-100 border-slate-200",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
       description: "Multi-source feedback collection",
-      count: 12,
-      path: "/pms/360feedback",
+      count: 0, // Could add if you have 360 feedback data
     },
     {
       id: "appraisals",
       name: "Appraisals",
       icon: Award,
-      color: "bg-pink-100 text-pink-600",
+      color: "bg-slate-100 border-slate-200",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
       description: "Final ratings and appraisal documents",
-      count: 28,
-      path: "/pms/appraisals",
+      count: dashboardStats.completedTasks,
     },
     {
       id: "competency",
       name: "Competencies",
       icon: FileText,
-      color: "bg-indigo-100 text-indigo-600",
+      color: "bg-slate-100 border-slate-200",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-600",
       description: "Skills and competency frameworks",
-      count: 42,
-      path: "/pms/competency",
+      count: 0, // Could add if you have competency data
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg font-medium">Loading dashboard...</p>
+          <p className="text-gray-500 text-sm mt-2">Fetching your performance data</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="bg-red-50 rounded-lg p-6 border border-red-200">
+            <AlertTriangle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+            <div className="text-red-600 text-xl font-semibold mb-2">
+              Error Loading Dashboard
+            </div>
+            <div className="text-gray-600 mb-6">{error}</div>
+            {error.includes("Authentication") && (
+              <button
+                onClick={() => (window.location.href = "/")}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Go to Login
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Performance Management System
-        </h1>
-        <p className="text-gray-600">
-          Dashboard overview of your organization's performance metrics
-        </p>
-      </div>
-
-      {/* Insights Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-700">Active Reviews</h3>
-            <div className="bg-blue-100 text-blue-600 p-2 rounded-lg">
-              <ClipboardCheck className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-bold text-gray-900">24</span>
-            <span className="text-sm text-green-600 flex items-center">
-              +12% <ArrowUpRight className="h-3 w-3 ml-1" />
-            </span>
-          </div>
-          <p className="text-sm text-gray-500 mt-1">From last month</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-700">Goals Progress</h3>
-            <div className="bg-green-100 text-green-600 p-2 rounded-lg">
-              <Target className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-bold text-gray-900">76%</span>
-            <span className="text-sm text-green-600 flex items-center">
-              +5% <ArrowUpRight className="h-3 w-3 ml-1" />
-            </span>
-          </div>
-          <p className="text-sm text-gray-500 mt-1">Average completion rate</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-700">Upcoming Deadlines</h3>
-            <div className="bg-orange-100 text-orange-600 p-2 rounded-lg">
-              <Calendar className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-bold text-gray-900">3</span>
-            <span className="text-sm text-orange-600">This month</span>
-          </div>
-          <p className="text-sm text-gray-500 mt-1">Next: Q3 Reviews (18 days)</p>
-        </div>
-      </div>
-
-      {/* Quick Access to PMS Modules */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Performance Management Modules
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {pmsModules.map((module) => (
-            <Link
-              key={module.id}
-              to={module.path}
-              className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex gap-4 items-center"
-            >
-              <div className={`p-3 rounded-lg ${module.color}`}>
-                <module.icon className="h-6 w-6" />
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-6 py-8 max-w-7xl">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-800">{module.name}</h3>
-                <p className="text-sm text-gray-500">{module.description}</p>
-                <div className="text-xs font-medium text-gray-400 mt-1">
-                  {module.count} items
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  Performance Management System
+                </h1>
+                <p className="text-gray-600 text-lg">
+                  Dashboard overview of your organization's performance metrics
+                </p>
+              </div>
+              <div className="hidden md:block">
+                <div className="bg-gray-100 rounded-full p-4">
+                  <BarChart3 className="h-8 w-8 text-gray-600" />
                 </div>
               </div>
-            </Link>
-          ))}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* KPI Performance Summary */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-1">
-          <h2 className="font-semibold text-gray-800 mb-4">KPI Performance</h2>
-          <div className="space-y-4">
-            {kpiData.map((item) => (
-              <div key={item.category}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-600">
-                    {item.category}
-                  </span>
-                  <span className="font-semibold text-gray-800">
-                    {item.percentage}%
+        {/* Real-time Insights Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="bg-blue-50 rounded-t-xl p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Active Reviews</h3>
+                <div className="bg-blue-100 rounded-full p-2">
+                  <ClipboardCheck className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="flex items-end gap-3 mb-2">
+                <span className="text-3xl font-bold text-gray-900">
+                  {dashboardStats.activeReviews}
+                </span>
+                <div className="flex items-center text-green-600">
+                  <TrendingUp className="h-4 w-4 mr-1" />
+                  <span className="text-sm font-medium">
+                    +{dashboardStats.progressIncrease}%
                   </span>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${
-                      item.category === "Exceeded"
-                        ? "bg-green-500"
-                        : item.category === "Met"
-                        ? "bg-blue-500"
-                        : item.category === "Partially Met"
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                    }`}
-                    style={{ width: `${item.percentage}%` }}
-                  ></div>
+              </div>
+              <p className="text-sm text-gray-500">From last month</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="bg-green-50 rounded-t-xl p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Goals Progress</h3>
+                <div className="bg-green-100 rounded-full p-2">
+                  <Target className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="flex items-end gap-3 mb-2">
+                <span className="text-3xl font-bold text-gray-900">
+                  {dashboardStats.goalProgress}%
+                </span>
+                <div className="flex items-center text-green-600">
+                  <TrendingUp className="h-4 w-4 mr-1" />
+                  <span className="text-sm font-medium">
+                    +{dashboardStats.progressIncrease}%
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500">Average completion rate</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="bg-orange-50 rounded-t-xl p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Upcoming Deadlines</h3>
+                <div className="bg-orange-100 rounded-full p-2">
+                  <Calendar className="h-5 w-5 text-orange-600" />
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="flex items-end gap-3 mb-2">
+                <span className="text-3xl font-bold text-gray-900">
+                  {dashboardStats.upcomingDeadlines}
+                </span>
+                <span className="text-sm text-orange-600 font-medium">This month</span>
+              </div>
+              <p className="text-sm text-gray-500">
+                Next: {upcomingDeadlines.length > 0
+                  ? `${upcomingDeadlines[0]?.name} (${upcomingDeadlines[0]?.daysLeft} days)`
+                  : "No upcoming deadlines"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Access to PMS Modules */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            Performance Management Modules
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pmsModules.map((module) => (
+              <div
+                key={module.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className={`rounded-t-xl p-6 border-b border-gray-200 ${module.color}`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900">{module.name}</h3>
+                    <div className={`rounded-full p-2 ${module.iconBg}`}>
+                      <module.icon className={`h-5 w-5 ${module.iconColor}`} />
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <p className="text-gray-600 mb-4">{module.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-500">
+                      {module.count} items
+                    </span>
+                    <div className="bg-gray-100 rounded-full p-2">
+                      <ArrowUpRight className="h-4 w-4 text-gray-600" />
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Recent Performance Reviews */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-2">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold text-gray-800">
-              Recent Performance Reviews
-            </h2>
-            <Link
-              to="/pms/performanceReviews"
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center"
-            >
-              View all <ArrowUpRight className="h-3 w-3 ml-1" />
-            </Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Employee
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rating
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentReviews.map((review) => (
-                  <tr key={review.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {review.employeeName}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {review.position}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {review.reviewType}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(review.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          review.status === "Completed"
-                            ? "bg-green-100 text-green-800"
-                            : review.status === "In Progress"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {review.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-sm">
-                      {review.rating ? (
-                        <div className="flex items-center">
-                          <Star
-                            className="h-4 w-4 text-yellow-500 mr-1 fill-current"
-                            fill="currentColor"
-                          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Real KPI Performance Summary */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 lg:col-span-1">
+            <div className="bg-gray-50 rounded-t-xl p-6 border-b border-gray-200">
+              <h2 className="font-bold text-xl text-gray-900">KPI Performance</h2>
+              <p className="text-gray-600 text-sm mt-1">Current month overview</p>
+            </div>
+            <div className="p-6">
+              <div className="space-y-6">
+                {kpiData.length > 0 ? (
+                  kpiData.map((item) => (
+                    <div key={item.category} className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${item.bgColor}`}>
+                            <item.icon className={`h-4 w-4 ${item.iconColor}`} />
+                          </div>
                           <span className="font-medium text-gray-800">
-                            {review.rating}
+                            {item.category}
                           </span>
                         </div>
-                      ) : (
-                        <span className="text-gray-400">Pending</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        <span className="font-bold text-gray-900">
+                          {item.percentage}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${item.color} transition-all duration-1000 ease-out`}
+                          style={{ width: `${item.percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <PieChart className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">No KPI data available</p>
+                    <p className="text-gray-400 text-sm mt-1">Data will appear as tasks are completed</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Performance Reviews from Backend */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 lg:col-span-2">
+            <div className="bg-gray-50 rounded-t-xl p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="font-bold text-xl text-gray-900">Recent Performance Reviews</h2>
+                <div className="bg-gray-200 rounded-full p-2">
+                  <FileText className="h-4 w-4 text-gray-600" />
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Employee
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Task
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Due Date
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Progress
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {recentReviews.length > 0 ? (
+                      recentReviews.map((review) => (
+                        <tr key={review.id} className="hover:bg-gray-50 transition-colors duration-200">
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">
+                                {review.employeeName}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {review.department}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {review.taskName}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {new Date(review.dueDate).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                                review.status === "Completed"
+                                  ? "bg-green-100 text-green-800 border border-green-200"
+                                  : review.status === "In Progress"
+                                  ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                  : "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                              }`}
+                            >
+                              {review.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center">
+                              <div className="w-20 bg-gray-200 rounded-full h-2 mr-3">
+                                <div
+                                  className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                  style={{ width: `${review.progress || 0}%` }}
+                                ></div>
+                              </div>
+                              <span className="font-medium text-gray-800">
+                                {review.progress || 0}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="5" className="px-4 py-12 text-center">
+                          <div className="flex flex-col items-center">
+                            <FileText className="h-10 w-10 text-gray-300 mb-3" />
+                            <p className="text-gray-500 font-medium">No recent performance reviews found</p>
+                            <p className="text-gray-400 text-sm mt-1">Reviews will appear here as they are completed</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>

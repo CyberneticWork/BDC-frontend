@@ -53,7 +53,7 @@ class PMSService {
   }
 
   // Dashboard Statistics
-  async getDashboardStats() {
+  async getPMSDashboardStats() {
     try {
       const response = await axios.get('/pms/dashboard/stats');
       return response.data;
@@ -63,9 +63,11 @@ class PMSService {
     }
   }
 
-  async getRecentReviews() {
+  async getRecentPerformanceReviews(limit = 5) {
     try {
-      const response = await axios.get('/pms/dashboard/recent-reviews');
+      const response = await axios.get('/pms/performance-reviews', { 
+        params: { per_page: limit, recent: true } 
+      });
       return response.data;
     } catch (error) {
       console.error("Error fetching recent reviews:", error);
@@ -83,13 +85,19 @@ class PMSService {
     }
   }
 
-  async getKpiPerformance() {
+  /**
+   * Get KPI performance stats for dashboard cards.
+   * params: { start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }
+   * returns: { onTarget, needAttention, totalInWindow, startDate, endDate }
+   */
+  async getKpiPerformance(params = {}) {
     try {
-      const response = await axios.get('/pms/dashboard/KPIs');
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching KPI performance:", error);
-      throw error;
+      const res = await axios.get('/pms/dashboard/KPIs', { params });
+      // backend returns { data: { onTarget, needAttention, ... } }
+      return res.data?.data ?? res.data;
+    } catch (err) {
+      console.error('PMSService.getKpiPerformance error', err?.response?.data ?? err);
+      throw err;
     }
   }
 
@@ -148,6 +156,37 @@ class PMSService {
     }
   }
 
+  // KPI Tasks CRUD operations
+  async createKpiTask(taskData) {
+    try {
+      const response = await axios.post('/kpi-tasks', taskData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating KPI task:", error);
+      throw error;
+    }
+  }
+
+  async updateKpiTask(id, taskData) {
+    try {
+      const response = await axios.put(`/kpi-tasks/${id}`, taskData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating KPI task:", error);
+      throw error;
+    }
+  }
+
+  async deleteKpiTask(id) {
+    try {
+      const response = await axios.delete(`/kpi-tasks/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting KPI task:", error);
+      throw error;
+    }
+  }
+
   async getCreatorRoles() {
     try {
       const response = await axios.get('/creator-roles');
@@ -158,6 +197,39 @@ class PMSService {
     }
   }
 
+  // Create a new creator role
+  async createCreatorRole(roleData) {
+    try {
+      const response = await axios.post('/creator-roles', roleData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating creator role:", error);
+      throw error;
+    }
+  }
+
+  // Update an existing creator role
+  async updateCreatorRole(id, roleData) {
+    try {
+      const response = await axios.put(`/creator-roles/${id}`, roleData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating creator role:", error);
+      throw error;
+    }
+  }
+
+  // Delete a creator role
+  async deleteCreatorRole(id) {
+    try {
+      const response = await axios.delete(`/creator-roles/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting creator role:", error);
+      throw error;
+    }
+  }
+  
   async getCompanies() {
     try {
       const response = await axios.get('/pms/companies');
@@ -392,8 +464,56 @@ class PMSService {
       throw error;
     }
   }
-  // --- end added methods ---
+
+  // Get KPI tasks that need approval
+  async getKpiTasksForApproval() {
+    try {
+      // Reuse the assignments endpoint and derive an approval_status so the UI continues to work
+      const res = await axios.get('/pms/kpi-task-assignments-for-approval');
+      const raw = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+
+      const mapped = raw.map(item => {
+        const status = (item.approval_status ?? item.status ?? "").toString().toLowerCase();
+        // Default mapping: treat active assignments as pending approval unless explicit approval_status provided
+        const approval_status = item.approval_status
+          ? item.approval_status
+          : (status === "active" ? "pending" : (status || "pending"));
+
+        return {
+          ...item,
+          approval_status,
+        };
+      });
+
+      return mapped;
+    } catch (error) {
+      console.error("PMSService.getKpiTasksForApproval error", error?.response?.data ?? error);
+      throw error;
+    }
+  }
+
+  // Approve a KPI assignment (calls backend)
+  async approveKpiTask(id) {
+    try {
+      const res = await axios.post(`/pms/kpi-tasks/${id}/approve`);
+      return res.data;
+    } catch (error) {
+      console.error(`Error approving KPI task ${id}:`, error?.response?.data ?? error);
+      throw error;
+    }
+  }
+
+  // Reject a KPI assignment with an optional reason
+  async rejectKpiTask(id, reason = null) {
+    try {
+      const payload = reason ? { reason } : {};
+      const res = await axios.post(`/pms/kpi-tasks/${id}/reject`, payload);
+      return res.data;
+    } catch (error) {
+      console.error(`Error rejecting KPI task ${id}:`, error?.response?.data ?? error);
+      throw error;
+    }
+  }
 }
 
-// Change the export to export an instance instead of the class
 export default new PMSService();

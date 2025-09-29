@@ -23,6 +23,7 @@ import {
   PieChart,
   BookOpen, // Add for LMS
   Calculator, // Add for Accounting
+  Shield,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -122,6 +123,7 @@ const Sidebar = ({
           icon: ClipboardCheck,
         },
         { id: "kpis", name: "KPIs", icon: PieChart },
+        { id: "taskApproval", name: "Task Approval", icon: Shield }, // Add this line
         { id: "myKPIs", name: "My KPI Tasks", icon: User },
         { id: "employeeEvaluation", name: "Employee Evaluation", icon: Award },
         // { id: "goals", name: "Goals & OKRs", icon: Target },
