@@ -21,6 +21,7 @@ const GRN = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showNewGRNModal, setShowNewGRNModal] = useState(false);
   const [selectedGRN, setSelectedGRN] = useState(null);
 
   useEffect(() => {
@@ -79,6 +80,268 @@ const GRN = () => {
     received: filteredGRN.filter(grn => grn.status.toLowerCase() === 'received').reduce((sum, grn) => sum + grn.totalAmount, 0),
     partial: filteredGRN.filter(grn => grn.status.toLowerCase() === 'partial').reduce((sum, grn) => sum + grn.totalAmount, 0),
     count: filteredGRN.length
+  };
+
+  const handleAddNewGRN = (newGRNData) => {
+    const addedGRN = addGRN(newGRNData);
+    const updatedGRN = getGRN();
+    setGrnRecords(updatedGRN);
+    setFilteredGRN(updatedGRN);
+    setShowNewGRNModal(false);
+  };
+
+  const NewGRNModal = ({ onClose, onSave }) => {
+    const [formData, setFormData] = useState({
+      supplier: '',
+      purchaseOrder: '',
+      receivedDate: new Date().toISOString().split('T')[0],
+      status: 'Received',
+      remarks: '',
+      items: [{ productName: '', orderedQty: 1, receivedQty: 1, unitPrice: 0, total: 0 }]
+    });
+
+    const [totalAmount, setTotalAmount] = useState(0);
+
+    useEffect(() => {
+      const newTotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+      setTotalAmount(newTotal);
+    }, [formData.items]);
+
+    const handleInputChange = (field, value) => {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleItemChange = (index, field, value) => {
+      const updatedItems = [...formData.items];
+      updatedItems[index][field] = value;
+      
+      // Recalculate total for this item
+      if (field === 'receivedQty' || field === 'unitPrice') {
+        updatedItems[index].total = updatedItems[index].receivedQty * updatedItems[index].unitPrice;
+      }
+      
+      setFormData(prev => ({ ...prev, items: updatedItems }));
+    };
+
+    const addItem = () => {
+      setFormData(prev => ({
+        ...prev,
+        items: [...prev.items, { productName: '', orderedQty: 1, receivedQty: 1, unitPrice: 0, total: 0 }]
+      }));
+    };
+
+    const removeItem = (index) => {
+      if (formData.items.length > 1) {
+        const updatedItems = formData.items.filter((_, i) => i !== index);
+        setFormData(prev => ({ ...prev, items: updatedItems }));
+      }
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      
+      // Validate form
+      if (!formData.supplier || !formData.purchaseOrder) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      if (formData.items.some(item => !item.productName || item.orderedQty <= 0 || item.receivedQty <= 0 || item.unitPrice <= 0)) {
+        alert('Please fill in all item details correctly');
+        return;
+      }
+
+      const grnData = {
+        ...formData,
+        totalAmount
+      };
+      
+      onSave(grnData);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold">Create New GRN</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Supplier *</label>
+                <input
+                  type="text"
+                  value={formData.supplier}
+                  onChange={(e) => handleInputChange('supplier', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Order *</label>
+                <input
+                  type="text"
+                  value={formData.purchaseOrder}
+                  onChange={(e) => handleInputChange('purchaseOrder', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Received Date</label>
+                <input
+                  type="date"
+                  value={formData.receivedDate}
+                  onChange={(e) => handleInputChange('receivedDate', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => handleInputChange('status', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Received">Received</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                <textarea
+                  value={formData.remarks}
+                  onChange={(e) => handleInputChange('remarks', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Enter any remarks"
+                />
+              </div>
+            </div>
+
+            {/* Items Section */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-medium text-gray-700">GRN Items</h4>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </button>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 px-4 py-2 text-left">Product Name *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-center">Ordered Qty *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-center">Received Qty *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Unit Price *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Total</th>
+                      <th className="border border-gray-300 px-4 py-2 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formData.items.map((item, index) => (
+                      <tr key={index}>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="text"
+                            value={item.productName}
+                            onChange={(e) => handleItemChange(index, 'productName', e.target.value)}
+                            className="w-full border-0 focus:ring-0 focus:outline-none"
+                            placeholder="Enter product name"
+                            required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="number"
+                            value={item.orderedQty}
+                            onChange={(e) => handleItemChange(index, 'orderedQty', parseInt(e.target.value) || 0)}
+                            className="w-full border-0 focus:ring-0 focus:outline-none text-center"
+                            min="1"
+                            required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="number"
+                            value={item.receivedQty}
+                            onChange={(e) => handleItemChange(index, 'receivedQty', parseInt(e.target.value) || 0)}
+                            className="w-full border-0 focus:ring-0 focus:outline-none text-center"
+                            min="0"
+                            required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-full border-0 focus:ring-0 focus:outline-none text-right"
+                            step="0.01"
+                            min="0"
+                            required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-right font-medium">
+                          ${item.total.toFixed(2)}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="text-red-600 hover:text-red-800 disabled:text-gray-400"
+                            disabled={formData.items.length === 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-100 font-bold">
+                      <td colSpan="4" className="border border-gray-300 px-4 py-2 text-right">Total Amount:</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right">${totalAmount.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-4 py-2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Create GRN
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   const GRNViewModal = ({ grn, onClose }) => {
@@ -174,7 +437,10 @@ const GRN = () => {
               <h1 className="text-2xl font-bold text-gray-900">Goods Receipt Note (GRN)</h1>
               <p className="text-gray-600 mt-1">Track and manage received goods</p>
             </div>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+            <button 
+              onClick={() => setShowNewGRNModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
               <Plus className="h-5 w-5" />
               New GRN
             </button>
@@ -333,6 +599,13 @@ const GRN = () => {
               setShowViewModal(false);
               setSelectedGRN(null);
             }}
+          />
+        )}
+        
+        {showNewGRNModal && (
+          <NewGRNModal
+            onClose={() => setShowNewGRNModal(false)}
+            onSave={handleAddNewGRN}
           />
         )}
       </div>

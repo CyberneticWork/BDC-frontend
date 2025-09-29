@@ -29,6 +29,7 @@ const Invoices = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Load initial data from service
@@ -86,6 +87,341 @@ const Invoices = () => {
     paid: filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0),
     pending: filteredInvoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + inv.amount, 0),
     overdue: filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + inv.amount, 0)
+  };
+
+  const NewInvoiceModal = ({ isOpen, onClose }) => {
+    const [formData, setFormData] = useState({
+      customer: '',
+      customerEmail: '',
+      date: new Date().toISOString().split('T')[0],
+      dueDate: '',
+      status: 'pending',
+      items: [{ description: '', quantity: 1, rate: 0, amount: 0 }]
+    });
+    const [errors, setErrors] = useState({});
+
+    useEffect(() => {
+      if (isOpen) {
+        // Reset form when modal opens
+        setFormData({
+          customer: '',
+          customerEmail: '',
+          date: new Date().toISOString().split('T')[0],
+          dueDate: '',
+          status: 'pending',
+          items: [{ description: '', quantity: 1, rate: 0, amount: 0 }]
+        });
+        setErrors({});
+      }
+    }, [isOpen]);
+
+    const addItem = () => {
+      setFormData(prev => ({
+        ...prev,
+        items: [...prev.items, { description: '', quantity: 1, rate: 0, amount: 0 }]
+      }));
+    };
+
+    const removeItem = (index) => {
+      if (formData.items.length > 1) {
+        setFormData(prev => ({
+          ...prev,
+          items: prev.items.filter((_, i) => i !== index)
+        }));
+      }
+    };
+
+    const updateItem = (index, field, value) => {
+      const newItems = [...formData.items];
+      newItems[index] = { ...newItems[index], [field]: value };
+      
+      // Calculate amount if quantity or rate changed
+      if (field === 'quantity' || field === 'rate') {
+        newItems[index].amount = newItems[index].quantity * newItems[index].rate;
+      }
+      
+      setFormData(prev => ({ ...prev, items: newItems }));
+    };
+
+    const calculateTotal = () => {
+      return formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+    };
+
+    const validateForm = () => {
+      const newErrors = {};
+      
+      if (!formData.customer.trim()) newErrors.customer = 'Customer name is required';
+      if (!formData.customerEmail.trim()) newErrors.customerEmail = 'Customer email is required';
+      if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
+      
+      // Validate items
+      formData.items.forEach((item, index) => {
+        if (!item.description.trim()) {
+          newErrors[`item_${index}_description`] = 'Description is required';
+        }
+        if (item.quantity <= 0) {
+          newErrors[`item_${index}_quantity`] = 'Quantity must be greater than 0';
+        }
+        if (item.rate <= 0) {
+          newErrors[`item_${index}_rate`] = 'Rate must be greater than 0';
+        }
+      });
+      
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      
+      if (!validateForm()) {
+        return;
+      }
+      
+      setIsSubmitting(true);
+      
+      try {
+        const invoiceData = {
+          ...formData,
+          amount: calculateTotal()
+        };
+        
+        const newInvoice = addInvoice(invoiceData);
+        setInvoices(prev => [...prev, newInvoice]);
+        setFilteredInvoices(prev => [...prev, newInvoice]);
+        
+        onClose();
+      } catch (error) {
+        console.error('Error creating invoice:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold">Create New Invoice</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            {/* Customer Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.customer}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.customer ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter customer name"
+                />
+                {errors.customer && <p className="text-red-500 text-sm mt-1">{errors.customer}</p>}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Customer Email *
+                </label>
+                <input
+                  type="email"
+                  value={formData.customerEmail}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customerEmail: e.target.value }))}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.customerEmail ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter customer email"
+                />
+                {errors.customerEmail && <p className="text-red-500 text-sm mt-1">{errors.customerEmail}</p>}
+              </div>
+            </div>
+
+            {/* Invoice Details */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Invoice Date *
+                </label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Due Date *
+                </label>
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.dueDate ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.dueDate && <p className="text-red-500 text-sm mt-1">{errors.dueDate}</p>}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Invoice Items */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-medium text-gray-900">Invoice Items</h4>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </button>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 px-4 py-2 text-left">Description *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-center">Qty *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Rate *</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Amount</th>
+                      <th className="border border-gray-300 px-4 py-2 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formData.items.map((item, index) => (
+                      <tr key={index}>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) => updateItem(index, 'description', e.target.value)}
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 ${
+                              errors[`item_${index}_description`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                            placeholder="Item description"
+                          />
+                          {errors[`item_${index}_description`] && (
+                            <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_description`]}</p>
+                          )}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-center ${
+                              errors[`item_${index}_quantity`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {errors[`item_${index}_quantity`] && (
+                            <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_quantity`]}</p>
+                          )}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.rate}
+                            onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                            className={`w-full px-2 py-1 border rounded focus:ring-1 focus:ring-blue-500 text-right ${
+                              errors[`item_${index}_rate`] ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {errors[`item_${index}_rate`] && (
+                            <p className="text-red-500 text-xs mt-1">{errors[`item_${index}_rate`]}</p>
+                          )}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-right font-medium">
+                          ${item.amount.toFixed(2)}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-center">
+                          {formData.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeItem(index)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50 font-semibold">
+                      <td colSpan="3" className="border border-gray-300 px-4 py-2 text-right">Total:</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right">${calculateTotal().toFixed(2)}</td>
+                      <td className="border border-gray-300 px-4 py-2"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Create Invoice
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   const InvoiceViewModal = ({ invoice, onClose }) => {
@@ -336,6 +672,11 @@ const Invoices = () => {
         </div>
 
         {/* Modals */}
+        <NewInvoiceModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+        />
+        
         {showViewModal && (
           <InvoiceViewModal
             invoice={selectedInvoice}
