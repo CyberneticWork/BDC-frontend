@@ -186,12 +186,12 @@ const AccountBalances = () => {
   );
 };
 
-const QuickActions = () => {
+const QuickActions = ({ onNavigate }) => {
   const actions = [
-    { icon: 'plus', title: 'New Invoice', color: 'blue' },
-    { icon: 'file-text', title: 'Create Bill', color: 'red' },
-    { icon: 'dollar-sign', title: 'Record Payment', color: 'green' },
-    { icon: 'upload', title: 'Import Data', color: 'purple' },
+    { icon: 'plus', title: 'New Invoice', color: 'blue', action: 'invoices' },
+    { icon: 'file-text', title: 'Create Bill', color: 'red', action: 'expenses' },
+    { icon: 'dollar-sign', title: 'Record Payment', color: 'green', action: 'transactionsList' },
+    { icon: 'upload', title: 'Import Data', color: 'purple', action: 'accountingSettings' },
   ];
 
   const colorClasses = {
@@ -208,6 +208,7 @@ const QuickActions = () => {
         {actions.map((action, index) => (
           <button 
             key={index} 
+            onClick={() => onNavigate && onNavigate(action.action)}
             className={`flex flex-col items-center justify-center p-4 rounded-lg ${colorClasses[action.color]?.bg} ${colorClasses[action.color]?.hover} transition-colors`}
           >
             <div className={`p-3 rounded-full mb-2 ${colorClasses[action.color]?.iconBg}`}>
@@ -255,18 +256,103 @@ const FinancialSummary = () => {
   );
 };
 
-const Dashboard = () => {
+// New Accounting Sections Component
+const AccountingSections = ({ onNavigate }) => {
+  const sections = [
+    {
+      title: "Management",
+      items: [
+        { name: "Customer Management", icon: "users", action: "customer", description: "Manage customers and client information" },
+        { name: "Center Management", icon: "home", action: "center", description: "Manage business centers" }
+      ]
+    },
+    {
+      title: "Chart of Accounts",
+      items: [
+        { name: "Account List", icon: "list", action: "accountList", description: "View and manage all accounts" }
+      ]
+    },
+    {
+      title: "Transactions", 
+      items: [
+        { name: "Transaction List", icon: "file-text", action: "transactionsList", description: "View all transactions" },
+        { name: "Invoices", icon: "file", action: "invoices", description: "Create and manage invoices" },
+        { name: "Sales Orders", icon: "shopping-cart", action: "salesOrder", description: "Manage sales orders" },
+        { name: "Purchase Orders", icon: "shopping-bag", action: "purchaseOrder", description: "Manage purchase orders" },
+        { name: "GRN", icon: "truck", action: "grn", description: "Goods Received Notes" },
+        { name: "Stock Transfer", icon: "refresh-cw", action: "stockTransfer", description: "Transfer stock between locations" }
+      ]
+    },
+    {
+      title: "Finance Reports",
+      items: [
+        { name: "Trial Balance", icon: "bar-chart-2", action: "trialBalance", description: "View trial balance reports" },
+        { name: "Income Statement", icon: "trending-up", action: "incomeStatement", description: "Profit and loss statements" },
+        { name: "Balance Sheet", icon: "pie-chart", action: "balanceSheet", description: "Assets, liabilities & equity" },
+        { name: "Cash Flow Statement", icon: "dollar-sign", action: "cashFlowStatement", description: "Cash flow analysis" }
+      ]
+    },
+    {
+      title: "Other",
+      items: [
+        { name: "Ledger", icon: "book", action: "ledger", description: "General ledger entries" },
+        { name: "Expenses", icon: "credit-card", action: "expenses", description: "Manage business expenses" },
+        { name: "Settings", icon: "settings", action: "accountingSettings", description: "Configure accounting settings" }
+      ]
+    }
+  ];
+
+  return (
+    <div className="space-y-8">
+      {sections.map((section, sectionIndex) => (
+        <div key={sectionIndex} className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{section.title}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {section.items.map((item, itemIndex) => (
+              <button
+                key={itemIndex}
+                onClick={() => onNavigate && onNavigate(item.action)}
+                className="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-blue-50 hover:shadow-md transition-all duration-200 group text-left"
+              >
+                <div className="flex-shrink-0 mr-3">
+                  <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                    <i data-feather={item.icon} className="text-blue-600 h-5 w-5"></i>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900 group-hover:text-blue-900">{item.name}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const Dashboard = ({ setActiveItem }) => {
   useEffect(() => {
     // Replace feather icons after component mounts
     feather.replace();
   }, []);
+
+  const handleNavigate = (action) => {
+    if (setActiveItem) {
+      setActiveItem(action);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">Accounting Dashboard</h1>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Accounting Dashboard</h1>
+            <p className="text-sm text-gray-600 mt-1">Overview of your accounting system and quick access to all modules</p>
+          </div>
           <div className="flex items-center space-x-4">
             <button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200">
               <i data-feather="bell"></i>
@@ -283,6 +369,19 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        {/* Welcome Section */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Welcome to Accounting</h2>
+              <p className="text-blue-100">Manage your financial operations efficiently with our comprehensive accounting tools</p>
+            </div>
+            <div className="hidden md:block">
+              <i data-feather="bar-chart-2" className="h-16 w-16 text-blue-200"></i>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="dashboard-grid mb-8" style={{
           display: 'grid',
@@ -325,11 +424,14 @@ const Dashboard = () => {
           <FinancialChart type="revenue-expenses" />
         </div>
 
+        {/* Accounting Sections */}
+        <AccountingSections onNavigate={handleNavigate} />
+
         {/* Bottom Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <RecentTransactions />
-            <QuickActions />
+            <QuickActions onNavigate={handleNavigate} />
           </div>
           <div className="space-y-6">
             <AccountBalances />
