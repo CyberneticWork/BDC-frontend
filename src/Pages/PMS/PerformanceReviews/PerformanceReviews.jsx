@@ -67,7 +67,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
   const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
   const statusOptions = ['Completed', 'In Progress', 'Pending'];
 
-  // Map from task name to performance metric key
+  // Map from task name to performance metric key (legacy / preferred mappings)
   const taskNameToMetricKey = {
     "Job Knowledge and Skills": "jobKnowledge",
     "Quality of Work": "qualityOfWork",
@@ -83,6 +83,24 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
     "Adherence to the given Guidelines": "adherenceToGuidelines"
   };
 
+  // Derive a stable camelCase key from any task name
+  const makeMetricKeyFromName = (name = "") => {
+    if (!name) return "generalPerformance";
+    return name
+      .replace(/[^a-zA-Z0-9 ]+/g, " ")
+      .trim()
+      .split(/\s+/)
+      .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1))
+      .join("");
+  };
+  
+  // Return metric key for a task: prefer explicit mapping, else derive from name
+  const getMetricKeyFromTask = (task) => {
+    if (!task || !task.name) return "generalPerformance";
+    if (taskNameToMetricKey[task.name]) return taskNameToMetricKey[task.name];
+    return makeMetricKeyFromName(task.name);
+  };
+  
   // Fetch detailed task and submission data when using database
   useEffect(() => {
     if (isOpen && review && review.id) { // Remove useDatabase check
@@ -147,22 +165,30 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
   };
 
   const linkedTask = getLinkedTask();
-  const taskSpecificMetricKey = linkedTask ? taskNameToMetricKey[linkedTask.name] : null;
+  const taskSpecificMetricKey = linkedTask ? getMetricKeyFromTask(linkedTask) : null;
 
+  // Ensure dynamic metric key exists in performanceMetrics state when linkedTask or review changes
+  useEffect(() => {
+    if (!taskSpecificMetricKey) return;
+    setPerformanceMetrics(prev => {
+      if (prev.hasOwnProperty(taskSpecificMetricKey)) return prev;
+      return { ...prev, [taskSpecificMetricKey]: review?.progress ?? 0 };
+    });
+  }, [taskSpecificMetricKey, review?.progress]);
+  
   // Calculate overall progress from the performance metrics
   const calculateOverallProgress = (metrics) => {
-    if (taskSpecificMetricKey) {
-      // If task-specific, use only that metric's value
+    // If a task-specific key exists, prefer its value (covers DB tasks and legacy mapping)
+    if (taskSpecificMetricKey && metrics.hasOwnProperty(taskSpecificMetricKey)) {
       return metrics[taskSpecificMetricKey] || 0;
-    } else {
-      // Fallback to average of all metrics
-      const values = Object.values(metrics);
-      if (values.length === 0) return 0;
-      const sum = values.reduce((acc, val) => acc + val, 0);
-      return Math.round(sum / values.length);
     }
+    // Otherwise fallback to the average of all metrics
+    const values = Object.values(metrics);
+    if (values.length === 0) return 0;
+    const sum = values.reduce((acc, val) => acc + (Number(val) || 0), 0);
+    return Math.round(sum / values.length);
   };
-
+  
   // Update progress whenever performanceMetrics changes
   useEffect(() => {
     const overall = calculateOverallProgress(performanceMetrics);

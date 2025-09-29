@@ -286,11 +286,29 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     return new Date().toISOString().split('T')[0];
   };
 
+  // Mode-aware min start date:
+  // - Create mode: disallow past dates (min = today)
+  // - Edit mode: allow selecting back to the record creation date (if provided) or existing startDate
+  const computeMinStartDate = (initial) => {
+    if (!isEdit) return getToday();
+    const created = initial?.created_at || initial?.createdAt || initial?.created || initial?.startDate || null;
+    if (created) {
+      try {
+        return new Date(created).toISOString().split('T')[0];
+      } catch (e) {
+        // fallthrough
+      }
+    }
+    return initial?.startDate || getToday();
+  };
+
+  const minStartDateForMode = computeMinStartDate(initialData);
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Prevent start date in the past
-    if (formData.startDate && formData.startDate < getToday()) {
+    // Prevent start date in the past only for Create mode
+    if (!isEdit && formData.startDate && formData.startDate < getToday()) {
       Swal.fire({
         icon: "warning",
         title: "Invalid Start Date",
@@ -736,7 +754,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                     value={formData.startDate}
                     onChange={handleChange}
                     required
-                    min={getToday()}
+                    min={minStartDateForMode}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
