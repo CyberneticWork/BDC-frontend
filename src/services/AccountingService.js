@@ -783,6 +783,718 @@ const staticData = {
       remarks: "Monthly verification in progress"
     }
   ],
+  // Supplier Bills data
+  supplierBills: [
+    {
+      id: 1,
+      billNumber: 'SB-001',
+      supplier: 'ABC Suppliers Ltd',
+      billDate: '2024-01-15',
+      dueDate: '2024-02-15',
+      referenceNumber: 'REF-2024-001',
+      description: 'Office supplies and equipment',
+      amount: 2500.00,
+      tax: 250.00,
+      totalAmount: 2750.00,
+      account: 'Office Supplies',
+      status: 'Pending',
+      items: [
+        { description: 'Office chairs', quantity: 5, rate: 200, amount: 1000 },
+        { description: 'Desk accessories', quantity: 10, rate: 150, amount: 1500 }
+      ]
+    },
+    {
+      id: 2,
+      billNumber: 'SB-002',
+      supplier: 'Tech Solutions Inc',
+      billDate: '2024-01-20',
+      dueDate: '2024-02-20',
+      referenceNumber: 'REF-2024-002',
+      description: 'Software licenses and hardware',
+      amount: 5000.00,
+      tax: 500.00,
+      totalAmount: 5500.00,
+      account: 'IT Equipment',
+      status: 'Paid',
+      items: [
+        { description: 'Software licenses', quantity: 10, rate: 300, amount: 3000 },
+        { description: 'Computer hardware', quantity: 2, rate: 1000, amount: 2000 }
+      ]
+    },
+    {
+      id: 3,
+      billNumber: 'SB-003',
+      supplier: 'Maintenance Services Co',
+      billDate: '2024-01-25',
+      dueDate: '2024-02-10',
+      referenceNumber: 'REF-2024-003',
+      description: 'Building maintenance and repairs',
+      amount: 1800.00,
+      tax: 180.00,
+      totalAmount: 1980.00,
+      account: 'Maintenance Expenses',
+      status: 'Overdue',
+      items: [
+        { description: 'HVAC maintenance', quantity: 1, rate: 800, amount: 800 },
+        { description: 'Plumbing repairs', quantity: 1, rate: 600, amount: 600 },
+        { description: 'Electrical work', quantity: 1, rate: 400, amount: 400 }
+      ]
+    }
+  ],
+  // Suppliers data
+  suppliers: [
+    {
+      id: 1,
+      name: 'ABC Suppliers Ltd',
+      contactPerson: 'John Smith',
+      phone: '+1-555-0101',
+      email: 'contact@abcsuppliers.com',
+      address: '123 Business Park, Industrial Area',
+      city: 'New York',
+      category: 'Office Supplies',
+      paymentTerms: 'Net 30'
+    },
+    {
+      id: 2,
+      name: 'Tech Solutions Inc',
+      contactPerson: 'Sarah Johnson',
+      phone: '+1-555-0102',
+      email: 'sales@techsolutions.com',
+      address: '456 Tech Street, Silicon Valley',
+      city: 'San Francisco',
+      category: 'Technology',
+      paymentTerms: 'Net 45'
+    },
+    {
+      id: 3,
+      name: 'Maintenance Services Co',
+      contactPerson: 'Mike Wilson',
+      phone: '+1-555-0103',
+      email: 'service@maintenanceco.com',
+      address: '789 Service Road, Downtown',
+      city: 'Chicago',
+      category: 'Maintenance',
+      paymentTerms: 'Net 15'
+    },
+    {
+      id: 4,
+      name: 'Power Electric Company',
+      contactPerson: 'Lisa Brown',
+      phone: '+1-555-0104',
+      email: 'billing@powerelectric.com',
+      address: '321 Energy Avenue',
+      city: 'Houston',
+      category: 'Utilities',
+      paymentTerms: 'Due on Receipt'
+    },
+    {
+      id: 5,
+      name: 'City Water Works',
+      contactPerson: 'David Chen',
+      phone: '+1-555-0105',
+      email: 'accounts@citywater.gov',
+      address: '654 Municipal Building',
+      city: 'Los Angeles',
+      category: 'Utilities',
+      paymentTerms: 'Net 10'
+    }
+  ],
+  // Payments data
+  payments: [
+    {
+      id: 1,
+      paymentId: 'PAY-001',
+      supplier: 'Tech Solutions Inc',
+      billNumber: 'SB-002',
+      paymentMethod: 'Bank Transfer',
+      referenceNumber: 'TXN-20240125-001',
+      paymentDate: '2024-01-25',
+      amount: 5500.00,
+      description: 'Payment for software licenses and hardware',
+      account: 'Business Checking',
+      status: 'Completed'
+    },
+    {
+      id: 2,
+      paymentId: 'PAY-002',
+      supplier: 'ABC Suppliers Ltd',
+      billNumber: 'SB-001',
+      paymentMethod: 'Check',
+      referenceNumber: 'CHK-001234',
+      paymentDate: '2024-01-30',
+      amount: 2750.00,
+      description: 'Payment for office supplies',
+      account: 'Business Checking',
+      status: 'Pending'
+    },
+    {
+      id: 3,
+      paymentId: 'PAY-003',
+      supplier: 'Power Electric Company',
+      billNumber: '',
+      paymentMethod: 'Online Transfer',
+      referenceNumber: 'AUTO-PAY-001',
+      paymentDate: '2024-02-01',
+      amount: 450.00,
+      description: 'Monthly electricity bill payment',
+      account: 'Utilities Account',
+      status: 'Completed'
+    }
+  ],
+  // Advance Payments data
+  advancePayments: [
+    {
+      id: 1,
+      advanceId: 'ADV-001',
+      supplier: 'ABC Suppliers Ltd',
+      paymentMethod: 'Bank Transfer',
+      referenceNumber: 'ADV-TXN-001',
+      paymentDate: '2024-01-10',
+      amount: 5000.00,
+      remainingAmount: 2250.00,
+      purpose: 'Purchase Order Advance',
+      description: 'Advance payment for upcoming large order',
+      account: 'Advance Payments',
+      status: 'Partially Adjusted'
+    },
+    {
+      id: 2,
+      advanceId: 'ADV-002',
+      supplier: 'Tech Solutions Inc',
+      paymentMethod: 'Check',
+      referenceNumber: 'CHK-002345',
+      paymentDate: '2024-01-15',
+      amount: 10000.00,
+      remainingAmount: 10000.00,
+      purpose: 'Project Advance',
+      description: 'Advance for annual software upgrade project',
+      account: 'Project Advances',
+      status: 'Active'
+    },
+    {
+      id: 3,
+      advanceId: 'ADV-003',
+      supplier: 'Maintenance Services Co',
+      paymentMethod: 'Cash',
+      referenceNumber: 'CASH-001',
+      paymentDate: '2024-01-20',
+      amount: 2000.00,
+      remainingAmount: 0.00,
+      purpose: 'Service Contract Advance',
+      description: 'Advance for quarterly maintenance contract',
+      account: 'Service Advances',
+      status: 'Fully Adjusted'
+    }
+  ],
+  // Deposits data
+  deposits: [
+    {
+      id: 1,
+      depositId: 'DEP-001',
+      customer: 'Acme Corporation',
+      depositType: 'Customer Payment',
+      depositMethod: 'Bank Transfer',
+      referenceNumber: 'WIRE-001',
+      depositDate: '2024-01-16',
+      amount: 15000.00,
+      description: 'Payment for invoice INV-001',
+      account: 'Business Checking',
+      status: 'Completed',
+      items: [
+        { description: 'Invoice payment INV-001', amount: 15000 }
+      ]
+    },
+    {
+      id: 2,
+      depositId: 'DEP-002',
+      customer: '',
+      depositType: 'Interest Income',
+      depositMethod: 'Bank Transfer',
+      referenceNumber: 'INT-Q1-2024',
+      depositDate: '2024-01-31',
+      amount: 250.00,
+      description: 'Quarterly interest from savings account',
+      account: 'Savings Account',
+      status: 'Completed',
+      items: [
+        { description: 'Interest income Q1 2024', amount: 250 }
+      ]
+    },
+    {
+      id: 3,
+      depositId: 'DEP-003',
+      customer: 'Tech Solutions Ltd',
+      depositType: 'Customer Payment',
+      depositMethod: 'Check',
+      referenceNumber: 'CHK-789456',
+      depositDate: '2024-02-01',
+      amount: 8750.00,
+      description: 'Payment for multiple invoices',
+      account: 'Business Checking',
+      status: 'Pending',
+      items: [
+        { description: 'Invoice INV-002 payment', amount: 5000 },
+        { description: 'Invoice INV-003 payment', amount: 3750 }
+      ]
+    }
+  ],
+  // Receipts data
+  receipts: [
+    {
+      id: 1,
+      receiptId: 'RCP-001',
+      customer: 'Acme Corporation',
+      receiptType: 'Invoice Payment',
+      paymentMethod: 'Bank Transfer',
+      referenceNumber: 'WIRE-001',
+      receiptDate: '2024-01-16',
+      amount: 15000.00,
+      description: 'Payment received for services rendered',
+      account: 'Accounts Receivable',
+      invoiceNumber: 'INV-001',
+      status: 'Received',
+      items: [
+        { description: 'Web development services', amount: 12000 },
+        { description: 'Hosting and maintenance', amount: 3000 }
+      ]
+    },
+    {
+      id: 2,
+      receiptId: 'RCP-002',
+      customer: 'Global Enterprises',
+      receiptType: 'Advance Payment',
+      paymentMethod: 'Check',
+      referenceNumber: 'CHK-654321',
+      receiptDate: '2024-01-22',
+      amount: 5000.00,
+      description: 'Advance payment for upcoming project',
+      account: 'Customer Advances',
+      invoiceNumber: '',
+      status: 'Received',
+      items: [
+        { description: 'Project advance payment', amount: 5000 }
+      ]
+    },
+    {
+      id: 3,
+      receiptId: 'RCP-003',
+      customer: 'Small Business Inc',
+      receiptType: 'Service Payment',
+      paymentMethod: 'Credit Card',
+      referenceNumber: 'CC-789012',
+      receiptDate: '2024-01-28',
+      amount: 1200.00,
+      description: 'Monthly service fee payment',
+      account: 'Service Revenue',
+      invoiceNumber: 'INV-005',
+      status: 'Received',
+      items: [
+        { description: 'Monthly consultation fee', amount: 1200 }
+      ]
+    }
+  ],
+  // Utility Bills data
+  utilityBills: [
+    {
+      id: 1,
+      billNumber: 'ELEC-001-2024',
+      provider: 'Power Electric Company',
+      utilityType: 'Electricity',
+      billDate: '2024-01-15',
+      dueDate: '2024-02-15',
+      servicePeriodFrom: '2023-12-15',
+      servicePeriodTo: '2024-01-15',
+      previousReading: 1250.5,
+      currentReading: 1380.2,
+      unitsConsumed: 129.7,
+      ratePerUnit: 0.12,
+      baseAmount: 15.56,
+      taxes: 1.56,
+      totalAmount: 17.12,
+      account: 'Utilities Expense',
+      status: 'Paid'
+    },
+    {
+      id: 2,
+      billNumber: 'WATER-001-2024',
+      provider: 'City Water Works',
+      utilityType: 'Water',
+      billDate: '2024-01-20',
+      dueDate: '2024-02-10',
+      servicePeriodFrom: '2023-12-20',
+      servicePeriodTo: '2024-01-20',
+      previousReading: 850.3,
+      currentReading: 875.8,
+      unitsConsumed: 25.5,
+      ratePerUnit: 2.50,
+      baseAmount: 63.75,
+      taxes: 6.38,
+      totalAmount: 70.13,
+      account: 'Utilities Expense',
+      status: 'Pending'
+    },
+    {
+      id: 3,
+      billNumber: 'GAS-001-2024',
+      provider: 'Metro Gas Services',
+      utilityType: 'Gas',
+      billDate: '2024-01-25',
+      dueDate: '2024-02-25',
+      servicePeriodFrom: '2023-12-25',
+      servicePeriodTo: '2024-01-25',
+      previousReading: 450.2,
+      currentReading: 485.7,
+      unitsConsumed: 35.5,
+      ratePerUnit: 1.80,
+      baseAmount: 63.90,
+      taxes: 6.39,
+      totalAmount: 70.29,
+      account: 'Utilities Expense',
+      status: 'Overdue'
+    },
+    {
+      id: 4,
+      billNumber: 'NET-001-2024',
+      provider: 'FastNet Internet',
+      utilityType: 'Internet',
+      billDate: '2024-02-01',
+      dueDate: '2024-02-28',
+      servicePeriodFrom: '2024-01-01',
+      servicePeriodTo: '2024-01-31',
+      previousReading: 0,
+      currentReading: 0,
+      unitsConsumed: 0,
+      ratePerUnit: 0,
+      baseAmount: 89.99,
+      taxes: 9.00,
+      totalAmount: 98.99,
+      account: 'Internet Expense',
+      status: 'Pending'
+    }
+  ],
+  // Utility Providers data
+  utilityProviders: [
+    {
+      id: 1,
+      name: 'Power Electric Company',
+      utilityType: 'Electricity',
+      contactPerson: 'Lisa Brown',
+      phone: '+1-555-0104',
+      email: 'billing@powerelectric.com',
+      address: '321 Energy Avenue',
+      accountNumber: 'ELEC-ACC-001'
+    },
+    {
+      id: 2,
+      name: 'City Water Works',
+      utilityType: 'Water',
+      contactPerson: 'David Chen',
+      phone: '+1-555-0105',
+      email: 'accounts@citywater.gov',
+      address: '654 Municipal Building',
+      accountNumber: 'WATER-ACC-001'
+    },
+    {
+      id: 3,
+      name: 'Metro Gas Services',
+      utilityType: 'Gas',
+      contactPerson: 'Jennifer Davis',
+      phone: '+1-555-0106',
+      email: 'billing@metrogas.com',
+      address: '987 Gas Distribution Center',
+      accountNumber: 'GAS-ACC-001'
+    },
+    {
+      id: 4,
+      name: 'FastNet Internet',
+      utilityType: 'Internet',
+      contactPerson: 'Robert Taylor',
+      phone: '+1-555-0107',
+      email: 'support@fastnet.com',
+      address: '147 Network Plaza',
+      accountNumber: 'NET-ACC-001'
+    },
+    {
+      id: 5,
+      name: 'Global Telecom',
+      utilityType: 'Phone',
+      contactPerson: 'Amanda White',
+      phone: '+1-555-0108',
+      email: 'billing@globaltelecom.com',
+      address: '258 Communication Tower',
+      accountNumber: 'PHONE-ACC-001'
+    }
+  ],
+  // Utility Bill Payments data
+  utilityBillPayments: [
+    {
+      id: 1,
+      paymentId: 'UBPAY-001',
+      provider: 'Power Electric Company',
+      utilityType: 'Electricity',
+      utilityBill: 'ELEC-001-2024',
+      billAmount: 17.12,
+      paymentMethod: 'Bank Transfer',
+      referenceNumber: 'AUTO-ELEC-001',
+      paymentDate: '2024-01-30',
+      amountPaid: 17.12,
+      discountAmount: 0.00,
+      penaltyAmount: 0.00,
+      totalPayment: 17.12,
+      account: 'Utilities Account',
+      status: 'Completed'
+    },
+    {
+      id: 2,
+      paymentId: 'UBPAY-002',
+      provider: 'Metro Gas Services',
+      utilityType: 'Gas',
+      utilityBill: 'GAS-001-2024',
+      billAmount: 70.29,
+      paymentMethod: 'Check',
+      referenceNumber: 'CHK-003456',
+      paymentDate: '2024-02-01',
+      amountPaid: 70.29,
+      discountAmount: 0.00,
+      penaltyAmount: 5.00,
+      totalPayment: 75.29,
+      account: 'Business Checking',
+      status: 'Completed'
+    },
+    {
+      id: 3,
+      paymentId: 'UBPAY-003',
+      provider: 'City Water Works',
+      utilityType: 'Water',
+      utilityBill: 'WATER-001-2024',
+      billAmount: 70.13,
+      paymentMethod: 'Online Transfer',
+      referenceNumber: 'WEB-PAY-001',
+      paymentDate: '2024-02-05',
+      amountPaid: 70.13,
+      discountAmount: 2.00,
+      penaltyAmount: 0.00,
+      totalPayment: 68.13,
+      account: 'Utilities Account',
+      status: 'Pending'
+    }
+  ],
+  // Journal Entries data
+  journalEntries: [
+    {
+      id: 1,
+      entryNumber: 'JE-001',
+      entryDate: '2024-01-31',
+      description: 'Monthly depreciation entry',
+      reference: 'DEPR-JAN-2024',
+      status: 'Posted',
+      totalAmount: 2500.00,
+      lines: [
+        {
+          account: 'Depreciation Expense',
+          description: 'Monthly depreciation on equipment',
+          debit: '2500.00',
+          credit: ''
+        },
+        {
+          account: 'Accumulated Depreciation - Equipment',
+          description: 'Monthly depreciation on equipment',
+          debit: '',
+          credit: '2500.00'
+        }
+      ]
+    },
+    {
+      id: 2,
+      entryNumber: 'JE-002',
+      entryDate: '2024-02-01',
+      description: 'Prepaid insurance adjustment',
+      reference: 'INS-ADJ-FEB',
+      status: 'Posted',
+      totalAmount: 500.00,
+      lines: [
+        {
+          account: 'Insurance Expense',
+          description: 'Monthly insurance expense',
+          debit: '500.00',
+          credit: ''
+        },
+        {
+          account: 'Prepaid Insurance',
+          description: 'Monthly insurance expense',
+          debit: '',
+          credit: '500.00'
+        }
+      ]
+    },
+    {
+      id: 3,
+      entryNumber: 'JE-003',
+      entryDate: '2024-02-02',
+      description: 'Bad debt write-off',
+      reference: 'BD-WO-001',
+      status: 'Draft',
+      totalAmount: 1200.00,
+      lines: [
+        {
+          account: 'Bad Debt Expense',
+          description: 'Write-off uncollectible account',
+          debit: '1200.00',
+          credit: ''
+        },
+        {
+          account: 'Accounts Receivable',
+          description: 'Write-off uncollectible account',
+          debit: '',
+          credit: '1200.00'
+        }
+      ]
+    }
+  ],
+  // Petty Cash Transactions data
+  pettyCashTransactions: [
+    {
+      id: 1,
+      transactionType: 'Replenishment',
+      description: 'Monthly petty cash replenishment',
+      category: 'Miscellaneous',
+      amount: 500.00,
+      date: '2024-01-01',
+      receivedBy: 'Office Manager',
+      approvedBy: 'Finance Director',
+      account: 'Petty Cash',
+      receipt: 'PC-REP-001',
+      status: 'Approved'
+    },
+    {
+      id: 2,
+      transactionType: 'Expense',
+      description: 'Office supplies - pens and paper',
+      category: 'Office Supplies',
+      amount: 25.50,
+      date: '2024-01-05',
+      receivedBy: 'John Smith',
+      approvedBy: 'Office Manager',
+      account: 'Office Supplies',
+      receipt: 'PC-001',
+      status: 'Approved'
+    },
+    {
+      id: 3,
+      transactionType: 'Expense',
+      description: 'Taxi fare for client meeting',
+      category: 'Travel & Transportation',
+      amount: 35.00,
+      date: '2024-01-08',
+      receivedBy: 'Sarah Johnson',
+      approvedBy: 'Office Manager',
+      account: 'Travel Expenses',
+      receipt: 'PC-002',
+      status: 'Approved'
+    },
+    {
+      id: 4,
+      transactionType: 'Expense',
+      description: 'Coffee for office meeting',
+      category: 'Meals & Entertainment',
+      amount: 15.75,
+      date: '2024-01-10',
+      receivedBy: 'Mike Wilson',
+      approvedBy: 'Office Manager',
+      account: 'Meeting Expenses',
+      receipt: 'PC-003',
+      status: 'Approved'
+    },
+    {
+      id: 5,
+      transactionType: 'Expense',
+      description: 'Postage stamps',
+      category: 'Postage & Shipping',
+      amount: 20.00,
+      date: '2024-01-12',
+      receivedBy: 'Lisa Brown',
+      approvedBy: 'Office Manager',
+      account: 'Postage Expense',
+      receipt: 'PC-004',
+      status: 'Approved'
+    },
+    {
+      id: 6,
+      transactionType: 'Expense',
+      description: 'Emergency repair supplies',
+      category: 'Emergency Expenses',
+      amount: 85.25,
+      date: '2024-01-15',
+      receivedBy: 'David Chen',
+      approvedBy: 'Facilities Manager',
+      account: 'Maintenance Expenses',
+      receipt: 'PC-005',
+      status: 'Approved'
+    }
+  ],
+  // Cheques data
+  cheques: [
+    {
+      id: 1,
+      chequeNumber: 'CHK-001001',
+      chequeType: 'Outgoing',
+      payeeName: 'ABC Suppliers Ltd',
+      payeeType: 'Supplier',
+      bankAccount: 'Business Checking',
+      issueDate: '2024-01-30',
+      postDate: '2024-01-30',
+      amount: 2750.00,
+      amountInWords: 'Two thousand seven hundred fifty dollars only',
+      description: 'Payment for office supplies - Bill SB-001',
+      reference: 'SB-001',
+      status: 'Cleared'
+    },
+    {
+      id: 2,
+      chequeNumber: 'CHK-001002',
+      chequeType: 'Outgoing',
+      payeeName: 'Metro Gas Services',
+      payeeType: 'Supplier',
+      bankAccount: 'Business Checking',
+      issueDate: '2024-02-01',
+      postDate: '2024-02-01',
+      amount: 75.29,
+      amountInWords: 'Seventy-five dollars and twenty-nine cents only',
+      description: 'Payment for gas bill with late penalty',
+      reference: 'GAS-001-2024',
+      status: 'Presented'
+    },
+    {
+      id: 3,
+      chequeNumber: 'CHK-001003',
+      chequeType: 'Outgoing',
+      payeeName: 'Office Rental Co',
+      payeeType: 'Other',
+      bankAccount: 'Business Checking',
+      issueDate: '2024-02-01',
+      postDate: '2024-02-01',
+      amount: 3500.00,
+      amountInWords: 'Three thousand five hundred dollars only',
+      description: 'Monthly office rent payment',
+      reference: 'RENT-FEB-2024',
+      status: 'Issued'
+    },
+    {
+      id: 4,
+      chequeNumber: 'CHK-REC-001',
+      chequeType: 'Incoming',
+      payeeName: 'Global Enterprises',
+      payeeType: 'Customer',
+      bankAccount: 'Business Checking',
+      issueDate: '2024-01-22',
+      postDate: '2024-01-22',
+      amount: 5000.00,
+      amountInWords: 'Five thousand dollars only',
+      description: 'Advance payment for upcoming project',
+      reference: 'ADV-PROJ-001',
+      status: 'Cleared'
+    }
+  ],
   expenses: [
     {
       id: 1,
@@ -1172,6 +1884,182 @@ export const deleteEnhancedExpense = (id) => {
   const index = staticData.enhancedExpenses.findIndex(expense => expense.id === id);
   if (index !== -1) {
     return staticData.enhancedExpenses.splice(index, 1)[0];
+  }
+  return null;
+};
+
+// Supplier Bills functions
+export const getSupplierBills = () => staticData.supplierBills;
+export const addSupplierBill = (bill) => {
+  const newBill = {
+    ...bill,
+    id: Date.now(),
+    billNumber: `SB-${String(staticData.supplierBills.length + 1).padStart(3, '0')}`
+  };
+  staticData.supplierBills.push(newBill);
+  return newBill;
+};
+
+export const updateSupplierBill = (id, updatedBill) => {
+  const index = staticData.supplierBills.findIndex(bill => bill.id === id);
+  if (index !== -1) {
+    staticData.supplierBills[index] = { ...staticData.supplierBills[index], ...updatedBill };
+    return staticData.supplierBills[index];
+  }
+  return null;
+};
+
+// Suppliers functions
+export const getSuppliers = () => staticData.suppliers;
+export const addSupplier = (supplier) => {
+  const newSupplier = {
+    ...supplier,
+    id: Date.now()
+  };
+  staticData.suppliers.push(newSupplier);
+  return newSupplier;
+};
+
+// Payments functions
+export const getPayments = () => staticData.payments;
+export const addPayment = (payment) => {
+  const newPayment = {
+    ...payment,
+    id: Date.now(),
+    paymentId: `PAY-${String(staticData.payments.length + 1).padStart(3, '0')}`
+  };
+  staticData.payments.push(newPayment);
+  return newPayment;
+};
+
+// Advance Payments functions
+export const getAdvancePayments = () => staticData.advancePayments;
+export const addAdvancePayment = (payment) => {
+  const newPayment = {
+    ...payment,
+    id: Date.now(),
+    advanceId: `ADV-${String(staticData.advancePayments.length + 1).padStart(3, '0')}`
+  };
+  staticData.advancePayments.push(newPayment);
+  return newPayment;
+};
+
+// Deposits functions
+export const getDeposits = () => staticData.deposits;
+export const addDeposit = (deposit) => {
+  const newDeposit = {
+    ...deposit,
+    id: Date.now(),
+    depositId: `DEP-${String(staticData.deposits.length + 1).padStart(3, '0')}`
+  };
+  staticData.deposits.push(newDeposit);
+  return newDeposit;
+};
+
+// Receipts functions
+export const getReceipts = () => staticData.receipts;
+export const addReceipt = (receipt) => {
+  const newReceipt = {
+    ...receipt,
+    id: Date.now(),
+    receiptId: `RCP-${String(staticData.receipts.length + 1).padStart(3, '0')}`
+  };
+  staticData.receipts.push(newReceipt);
+  return newReceipt;
+};
+
+// Utility Bills functions
+export const getUtilityBills = () => staticData.utilityBills;
+export const addUtilityBill = (bill) => {
+  const newBill = {
+    ...bill,
+    id: Date.now()
+  };
+  staticData.utilityBills.push(newBill);
+  return newBill;
+};
+
+// Utility Providers functions
+export const getUtilityProviders = () => staticData.utilityProviders;
+export const addUtilityProvider = (provider) => {
+  const newProvider = {
+    ...provider,
+    id: Date.now()
+  };
+  staticData.utilityProviders.push(newProvider);
+  return newProvider;
+};
+
+// Utility Bill Payments functions
+export const getUtilityBillPayments = () => staticData.utilityBillPayments;
+export const addUtilityBillPayment = (payment) => {
+  const newPayment = {
+    ...payment,
+    id: Date.now(),
+    paymentId: `UBPAY-${String(staticData.utilityBillPayments.length + 1).padStart(3, '0')}`
+  };
+  staticData.utilityBillPayments.push(newPayment);
+  return newPayment;
+};
+
+// Journal Entries functions
+export const getJournalEntries = () => staticData.journalEntries;
+export const addJournalEntry = (entry) => {
+  const newEntry = {
+    ...entry,
+    id: Date.now()
+  };
+  staticData.journalEntries.push(newEntry);
+  return newEntry;
+};
+
+// Petty Cash functions
+export const getPettyCashTransactions = () => staticData.pettyCashTransactions;
+export const addPettyCashTransaction = (transaction) => {
+  const newTransaction = {
+    ...transaction,
+    id: Date.now()
+  };
+  staticData.pettyCashTransactions.push(newTransaction);
+  return newTransaction;
+};
+
+export const getPettyCashBalance = () => {
+  // Calculate current balance based on transactions
+  const transactions = staticData.pettyCashTransactions;
+  let balance = 0;
+  
+  transactions.forEach(transaction => {
+    if (transaction.status === 'Approved') {
+      if (transaction.transactionType === 'Replenishment') {
+        balance += transaction.amount;
+      } else if (transaction.transactionType === 'Expense') {
+        balance -= transaction.amount;
+      } else if (transaction.transactionType === 'Return') {
+        balance += transaction.amount;
+      }
+    }
+  });
+  
+  return balance;
+};
+
+// Cheques functions
+export const getCheques = () => staticData.cheques;
+export const addCheque = (cheque) => {
+  const newCheque = {
+    ...cheque,
+    id: Date.now()
+  };
+  staticData.cheques.push(newCheque);
+  return newCheque;
+};
+
+export const updateCheque = (id, updatedCheque) => {
+  const index = staticData.cheques.findIndex(cheque => cheque.id === id);
+  if (index !== -1) {
+    staticData.cheques[index] = { ...staticData.cheques[index], ...updatedCheque };
+    return staticData.cheques[index];
   }
   return null;
 };
