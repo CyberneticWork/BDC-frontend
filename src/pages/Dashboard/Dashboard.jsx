@@ -89,6 +89,7 @@ import UtilityBillPayment from "../Accounting/UtilityBillPayment";
 import JournalEntry from "../Accounting/JournalEntry";
 import PettyCash from "../Accounting/PettyCash";
 import Cheque from "../Accounting/Cheque";
+import BankReconciliation from "../Accounting/BankReconciliation";
 
 
 import employeeService from "../../services/EmployeeDataService";
@@ -866,6 +867,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "cheque" ? (
               <ProtectedComponent module="cheque" action="view">
                 <Cheque />
+              </ProtectedComponent>
+            ) : activeItem === "bankReconciliation" ? (
+              <ProtectedComponent module="bankReconciliation" action="view">
+                <BankReconciliation />
               </ProtectedComponent>
             ) : (
               <div className="space-y-4 sm:space-y-6 lg:space-y-8">

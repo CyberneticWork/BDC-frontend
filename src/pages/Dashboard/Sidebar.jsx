@@ -174,6 +174,7 @@ const Sidebar = ({
             { id: "journalEntry", name: "Journal Entry" },
             { id: "pettyCash", name: "Petty Cash" },
             { id: "cheque", name: "Cheque" },
+            { id: "bankReconciliation", name: "Bank Reconciliation" },
           ],
         },
         {
@@ -238,7 +239,7 @@ const Sidebar = ({
       pms: path.includes("pms") || activeItem === "pms",
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",
-      chartOfAccounts: path.includes("chartOfAccounts") || activeItem === "chartOfAccounts" || ["accountList", "supplierEnterBill", "payment", "advancePayment", "makeDeposit", "receipt", "createUtilityBill", "utilityBillPayment", "journalEntry", "pettyCash", "cheque"].includes(activeItem),
+      chartOfAccounts: path.includes("chartOfAccounts") || activeItem === "chartOfAccounts" || ["accountList", "supplierEnterBill", "payment", "advancePayment", "makeDeposit", "receipt", "createUtilityBill", "utilityBillPayment", "journalEntry", "pettyCash", "cheque", "bankReconciliation"].includes(activeItem),
       transactions: path.includes("transactions") || activeItem === "transactions" || ["transactionsList", "invoices", "salesOrder", "salesReturn", "grn", "purchaseReturn", "purchaseOrder", "stockTransfer", "stockVerification"].includes(activeItem),
       financeReports: path.includes("financeReports") || activeItem === "financeReports" || ["trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
     });
