@@ -199,16 +199,14 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   
   // Update progress whenever performanceMetrics changes
   useEffect(() => {
-    const overall = calculateOverallProgress(performanceMetrics);
-    setProgress(overall);
+    // Since we're now focusing on task-specific rating, we don't need to calculate from multiple metrics
+    // The progress is directly controlled by the single slider for the specific task
   }, [performanceMetrics, taskSpecificMetricKey]);
 
   // Handle individual metric changes
   const handleMetricChange = (metric, value) => {
-    setPerformanceMetrics(prev => ({
-      ...prev,
-      [metric]: parseInt(value, 10)
-    }));
+    // For the simplified version, we just update the main progress
+    setProgress(parseInt(value, 10));
   };
 
   // Reset metrics helper
@@ -487,7 +485,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                 </div>
               </div>
               
-              {/* Single Progress Bar - Always visible */}
+              {/* Single Progress Bar - Visual indicator only (not interactive) */}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">
@@ -540,10 +538,10 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                   type="button"
                   onClick={() => setShowCategoryDetails(prev => !prev)}
                   className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
-                  title={showCategoryDetails ? "Hide detailed metrics" : "Show detailed metrics"}
+                  title={showCategoryDetails ? "Hide task details" : "Show task details"}
                 >
                   <span className="text-sm font-medium text-gray-700">
-                    {showCategoryDetails ? "Hide Details" : "Show Details"}
+                    {showCategoryDetails ? "Hide Task Details" : "Show Task Details"}
                   </span>
                   <div className={`transform transition-transform duration-200 ${showCategoryDetails ? 'rotate-180' : ''}`}>
                     <ChevronDown className="h-4 w-4 text-indigo-600" />
@@ -552,7 +550,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
               </div>
             </div>
 
-            {/* Main Progress Control - Single Slider */}
+            {/* Main Progress Control - Single Interactive Slider */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
               <div className="space-y-4">
                 <div>
@@ -596,7 +594,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
               </div>
             </div>
 
-            {/* Collapsible Detailed Metrics Panel - Only shows when toggled */}
+            {/* Collapsible Task Details Panel */}
             <div 
               className={`bg-gray-50 rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 ${
                 showCategoryDetails ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
@@ -604,57 +602,96 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
             >
               <div className="p-6">
                 <div className="mb-4">
-                  <h4 className="text-md font-semibold text-gray-900 mb-2">Detailed Performance Categories</h4>
+                  <h4 className="text-md font-semibold text-gray-900 mb-2">Task Information</h4>
                   <p className="text-sm text-gray-600 mb-4">
-                    Rate the employee's performance in specific areas (0-100%). These will automatically update the main progress above.
+                    View detailed information about the task being reviewed.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Show all detailed metrics */}
-                  {Object.entries({
-                    jobKnowledge: 'Job Knowledge and Skills',
-                    qualityOfWork: 'Quality of Work',
-                    productivity: 'Productivity',
-                    communicationSkills: 'Communication Skills',
-                    teamwork: 'Teamwork and Collaboration',
-                    behaviorAtWork: 'Behavior at Work',
-                    problemSolving: 'Problem-Solving',
-                    attendance: 'Attendance and Punctuality',
-                    adaptability: 'Adaptability and Flexibility',
-                    selfDevelopment: 'Self-Development',
-                    discipline: 'Discipline and Conduct',
-                    adherenceToGuidelines: 'Adherence to Guidelines'
-                  }).map(([key, label]) => (
-                    <div key={key} className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        {label}: <span className="font-bold text-indigo-600">{performanceMetrics[key]}%</span>
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={performanceMetrics[key]}
-                        onChange={(e) => handleMetricChange(key, e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={label}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Poor</span>
-                        <span>Excellent</span>
+                {/* Show only task information (no duplicate sliders) */}
+                {linkedTask ? (
+                  <div className="space-y-6">
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-semibold text-gray-800">{linkedTask.name}</h5>
+                          <span className="text-lg font-bold text-indigo-600">{progress}%</span>
+                        </div>
+                        
+                        {/* Task details only - no slider */}
+                        <div className="pt-3 border-t border-gray-200">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Start Date:</span>
+                              <p className="font-medium text-gray-900">
+                                {linkedTask.startDate ? new Date(linkedTask.startDate).toLocaleDateString() : 'Not set'}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">End Date:</span>
+                              <p className="font-medium text-gray-900">
+                                {linkedTask.endDate ? new Date(linkedTask.endDate).toLocaleDateString() : 'Not set'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {linkedTask.description && (
+                            <div className="mt-3">
+                              <span className="text-gray-600 text-sm">Description:</span>
+                              <p className="text-gray-900 text-sm mt-1">{linkedTask.description}</p>
+                            </div>
+                          )}
+
+                          {/* Show task weights if available */}
+                          {linkedTask.weights && linkedTask.weights.length > 0 && (
+                            <div className="mt-3">
+                              <span className="text-gray-600 text-sm">Performance Criteria:</span>
+                              <div className="mt-2 space-y-1">
+                                {linkedTask.weights.map((weight, idx) => (
+                                  <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                    <span className="text-sm text-gray-700">{weight.title || `Criteria ${idx + 1}`}</span>
+                                    <span className="text-sm font-medium text-indigo-600">{weight.percentage}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Progress indicator for this specific task */}
+                        <div className="flex items-center justify-center pt-3 border-t border-gray-200">
+                          <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
+                            progress < 30 ? 'bg-red-100 text-red-800' : 
+                            progress < 70 ? 'bg-yellow-100 text-yellow-800' : 
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {progress < 30 ? 'Needs Improvement' : 
+                             progress < 70 ? 'Good Performance' : 
+                             'Excellent Performance'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> The main progress bar above automatically calculates the average of all these detailed metrics. 
-                    You can adjust individual categories here for more precise evaluation.
-                  </p>
-                </div>
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> Use the slider above to rate the employee's performance for the task "{linkedTask.name}". 
+                        This rating will be used as the overall progress for this performance review.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Fallback if no specific task is linked */
+                  <div className="text-center py-8">
+                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <FileText className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Specific Task</h3>
+                    <p className="text-gray-500">
+                      This review is not linked to a specific task. Use the slider above to rate overall performance.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

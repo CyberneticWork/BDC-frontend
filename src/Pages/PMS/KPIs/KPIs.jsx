@@ -1362,12 +1362,15 @@ const KPIs = (/* props */) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await PMSService.getKpiTaskAssignments(); // Fetch from backend
+      const data = await PMSService.getKpiTaskAssignments();
       setKpis(Array.isArray(data) ? data : []);
+      
+      // Also refresh KPI stats when tasks are fetched
+      await fetchKpiStats(filterStartDate, filterEndDate);
     } catch (e) {
       setError("Failed to fetch KPI task assignments");
       console.error(e);
-      setKpis([]); // Fallback to empty array
+      setKpis([]);
     } finally {
       setIsLoading(false);
     }
@@ -1511,9 +1514,9 @@ const KPIs = (/* props */) => {
       });
       setIsAddModalOpen(false);
       
-      // Refresh the KPI list to get the latest data from server
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1552,9 +1555,9 @@ const KPIs = (/* props */) => {
       });
       setIsEditModalOpen(false);
       
-      // FIX: Ensure we refresh the list after update
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1580,9 +1583,9 @@ const KPIs = (/* props */) => {
       });
       setIsDeleteModalOpen(false);
       
-      // FIX: Ensure we refresh the list after deletion
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
