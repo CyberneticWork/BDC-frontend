@@ -35,15 +35,58 @@ import { permissions } from '../../../config/permissions';
 import { useAuth } from '../../../contexts/AuthContext';
 import Swal from "sweetalert2";
 
+// Status options used by ProgressReviewModal select
+const statusOptions = [
+  'Draft',
+  'In Progress',
+  'Pending',          // maps to Pending Manager when sending
+  'Pending Manager',
+  'Pending Employee',
+  'Completed'
+];
+
+// Grade options used by ProgressReviewModal
+const gradeOptions = ['A+','A','B','C','C-'];
+
+/**
+ * Map a linked task name to the metric key in performanceMetrics.
+ * Keep this mapping small and similar to TaskProgressUpdateModal.taskNameToMetricKey.
+ */
+const getMetricKeyFromTask = (task) => {
+  if (!task || !task.name) return null;
+  const name = String(task.name).toLowerCase();
+
+  const mapping = [
+    { match: 'job knowledge', key: 'jobKnowledge' },
+    { match: 'quality', key: 'qualityOfWork' },
+    { match: 'productivity', key: 'productivity' },
+    { match: 'communication', key: 'communicationSkills' },
+    { match: 'teamwork', key: 'teamwork' },
+    { match: 'behavior', key: 'behaviorAtWork' },
+    { match: 'problem', key: 'problemSolving' },
+    { match: 'attendance', key: 'attendance' },
+    { match: 'adapt', key: 'adaptability' },
+    { match: 'self', key: 'selfDevelopment' },
+    { match: 'discipline', key: 'discipline' },
+    { match: 'guideline', key: 'adherenceToGuidelines' },
+  ];
+
+  for (const m of mapping) {
+    if (name.includes(m.match)) return m.key;
+  }
+  return null;
+};
+
 // Progress Review Modal Component
-const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove useDatabase prop
-  // **FIXED**: Initialize with supervisor progress from performance_reviews table, not self-reported
-  const [progress, setProgress] = useState(0); // Start with 0, will be set in useEffect
+const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
+  const [progress, setProgress] = useState(0);
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
   const [statusState, setStatusState] = useState(review?.status || 'In Progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+  const [taskDetails, setTaskDetails] = useState(null);
+  const [isLoadingTask, setIsLoadingTask] = useState(false);
   
   // Add performance metrics state
   const [performanceMetrics, setPerformanceMetrics] = useState({
@@ -61,97 +104,62 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
     adherenceToGuidelines: 0
   });
 
-  const [taskDetails, setTaskDetails] = useState(null);
-
-  // keep only the grades you mentioned
-  const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
-  const statusOptions = ['Completed', 'In Progress', 'Pending'];
-
-  // Map from task name to performance metric key (legacy / preferred mappings)
-  const taskNameToMetricKey = {
-    "Job Knowledge and Skills": "jobKnowledge",
-    "Quality of Work": "qualityOfWork",
-    "Productivity": "productivity",
-    "Communication Skills": "communicationSkills",
-    "Teamwork and Collaboration": "teamwork",
-    "Behavior at work": "behaviorAtWork",
-    "Problem-Solving and Decision-Making": "problemSolving",
-    "Attendance and Punctuality": "attendance",
-    "Adaptability and Flexibility": "adaptability",
-    "Self-Development": "selfDevelopment",
-    "Discipline and conduct at work": "discipline",
-    "Adherence to the given Guidelines": "adherenceToGuidelines"
-  };
-
-  // Derive a stable camelCase key from any task name
-  const makeMetricKeyFromName = (name = "") => {
-    if (!name) return "generalPerformance";
-    return name
-      .replace(/[^a-zA-Z0-9 ]+/g, " ")
-      .trim()
-      .split(/\s+/)
-      .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1))
-      .join("");
-  };
-  
-  // Return metric key for a task: prefer explicit mapping, else derive from name
-  const getMetricKeyFromTask = (task) => {
-    if (!task || !task.name) return "generalPerformance";
-    if (taskNameToMetricKey[task.name]) return taskNameToMetricKey[task.name];
-    return makeMetricKeyFromName(task.name);
-  };
-  
-  // Fetch detailed task and submission data when using database
+  // Fetch task details when modal opens
   useEffect(() => {
-    if (isOpen && review && review.id) { // Remove useDatabase check
-      // Fetch task details if using database
-      const fetchTaskDetails = async () => {
-        try {
-          const details = await PMSService.getPerformanceReviewDetails(review.id);
-          setTaskDetails(details);
-        } catch (error) {
-          console.error('Error fetching task details:', error);
-        }
-      };
-      fetchTaskDetails();
-    }
-  }, [isOpen, review]);
+    const fetchTaskDetails = async () => {
+      if (!isOpen || !review?.id) return;
+      
+      setIsLoadingTask(true);
+      try {
+        const details = await PMSService.getPerformanceReviewDetails(review.id);
+        console.log('Fetched task details:', details);
+        setTaskDetails(details);
+      } catch (error) {
+        console.error('Error fetching task details:', error);
+        toast.error('Failed to load task details');
+      } finally {
+        setIsLoadingTask(false);
+      }
+    };
+    
+    fetchTaskDetails();
+  }, [isOpen, review?.id]);
 
-  // **FIXED**: Initialize with supervisor progress from performance_reviews table
+  // Update values when review changes
   useEffect(() => {
     if (review) {
-      // Use supervisor progress from performance_reviews table (0 if not set)
-      setProgress(review.progress || 0); // This comes from performance_reviews.progress column
+      // Initialize from review data first
+      setProgress(review.progress || 0);
       setGrade(review.grade || '');
       setComments(review.supervisorComments || '');
       setStatusState(review.status || 'In Progress');
       
-      // Initialize performance metrics from supervisor review if exists, otherwise start fresh
+      // Initialize performance metrics from supervisor review if exists
       if (review.performanceMetrics && Object.values(review.performanceMetrics).some(v => v > 0)) {
         setPerformanceMetrics(review.performanceMetrics);
       } else {
-        // Start with fresh metrics
-        setPerformanceMetrics({
-          jobKnowledge: 0,
-          qualityOfWork: 0,
-          productivity: 0,
-          communicationSkills: 0,
-          teamwork: 0,
-          behaviorAtWork: 0,
-          problemSolving: 0,
-          attendance: 0,
-          adaptability: 0,
-          selfDevelopment: 0,
-          discipline: 0,
-          adherenceToGuidelines: 0
-        });
+        // Reset metrics if no supervisor review exists yet
+        resetMetrics();
       }
     }
-  }, [review]);
+    
+    // When task details are loaded, override with saved supervisor data if available
+    if (taskDetails?.supervisor_review) {
+      const supervisorData = taskDetails.supervisor_review;
+      setProgress(supervisorData.progress || 0); // Use supervisor's saved progress
+      setGrade(supervisorData.grade || '');
+      setComments(supervisorData.comments || '');
+      setStatusState(supervisorData.status || 'In Progress');
+      
+      if (supervisorData.performance_metrics && Object.values(supervisorData.performance_metrics).some(v => v > 0)) {
+        setPerformanceMetrics(supervisorData.performance_metrics);
+      }
+    }
+  }, [review, taskDetails]);
 
   // Get the linked task if available
   const getLinkedTask = () => {
-    if (taskDetails) { // Remove useDatabase check
+    if (taskDetails) {
       return {
         id: taskDetails.assignment.id,
         name: taskDetails.assignment.task_name,
@@ -161,7 +169,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
         weights: taskDetails.assignment.weights
       };
     }
-    return null; // Remove dummy data fallback
+    return null;
   };
 
   const linkedTask = getLinkedTask();
@@ -397,14 +405,22 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
           <div>
             <h2 className="text-xl font-bold text-gray-900">Review Progress</h2>
             <div className="text-sm text-gray-600 mt-1">
-              <span className="font-medium">{review.employeeName}</span> • {review.position || 'Employee'}
+              <span className="font-medium">{review?.employeeName}</span> • {review?.position || 'Employee'}
             </div>
-            {linkedTask && (
-              <div className="text-sm text-indigo-600 mt-1">
+            {isLoadingTask ? (
+              <div className="mt-1 flex items-center">
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                <span className="text-sm text-gray-500">Loading task...</span>
+              </div>
+            ) : linkedTask ? (
+              <div className="text-sm text-indigo-600 mt-1 font-medium">
                 Task: {linkedTask.name}
               </div>
+            ) : (
+              <div className="text-sm text-amber-600 mt-1">
+                Task details not available
+              </div>
             )}
-            {/* Remove useDatabase indicator */}
           </div>
           <button
             onClick={onClose}
@@ -447,51 +463,55 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                     <BarChart className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Performance Metrics</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Performance Review</h3>
                     <p className="text-sm text-gray-600">
-                      {linkedTask 
-                        ? `Rate performance for: ${linkedTask.name}`
-                        : "Rate employee performance across key areas"
-                      }
+                      {linkedTask ? `Task: ${linkedTask.name}` : "General Performance Review"}
                     </p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  {/* Current Progress Display - FIXED to show supervisor progress */}
+                <div className="flex items-center gap-4">
+                  {/* Current Progress Display */}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-indigo-600">{progress}%</div>
                     <div className="text-xs text-gray-500">Supervisor Rating</div>
                   </div>
                   
-                  {/* Show employee's self-reported progress separately if available */}
+                  {/* Show employee's self-reported progress if available */}
                   {review?.selfReportedProgress > 0 && (
-                    <div className="text-center border-l border-gray-200 pl-3">
+                    <div className="text-center border-l border-gray-200 pl-4">
                       <div className="text-lg font-medium text-blue-600">{review.selfReportedProgress}%</div>
                       <div className="text-xs text-gray-500">Employee Self-Report</div>
                     </div>
                   )}
-
-                  {/* Enhanced Toggle Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowCategoryDetails(prev => !prev)}
-                    onKeyDown={handleHeaderKeyDown}
-                    aria-expanded={showCategoryDetails}
-                    aria-controls="performance-metrics-panel"
-                    className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
-                    title={showCategoryDetails ? "Hide detailed metrics" : "Show detailed metrics"}
-                  >
-                    <span className="text-sm font-medium text-gray-700">
-                      {showCategoryDetails ? "Hide Details" : "Rate Performance"}
-                    </span>
-                    <div className={`transform transition-transform duration-200 ${showCategoryDetails ? 'rotate-180' : ''}`}>
-                      <ChevronDown className="h-4 w-4 text-indigo-600" />
-                    </div>
-                  </button>
                 </div>
               </div>
               
+              {/* Single Progress Bar - Always visible */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    {linkedTask ? `${linkedTask.name} Performance` : "Overall Performance"}
+                  </span>
+                  <span className="text-sm font-bold text-indigo-600">{progress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className={`h-3 rounded-full transition-all duration-300 ${
+                      progress < 30 ? 'bg-red-500' : 
+                      progress < 70 ? 'bg-yellow-500' : 
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>Poor (0%)</span>
+                  <span>Good (50%)</span>
+                  <span>Excellent (100%)</span>
+                </div>
+              </div>
+
               {/* Quick Actions Row */}
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-indigo-200">
                 <div className="flex items-center gap-2">
@@ -508,33 +528,76 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                     type="button"
                     onClick={resetMetrics}
                     className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-                    title="Reset all metrics to 0"
+                    title="Reset progress to 0"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Reset
                   </button>
                 </div>
                 
-                {/* Progress Bar Preview */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">Progress:</span>
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        progress < 30 ? 'bg-red-500' : 
-                        progress < 70 ? 'bg-yellow-500' : 
-                        'bg-green-500'
-                      }`}
-                      style={{ width: `${progress}%` }}
-                    ></div>
+                {/* Toggle for detailed metrics */}
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryDetails(prev => !prev)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                  title={showCategoryDetails ? "Hide detailed metrics" : "Show detailed metrics"}
+                >
+                  <span className="text-sm font-medium text-gray-700">
+                    {showCategoryDetails ? "Hide Details" : "Show Details"}
+                  </span>
+                  <div className={`transform transition-transform duration-200 ${showCategoryDetails ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="h-4 w-4 text-indigo-600" />
                   </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Main Progress Control - Single Slider */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Rate Performance for: <span className="font-semibold text-indigo-600">
+                      {linkedTask ? linkedTask.name : "Overall Performance"}
+                    </span>
+                  </label>
+                  <div className="px-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={progress}
+                      onChange={(e) => setProgress(parseInt(e.target.value, 10))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-2">
+                      <span>0%</span>
+                      <span>25%</span>
+                      <span>50%</span>
+                      <span>75%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Progress indicator text */}
+                <div className="text-center">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    progress < 30 ? 'bg-red-100 text-red-800' : 
+                    progress < 70 ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {progress < 30 ? 'Needs Improvement' : 
+                     progress < 70 ? 'Good Performance' : 
+                     'Excellent Performance'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Collapsible Metrics Panel */}
+            {/* Collapsible Detailed Metrics Panel - Only shows when toggled */}
             <div 
-              id="performance-metrics-panel"
               className={`bg-gray-50 rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 ${
                 showCategoryDetails ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
               }`}
@@ -543,312 +606,54 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                 <div className="mb-4">
                   <h4 className="text-md font-semibold text-gray-900 mb-2">Detailed Performance Categories</h4>
                   <p className="text-sm text-gray-600 mb-4">
-                    {linkedTask 
-                      ? `Adjust the slider below to rate the employee's performance in: ${linkedTask.name}`
-                      : "Adjust the sliders below to rate the employee's performance in each category (0-100%):"
-                    }
+                    Rate the employee's performance in specific areas (0-100%). These will automatically update the main progress above.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {taskSpecificMetricKey ? (
-                    // Show only the task-specific metric
-                    (() => {
-                      const metricKey = taskSpecificMetricKey;
-                      const metricName = linkedTask.name;
-                      const metricValue = performanceMetrics[metricKey];
-                      
-                      return (
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            {metricName}: <span className="font-bold text-indigo-600">{metricValue}%</span>
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            step="1"
-                            value={metricValue}
-                            onChange={(e) => handleMetricChange(metricKey, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            aria-label={metricName}
-                            className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>Poor</span>
-                            <span>Excellent</span>
-                          </div>
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    // Fallback: Show all metrics if no task is linked
-                    <>
-                      {/* Job Knowledge and Skills */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Job Knowledge and Skills: <span className="font-bold text-indigo-600">{performanceMetrics.jobKnowledge}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.jobKnowledge}
-                          onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Job Knowledge and Skills"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
+                  {/* Show all detailed metrics */}
+                  {Object.entries({
+                    jobKnowledge: 'Job Knowledge and Skills',
+                    qualityOfWork: 'Quality of Work',
+                    productivity: 'Productivity',
+                    communicationSkills: 'Communication Skills',
+                    teamwork: 'Teamwork and Collaboration',
+                    behaviorAtWork: 'Behavior at Work',
+                    problemSolving: 'Problem-Solving',
+                    attendance: 'Attendance and Punctuality',
+                    adaptability: 'Adaptability and Flexibility',
+                    selfDevelopment: 'Self-Development',
+                    discipline: 'Discipline and Conduct',
+                    adherenceToGuidelines: 'Adherence to Guidelines'
+                  }).map(([key, label]) => (
+                    <div key={key} className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        {label}: <span className="font-bold text-indigo-600">{performanceMetrics[key]}%</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={performanceMetrics[key]}
+                        onChange={(e) => handleMetricChange(key, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={label}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>Poor</span>
+                        <span>Excellent</span>
                       </div>
+                    </div>
+                  ))}
+                </div>
 
-                      {/* Quality of Work */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Quality of Work: <span className="font-bold text-indigo-600">{performanceMetrics.qualityOfWork}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.qualityOfWork}
-                          onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Quality of Work"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Productivity */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Productivity: <span className="font-bold text-indigo-600">{performanceMetrics.productivity}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.productivity}
-                          onChange={(e) => handleMetricChange('productivity', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Productivity"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Low</span>
-                          <span>High</span>
-                        </div>
-                      </div>
-
-                      {/* Communication Skills */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Communication Skills: <span className="font-bold text-indigo-600">{performanceMetrics.communicationSkills}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.communicationSkills}
-                          onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Communication Skills"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Teamwork and Collaboration */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Teamwork and Collaboration: <span className="font-bold text-indigo-600">{performanceMetrics.teamwork}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.teamwork}
-                          onChange={(e) => handleMetricChange('teamwork', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Teamwork and Collaboration"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Behavior at work */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Behavior at Work: <span className="font-bold text-indigo-600">{performanceMetrics.behaviorAtWork}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.behaviorAtWork}
-                          onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Behavior at Work"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Problem-Solving and Decision-Making */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Problem-Solving: <span className="font-bold text-indigo-600">{performanceMetrics.problemSolving}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.problemSolving}
-                          onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Problem-Solving and Decision-Making"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Attendance and Punctuality */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Attendance and Punctuality: <span className="font-bold text-indigo-600">{performanceMetrics.attendance}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.attendance}
-                          onChange={(e) => handleMetricChange('attendance', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Attendance and Punctuality"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Adaptability and Flexibility */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Adaptability and Flexibility: <span className="font-bold text-indigo-600">{performanceMetrics.adaptability}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.adaptability}
-                          onChange={(e) => handleMetricChange('adaptability', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Adaptability and Flexibility"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Low</span>
-                          <span>High</span>
-                        </div>
-                      </div>
-
-                      {/* Self-Development */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Self-Development: <span className="font-bold text-indigo-600">{performanceMetrics.selfDevelopment}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.selfDevelopment}
-                          onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Self-Development"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Low</span>
-                          <span>High</span>
-                        </div>
-                      </div>
-
-                      {/* Discipline and conduct at work */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Discipline and Conduct: <span className="font-bold text-indigo-600">{performanceMetrics.discipline}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.discipline}
-                          onChange={(e) => handleMetricChange('discipline', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Discipline and conduct at work"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Adherence to the given Guidelines */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Adherence to Guidelines: <span className="font-bold text-indigo-600">{performanceMetrics.adherenceToGuidelines}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.adherenceToGuidelines}
-                          onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Adherence to the given Guidelines"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> The main progress bar above automatically calculates the average of all these detailed metrics. 
+                    You can adjust individual categories here for more precise evaluation.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1429,6 +1234,43 @@ const PerformanceReviews = () => {
   const userRole = user?.role || 'user'; // Default to 'user' if not available
   const userPermissions = permissions[userRole]?.performanceReviews || {};
 
+  // Helper: determine if current user can review (update) this submission
+  const canReviewSubmission = (review) => {
+    if (!user || !review) return false;
+    const role = (user.role || '').toLowerCase();
+    
+    // Admin can review everything
+    if (role === 'admin') return true;
+    
+    // Prevent anyone from reviewing their own self-submission
+    if (user.employee_id && review.employeeId && Number(user.employee_id) === Number(review.employeeId)) {
+      return false;
+    }
+    
+    // Creator of the task (creatorId) can review
+    if (review.creatorId && Number(review.creatorId) === Number(user.id)) {
+      return true;
+    }
+    
+    // Supervisors can only review tasks they created
+    if (role === 'supervisor') {
+      return review.creatorId && Number(review.creatorId) === Number(user.id);
+    }
+    
+    // HR can review tasks created by supervisors (if creatorRole provided)
+    if (role === 'hr') {
+      if (review.creatorRole) {
+        const cr = String(review.creatorRole).toLowerCase();
+        return cr === 'supervisor' || cr === 'manager' || cr === 'operations' || cr.includes('supervisor');
+      }
+      // If backend didn't include creatorRole, be permissive for HR (or adjust to conservative false)
+      return true;
+    }
+  
+    // Default: no review permission
+    return false;
+  };
+
   // >>> ADD MISSING HANDLERS (restored) <<<
   const openProgressModal = (review) => {
     setSelectedReview(review);
@@ -1779,7 +1621,7 @@ const PerformanceReviews = () => {
                                 className={`h-1.5 rounded-full ${
                                   review.selfReportedProgress < 30 ? 'bg-red-500' :
                                  
-                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' : 
                                   'bg-green-500'
                                 }`}
                                 style={{ width: `${review.selfReportedProgress}%` }}
@@ -1860,8 +1702,8 @@ const PerformanceReviews = () => {
                           </button>
                         )}
 
-                        {/* Show Update Progress only if not "user" role and has edit permission */}
-                        {userRole !== 'user' && userPermissions.edit && (
+                        {/* Show Update Progress only if user can review this submission */}
+                        {userPermissions.edit && canReviewSubmission(review) && (
                           <button 
                             className="text-indigo-600 hover:text-indigo-900 p-1"
                             onClick={() => openProgressModal(review)}
