@@ -269,18 +269,33 @@ const AccountingSections = ({ onNavigate }) => {
     {
       title: "Chart of Accounts",
       items: [
-        { name: "Account List", icon: "list", action: "accountList", description: "View and manage all accounts" }
+        { name: "Account List", icon: "list", action: "accountList", description: "View and manage all accounts" },
+        { name: "Supplier Enter Bill", icon: "file-text", action: "supplierEnterBill", description: "Create bills for suppliers" },
+        { name: "Payment", icon: "dollar-sign", action: "payment", description: "Record payments to suppliers" },
+        { name: "Advance Payment", icon: "credit-card", action: "advancePayment", description: "Manage advance payments" },
+        { name: "Make Deposit", icon: "trending-up", action: "makeDeposit", description: "Record deposits to bank accounts" },
+        { name: "Receipt", icon: "receipt", action: "receipt", description: "Record customer receipts" },
+        { name: "Create Utility Bill", icon: "zap", action: "createUtilityBill", description: "Create utility bills" },
+        { name: "Utility Bill Payment", icon: "check-circle", action: "utilityBillPayment", description: "Pay utility bills" },
+        { name: "Journal Entry", icon: "book-open", action: "journalEntry", description: "Create manual journal entries" },
+        { name: "Petty Cash", icon: "piggy-bank", action: "pettyCash", description: "Manage petty cash transactions" },
+        { name: "Cheque", icon: "file-minus", action: "cheque", description: "Manage cheque transactions" },
+        { name: "Bank Reconciliation", icon: "refresh-cw", action: "bankReconciliation", description: "Reconcile bank statements" }
       ]
     },
+
     {
       title: "Transactions", 
       items: [
         { name: "Transaction List", icon: "file-text", action: "transactionsList", description: "View all transactions" },
         { name: "Invoices", icon: "file", action: "invoices", description: "Create and manage invoices" },
         { name: "Sales Orders", icon: "shopping-cart", action: "salesOrder", description: "Manage sales orders" },
-        { name: "Purchase Orders", icon: "shopping-bag", action: "purchaseOrder", description: "Manage purchase orders" },
+        { name: "Sales Return", icon: "rotate-ccw", action: "salesReturn", description: "Process sales returns" },
         { name: "GRN", icon: "truck", action: "grn", description: "Goods Received Notes" },
-        { name: "Stock Transfer", icon: "refresh-cw", action: "stockTransfer", description: "Transfer stock between locations" }
+        { name: "Purchase Return", icon: "arrow-left-circle", action: "purchaseReturn", description: "Process purchase returns" },
+        { name: "Purchase Orders", icon: "shopping-bag", action: "purchaseOrder", description: "Manage purchase orders" },
+        { name: "Stock Transfer", icon: "refresh-cw", action: "stockTransfer", description: "Transfer stock between locations" },
+        { name: "Stock Verification", icon: "check-square", action: "stockVerification", description: "Verify stock levels" }
       ]
     },
     {
