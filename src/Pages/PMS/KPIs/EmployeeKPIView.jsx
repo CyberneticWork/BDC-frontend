@@ -14,9 +14,10 @@ import {
   File,
   Calendar,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import PMSService from "@services/PMS/PMSService";
-import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
+import PMSService from "../../../services/PMS/PMSService"; // Updated import
 import { TaskProgressUpdateModal } from "./TaskProgressUpdateModal";
 import { TaskViewModal } from "./TaskViewModal";
 
@@ -24,88 +25,170 @@ const EmployeeKPIView = () => {
   const [myTasks, setMyTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  
+  // Add state for progress submissions
+  const [progressSubmissions, setProgressSubmissions] = useState({});
   
   // Modal states
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [currentEmployeeId, setCurrentEmployeeId] = useState("1"); // Should come from auth context
-  // DEBUG: temporary employee switcher
-  const employeeOptions = [
-    { id: "1", name: "Sarah Johnson" },
-    { id: "2", name: "Mike Chen" },
-    { id: "3", name: "Emma Davis" },
-    { id: "4", name: "John Smith" },
-  ];
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const tasksPerPage = 3;
+  
+  // Current employee ID (replace with auth context or prop)
+  const [currentEmployeeId, setCurrentEmployeeId] = useState(getLoggedInEmployeeId());
 
-  // Mock employee data - replace with context or API call
-  const currentEmployee = {
-    id: "1",
-    name: "Sarah Johnson",
-    department: "Customer Service",
-    position: "Customer Service Lead"
-  };
+  function getLoggedInEmployeeId() {
+    // Prefer stored auth user payload if present
+    try {
+      const authRaw = localStorage.getItem('auth_user') || localStorage.getItem('user') || null;
+      if (authRaw) {
+        const auth = JSON.parse(authRaw);
+        if (auth.employee_id) return String(auth.employee_id);
+        if (auth.attendance_employee_no) return String(auth.attendance_employee_no);
+        if (auth.user && auth.user.employee_id) return String(auth.user.employee_id);
+        if (auth.user && auth.user.attendance_employee_no) return String(auth.user.attendance_employee_no);
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+    // fallback saved id
+    const saved = localStorage.getItem('currentEmployeeId');
+    if (saved) return String(saved);
+    return ''; // empty if unknown
+  }
 
-  // fetchMyTasks stays as-is
+  // Fetch tasks from API (updated to use employee-specific endpoint)
   const fetchMyTasks = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const all = PMSDummyDataStore.getAllKpiTasks
-        ? PMSDummyDataStore.getAllKpiTasks()
-        : [];
-      console.log("All tasks in store:", all.map(t => ({
-        id: t.id,
-        assignees: t.assignees,
-        updates: t.assigneeUpdates?.map(u => ({ emp: u.employeeId, count: u.updates.length }))
-      })));
-      const tasks = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
-      console.log('Fetched tasks for employee', currentEmployeeId, ':', tasks.map(t=>t.id));
-      setMyTasks(tasks);
-      setFilteredTasks(tasks);
+      console.log('Fetching tasks for employeeId:', currentEmployeeId);
+
+      if (!currentEmployeeId) {
+        console.error('No employeeId available!');
+        setError('User ID not found. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await PMSService.getEmployeeKpiTaskAssignments(currentEmployeeId);
+      console.log('API Response:', response);
+
+      if (!Array.isArray(response)) {
+        console.error('Invalid API response format, expected array:', response);
+        setError('Invalid data received from server');
+        setMyTasks([]);
+        return;
+      }
+
+      // changed code: sort only by most-recent timestamp (created_at, lastUpdated, startDate) — latest first
+      const parseTimestamp = (t) => {
+        const candidates = [t.created_at, t.lastUpdated, t.startDate, t.endDate];
+        for (const c of candidates) {
+          if (c) {
+            const ts = Date.parse(c);
+            if (!isNaN(ts)) return ts;
+          }
+        }
+        return 0;
+      };
+
+      const sortedTasks = [...response].sort((a, b) => parseTimestamp(b) - parseTimestamp(a));
+
+      setMyTasks(sortedTasks);
+      
+      // Fetch progress submissions for each task
+      await fetchProgressSubmissions(sortedTasks);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err?.message || 'Failed to fetch tasks');
+      setMyTasks([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Replace initial mount effect with a subscription so this view refreshes
+  // New function to fetch progress submissions
+  const fetchProgressSubmissions = async (tasks) => {
+    try {
+      const submissions = {};
+      
+      // Fetch progress submissions for each task
+      for (const task of tasks) {
+        try {
+          const taskSubmissions = await PMSService.getTaskProgressSubmissions(task.id);
+          submissions[task.id] = taskSubmissions || [];
+        } catch (err) {
+          console.error(`Error fetching submissions for task ${task.id}:`, err);
+          submissions[task.id] = [];
+        }
+      }
+      
+      setProgressSubmissions(submissions);
+    } catch (err) {
+      console.error('Error fetching progress submissions:', err);
+    }
+  };
+
+  // Get latest submission for a task
+  const getLatestSubmission = (taskId) => {
+    const submissions = progressSubmissions[taskId] || [];
+    if (submissions.length === 0) return null;
+    
+    // Sort by created_at desc and get the first one
+    return submissions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  };
+
+  // Get all submissions for a task (for view modal)
+  const getAllSubmissions = (taskId) => {
+    const submissions = progressSubmissions[taskId] || [];
+    return submissions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  };
+
   useEffect(() => {
-    // initial load
     fetchMyTasks();
-
-    // subscribe to store changes (PMSDummyDataStore.subscribe returns an unsubscribe fn)
-    const unsubscribe = PMSDummyDataStore.subscribe(() => {
-      // re-fetch tasks when store notifies
-      fetchMyTasks();
-    });
-
-    return () => {
-      // cleanup subscription on unmount
-      unsubscribe();
-    };
-  }, [currentEmployeeId]); // refetch if employee id changes
+  }, [currentEmployeeId]); // Refetch if employee ID changes
 
   useEffect(() => {
     applyFilters();
+    setCurrentPage(1); // Reset pagination when filters change
   }, [myTasks, searchTerm, statusFilter]);
 
   const applyFilters = () => {
-    let filtered = myTasks;
+    let filtered = Array.isArray(myTasks) ? myTasks : [];
 
     if (searchTerm) {
-      filtered = filtered.filter(
-        (task) =>
-          task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          task.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const q = searchTerm.toLowerCase();
+      filtered = filtered.filter((task) => {
+        const name = (task.name || '').toString().toLowerCase();
+        const desc = (task.description || '').toString().toLowerCase();
+        return name.includes(q) || desc.includes(q);
+      });
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((task) => task.status === statusFilter);
+      filtered = filtered.filter((task) => (task.status || '').toString() === statusFilter);
     }
 
     setFilteredTasks(filtered);
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
+  const startIndex = (currentPage - 1) * tasksPerPage;
+  const endIndex = startIndex + tasksPerPage;
+  const currentTasks = filteredTasks.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenProgressModal = (task) => {
@@ -119,20 +202,116 @@ const EmployeeKPIView = () => {
   };
 
   const handleProgressUpdate = async (taskId, progressData) => {
+    console.log("handleProgressUpdate called with:", { taskId, progressData }); // Debug log
+    
     try {
-      PMSDummyDataStore.updateTaskProgress(taskId, currentEmployeeId, {
-        ...progressData,
-        author: currentEmployee.name,
+      // Find the assignment ID for this task
+      const task = myTasks.find(t => t.id === taskId);
+      if (!task) {
+        console.error("Task not found:", taskId);
+        alert("Task not found");
+        return;
+      }
+
+      // Get current employee ID (convert to numeric if needed)
+      let employeeDbId = null;
+      
+      // Try to extract numeric ID from currentEmployeeId
+      if (typeof currentEmployeeId === 'string' && currentEmployeeId.startsWith('EMP')) {
+        // Extract number from EMP0001 format
+        const numericPart = currentEmployeeId.replace(/\D/g, '');
+        employeeDbId = parseInt(numericPart);
+      } else if (typeof currentEmployeeId === 'number') {
+        employeeDbId = currentEmployeeId;
+      } else {
+        employeeDbId = parseInt(currentEmployeeId);
+      }
+
+      // Enhanced validation with detailed logging
+      console.log("Validation data:", {
+        employeeDbId,
+        progressPercentage: progressData.progressPercentage,
+        note: progressData.note
       });
-      const refreshed = PMSDummyDataStore.getEmployeeTasks(currentEmployeeId);
-      setMyTasks(refreshed);
+
+      if (!employeeDbId || isNaN(employeeDbId)) {
+        console.error("Invalid employee ID:", employeeDbId);
+        alert("Invalid employee ID. Please refresh the page and try again.");
+        return;
+      }
+
+      if (!progressData.progressPercentage && progressData.progressPercentage !== 0) {
+        console.error("Missing progressPercentage:", progressData.progressPercentage);
+        alert("Progress percentage is missing. Please set a progress value.");
+        return;
+      }
+
+      if (isNaN(parseInt(progressData.progressPercentage))) {
+        console.error("Invalid progressPercentage:", progressData.progressPercentage);
+        alert("Invalid progress percentage. Please ensure you've set a progress value.");
+        return;
+      }
+
+      if (!progressData.note || progressData.note.trim() === '') {
+        console.error("Missing or empty note:", progressData.note);
+        alert("Progress note is required. Please add a note describing your progress.");
+        return;
+      }
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Append form fields with proper data types
+      formData.append('kpi_assignment_id', parseInt(taskId));
+      formData.append('employee_id', employeeDbId);
+      formData.append('note', progressData.note.trim());
+      formData.append('progress_percentage', parseInt(progressData.progressPercentage));
+      formData.append('performance_metrics', JSON.stringify(progressData.performanceMetrics || {
+        [task.name]: parseInt(progressData.progressPercentage)
+      }));
+      
+      // Append document metadata only if file exists
+      if (progressData.file && progressData.documentName) {
+        formData.append('document_name', progressData.documentName);
+        formData.append('document_size', progressData.documentSize || '0 KB');
+        formData.append('document_type', progressData.documentType || 'unknown');
+        formData.append('document', progressData.file);
+      }
+
+      console.log("FormData ready for submission");
+
+      const result = await PMSService.submitTaskProgress(formData);
+      console.log("Progress submitted successfully:", result);
+
+      // Refresh tasks and submissions after successful submission
+      await fetchMyTasks();
       setIsProgressModalOpen(false);
-    } catch (e) {
-      console.error("Error updating task progress:", e);
+      
+      alert("Progress submitted successfully!");
+
+    } catch (error) {
+      console.error("Error updating task progress:", error);
+      
+      // Handle validation errors specifically
+      if (error.response?.status === 422) {
+        const errors = error.response?.data?.errors;
+        if (errors) {
+          console.error("Validation errors:", errors);
+          const errorMessages = Object.entries(errors).map(([field, messages]) => 
+            `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
+          ).join('\n');
+          alert(`Validation failed:\n${errorMessages}`);
+        } else {
+          alert(`Validation failed: ${error.response?.data?.message || 'Please check your input and try again.'}`);
+        }
+      } else {
+        const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+        alert(`Failed to submit progress: ${errorMessage}`);
+      }
     }
   };
 
-  // Helper functions
+  // Helper functions (unchanged)
   const getStatusBadge = (status) => {
     const statusConfig = {
       active: "bg-green-100 text-green-800",
@@ -169,7 +348,6 @@ const EmployeeKPIView = () => {
     return priorityConfig[priority] || "bg-gray-100 text-gray-800";
   };
 
-  // Calculate task timeline percentage
   const getTimelinePercentage = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -178,10 +356,13 @@ const EmployeeKPIView = () => {
     const totalDuration = end - start;
     const elapsedDuration = today - start;
     
-    if (elapsedDuration <= 0) return 0;
-    if (elapsedDuration >= totalDuration) return 100;
+    if (elapsedDuration <= 0) return { percentage: 0, status: 'not-started' };
+    if (elapsedDuration >= totalDuration) return { percentage: 100, status: 'overdue' };
     
-    return Math.round((elapsedDuration / totalDuration) * 100);
+    return { 
+      percentage: Math.round((elapsedDuration / totalDuration) * 100), 
+      status: 'on-track' 
+    };
   };
 
   if (isLoading) {
@@ -195,6 +376,22 @@ const EmployeeKPIView = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Tasks</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button
+          onClick={fetchMyTasks}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Progress Update Modal */}
@@ -202,16 +399,17 @@ const EmployeeKPIView = () => {
         isOpen={isProgressModalOpen}
         onClose={() => setIsProgressModalOpen(false)}
         task={selectedTask}
-        onSubmit={(progressData) => handleProgressUpdate(selectedTask?.id, progressData)}
+        onSubmit={(progressData) => handleProgressUpdate(selectedTask?.id, progressData)} // Fix: pass selectedTask.id and progressData separately
         employeeId={currentEmployeeId}
-        employeeName={currentEmployee.name}
+        employeeName="Current Employee" // Replace with actual name from auth
       />
 
-      {/* View Task Modal */}
+      {/* View Task Modal - Pass submissions data */}
       <TaskViewModal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
         kpi={selectedTask}
+        submissions={selectedTask ? getAllSubmissions(selectedTask.id) : []}
       />
 
       {/* Header */}
@@ -225,30 +423,10 @@ const EmployeeKPIView = () => {
               My KPI Tasks
             </h1>
             <p className="text-gray-600 mt-2">
-              Track and submit deliverables for your assigned tasks
+              Track and submit deliverables for your assigned tasks (Latest added first)
             </p>
           </div>
         </div>
-      </div>
-
-      {/* DEBUG: Employee switcher and reload button */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="text-xs text-gray-500">Viewing as:</div>
-        <select
-          value={currentEmployeeId}
-          onChange={(e)=>setCurrentEmployeeId(e.target.value)}
-          className="px-2 py-1 text-sm border border-gray-300 rounded-lg"
-        >
-          {employeeOptions.map(emp => (
-            <option key={emp.id} value={emp.id}>{emp.name} (ID {emp.id})</option>
-          ))}
-        </select>
-        <button
-          onClick={fetchMyTasks}
-          className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-md"
-        >
-          Reload
-        </button>
       </div>
 
       {/* Stats Cards */}
@@ -295,7 +473,7 @@ const EmployeeKPIView = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Documents Submitted</p>
               <p className="text-2xl font-bold text-indigo-600">
-                {myTasks.reduce((total, task) => total + (task.documentCount || 0), 0)}
+                {Object.values(progressSubmissions).reduce((total, submissions) => total + submissions.length, 0)}
               </p>
             </div>
             <div className="p-3 bg-indigo-100 rounded-xl">
@@ -333,222 +511,254 @@ const EmployeeKPIView = () => {
 
       {/* Tasks List */}
       <div className="space-y-4">
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map((task) => {
-            // ensure myUpdates is available to all sub-sections in this task card
-            const myUpdates = task.assigneeUpdates.find(
-              (au) => au.employeeId === parseInt(currentEmployeeId)
-            )?.updates || [];
+        {currentTasks.length > 0 ? (
+          currentTasks.map((task) => {
+            const latestSubmission = getLatestSubmission(task.id);
 
             return (
-            <div
-              key={task.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
-            >
-               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
-                        task.status
-                      )}`}
-                    >
-                      {task.status === "active" && (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {task.status === "attention" && (
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
-                        task.completionStatus
-                      )}`}
-                    >
-                      {task.completionStatus?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Not Started"}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
-                        task.priority
-                      )}`}
-                    >
-                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-3">{task.description}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="col-span-3">
-                      <div className="flex items-center justify-between mb-1">
+              <div
+                key={task.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+              >
+                {/* Task content */}
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900">{task.name}</h3>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
+                          task.status
+                        )}`}
+                      >
+                        {task.status === "active" && (
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                        )}
+                        {task.status === "attention" && (
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                        )}
+                        {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
+                          task.completionStatus
+                        )}`}
+                      >
+                        {task.completionStatus?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Not Started"}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
+                          task.priority
+                        )}`}
+                      >
+                        {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
+                      </span>
+                    </div>
+                    <p className="text-gray-600 mb-3">{task.description}</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="col-span-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              Timeline ({(() => {
+                                const timeline = getTimelinePercentage(task.startDate, task.endDate);
+                                return timeline.status === 'overdue' ? 'Overdue' : `${timeline.percentage}% elapsed`;
+                              })()})
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {getDaysRemaining(task.endDate)} days remaining
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          {(() => {
+                            const timeline = getTimelinePercentage(task.startDate, task.endDate);
+                            return (
+                              <div
+                                className={`h-2 rounded-full ${
+                                  timeline.status === 'not-started' ? 'bg-gray-400' :
+                                  timeline.status === 'overdue' ? 'bg-red-500' :
+                                  'bg-blue-500'
+                                }`}
+                                style={{
+                                  width: `${timeline.percentage}%`,
+                                }}
+                              ></div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      
+                      <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <CalendarDays className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            Timeline ({getTimelinePercentage(task.startDate, task.endDate)}% elapsed)
+                            {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <File className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            {(progressSubmissions[task.id] || []).length} submission{(progressSubmissions[task.id] || []).length !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            {getDaysRemaining(task.endDate)} days remaining
+                            Last updated: {latestSubmission ? new Date(latestSubmission.created_at).toLocaleDateString() : 'Never'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            Progress: {latestSubmission ? latestSubmission.progress_percentage : 0}%
                           </span>
                         </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full bg-indigo-500`}
-                          style={{
-                            width: `${getTimelinePercentage(task.startDate, task.endDate)}%`,
-                          }}
-                        ></div>
-                      </div>
                     </div>
                     
-                    <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <File className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {task.documentCount || 0} document{task.documentCount !== 1 ? 's' : ''} submitted
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          Last updated: {new Date(task.lastUpdated).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          Weights Total: {task.weights ? task.weights.reduce((sum, w) => sum + (w.percentage || 0), 0) : 0}%
-                        </span>
-                      </div>
+                    {/* Latest Submission - Reduced Size */}
+                    <div className="bg-gray-50 p-2 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1 font-medium">Latest Submission</p>
+                      {latestSubmission ? (
+                        <div className="space-y-1">
+                          {/* Document info - compact */}
+                          {latestSubmission.document_name && (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-shrink-0 bg-indigo-100 rounded p-0.5">
+                                <File className="w-2.5 h-2.5 text-indigo-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-indigo-600 truncate">
+                                  {latestSubmission.document_name}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Progress Bar - compact */}
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-600 font-medium flex items-center gap-1">
+                              <BarChart3 className="h-2.5 w-2.5 text-gray-500" />
+                              Progress: {latestSubmission.progress_percentage}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1">
+                            <div 
+                              className={`h-1 rounded-full ${
+                                latestSubmission.progress_percentage < 30 ? 'bg-red-500' : 
+                                latestSubmission.progress_percentage < 70 ? 'bg-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${latestSubmission.progress_percentage}%` }}
+                            ></div>
+                          </div>
+                          
+                          {/* Note - compact */}
+                          <p className="text-xs text-gray-800 line-clamp-1 mt-1">
+                            {latestSubmission.note}
+                          </p>
+                          
+                          {/* Timestamp - compact */}
+                          <p className="text-xs text-gray-500">
+                            {new Date(latestSubmission.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-600">No submissions yet</p>
+                      )}
                     </div>
                   </div>
                   
-                  {/* Latest update with document */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-2">Latest Submission</p>
-                    {myUpdates.length > 0 ? (
-                      (() => {
-                        const latestUpdate = myUpdates[myUpdates.length - 1];
-                        return (
-                          <div className="flex items-start gap-3">
-                            {latestUpdate.documentName && (
-                              <div className="flex-shrink-0 bg-indigo-100 rounded-lg p-2">
-                                <File className="w-5 h-5 text-indigo-600" />
-                              </div>
-                            )}
-                            <div>
-                              {latestUpdate.documentName && (
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium text-indigo-600">
-                                    {latestUpdate.documentName}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {latestUpdate.documentSize}
-                                  </span>
-                                </div>
-                              )}
-                              {/* Add self-reported progress visualization here */}
-                              {latestUpdate.progressPercentage !== undefined && (
-                                <div className="mt-1 mb-2">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="text-gray-600 font-medium flex items-center gap-1">
-                                      <BarChart3 className="h-3 w-3 text-gray-500" />
-                                      Self-reported progress: {latestUpdate.progressPercentage}%
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                                    <div 
-                                      className={`h-1.5 rounded-full ${
-                                        latestUpdate.progressPercentage < 30 ? 'bg-red-500' : 
-                                        latestUpdate.progressPercentage < 70 ? 'bg-yellow-500' : 
-                                        'bg-green-500'
-                                      }`}
-                                      style={{ width: `${latestUpdate.progressPercentage}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                              )}
-                              <p className="text-sm text-gray-800">{latestUpdate.note}</p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {new Date(latestUpdate.date).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <p className="text-sm text-gray-600">No documents submitted yet</p>
-                    )}
-                    
-                    {/* Performance Metrics Highlights - new section */}
-                    {myUpdates.length > 0 && myUpdates[myUpdates.length - 1].performanceMetrics && (
-                       <div className="mt-3 pt-3 border-t border-gray-200">
-                         <p className="text-xs text-gray-500 mb-2">Performance Metrics Highlights:</p>
-                         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                           {/* Show top 4 metrics */}
-                           {Object.entries(myUpdates[myUpdates.length - 1].performanceMetrics)
-                             .sort((a, b) => b[1] - a[1])
-                             .slice(0, 4)
-                             .map(([key, value]) => {
-                               // Convert camelCase to display format
-                               const displayName = key.replace(/([A-Z])/g, ' $1')
-                                 .replace(/^./, str => str.toUpperCase());
-                                
-                               return (
-                                 <div key={key} className="flex justify-between">
-                                   <span className="text-xs text-gray-600">{displayName}:</span>
-                                   <span className="text-xs font-medium text-gray-900">{value}%</span>
-                                 </div>
-                               );
-                             })}
-                         </div>
-                       </div>
-                     )}
+                  <div className="flex flex-row lg:flex-col gap-2">
+                    <button
+                      onClick={() => handleOpenViewModal(task)}
+                      className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span>View Details</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenProgressModal(task)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span>Submit Work</span>
+                    </button>
                   </div>
-                 </div>
-                 
-                 <div className="flex flex-row lg:flex-col gap-2">
-                  <button
-                    onClick={() => handleOpenViewModal(task)}
-                    className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span>View Details</span>
-                  </button>
-                  <button
-                    onClick={() => handleOpenProgressModal(task)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    <span>Submit Work</span>
-                  </button>
                 </div>
               </div>
-            </div>
             );
           })
-         ) : (
-           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-             <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-             <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-             <p className="text-gray-600 mb-6">
-               {searchTerm || statusFilter !== "all"
-                 ? "Try adjusting your search criteria or filters"
-                 : "You don't have any assigned KPI tasks yet"}
-             </p>
-           </div>
-         )}
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+            <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+            <p className="text-gray-600 mb-6">
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search criteria or filters"
+                : "You don't have any assigned KPI tasks yet"}
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="text-sm text-gray-700">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredTasks.length)} of {filteredTasks.length} tasks
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === 1
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </button>
+            
+            <div className="flex space-x-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    currentPage === page
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentPage === totalPages
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

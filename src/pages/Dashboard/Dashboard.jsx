@@ -49,6 +49,7 @@ import UserManagement from "@dashboard/UserManagement";
 import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
 import EmployeePerformanceEvaluation from "../PMS/EmployeeEvaluation";
 import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
+import TaskApproval from "../../Pages/PMS/TaskApproval/TaskApproval";
 
 // Import LMS components
 import LMS from "../LMS/LMS";
@@ -67,7 +68,7 @@ import Invoices from "../Accounting/Invoices";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
-import UsersAndRoles from "../Accounting/UsersAndRoles";
+
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -682,6 +683,10 @@ const Dashboard = ({ user, onLogout }) => {
               </ProtectedComponent>
             ) : activeItem === "employeeEvaluation" ? (
               <EmployeePerformanceEvaluation />
+            ) : activeItem === "taskApproval" ? (
+              <ProtectedComponent module="taskApproval" action="view">
+                <TaskApproval />
+              </ProtectedComponent>
             ) : activeItem === "myKPIs" ? (
               <ProtectedComponent module="myKPIs" action="view">
                 <EmployeeKPIView />
@@ -757,10 +762,6 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "accountingSettings" ? (
               <ProtectedComponent module="accountingSettings" action="view">
                 <AccountingSettings />
-              </ProtectedComponent>
-            ) : activeItem === "usersAndRoles" ? (
-              <ProtectedComponent module="usersAndRoles" action="view">
-                <UsersAndRoles />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">

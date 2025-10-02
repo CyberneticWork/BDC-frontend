@@ -23,6 +23,7 @@ import {
   PieChart,
   BookOpen, // Add for LMS
   Calculator, // Add for Accounting
+  Shield,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -122,6 +123,7 @@ const Sidebar = ({
           icon: ClipboardCheck,
         },
         { id: "kpis", name: "KPIs", icon: PieChart },
+        { id: "taskApproval", name: "Task Approval", icon: Shield }, // Add this line
         { id: "myKPIs", name: "My KPI Tasks", icon: User },
         { id: "employeeEvaluation", name: "Employee Evaluation", icon: Award },
         // { id: "goals", name: "Goals & OKRs", icon: Target },
@@ -141,8 +143,8 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "lmsDashboard", name: "LMS Dashboard", icon: Home },
-        { id: "manageExams", name: "Manage Exams", icon: FileText },
-        { id: "manageCourses", name: "Manage Courses", icon: BookOpen },
+        { id: "manageExams", name: "Exams", icon: FileText },
+        { id: "manageCourses", name: "Courses", icon: BookOpen },
         { id: "myProgress", name: "My Progress", icon: BarChart3 },
         { id: "lmsUserStats", name: "User Stats", icon: BarChart3 },
       ],
@@ -165,7 +167,7 @@ const Sidebar = ({
         { id: "expenses", name: "Expenses" },
         { id: "accountingReports", name: "Reports" },
         { id: "accountingSettings", name: "Settings" },
-        { id: "usersAndRoles", name: "Users & Roles" },
+       
       ],
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },

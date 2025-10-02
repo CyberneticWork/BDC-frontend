@@ -267,7 +267,7 @@ const CourseDetail = ({ courseId, onBack, onTakeExam }) => {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <motion.div
-          className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"
+        s  className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full"
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
@@ -292,13 +292,13 @@ const CourseDetail = ({ courseId, onBack, onTakeExam }) => {
       {/* Header */}
       <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <button
+          {/* <button
             onClick={onBack}
             className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Courses
-          </button>
+          </button> */}
           {isCourseCompleted && (
             <button
               onClick={() => setShowCertificate(true)}

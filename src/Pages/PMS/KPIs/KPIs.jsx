@@ -22,25 +22,13 @@ import {
   Loader2,
   Plus,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import PMSService from "../../../services/PMS/PMSService";
-import PMSDummyDataStore from "@services/PMS/PMSDummyDataStore";
-
-// Add predefined task names for dropdown (placed near top, after imports)
-const predefinedTaskNames = [
-  "Job Knowledge and Skills",
-  "Quality of Work",
-  "Productivity",
-  "Communication Skills",
-  "Teamwork and Collaboration",
-  "Behavior at work",
-  "Problem-Solving and Decision-Making",
-  "Attendance and Punctuality",
-  "Adaptability and Flexibility",
-  "Self-Development",
-  "Discipline and conduct at work",
-  "Adherence to the given Guidelines"
-];
+import PMSService from "@services/PMS/PMSService";
+import Swal from "sweetalert2";
+import AddKpiTaskModal from "./AddKpiTaskModal";
+import AddCreatorRoleModal from "./AddCreatorRoleModal";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -69,87 +57,166 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
+
+  // Local state for the small "+" Add KPI Task modal used inside TaskModal
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  
+  // Creator roles from backend
+  const [creatorRoles, setCreatorRoles] = useState([]);
+  const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
+
+  // Local state to open Add Creator Role modal
+  const [isAddCreatorRoleModalOpen, setIsAddCreatorRoleModalOpen] = useState(false);
+
+  // NEW: backend-driven state
+  const [taskOptions, setTaskOptions] = useState([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+
   const [companies, setCompanies] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [companyEmployees, setCompanyEmployees] = useState([]); // employees fetched from backend for selected company/department
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  
+  // New: companies and departments to power the top-level filters
+  const [companiesForFilter, setCompaniesForFilter] = useState([]);
+  const [departmentsForFilter, setDepartmentsForFilter] = useState([]);
+  const [isLoadingFilterCompanies, setIsLoadingFilterCompanies] = useState(false);
+  const [isLoadingFilterDepartments, setIsLoadingFilterDepartments] = useState(false);
+  
+  // NEW: fetch tasks function moved outside useEffect so it can be called after create
+  const fetchTaskOptions = async () => {
+    setIsLoadingTasks(true);
+    try {
+      const tasks = await PMSService.getKpiTasks(); // [`PMSService.getKpiTasks`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js)
+      setTaskOptions(Array.isArray(tasks) ? tasks : []);
+    } catch (e) {
+      console.error("Error fetching KPI task names:", e);
+      setTaskOptions([]);
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
 
-  // Fetch companies on component mount
+  // Fetch KPI task names from backend on mount
+  useEffect(() => {
+    fetchTaskOptions();
+  }, []);
+
+  // Fetch companies from backend
   useEffect(() => {
     const fetchCompaniesData = async () => {
       setIsLoadingCompanies(true);
       try {
-        // In a real implementation, you would fetch from API
-        // const response = await PMSService.getCompanies();
-        // For demo, using dummy data
-        const dummyCompanies = [
-          { id: "1", name: "Acme Corporation" },
-          { id: "2", name: "Globex Industries" },
-          { id: "3", name: "Wayne Enterprises" }
-        ];
-        setCompanies(dummyCompanies);
+        const data = await PMSService.getCompanies(); // [{id, name}]
+        setCompanies(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching companies:", error);
+        setCompanies([]);
       } finally {
         setIsLoadingCompanies(false);
       }
     };
-    
     fetchCompaniesData();
   }, []);
 
   // Fetch departments when company changes
   useEffect(() => {
-    const fetchDepartmentsData = () => {
+    const fetchDepartmentsData = async () => {
       if (!formData.company) {
         setDepartments([]);
         return;
       }
-
       setIsLoadingDepartments(true);
-      // Synchronous fetch for dummy data
-      let dummyDepartments = [];
-      if (formData.company === "1") {
-        dummyDepartments = [
-          { id: "101", name: "Sales" },
-          { id: "102", name: "Customer Service" },
-          { id: "103", name: "Engineering" }
-        ];
-      } else if (formData.company === "2") {
-        dummyDepartments = [
-          { id: "201", name: "Marketing" },
-          { id: "202", name: "HR" },
-          { id: "203", name: "Operations" }
-        ];
-      } else if (formData.company === "3") {
-        dummyDepartments = [
-          { id: "301", name: "Research & Development" },
-          { id: "302", name: "Finance" },
-          { id: "303", name: "IT" }
-        ];
+      try {
+        const data = await PMSService.getDepartmentsByCompany(formData.company); // [{id, name}]
+        setDepartments(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+        setDepartments([]);
+      } finally {
+        setIsLoadingDepartments(false);
       }
-      setDepartments(dummyDepartments);
-      setIsLoadingDepartments(false);
     };
-    
     fetchDepartmentsData();
   }, [formData.company]);
 
+  // Fetch employees for selected company/department (debounced + supports search)
   useEffect(() => {
-    // Reset form when modal opens with new data
+    // Only fetch when a company is selected
+    if (!formData.company) {
+      setCompanyEmployees([]);
+      return;
+    }
+
+    let mounted = true;
+    const timer = setTimeout(async () => {
+      setIsLoadingEmployees(true);
+      try {
+        const data = await PMSService.getEmployeesByCompany(
+          formData.company,
+          formData.department || null,
+          empSearch || ""
+        );
+        if (!mounted) return;
+        // API may return array or { data: [...] }
+        const list = Array.isArray(data) ? data : (data?.data || []);
+        setCompanyEmployees(
+          list.map(e => ({
+            id: e.attendance_employee_no, // Use attendance_employee_no as ID for consistency
+            name: e.full_name || e.name || "",
+            department: e.department || e.department_name || ""
+          }))
+        );
+      } catch (err) {
+        console.error("Error fetching employees:", err);
+        if (mounted) setCompanyEmployees([]);
+      } finally {
+        if (mounted) setIsLoadingEmployees(false);
+      }
+    }, 350); // debounce 350ms
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
+  }, [formData.company, formData.department, empSearch]);
+  
+  // Fetch creator roles once (extracted to a function so we can refresh on new create)
+  useEffect(() => {
+    let mounted = true;
+    const fetchCreatorRoles = async () => {
+      setIsLoadingCreatorRoles(true);
+      try {
+        const roles = await PMSService.getCreatorRoles(); // [`PMSService.getCreatorRoles`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js)
+        if (!mounted) return;
+        setCreatorRoles(Array.isArray(roles) ? roles : []);
+      } catch (err) {
+        console.error("Error fetching creator roles:", err);
+        if (mounted) setCreatorRoles([]);
+      } finally {
+        if (mounted) setIsLoadingCreatorRoles(false);
+      }
+    };
+    fetchCreatorRoles();
+    return () => { mounted = false; };
+  }, []);
+
+  // Reset form when modal opens with new data
+  useEffect(() => {
     setFormData({
       name: initialData.name || "",
       description: initialData.description || "",
       startDate: initialData.startDate || "",
       endDate: initialData.endDate || "",
       assignees: initialData.assignees ? [...initialData.assignees] : [],
-      // Ensure we use the right property names for company and department
       company: initialData.company || "",
       department: initialData.departmentId || initialData.department || "",
       category: initialData.category || "",
       priority: initialData.priority || "medium",
-      creatorRole: initialData.creator?.role || initialData.creatorRole || "",
-      weights: initialData.weights || [ // Initialize weights if not present - set to empty
+      creatorRole: initialData.creatorRole || "",
+      weights: initialData.weights || [
         { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
         { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
         { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
@@ -162,43 +229,41 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     setShowWeights(false); // Reset weights visibility
   }, [initialData, isOpen]);
 
+  // Ensure numeric IDs for company/department/creatorRole
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Only company and department should be cast to Number.
+    // creatorRole must remain a string (role name) so the UI can call .split on it safely.
+    const isNumericField = name === "company" || name === "department";
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: isNumericField ? (value ? Number(value) : "") : value
     }));
 
-    // Reset department if company changes
     if (name === "company") {
-      setFormData(prev => ({
-        ...prev,
-        department: ""
-      }));
+      setFormData(prev => ({ ...prev, department: "" }));
     }
   };
 
-  // Filter employees based on selected company and department
-  const filteredEmployees = employees.filter(emp => {
-    // Only include employees that match the search term
-    const matchesSearch = 
-      emp.name.toLowerCase().includes(empSearch.toLowerCase()) ||
-      emp.department.toLowerCase().includes(empSearch.toLowerCase());
+  // Filter employees based on selected company and department (now uses companyEmployees from backend)
+  const filteredEmployees = companyEmployees.filter(emp => {
+    const q = empSearch?.toLowerCase?.() || "";
+    if (!q) return true;
     
-    // If no company is selected, just filter by search term
-    if (!formData.company) return matchesSearch;
+    // Enhanced search: name, department, attendance number, and employee ID
+    const searchFields = [
+      emp.name || "",
+      emp.department || "",
+      String(emp.id) || "", // attendance_employee_no
+      String(emp.employee_id) || "", // numeric employee ID if available
+      String(emp.attendance_employee_no) || "" // explicit attendance number field
+    ];
     
-    // For demo, we'll map employees to companies based on ID
-    const empCompany = emp.id <= 2 ? "1" : emp.id <= 4 ? "2" : "3";
-    
-    // If no department is selected, filter by company and search term (auto-fetch all employees from company's departments)
-    if (!formData.department) return empCompany === formData.company && matchesSearch;
-    
-    // Otherwise, filter by company, department, and search term
-    const deptName = departments.find(d => d.id === formData.department)?.name;
-    return empCompany === formData.company && emp.department === deptName && matchesSearch;
+    return searchFields.some(field => 
+      field.toLowerCase().includes(q)
+    );
   });
-
+  
   const addEmployee = (employee) => {
     setFormData(prev => {
       const next = prev.assignees.includes(employee.id.toString())
@@ -216,9 +281,77 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     }));
   };
 
+  // Helper: today's date in yyyy-mm-dd for min attribute
+  const getToday = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  // Mode-aware min start date:
+  // - Create mode: disallow past dates (min = today)
+  // - Edit mode: allow selecting back to the record creation date (if provided) or existing startDate
+  const computeMinStartDate = (initial) => {
+    if (!isEdit) return getToday();
+    const created = initial?.created_at || initial?.createdAt || initial?.created || initial?.startDate || null;
+    if (created) {
+      try {
+        return new Date(created).toISOString().split('T')[0];
+      } catch (e) {
+        // fallthrough
+      }
+    }
+    return initial?.startDate || getToday();
+  };
+
+  const minStartDateForMode = computeMinStartDate(initialData);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+
+    // Prevent start date in the past only for Create mode
+    if (!isEdit && formData.startDate && formData.startDate < getToday()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid Start Date",
+        text: "Start date cannot be in the past. Please choose today or a future date.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Existing end-date validation (keeps ensuring end > start)
+    if (formData.endDate && formData.startDate && formData.endDate < formData.startDate) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid Date Range",
+        text: "End date must be after start date.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Validate weights total: must not exceed 100%
+    const totalWeights = Array.isArray(formData.weights)
+      ? formData.weights.reduce((sum, w) => sum + (Number(w.percentage) || 0), 0)
+      : 0;
+    
+    if (totalWeights > 100) {
+      // show validation and keep current form data intact
+      Swal.fire({
+        icon: "warning",
+        title: "Weights sum exceeds 100%",
+        html: `The total of all performance criteria weights is <strong>${totalWeights}%</strong>. Please adjust so the total does not exceed <strong>100%</strong>.`,
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+    
+    // Add computed names to formData before submitting
+    const enrichedFormData = {
+      ...formData,
+      companyName: getCompanyName(formData.company),
+      departmentName: getDepartmentName(formData.department),
+    };
+    onSubmit(enrichedFormData);
   };
 
   if (!isOpen) return null;
@@ -233,6 +366,16 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     return departments.find(d => d.id === id)?.name || "Unknown Department";
   };
 
+  // Find employee by id: prefer backend-fetched companyEmployees, fall back to the shared `employees` prop
+  const findEmployee = (id) => {
+    const normalizedId = typeof id === "string" ? id : String(id);
+    return (
+      companyEmployees.find(e => String(e.id) === normalizedId) ||
+      employees.find(e => String(e.id) === normalizedId) ||
+      { id: normalizedId, name: "Unknown", department: "" }
+    );
+  };
+  
   const handleWeightChange = (index, value) => {
     const updatedWeights = [...formData.weights];
     updatedWeights[index].percentage = parseInt(value, 10) || 0;
@@ -242,9 +385,90 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     }));
   };
 
+  // Add: select-all handler to fetch employees from backend and populate assignees
+  const handleSelectAllAssignees = async () => {
+    // require company to be selected
+    if (!formData.company) {
+      // show quick feedback
+      await Swal.fire({
+        icon: "warning",
+        title: "Select Company",
+        text: "Please select a company (and optional department) before selecting all employees.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingEmployees(true);
+
+      // If department is selected, pass it; otherwise pass null to fetch all company employees
+      const deptParam = formData.department ? formData.department : null;
+
+      // PMSService.getEmployeesByCompany(companyId, departmentId, search)
+      const resp = await PMSService.getEmployeesByCompany(
+        formData.company,
+        deptParam,
+        "" // empty search to get all
+      );
+
+      // Normalize response (support array or { data: [...] })
+      const list = Array.isArray(resp) ? resp : (resp?.data || []);
+
+      if (!Array.isArray(list) || list.length === 0) {
+        await Swal.fire({
+          icon: "info",
+          title: "No employees",
+          text: "No employees found for the selected company/department.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        return;
+      }
+
+      // Map to the same shape used elsewhere in this file (attendance_employee_no used as id)
+      const mapped = list.map(e => ({
+        id: e.attendance_employee_no ?? String(e.id ?? ""),
+        name: e.full_name || e.name || "",
+        department: e.department || e.department_name || ""
+      }));
+
+      // Use attendance numbers as assignee identifiers (strings)
+      const ids = mapped.map(emp => String(emp.id));
+
+      // Replace assignees with the full set for the selected company/department
+      setFormData(prev => ({
+        ...prev,
+        assignees: ids
+      }));
+
+      // Update local cached companyEmployees so UI chip lookups work
+      setCompanyEmployees(mapped);
+
+      // Feedback: show count
+      await Swal.fire({
+        icon: "success",
+        title: "Selected",
+        text: `Assigned KPI to ${ids.length} employee${ids.length > 1 ? "s" : ""}.`,
+        timer: 1400,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error("Failed to select all assignees", err);
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to select employees. See console for details.",
+      });
+    } finally {
+      setIsLoadingEmployees(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w/full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
@@ -264,22 +488,69 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-4">
+            {/* Task Name from API */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Task Name*
               </label>
-              <select
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">Select task name</option>
-                {predefinedTaskNames.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  {/* Select with visible dropdown icon */}
+                  <div className="relative flex-1">
+                    <select
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none pr-10" /* space for icon */
+                      disabled={isLoadingTasks}
+                    >
+                      <option value="">Select task name</option>
+                      {taskOptions.map((t) => (
+                        <option
+                          key={t.id ?? t.task_name}
+                          value={t.task_name}
+                        >
+                          {t.task_name}
+                        </option>
+                      ))}
+                    </select>
+                    {/* dropdown icon */}
+                    <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddTaskModalOpen(true)}
+                    className="inline-flex items-center justify-center w-9 h-9 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                    title="Add new KPI task"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {isLoadingTasks && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                  </div>
+                )}
+              </div>
+               {/* Add KPI Task Modal */}
+               <AddKpiTaskModal
+                 isOpen={isAddTaskModalOpen}
+                 onClose={() => setIsAddTaskModalOpen(false)}
+                 onCreated={async (newTask) => {
+                   // refresh authoritative list from backend so dropdown shows exact DB rows
+                   await fetchTaskOptions();
+                   // select the created task (backend record should set task_name)
+                   if (newTask && newTask.task_name) {
+                     setFormData(prev => ({ ...prev, name: newTask.task_name }));
+                   }
+                   setIsAddTaskModalOpen(false);
+                 }}
+               />
             </div>
 
             <div>
@@ -296,26 +567,68 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               />
             </div>
 
-             <div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Creator Role*
               </label>
-              <select
-                name="creatorRole"
-                value={formData.creatorRole}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
-              >
-                <option value="">Select Creator Role</option>
-                <option value="Management">Management</option>
-                <option value="Senior Management">Senior Management</option>
-                <option value="Executive">Executive</option>
-                <option value="Team Lead">Team Lead</option>
-                <option value="Supervisor">Supervisor</option>
-                <option value="Department Head">Department Head</option>
-                <option value="Director">Director</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <select
+                    name="creatorRole"
+                    value={formData.creatorRole}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none pr-10"
+                    disabled={isLoadingCreatorRoles}
+                  >
+                    <option value="">Select Creator Role</option>
+                    {creatorRoles.map((r) => (
+                      // Use the role name string so the UI can call .split() safely
+                      <option key={r.id ?? r.role_name} value={r.role_name}>
+                        {r.role_name || r.name || `Role ${r.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  {/* dropdown icon */}
+                  <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddCreatorRoleModalOpen(true)}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                  title="Add new Creator Role"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              {isLoadingCreatorRoles && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              )}
+              
+              {/* Add Creator Role Modal */}
+              <AddCreatorRoleModal
+                isOpen={isAddCreatorRoleModalOpen}
+                onClose={() => setIsAddCreatorRoleModalOpen(false)}
+                onCreated={async (newRole) => {
+                  // refresh authoritative list and select created role
+                  try {
+                    const roles = await PMSService.getCreatorRoles();
+                    setCreatorRoles(Array.isArray(roles) ? roles : []);
+                    if (newRole && (newRole.role_name || newRole.name)) {
+                      setFormData(prev => ({ ...prev, creatorRole: newRole.role_name || newRole.name }));
+                    }
+                  } catch (err) {
+                    console.error("Failed to refresh creator roles after create:", err);
+                  } finally {
+                    setIsAddCreatorRoleModalOpen(false);
+                  }
+                }}
+              />
             </div>
 
             {/* Weights Section - Collapsible Dropdown */}
@@ -366,7 +679,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
             </div>
           </div>
 
-            {/* Company Selection - NEW */}
+            {/* Company from API */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Company*
@@ -395,7 +708,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               </div>
             </div>
 
-            {/* Department Selection - Now optional */}
+            {/* Department from API (depends on company) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Department (Optional)
@@ -405,14 +718,13 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  // Removed 'required' to make it optional
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
                   disabled={!formData.company || isLoadingDepartments}
                 >
                   <option value="">Select Department (Optional)</option>
-                  {departments.map(department => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
                     </option>
                   ))}
                 </select>
@@ -442,6 +754,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                     value={formData.startDate}
                     onChange={handleChange}
                     required
+                    min={minStartDateForMode}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
@@ -489,29 +802,38 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   type="text"
                   value={empSearch}
                   onChange={(e) => setEmpSearch(e.target.value)}
-                  placeholder="Search employees by name or department..."
+                  placeholder="Search by name, department, attendance number, or employee ID..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   disabled={!formData.company}
                 />
               </div>
+              {isLoadingEmployees && (
+                <div className="text-xs text-gray-500 mt-1">Loading employees…</div>
+              )}
 
               {!formData.company && (
                 <p className="text-xs text-amber-600 mt-1">Please select a company to search employees</p>
               )}
 
-              {/* Search results */}
+              {/* Search results - Enhanced display */}
               {empSearch && filteredEmployees.length > 0 && formData.company && (
                 <div className="mt-2 max-h-40 overflow-auto border border-gray-100 rounded-lg bg-white shadow-sm">
                   {filteredEmployees.map(emp => (
                     <div key={emp.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
                       <div>
                         <div className="text-sm font-medium">{emp.name}</div>
-                        <div className="text-xs text-gray-500">{emp.department}</div>
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                          <span>ID: {emp.id}</span>
+                          {emp.employee_id && emp.employee_id !== emp.id && (
+                            <span>• EMP ID: {emp.employee_id}</span>
+                          )}
+                          <span>• {emp.department}</span>
+                        </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => addEmployee(emp)}
-                        className="px-3 py-1 bg-purple-600 text-white rounded-md text-sm"
+                        className="px-3 py-1 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition-colors"
                       >
                         Add
                       </button>
@@ -528,11 +850,8 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
               {/* Added employees */}
               <div className="mt-3 flex flex-wrap gap-2">
-                {formData.assignees && formData.assignees.length === 0 && (
-                  <div className="text-xs text-gray-500">No employees added</div>
-                )}
                 {formData.assignees && formData.assignees.map((id) => {
-                  const emp = employees.find(e => e.id.toString() === id);
+                  const emp = findEmployee(id);
                   if (!emp) return null;
                   return (
                     <div key={id} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
@@ -543,6 +862,20 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                     </div>
                   );
                 })}
+              </div>
+
+              {/* New: Select All button */}
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handleSelectAllAssignees}
+                  disabled={isLoadingEmployees || (!formData.company && !formData.department)}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    isLoadingEmployees ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {isLoadingEmployees ? 'Selecting...' : 'Select all employees for selected Company / Department'}
+                </button>
               </div>
             </div>
 
@@ -668,13 +1001,18 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   if (!isOpen || !kpi) return null;
 
   const getEmployee = (id) => {
-    const normalizedId = typeof id === "string" ? parseInt(id, 10) : id;
-    // try numeric match first, then fallback to string match
-    return (
-      employees.find(e => e.id === normalizedId || String(e.id) === String(id)) ||
-      { id: normalizedId, name: "Unknown", department: "" }
-    );
+    const stringId = String(id);
+    
+    // Find employee by matching the ID (attendance_employee_no)
+    const employee = employees.find(e => String(e.id) === stringId);
+    
+    return employee || { 
+      id: stringId, 
+      name: `Employee ${stringId}`, 
+      department: "Unknown Department" 
+    };
   };
+
   const updatesFor = (empId) => (kpi.assigneeUpdates || []).find(u => u.employeeId === empId);
 
   const getStatusBadge = (status) => {
@@ -963,268 +1301,171 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   );
 };
 
-const KPIs = () => {
+const KPIs = (/* props */) => {
   const [kpis, setKpis] = useState([]);
   const [filteredKpis, setFilteredKpis] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  // Remove searchTerm state
+  // const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all"); // <--- ADDED
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(7); // Changed from 10 to 7 for at least 7 rows per page
 
+  // New: companies and departments to power the top-level filters
+  const [companiesForFilter, setCompaniesForFilter] = useState([]);
+  const [departmentsForFilter, setDepartmentsForFilter] = useState([]);
+  const [isLoadingFilterCompanies, setIsLoadingFilterCompanies] = useState(false);
+  const [isLoadingFilterDepartments, setIsLoadingFilterDepartments] = useState(false);
+  
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentKpi, setCurrentKpi] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add missing state for the small "Add Task" (+) modal next to Task Name select
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   
   // Shared employees list used by TaskModal and TaskViewModal
-  const [employees] = useState([
-    { id: 1, name: "Sarah Johnson", department: "Customer Service" },
-    { id: 2, name: "Mike Chen", department: "Sales" },
-    { id: 3, name: "Emma Davis", department: "HR" },
-    { id: 4, name: "John Smith", department: "Operations" },
-  ]);
+  const [employees, setEmployees] = useState([]);
 
   // Change this to match the employee ID you're assigning tasks to
   const [currentEmployeeId, setCurrentEmployeeId] = useState("2"); // Or whichever ID you're using
 
-  // Add these maps for company and department names (matching TaskModal)
-  const companyMap = {
-    "1": "Acme Corporation",
-    "2": "Globex Industries",
-    "3": "Wayne Enterprises"
-  };
+  // Add a state to store all employees for modals
+  const [allEmployeesForModals, setAllEmployeesForModals] = useState([]);
 
-  const departmentMap = {
-    "101": "Sales",
-    "102": "Customer Service",
-    "103": "Engineering",
-    "201": "Marketing",
-    "202": "HR",
-    "203": "Operations",
-    "301": "Research & Development",
-    "302": "Finance",
-    "303": "IT"
-  };
+  // New states for KPI performance stats
+  const [isLoadingKpiStats, setIsLoadingKpiStats] = useState(false);
+  const [kpiStats, setKpiStats] = useState({
+    onTarget: 0,
+    needAttention: 0,
+    totalInWindow: 0,
+    startDate: null,
+    endDate: null
+  });
 
-  // Sample data (replace with actual API call)
-  const sampleKpis = [
-    {
-      id: 1,
-      name: "Customer Satisfaction Score",
-      description: "Measure of customer satisfaction through surveys",
-      target: 85,
-      current: 78,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 25,
-      department: "Customer Service",
-      company: "1",
-      departmentId: "101",
-      companyName: "Acme Corporation",
-      departmentName: "Customer Service",
-      owner: "", // owner cleared — UI shows creator role instead
-      creator: { name: "Sarah Johnson", role: "Team Lead", date: "2024-01-01T09:00:00Z" },
-      assignees: ["1"],
-      assigneeUpdates: [
-        {
-          employeeId: 1,
-          updates: [
-            { date: "2024-01-05T09:00:00Z", note: "Initial assignment", author: "Manager", progressPercentage: 0 },
-            { date: "2024-02-01T14:30:00Z", note: "Submitted first draft of report", author: "Sarah Johnson", progressPercentage: 20 },
-          ]
-        }
-      ],
-      startDate: "2023-12-01",
-      endDate: "2024-03-31",
-      lastUpdated: "2024-02-01T14:30:00Z",
-      frequency: "Monthly",
-      category: "Customer",
-      weights: [ // Add weights to sample data with new structure
-        { title: "Consistent follow-up with customers for payments", description: "", percentage: 15 },
-        { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 20 },
-        { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 25 },
-        { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 15 },
-        { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 20 },
-        { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 5 }
-      ],
-    },
-    {
-      id: 2,
-      name: "Revenue Growth Rate",
-      description: "Quarterly revenue growth percentage",
-      target: 15,
-      current: 18,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 45,
-      department: "Sales",
-      company: "2",
-      departmentId: "201",
-      companyName: "Globex Industries",
-      departmentName: "Sales",
-      owner: "Executive",
-      creator: { name: "Mike Chen", role: "Supervisor", date: "2024-01-10T11:00:00Z" },
-      assignees: ["2","4"],
-      assigneeUpdates: [
-        {
-          employeeId: 2,
-          updates: [
-            { date: "2024-01-12T11:00:00Z", note: "Provided Q4 numbers", author: "Mike Chen", progressPercentage: 40 }
-          ]
-        },
-        {
-          employeeId: 4,
-          updates: [
-            { date: "2024-01-15T10:00:00Z", note: "Assisted with data cleanup", author: "John Smith", progressPercentage: 10 }
-          ]
-        }
-      ],
-      startDate: "2023-11-01",
-      endDate: "2024-02-28",
-      lastUpdated: "2024-01-15T10:00:00Z",
-      frequency: "Quarterly",
-      category: "Financial",
-    },
-    {
-      id: 3,
-      name: "Employee Turnover Rate",
-      description: "Percentage of employees leaving the organization",
-      target: 8,
-      current: 12,
-      unit: "%",
-      trend: "down",
-      status: "attention",
-      progress: 10,
-      department: "HR",
-      company: "3",
-      departmentId: "301",
-      companyName: "Wayne Enterprises",
-      departmentName: "HR",
-      owner: "",
-      creator: { name: "Emma Davis", role: "Department Head", date: "2024-01-08T09:00:00Z" },
-      assignees: ["3"],
-      assigneeUpdates: [
-        {
-          employeeId: 3,
-          updates: [
-            { date: "2024-01-10T09:00:00Z", note: "Reviewed exit interviews", author: "Emma Davis", progressPercentage: 5 },
-            { date: "2024-02-01T14:30:00Z", note: "Identified trends in departures", author: "Emma Davis", progressPercentage: 10 },
-          ]
-        }
-      ],
-      startDate: "2023-10-15",
-      endDate: "2024-01-31",
-      lastUpdated: "2024-02-01T14:30:00Z",
-      frequency: "Monthly",
-      category: "HR",
-    },
-    {
-      id: 4,
-      name: "Project Completion Rate",
-      description: "Percentage of projects completed on time",
-      target: 90,
-      current: 95,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 80,
-      department: "Operations",
-      company: "1",
-      departmentId: "103",
-      companyName: "Acme Corporation",
-      departmentName: "Operations",
-      owner: "Supervisor",
-      creator: { name: "John Smith", role: "Supervisor", date: "2024-01-02T10:00:00Z" },
-      assignees: ["4"],
-      assigneeUpdates: [
-        {
-          employeeId: 4,
-          updates: [
-            { date: "2024-01-15T10:00:00Z", note: "Project A completed", author: "John Smith", progressPercentage: 60 },
-            { date: "2024-01-20T10:00:00Z", note: "Project B on track", author: "John Smith", progressPercentage: 80 },
-          ]
-        }
-      ],
-      startDate: "2024-01-01",
-      endDate: "2024-03-15",
-      lastUpdated: "2024-01-20T10:00:00Z",
-      frequency: "Weekly",
-      category: "Operations",
-    },
-    // Example new KPI with zero-initialized progress
-    {
-      id: 5,
-      name: "New Product Adoption",
-      description: "Track adoption of the new product feature",
-      target: 100,
-      current: 100,
-      unit: "%",
-      trend: "up",
-      status: "active",
-      progress: 0,
-      department: "Product",
-      company: "2",
-      departmentId: "202",
-      companyName: "Globex Industries",
-      departmentName: "Product",
-      owner: "",
-      creator: { name: "Linda Perez", role: "Product Manager", date: new Date().toISOString() },
-      assignees: [],
-      assigneeUpdates: [],
-      startDate: new Date().toISOString().slice(0,10),
-      endDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().slice(0,10),
-      lastUpdated: new Date().toISOString(),
-      frequency: "Monthly",
-      category: "Product",
-    },
-  ];
+  // Optional date-range state (you may already have these controls)
+  const [filterStartDate, setFilterStartDate] = useState(null);
+  const [filterEndDate, setFilterEndDate] = useState(null);
 
   useEffect(() => {
     fetchKpis();
   }, []);
 
-  const fetchKpis = () => {
+  // Fetch KPI tasks and assignments
+  const fetchKpis = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const all = PMSDummyDataStore.getAllKpiTasks();
-      setKpis(all);
+      const data = await PMSService.getKpiTaskAssignments(); // Fetch from backend
+      setKpis(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError("Failed to fetch KPIs");
+      setError("Failed to fetch KPI task assignments");
       console.error(e);
+      setKpis([]); // Fallback to empty array
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Fetch all employees for modals
+  useEffect(() => {
+    const fetchEmployeesForModals = async () => {
+      try {
+        // Fetch all companies first
+        const companies = await PMSService.getCompanies();
+        let allEmployees = [];
+        
+        // Fetch employees for each company
+        for (const company of companies) {
+          try {
+            const companyEmployees = await PMSService.getEmployeesByCompany(company.id, null, "");
+            const list = Array.isArray(companyEmployees) ? companyEmployees : (companyEmployees?.data || []);
+            const mapped = list.map(e => ({
+              id: e.attendance_employee_no ?? String(e.id ?? ""),
+              name: e.full_name || e.name || "",
+              department: e.department || e.department_name || ""
+            }));
+            allEmployees = [...allEmployees, ...mapped];
+          } catch (err) {
+            console.error(`Error fetching employees for company ${company.id}:`, err);
+          }
+        }
+        
+        setAllEmployeesForModals(allEmployees);
+      } catch (err) {
+        console.error("Error fetching employees for modals:", err);
+      }
+    };
+
+    fetchEmployeesForModals();
+  }, []);
+
+  // New: fetch KPI performance stats
+  const fetchKpiStats = async (startDate = null, endDate = null) => {
+    setIsLoadingKpiStats(true);
+    try {
+      const params = {};
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      const data = await PMSService.getKpiPerformance(params);
+      setKpiStats({
+        onTarget: data.onTarget ?? 0,
+        needAttention: data.needAttention ?? 0,
+        totalInWindow: data.totalInWindow ?? 0,
+        startDate: data.startDate ?? startDate,
+        endDate: data.endDate ?? endDate
+      });
+    } catch (err) {
+      console.error('Failed to load KPI performance stats', err);
+      setKpiStats(s => ({ ...s, onTarget: 0, needAttention: 0 }));
+    } finally {
+      setIsLoadingKpiStats(false);
+    }
+  };
+
+  // Filter and pagination effects
   useEffect(() => {
     applyFilters();
-  }, [kpis, searchTerm, statusFilter, departmentFilter]);
+  }, [kpis, statusFilter, departmentFilter, companyFilter]); // Removed searchTerm
 
   const applyFilters = () => {
     let filtered = kpis;
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (kpi) =>
-          kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          kpi.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          kpi.owner.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
+    // Filter by status
     if (statusFilter !== "all") {
       filtered = filtered.filter((kpi) => kpi.status === statusFilter);
     }
 
+    // Filter by department (support both id and name on KPI objects)
     if (departmentFilter !== "all") {
-      filtered = filtered.filter((kpi) => kpi.department === departmentFilter);
+      filtered = filtered.filter((kpi) => {
+        const kDeptId = kpi.department_id ?? kpi.departmentId ?? (kpi.department && (kpi.department.id ?? null));
+        if (kDeptId != null && kDeptId !== "") {
+          return String(kDeptId) === String(departmentFilter);
+        }
+        // fallback: compare by department name
+        const deptNameFromFilter = (departmentsForFilter.find(d => String(d.id) === String(departmentFilter))?.name || "").toLowerCase();
+        return String(kpi.department || kpi.departmentName || "").toLowerCase() === deptNameFromFilter;
+      });
+    }
+
+    // New: Filter by company (support both id and name on KPI objects)
+    if (companyFilter !== "all") {
+      filtered = filtered.filter((kpi) => {
+        const kCompanyId = kpi.company_id ?? kpi.companyId ?? (kpi.company && (kpi.company.id ?? null));
+        if (kCompanyId != null && kCompanyId !== "") {
+          return String(kCompanyId) === String(companyFilter);
+        }
+        // fallback: compare by company name
+        const compNameFromFilter = (companiesForFilter.find(c => String(c.id) === String(companyFilter))?.name || "").toLowerCase();
+        return String(kpi.companyName || kpi.company || "").toLowerCase() === compNameFromFilter;
+      });
     }
 
     setFilteredKpis(filtered);
@@ -1235,65 +1476,51 @@ const KPIs = () => {
   const handleAddKpi = async (formData) => {
     setIsSubmitting(true);
     try {
+      // Validation: ensure at least one assignee is present
       if (!formData.assignees || formData.assignees.length === 0) {
-        alert("Please add at least one assignee before creating the KPI task.");
         setIsSubmitting(false);
-        return;
+        return Swal.fire({
+          icon: "warning",
+          title: "Add Assignee",
+          text: "Please add at least one assignee before creating the KPI task.",
+        });
       }
 
-      await new Promise(r => setTimeout(r, 500)); // simulate
-      const firstAssignee = formData.assignees?.length ? parseInt(formData.assignees[0]) : null;
-      const newKpi = {
-        name: formData.name,
+      const data = {
+        task_name: formData.name,
         description: formData.description,
-        target: 0,
-        current: 0,
-        unit: "%",
-        trend: "up",
-        status: "active",
-        progress: 0,
-        // Add company/department fields from formData
-        company: formData.company,
-        departmentId: formData.department,
-        companyName: companyMap[formData.company] || "",
-        departmentName: departmentMap[formData.department] || "",
-        department: departmentMap[formData.department] || "", // Keep as name for consistency with existing data
-        owner: "",
-        creator: {
-          name: "",
-          role: formData.creatorRole || "",
-          date: new Date().toISOString()
-        },
-        assignees: (formData.assignees || []).map(a => a.toString()),
-        assigneeUpdates: (formData.assignees || []).map(a => ({
-          employeeId: parseInt(a),
-          updates: [{
-            date: new Date().toISOString(),
-            note: "Task assigned",
-            author: "System",
-            progressPercentage: 0
-          }]
-        })),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        lastUpdated: new Date().toISOString(),
-        frequency: "Monthly",
-        category: firstAssignee === 1 ? "Customer" :
-                  firstAssignee === 2 ? "Financial" :
-                  firstAssignee === 3 ? "HR" : "Operations",
-        completionStatus: "not-started",
-        documentCount: 0,
-        priority: formData.priority || "medium",
-        weights: formData.weights, // Add weights to new KPI
+        company_id: formData.company,
+        department_id: formData.department,
+        creator_role_name: formData.creatorRole,
+        assignees: formData.assignees,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        weights: formData.weights,
+        priority: formData.priority,
       };
-
-      PMSDummyDataStore.addKpiTask(newKpi);
-      setKpis(PMSDummyDataStore.getAllKpiTasks());
+      
+      const result = await PMSService.createKpiTaskAssignment(data);
+      
+      // Show success message using SweetAlert
+      await Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "KPI task assignment created successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
       setIsAddModalOpen(false);
-      alert("KPI task created & performance reviews generated.");
+      
+      // Refresh the KPI list to get the latest data from server
+      await fetchKpis();
+      
     } catch (e) {
       console.error(e);
-      alert("Failed to create KPI task");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to create KPI task assignment. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1302,31 +1529,39 @@ const KPIs = () => {
   const handleEditKpi = async (formData) => {
     setIsSubmitting(true);
     try {
-      await new Promise(r => setTimeout(r, 400));
-      PMSDummyDataStore.updateKpiTask(currentKpi.id, {
-        name: formData.name,
+      const data = {
+        task_name: formData.name, // From selected task
         description: formData.description,
-        assignees: (formData.assignees || []).map(a => a.toString()),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        company_id: formData.company,
+        department_id: formData.department,
+        creator_role_name: formData.creatorRole, // role_name string
+        assignees: formData.assignees, // Array of attendance_employee_no
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        weights: formData.weights,
         priority: formData.priority,
-        // Add company/department fields from formData
-        company: formData.company,
-        departmentId: formData.department,
-        companyName: companyMap[formData.company] || "",
-        departmentName: departmentMap[formData.department] || "",
-        department: departmentMap[formData.department] || "", // Keep as name for consistency
-        creator: {
-          ...(currentKpi.creator || {}),
-          role: formData.creatorRole || currentKpi.creator?.role || ""
-        }
+      };
+      
+      const result = await PMSService.updateKpiTaskAssignment(currentKpi.id, data);
+      await Swal.fire({
+        icon: "success",
+        title: "Updated",
+        text: "KPI task updated successfully.",
+        timer: 1400,
+        showConfirmButton: false,
       });
-      setKpis(PMSDummyDataStore.getAllKpiTasks());
       setIsEditModalOpen(false);
-      alert("KPI task updated.");
+      
+      // FIX: Ensure we refresh the list after update
+      await fetchKpis();
+      
     } catch (e) {
       console.error(e);
-      alert("Failed to update KPI task");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to update KPI task. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1335,14 +1570,26 @@ const KPIs = () => {
   const handleDeleteKpi = async () => {
     setIsSubmitting(true);
     try {
-      await new Promise(r => setTimeout(r, 400));
-      PMSDummyDataStore.deleteKpiTask(currentKpi.id);
-      setKpis(PMSDummyDataStore.getAllKpiTasks());
+      const result = await PMSService.deleteKpiTaskAssignment(currentKpi.id);
+      await Swal.fire({
+        icon: "success",
+        title: "Deleted",
+        text: "KPI task deleted successfully.",
+        timer: 1400,
+        showConfirmButton: false,
+      });
       setIsDeleteModalOpen(false);
-      alert("KPI task deleted.");
+      
+      // FIX: Ensure we refresh the list after deletion
+      await fetchKpis();
+      
     } catch (e) {
       console.error(e);
-      alert("Failed to delete KPI task");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to delete KPI task. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1384,6 +1631,7 @@ const KPIs = () => {
     return "text-red-600";
   };
 
+  // Update getUniqueValues to include company
   const getUniqueValues = (key) => {
     return [...new Set(kpis.map((kpi) => kpi[key]))];
   };
@@ -1425,6 +1673,61 @@ const KPIs = () => {
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewKpi, setViewKpi] = useState(null);
+
+  // Load companies for the top filter on mount
+  useEffect(() => {
+    let mounted = true;
+    const loadCompanies = async () => {
+      setIsLoadingFilterCompanies(true);
+      try {
+        const data = await PMSService.getCompanies();
+        if (!mounted) return;
+        setCompaniesForFilter(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Error loading companies for filter:", err);
+        if (mounted) setCompaniesForFilter([]);
+      } finally {
+        if (mounted) setIsLoadingFilterCompanies(false);
+      }
+    };
+    loadCompanies();
+    return () => { mounted = false; };
+  }, []);
+
+  // When companyFilter changes, load departments for that company (and clear department selection on 'all')
+  useEffect(() => {
+    let mounted = true;
+    const loadDepartments = async () => {
+      if (!companyFilter || companyFilter === "all") {
+        setDepartmentsForFilter([]);
+        // keep departmentFilter as 'all' when no company selected
+        setDepartmentFilter("all");
+        return;
+      }
+      setIsLoadingFilterDepartments(true);
+      try {
+        const data = await PMSService.getDepartmentsByCompany(companyFilter);
+        if (!mounted) return;
+        setDepartmentsForFilter(Array.isArray(data) ? data : []);
+        // If current departmentFilter isn't in the returned list, reset it
+        if (departmentFilter !== "all" && !((Array.isArray(data) ? data : []).some(d => String(d.id) === String(departmentFilter)))) {
+          setDepartmentFilter("all");
+        }
+      } catch (err) {
+        console.error("Error loading departments for company filter:", err);
+        if (mounted) setDepartmentsForFilter([]);
+      } finally {
+        if (mounted) setIsLoadingFilterDepartments(false);
+      }
+    };
+    loadDepartments();
+    return () => { mounted = false; };
+  }, [companyFilter]); // note: departmentFilter may be reset inside
+
+  // initial load - you can pass date range here if you have controls
+  useEffect(() => {
+    fetchKpiStats(filterStartDate, filterEndDate);
+  }, [filterStartDate, filterEndDate]);
 
   if (isLoading) {
     return (
@@ -1488,12 +1791,12 @@ const KPIs = () => {
         employees={employees}
       />
 
-      {/* View Modal */}
+      {/* View Modal - Updated to pass allEmployeesForModals */}
       <TaskViewModal
         isOpen={isViewModalOpen}
         onClose={() => { setIsViewModalOpen(false); setViewKpi(null); }}
         kpi={viewKpi}
-        employees={employees}
+        employees={allEmployeesForModals} // Pass the comprehensive employee list
       />
 
       {/* DeleteConfirmationModal usage remains unchanged */}
@@ -1515,7 +1818,7 @@ const KPIs = () => {
               </div>
               Key Performance Indicators
             </h1>
-            <p className="text-gray-600 mt-2">
+                       <p className="text-gray-600 mt-2">
               Monitor and track your organization's key performance metrics
             </p>
           </div>
@@ -1527,10 +1830,10 @@ const KPIs = () => {
               <Plus className="w-4 h-4" />
               Add KPI Task
             </button>
-             <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+             {/* <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                <Download className="w-4 h-4" />
                Export
-             </button>
+             </button> */}
             </div>
         </div>
       </div>
@@ -1540,55 +1843,109 @@ const KPIs = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total KPIs</p>
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="total">📊</span>
+                Total KPIs
+              </p>
               <p className="text-2xl font-bold text-gray-900">{kpis.length}</p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <BarChart3 className="w-6 h-6 text-purple-600" />
+            <div className="p-3 bg-indigo-50 rounded-xl">
+              <div className="p-2 bg-indigo-100 rounded-full">
+                <BarChart3 className="w-6 h-6 text-indigo-600" />
+              </div>
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">On Target</p>
-              <p className="text-2xl font-bold text-green-600">
-                {kpis.filter((k) => k.current >= k.target).length}
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="ontarget">✅</span>
+                On Target
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoadingKpiStats ? "—" : kpiStats.onTarget}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {kpiStats.startDate && kpiStats.endDate ? `${kpiStats.startDate} → ${kpiStats.endDate}` : "This month"}
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-green-50 rounded-xl">
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Need Attention</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {kpis.filter((k) => k.status === "attention").length}
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="attention">⚠️</span>
+                Need Attention
               </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoadingKpiStats ? "—" : kpiStats.needAttention}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">No submissions in period</p>
             </div>
-            <div className="p-3 bg-yellow-100 rounded-xl">
-              <AlertCircle className="w-6 h-6 text-yellow-600" />
+            <div className="p-3 bg-yellow-50 rounded-xl">
+              <div className="p-2 bg-yellow-100 rounded-full">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+
+        {/* other existing cards... */}
+           </div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search KPIs, departments, or owners..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
+          {/* Company select - now uses API */}
+          <div className="relative">
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">All Companies</option>
+              {companiesForFilter.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {isLoadingFilterCompanies && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+              </div>
+            )}
           </div>
+ 
+          {/* Department select: show company-specific departments when a company is selected */}
+          <div className="relative">
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              disabled={companyFilter === "all" && getUniqueValues("department").length === 0}
+            >
+              <option value="all">All Departments</option>
+              {companyFilter !== "all"
+                ? departmentsForFilter.map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                : getUniqueValues("department").map((dept) => <option key={dept} value={dept}>{dept}</option>)
+              }
+            </select>
+            {isLoadingFilterDepartments && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+              </div>
+            )}
+          </div>
+
+          {/* Existing: Status select */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -1598,18 +1955,6 @@ const KPIs = () => {
             <option value="active">Active</option>
             <option value="attention">Need Attention</option>
             <option value="inactive">Inactive</option>
-          </select>
-          <select
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="all">All Departments</option>
-            {getUniqueValues("department").map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
-              </option>
-            ))}
           </select>
         </div>
       </div>
@@ -1623,9 +1968,9 @@ const KPIs = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   KPI Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Performance
-                </th>
+                </th> */}
                 {/* Category column removed */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Weights
@@ -1647,12 +1992,11 @@ const KPIs = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {currentItems.map((kpi) => (
                 <tr key={kpi.id} className="hover:bg-gray-50">
+                  {/* KPI Name */}
                   <td className="px-6 py-4">
                     <div>
                       <div className="flex items-center">
-                        <div className="text-sm font-medium text-gray-900">
-                          {kpi.name}
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{kpi.name}</div>
                         <div className="ml-2">{getTrendIcon(kpi.trend)}</div>
                         {kpi.priority && (
                           <span
@@ -1671,40 +2015,30 @@ const KPIs = () => {
                       <div className="text-sm text-gray-500">{kpi.description}</div>
                       <div className="text-xs text-gray-400">{kpi.departmentName || kpi.department}</div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
+                                   </td>
+                  {/* Performance */}
+                  {/* <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <span
-                            className={`text-sm font-medium ${getPerformanceColor(
-                              kpi.current,
-                              kpi.target
-                            )}`}
-                          >
+                          <span className={`text-sm font-medium ${getPerformanceColor(kpi.current, kpi.target)}`}>
                             {kpi.current}{kpi.unit}
                           </span>
-                          <span className="text-xs text-gray-500">
-                            Target: {kpi.target}{kpi.unit}
-                          </span>
+                          <span className="text-xs text-gray-500">Target: {kpi.target}{kpi.unit}</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              getLatestProgress(kpi) < 30
-                                ? "bg-red-500"
-                                : getLatestProgress(kpi) < 70
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
+                              getLatestProgress(kpi) < 30 ? "bg-red-500" : getLatestProgress(kpi) < 70 ? "bg-yellow-500" : "bg-green-500"
                             }`}
-                            style={{
-                              width: `${getLatestProgress(kpi)}%`,
-                            }}
-                          ></div>
+                            style={{ width: `${getLatestProgress(kpi)}%` }}
+                          />
                         </div>
                       </div>
                     </div>
-                  </td>
+                  </td> */}
+  
+                  {/* Weights */}
                   <td className="px-6 py-4">
                     <div className="text-sm">
                       {kpi.weights ? (
@@ -1718,44 +2052,36 @@ const KPIs = () => {
                       )}
                     </div>
                   </td>
+  
+                  {/* Status */}
                   <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
-                        kpi.status
-                      )}`}
-                    >
-                      {kpi.status === "active" && (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {kpi.status === "attention" && (
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                      )}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(kpi.status)}`}>
+                      {kpi.status === "active" && <CheckCircle className="w-3 h-3 mr-1" />}
+                      {kpi.status === "attention" && <AlertCircle className="w-3 h-3 mr-1" />}
                       {kpi.status.charAt(0).toUpperCase() + kpi.status.slice(1)}
                     </span>
                   </td>
+  
+                  {/* Owner / Creator */}
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="text-xs font-medium text-gray-600">
-                          {kpi.creator?.role
-                            ? kpi.creator.role.split(" ").map((w) => w[0]).join("").toUpperCase()
-                            : (kpi.owner ? kpi.owner.split(" ").map((w) => w[0]).join("").toUpperCase() : "--")}
+                          {kpi.creator?.role ? kpi.creator.role.split(" ").map((w) => w[0]).join("").toUpperCase() : (kpi.owner ? kpi.owner.split(" ").map((w) => w[0]).join("").toUpperCase() : "--")}
                         </span>
                       </div>
                       <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {kpi.creator?.role || "—"}
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{kpi.creator?.role || "—"}</div>
                       </div>
                     </div>
                   </td>
+  
+                  {/* Timeline */}
                   <td className="px-6 py-4">
                     <div className="text-sm">
                       <div className="flex items-center text-gray-900">
                         <Clock className="w-4 h-4 text-gray-400 mr-1" />
-                        <span>
-                          {new Date(kpi.startDate).toLocaleDateString()} - {new Date(kpi.endDate).toLocaleDateString()}
-                        </span>
+                        <span>{new Date(kpi.startDate).toLocaleDateString()} - {new Date(kpi.endDate).toLocaleDateString()}</span>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         {(() => {
@@ -1770,33 +2096,64 @@ const KPIs = () => {
                       </div>
                     </div>
                   </td>
+  
+                  {/* Actions */}
                   <td className="px-6 py-4 text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-2">
-                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        onClick={() => { setViewKpi(kpi); setIsViewModalOpen(true); }}>
+                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" onClick={() => { setViewKpi(kpi); setIsViewModalOpen(true); }}>
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
-                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => openEditModal(kpi)}
-                      >
+                      <button className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors" onClick={() => openEditModal(kpi)}>
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button 
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        onClick={() => openDeleteModal(kpi)}
-                      >
+                      <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" onClick={() => openDeleteModal(kpi)}>
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+               ))}
             </tbody>
           </table>
         </div>
         
-        {/* Pagination section remains unchanged */}
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredKpis.length)} of {filteredKpis.length} KPIs
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  currentPage === 1
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  currentPage === totalPages
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Empty State */}
@@ -1804,9 +2161,9 @@ const KPIs = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No KPIs found</h3>
-          <p className="text-gray-600 mb-6">
-            {searchTerm || statusFilter !== "all" || departmentFilter !== "all"
-              ? "Try adjusting your search criteria or filters"
+          <p className="text-gray-600 mb-4">
+            {statusFilter !== "all" || departmentFilter !== "all" || companyFilter !== "all"
+              ? "Try adjusting your filter criteria"
               : "Get started by creating your first KPI"}
           </p>
         </div>

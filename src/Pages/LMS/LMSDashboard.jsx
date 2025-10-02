@@ -350,7 +350,7 @@ const LMSDashboard = ({
               className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
             >
               <FileText className="h-5 w-5 mr-2" />
-              Manage Exams
+              Exams
             </button>
           )}
           {user && user.role !== "user" && (
@@ -359,7 +359,7 @@ const LMSDashboard = ({
               className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center"
             >
               <Settings className="h-5 w-5 mr-2" />
-              Manage Courses
+              Courses
             </button>
           )}
         </div>

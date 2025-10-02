@@ -580,7 +580,7 @@ const ManageCourses = ({ onViewCourse }) => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900">Manage Courses</h1>
+          <h1 className="text-4xl font-bold text-gray-900">Courses</h1>
           <p className="text-gray-600 text-lg mt-2">
             Create, edit, and manage your courses
           </p>
