@@ -37,11 +37,8 @@ import Swal from "sweetalert2";
 
 // Status options used by ProgressReviewModal select
 const statusOptions = [
-  'Draft',
   'In Progress',
   'Pending',          // maps to Pending Manager when sending
-  'Pending Manager',
-  'Pending Employee',
   'Completed'
 ];
 
@@ -159,18 +156,29 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
 
   // Get the linked task if available
   const getLinkedTask = () => {
-    if (taskDetails) {
-      return {
-        id: taskDetails.assignment.id,
-        name: taskDetails.assignment.task_name,
-        description: taskDetails.assignment.description,
-        startDate: taskDetails.assignment.start_date,
-        endDate: taskDetails.assignment.end_date,
-        weights: taskDetails.assignment.weights
-      };
-    }
-    return null;
+  // Defensive: prefer taskDetails top-level shape from API (details.taskName),
+  // fall back to original review fields if available.
+  if (!taskDetails) return review?.taskId || review?.taskName ? {
+    id: review?.taskId ?? null,
+    name: review?.taskName ?? review?.taskName ?? null,
+    description: null,
+    startDate: null,
+    endDate: null,
+    weights: []
+  } : null;
+
+  // If API returned taskName at top-level use that, otherwise try nested assignment
+  const name = taskDetails.taskName ?? taskDetails.assignment?.task_name ?? null;
+  const id = taskDetails.id ?? taskDetails.assignment?.id ?? null;
+  return {
+    id,
+    name,
+    description: taskDetails.description ?? taskDetails.assignment?.description ?? null,
+    startDate: taskDetails.startDate ?? taskDetails.assignment?.start_date ?? null,
+    endDate: taskDetails.endDate ?? taskDetails.assignment?.end_date ?? null,
+    weights: taskDetails.weights ?? taskDetails.assignment?.weights ?? []
   };
+};
 
   const linkedTask = getLinkedTask();
   const taskSpecificMetricKey = linkedTask ? getMetricKeyFromTask(linkedTask) : null;
@@ -802,25 +810,25 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
     setIsLoadingDetails(true);
     try {
       const details = await PMSService.getPerformanceReviewDetails(review.id);
-      
-      // Transform backend data to match the expected format
+      /* old code used details.assignment.* and failed when backend returned top-level properties */
+      // Map backend shape robustly: support both top-level fields (taskName, employee, submissions)
       const transformedDetails = {
         id: review.id,
-        taskName: details.assignment.task_name,
-        employeeName: details.assignment.employee_name,
-        employeeId: details.assignment.employee_id,
+        taskName: details?.taskName ?? details?.assignment?.task_name ?? review.taskName ?? null,
+        employeeName: details?.employee?._attributes?.full_name ?? details?.employee?.full_name ?? details?.assignment?.employee_name ?? review.employeeName ?? 'Employee',
+        employeeId: details?.employee?.id ?? details?.assignment?.employee_id ?? review.employeeId ?? null,
         position: review.position || 'Employee',
-        department: details.assignment.department,
-        company: details.assignment.company,
+        department: details?.department?.name ?? details?.assignment?.department ?? review.department ?? null,
+        company: details?.company ?? details?.assignment?.company ?? null,
         type: 'Performance Review',
         status: review.status,
-        startDate: details.assignment.start_date,
-        dueDate: details.assignment.end_date,
+        startDate: details?.startDate ?? details?.assignment?.start_date ?? review.startDate ?? null,
+        dueDate: details?.endDate ?? details?.assignment?.end_date ?? review.dueDate ?? null,
         completedDate: review.completedDate,
         cycle: review.cycle,
-        description: details.assignment.description,
+        description: details?.description ?? details?.assignment?.description ?? review.description ?? null,
         priority: review.priority,
-        weights: details.assignment.weights,
+        weights: details?.weights ?? details?.assignment?.weights ?? review.weights ?? [],
         manager: 'Supervisor',
         overallRating: review.overallRating,
         grade: review.grade,
@@ -830,13 +838,12 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
         selfReportedProgress: review.selfReportedProgress,
         selfReportedLastUpdated: review.selfReportedLastUpdated,
         selfReportedAuthor: review.selfReportedAuthor,
-        submissionCount: details.submissions.length,
-        latestSubmissionNote: details.submissions.length > 0 ? details.submissions[0].note : null,
-        documentCount: review.documentCount,
+        submissionCount: Array.isArray(details?.submissions) ? details.submissions.length : 0,
+        latestSubmissionNote: Array.isArray(details?.submissions) && details.submissions.length > 0 ? details.submissions[0].note : null,
+        documentCount: Array.isArray(details?.submissions) ? details.submissions.filter(s => s.documentName).length : (review.documentCount || 0),
         performanceMetrics: review.performanceMetrics,
-        submissions: details.submissions
+        submissions: details?.submissions ?? []
       };
-      
       setReviewDetails(transformedDetails);
     } catch (error) {
       console.error('Error fetching review details:', error);
@@ -1095,7 +1102,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
               <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <FileText className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">No Details Available</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Details Available</h3>
               <p className="text-gray-500 mt-2">Unable to load review details at this time.</p>
             </div>
           )}
@@ -1329,6 +1336,660 @@ const PerformanceReviews = () => {
     setIsDocumentsModalOpen(true);
   };
 
+  // Open Practical Feedback prompt (Enhanced Professional Modal with Subject)
+  const openPracticalFeedbackModal = async (review) => {
+    setSelectedReview(review);
+
+    // Fetch detailed info and employee email from user table
+    let details = null;
+    let currentUserEmail = user?.email || '';
+    let currentUserName = user?.name || 'System User';
+    
+    try {
+      setIsLoading(true);
+      details = await PMSService.getPerformanceReviewDetails(review.id);
+    } catch (err) {
+      console.warn('Could not load review details, continuing with available data', err);
+    } finally {
+      setIsLoading(false);
+    }
+
+    const taskName = details?.taskName ?? details?.kpiAssignment?.kpiTask?.task_name ?? review.taskName ?? 'N/A';
+    const employeeName = details?.employee?.full_name ?? review.employeeName ?? 'Employee';
+    
+    // Prioritize user table email, then contact detail email, then fallback
+    const employeeEmail = details?.employeeUser?.email ?? 
+                         details?.employee?.contactDetail?.email ?? 
+                         details?.employee?.email ?? 
+                         review.employeeEmail ?? 
+                         '';
+    
+    // Auto-generate subject based on task
+    const defaultSubject = `Performance Feedback - ${taskName}`;
+
+    // Enhanced Professional Modal with Subject Field
+    const result = await Swal.fire({
+      title: 'Send Practical Feedback',
+      html: `
+        <div class="pms-feedback-modal">
+          <!-- Header Card -->
+          <div class="feedback-header-card">
+            <div class="employee-info">
+              <div class="employee-avatar">
+                <svg class="avatar-icon" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+              <div class="employee-details">
+                <h3 class="employee-name">${employeeName}</h3>
+                <p class="employee-role">${review.position || 'Employee'} • ${review.department || 'Department'}</p>
+              </div>
+            </div>
+            
+            <div class="task-info">
+              <div class="task-label">Task</div>
+              <div class="task-name">${taskName}</div>
+            </div>
+          </div>
+
+          <!-- Communication Details -->
+          <div class="communication-card">
+            <div class="comm-row">
+              <div class="comm-item">
+                <div class="comm-label">From</div>
+                <div class="comm-value">${currentUserName}</div>
+                <div class="comm-email">${currentUserEmail}</div>
+              </div>
+              <div class="comm-divider"></div>
+              <div class="comm-item">
+                <div class="comm-label">To</div>
+                <div class="comm-value">${employeeName}</div>
+                <input type="email" id="swal-email" class="comm-email-input" value="${employeeEmail}" placeholder="Enter employee email" ${employeeEmail ? 'readonly' : ''} />
+              </div>
+            </div>
+          </div>
+
+          <!-- Subject Input -->
+          <div class="subject-input-section">
+            <label for="swal-subject" class="subject-label">
+              <svg class="subject-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+              </svg>
+              Subject
+            </label>
+            <input 
+              type="text" 
+              id="swal-subject" 
+              class="subject-input" 
+              value="${defaultSubject}"
+              placeholder="Enter email subject..."
+              maxlength="255"
+            />
+          </div>
+
+          <!-- Feedback Input -->
+          <div class="feedback-input-section">
+            <label for="swal-feedback" class="feedback-label">
+              <svg class="feedback-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              Practical Feedback
+            </label>
+            <textarea 
+              id="swal-feedback" 
+              class="feedback-textarea" 
+              placeholder="Provide specific, actionable feedback to help improve performance..."
+              rows="4"
+            ></textarea>
+            <div class="feedback-helper">
+              <svg class="helper-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+              </svg>
+              <span>Focus on specific actions and behaviors that can be improved</span>
+            </div>
+          </div>
+        </div>
+
+        <style>
+          .pms-feedback-modal {
+            text-align: left;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          }
+
+          .feedback-header-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: white;
+          }
+
+          .employee-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+          }
+
+          .employee-avatar {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+          }
+
+          .avatar-icon {
+            width: 24px;
+            height: 24px;
+            color: white;
+          }
+
+          .employee-details h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: white;
+          }
+
+          .employee-details p {
+            font-size: 14px;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.8);
+          }
+
+          .task-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+          }
+
+          .task-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .task-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+          }
+
+          .communication-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+          }
+
+          .comm-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+          }
+
+          .comm-item {
+            flex: 1;
+          }
+
+          .comm-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .comm-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 4px;
+          }
+
+          .comm-email {
+            font-size: 13px;
+            color: #64748b;
+          }
+
+          .comm-email-input {
+            font-size: 13px;
+            color: #64748b;
+            background: transparent;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 10px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+          }
+
+          .comm-email-input:focus {
+            border-color: #6366f1;
+          }
+
+          .comm-email-input:not([readonly]) {
+            background: white;
+          }
+
+          .comm-divider {
+            width: 1px;
+            height: 40px;
+            background: #e2e8f0;
+            flex-shrink: 0;
+          }
+
+          .subject-input-section {
+            margin-bottom: 16px;
+          }
+
+          .subject-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+          }
+
+          .subject-icon {
+            width: 18px;
+            height: 18px;
+            color: #8b5cf6;
+          }
+
+          .subject-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #374151;
+            background: white;
+            transition: all 0.2s ease;
+            font-family: inherit;
+          }
+
+          .subject-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+          }
+
+          .feedback-input-section {
+            margin-bottom: 8px;
+          }
+
+          .feedback-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+          }
+
+          .feedback-icon {
+            width: 18px;
+            height: 18px;
+            color: #6366f1;
+          }
+
+          .feedback-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #374151;
+            background: white;
+            resize: vertical;
+            transition: all 0.2s ease;
+            font-family: inherit;
+          }
+
+          .feedback-textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+          }
+
+          .feedback-textarea::placeholder {
+            color: #9ca3af;
+          }
+
+          .feedback-helper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 12px 16px;
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #92400e;
+          }
+
+          .helper-icon {
+            width: 16px;
+            height: 16px;
+            color: #f59e0b;
+            flex-shrink: 0;
+          }
+
+          /* SweetAlert2 customizations */
+          .swal2-popup {
+            border-radius: 16px !important;
+            padding: 0 !important;
+            width: 520px !important;
+            max-width: 90vw !important;
+          }
+
+          .swal2-header {
+            padding: 24px 24px 0 24px !important;
+            border-bottom: none !important;
+          }
+
+          .swal2-title {
+            font-size: 20px !important;
+            font-weight: 700 !important;
+            color: #1f2937 !important;
+            margin: 0 !important;
+          }
+
+          .swal2-html-container {
+            padding: 0 24px !important;
+            margin: 16px 0 0 0 !important;
+          }
+
+          .swal2-actions {
+            padding: 16px 24px 24px 24px !important;
+            margin: 0 !important;
+            gap: 12px !important;
+          }
+
+          .swal2-confirm {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+            border: none !important;
+            border-radius: 10px !important;
+            padding: 12px 24px !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+            transition: all 0.2s ease !important;
+          }
+
+          .swal2-confirm:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4) !important;
+          }
+
+          .swal2-cancel {
+            background: #f1f5f9 !important;
+            color: #64748b !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 10px !important;
+            padding: 12px 24px !important;
+            font-weight: 500 !important;
+            font-size: 14px !important;
+            transition: all 0.2s ease !important;
+          }
+
+          .swal2-cancel:hover {
+            background: #e2e8f0 !important;
+            color: #475569 !important;
+          }
+        </style>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: '📤 Send Feedback',
+      cancelButtonText: 'Cancel',
+      customClass: {
+        popup: 'pms-feedback-popup',
+        confirmButton: 'pms-confirm-btn',
+        cancelButton: 'pms-cancel-btn'
+      },
+      willOpen: () => {
+        // Focus textarea when opened
+        setTimeout(() => {
+          const ta = document.getElementById('swal-feedback');
+          if (ta) ta.focus();
+        }, 150);
+      },
+      preConfirm: () => {
+        const feedback = (document.getElementById('swal-feedback')?.value || '').trim();
+        const email = (document.getElementById('swal-email')?.value || '').trim();
+        const subject = (document.getElementById('swal-subject')?.value || '').trim();
+        
+        if (!feedback) {
+          Swal.showValidationMessage('Please provide feedback');
+          return false;
+        }
+        if (feedback.length < 10) {
+          Swal.showValidationMessage('Feedback must be at least 10 characters');
+          return false;
+        }
+        if (feedback.length > 1000) {
+          Swal.showValidationMessage('Feedback must be less than 1000 characters');
+          return false;
+        }
+        if (!email) {
+          Swal.showValidationMessage('Employee email is required');
+          return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          Swal.showValidationMessage('Please enter a valid email address');
+          return false;
+        }
+        if (!subject) {
+          Swal.showValidationMessage('Subject is required');
+          return false;
+        }
+        if (subject.length < 5) {
+          Swal.showValidationMessage('Subject must be at least 5 characters');
+          return false;
+        }
+        
+        return { feedback, email, subject };
+      }
+    });
+
+    if (result.isConfirmed && result.value) {
+      const { feedback, email, subject } = result.value;
+      
+      // Show loading state
+      Swal.fire({
+        title: 'Sending Feedback...',
+        html: `
+          <div style="text-align: center; padding: 20px;">
+            <div class="sending-animation" style="margin-bottom:   16px;">
+              <svg style="width: 48px; height: 48px; color: #6366f1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+              </svg>
+            </div>
+            <p style="color: #64748b; margin: 0;">Please wait while we send your feedback...</p>
+          </div>
+          <style>
+            .sending-animation svg {
+              animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
+            }
+          </style>
+        `,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        customClass: {
+          popup: 'pms-loading-popup'
+        }
+      });
+
+      try {
+        const response = await PMSService.submitPracticalFeedback(review.id, { 
+          feedback, 
+          email, 
+          subject,
+          taskName 
+        });
+        
+        // Show success message with enhanced styling
+        await Swal.fire({
+          icon: 'success',
+          title: 'Feedback Sent Successfully!',
+          html: `
+            <div class="success-content">
+              <div class="success-details">
+                <div class="success-row">
+                  <span class="success-label">To:</span>
+                  <span class="success-value">${employeeName}</span>
+                </div>
+                <div class="success-row">
+                  <span class="success-label">Email:</span>
+                  <span class="success-value">${response.data?.sent_to || email}</span>
+                </div>
+                <div class="success-row">
+                  <span class="success-label">Subject:</span>
+                  <span class="success-value">${response.data?.subject || subject}</span>
+                </div>
+                <div class="success-row">
+                  <span class="success-label">Task:</span>
+                  <span class="success-value">${taskName}</span>
+                </div>
+              </div>
+              <div class="feedback-preview">
+                <div class="preview-label">Feedback Preview:</div>
+                <div class="preview-text">${feedback.substring(0, 120)}${feedback.length > 120 ? '...' : ''}</div>
+              </div>
+            </div>
+            <style>
+              .success-content {
+                text-align: left;
+                padding: 8px 0;
+              }
+              .success-details {
+                background: #f0fdf4;
+                border: 1px solid #bbf7d0;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 16px;
+              }
+              .success-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 8px;
+              }
+              .success-row:last-child {
+                margin-bottom: 0;
+              }
+              .success-label {
+                font-weight: 500;
+                color: #166534;
+              }
+              .success-value {
+                color: #15803d;
+                font-weight: 600;
+              }
+              .feedback-preview {
+                background: #fafafa;
+                border-radius: 8px;
+                padding: 12px;
+              }
+              .preview-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: #64748b;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .preview-text {
+                font-size: 14px;
+                color: #374151;
+                line-height: 1.4;
+              }
+            </style>
+          `,
+          confirmButtonText: 'Done',
+          customClass: {
+            popup: 'pms-success-popup',
+            confirmButton: 'pms-success-btn'
+          }
+        });
+        
+        // Show toast for quick confirmation
+        toast.success('Practical feedback sent successfully!');
+        
+      } catch (e) {
+        console.error('Failed to send practical feedback', e);
+        
+        // Show error with better UX
+        await Swal.fire({
+          icon: 'error',
+          title: 'Failed to Send Feedback',
+          html: `
+            <div class="error-content">
+              <p class="error-message">${e?.response?.data?.message || 'An unexpected error occurred while sending the feedback.'}</p>
+              <div class="error-actions">
+                <p class="error-suggestion">Please try again or contact support if the problem persists.</p>
+              </div>
+            </div>
+            <style>
+              .error-content {
+                text-align: left;
+                padding: 8px 0;
+              }
+              .error-message {
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                border-radius: 8px;
+                padding: 12px;
+                color: #dc2626;
+                margin-bottom: 16px;
+                font-size: 14px;
+              }
+              .error-suggestion {
+                color: #64748b;
+                font-size: 13px;
+                margin: 0;
+              }
+            </style>
+          `,
+          confirmButtonText: 'Try Again',
+          showCancelButton: true,
+          cancelButtonText: 'Close',
+          customClass: {
+            popup: 'pms-error-popup'
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Recursively call the function to try again
+            setTimeout(() => openPracticalFeedbackModal(review), 100);
+          }
+        });
+        
+        toast.error('Failed to send practical feedback');
+      }
+    }
+  };
+  
   const handleSaveProgressReview = async (updatedReview) => {
     try {
       setIsLoading(true);
@@ -1758,6 +2419,17 @@ const PerformanceReviews = () => {
                             title="View Documents"
                           >
                             <File className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Practical Feedback - open feedback prompt */}
+                        {userRole !== 'user' && userPermissions.edit && (
+                          <button
+                            className="text-teal-600 hover:text-teal-900 p-1"
+                            onClick={() => openPracticalFeedbackModal(review)}
+                            title="Practical Feedback"
+                          >
+                            <Award className="h-4 w-4" />
                           </button>
                         )}
 

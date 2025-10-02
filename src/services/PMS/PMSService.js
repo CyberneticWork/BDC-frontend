@@ -410,12 +410,57 @@ class PMSService {
     }
   }
 
+  // Get assignment documents
   async getAssignmentDocuments(assignmentId) {
     try {
       const response = await axios.get(`/pms/performance-reviews/${assignmentId}/documents`);
       return response.data;
     } catch (error) {
       console.error("Error fetching assignment documents:", error);
+      throw error;
+    }
+  }
+
+  // Fetch single employee by DB id
+  async getEmployeeById(employeeId) {
+    try {
+      const response = await axios.get(`/employees/${employeeId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching employee ${employeeId}:`, error?.response?.data ?? error);
+      throw error;
+    }
+  }
+  
+  // Submit practical feedback (simplified)
+  async submitPracticalFeedback(assignmentId, payload) {
+    try {
+      const response = await axios.post(`/pms/performance-reviews/${assignmentId}/practical-feedback`, payload);
+      return response.data;
+    } catch (error) {
+      console.error(`Error submitting practical feedback for assignment ${assignmentId}:`, error?.response?.data ?? error);
+      throw error;
+    }
+  }
+
+  // Get feedback history
+  async getPracticalFeedbackHistory(params = {}) {
+    try {
+      const response = await axios.get('/pms/practical-feedback/history', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching feedback history:', error);
+      throw error;
+    }
+  }
+
+  // Get feedback statistics
+  async getFeedbackStats() {
+    try {
+      const response = await axios.get('/pms/practical-feedback/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching feedback stats:', error);
       throw error;
     }
   }
