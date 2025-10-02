@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   PieChart,
   Search,
@@ -204,30 +204,100 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   }, []);
 
   // Reset form when modal opens with new data
+  const prevIsOpen = useRef(false);
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    setFormData({
-      name: initialData.name || "",
-      description: initialData.description || "",
-      startDate: initialData.startDate || "",
-      endDate: initialData.endDate || "",
-      assignees: initialData.assignees ? [...initialData.assignees] : [],
-      company: initialData.company || "",
-      department: initialData.departmentId || initialData.department || "",
-      category: initialData.category || "",
-      priority: initialData.priority || "medium",
-      creatorRole: initialData.creatorRole || "",
-      weights: initialData.weights || [
-        { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
-        { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
-        { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
-        { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
-        { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
-        { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
-      ],
-    });
-    setEmpSearch("");
-    setShowWeights(false); // Reset weights visibility
-  }, [initialData, isOpen]);
+    // Only reset form data when modal is actually opening for the first time
+    // OR when switching between different records in edit mode
+    if (isOpen && !prevIsOpen.current) {
+      // Modal is opening - initialize form
+      if (isEdit && initialData && Object.keys(initialData).length > 0) {
+        // Edit mode: populate with initial data
+        setFormData({
+          name: initialData.name || "",
+          description: initialData.description || "",
+          startDate: initialData.startDate || "",
+          endDate: initialData.endDate || "",
+          assignees: initialData.assignees ? [...initialData.assignees] : [],
+          company: initialData.company || "",
+          department: initialData.departmentId || initialData.department || "",
+          category: initialData.category || "",
+          priority: initialData.priority || "medium",
+          creatorRole: initialData.creatorRole || "",
+          weights: initialData.weights || [
+            { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+            { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
+            { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
+            { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+            { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+            { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+          ],
+        });
+      } else if (!isEdit) {
+        // Add mode: only reset if no existing data to preserve
+        const hasExistingData = formData.name || formData.description || formData.assignees?.length > 0;
+        if (!hasExistingData) {
+          setFormData({
+            name: "",
+            description: "",
+            startDate: "",
+            endDate: "",
+            assignees: [],
+            company: "",
+            department: "",
+            category: "",
+            priority: "medium",
+            creatorRole: "",
+            weights: [
+              { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+              { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
+              { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
+              { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+              { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+              { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+            ],
+          });
+        }
+      }
+      hasInitialized.current = true;
+    } else if (!isOpen && prevIsOpen.current) {
+      // Modal is closing - reset the initialization flag
+      hasInitialized.current = false;
+    }
+    
+    prevIsOpen.current = isOpen;
+  }, [isOpen, isEdit]); // Removed initialData from dependencies
+
+  // Add a separate useEffect to handle initialData changes only when necessary
+  useEffect(() => {
+    // Only update form data with initialData if:
+    // 1. Modal is open
+    // 2. We're in edit mode  
+    // 3. initialData has meaningful content
+    // 4. Current form is empty (to avoid overriding user input)
+    if (isOpen && isEdit && initialData && Object.keys(initialData).length > 0) {
+      const currentFormHasData = formData.name || formData.description || formData.assignees?.length > 0;
+      
+      // Only populate if form is currently empty (first load) or if the ID changed (different record)
+      if (!currentFormHasData || (initialData.id && initialData.id !== formData.id)) {
+        setFormData({
+          id: initialData.id, // Track the record ID
+          name: initialData.name || "",
+          description: initialData.description || "",
+          startDate: initialData.startDate || "",
+          endDate: initialData.endDate || "",
+          assignees: initialData.assignees ? [...initialData.assignees] : [],
+          company: initialData.company || "",
+          department: initialData.departmentId || initialData.department || "",
+          category: initialData.category || "",
+          priority: initialData.priority || "medium",
+          creatorRole: initialData.creatorRole || "",
+          weights: initialData.weights || formData.weights, // Preserve existing weights if no new ones
+        });
+      }
+    }
+  }, [initialData?.id, isOpen, isEdit]); // Only trigger when the record ID changes
 
   // Ensure numeric IDs for company/department/creatorRole
   const handleChange = (e) => {
@@ -1362,12 +1432,15 @@ const KPIs = (/* props */) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await PMSService.getKpiTaskAssignments(); // Fetch from backend
+      const data = await PMSService.getKpiTaskAssignments();
       setKpis(Array.isArray(data) ? data : []);
+      
+      // Also refresh KPI stats when tasks are fetched
+      await fetchKpiStats(filterStartDate, filterEndDate);
     } catch (e) {
       setError("Failed to fetch KPI task assignments");
       console.error(e);
-      setKpis([]); // Fallback to empty array
+      setKpis([]);
     } finally {
       setIsLoading(false);
     }
@@ -1505,22 +1578,47 @@ const KPIs = (/* props */) => {
       await Swal.fire({
         icon: "success",
         title: "Success",
-        text: "KPI task assignment created successfully.",
-        timer: 1500,
+        text: `KPI task assignment created successfully. ${result.total_created || result.length || 1} assignment(s) created.`,
+        timer: 2000,
         showConfirmButton: false,
       });
+      
+      // Only close modal and refresh data after successful creation
       setIsAddModalOpen(false);
-      
-      // Refresh the KPI list to get the latest data from server
-      await fetchKpis();
-      
+      await fetchKpis(); // This now includes stats refresh
+
     } catch (e) {
       console.error(e);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to create KPI task assignment. Please try again.",
-      });
+      
+      // Handle duplicate error specifically
+      if (e.response?.status === 422 && e.response?.data?.duplicates) {
+        const duplicates = e.response.data.duplicates;
+        let duplicateList = duplicates.map(dup => 
+          `• ${dup.employee} (${dup.attendance_no})\n  Existing: ${dup.existing_start} to ${dup.existing_end}\n  New: ${dup.new_start} to ${dup.new_end}`
+        ).join('\n\n');
+
+        await Swal.fire({
+          icon: "warning",
+          title: "Duplicate Assignments Detected",
+          text: `The following employees already have this KPI task assigned with overlapping dates:\n\n${duplicateList}\n\nPlease choose different date ranges that don't overlap with existing assignments.`,
+          confirmButtonColor: "#F59E0B",
+          customClass: {
+            popup: 'text-left'
+          }
+        });
+        // IMPORTANT: Don't close modal or reset any state here
+        // Let the user fix the validation issues
+      } else {
+        // Handle other errors
+        const errorMessage = e.response?.data?.message || e.response?.data?.error || "Failed to create KPI task assignment. Please try again.";
+        
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: errorMessage,
+        });
+        // IMPORTANT: Don't close modal or reset any state here either
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1552,9 +1650,9 @@ const KPIs = (/* props */) => {
       });
       setIsEditModalOpen(false);
       
-      // FIX: Ensure we refresh the list after update
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1580,9 +1678,9 @@ const KPIs = (/* props */) => {
       });
       setIsDeleteModalOpen(false);
       
-      // FIX: Ensure we refresh the list after deletion
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1772,6 +1870,7 @@ const KPIs = (/* props */) => {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSubmit={handleEditKpi}
+
         initialData={currentKpi ? {
           name: currentKpi.name,
           description: currentKpi.description,
@@ -2029,9 +2128,15 @@ const KPIs = (/* props */) => {
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              getLatestProgress(kpi) < 30 ? "bg-red-500" : getLatestProgress(kpi) < 70 ? "bg-yellow-500" : "bg-green-500"
+                              kpi.current >= kpi.target
+                                ? "bg-green-500"
+                                : kpi.current >= kpi.target * 0.8
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
                             }`}
-                            style={{ width: `${getLatestProgress(kpi)}%` }}
+                            style={{
+                              width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%`,
+                            }}
                           />
                         </div>
                       </div>
