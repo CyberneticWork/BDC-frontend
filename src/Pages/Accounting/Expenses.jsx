@@ -6,8 +6,28 @@ import {
   updateEnhancedExpense,
   deleteEnhancedExpense
 } from "../../services/AccountingService";
+import { useResponsive } from "../../hooks/useResponsive";
+import {
+  ResponsivePageWrapper,
+  ResponsiveCard,
+  ResponsiveGrid,
+  ResponsiveTable,
+  ResponsiveTableHeader,
+  ResponsiveTableHeaderCell,
+  ResponsiveTableBody,
+  ResponsiveTableRow,
+  ResponsiveTableCell,
+  ResponsiveButton,
+  ResponsiveFormGroup,
+  ResponsiveSelect,
+  ResponsiveInput,
+  ResponsiveModal,
+  ResponsiveLoadingSpinner,
+  ResponsiveBadge
+} from "../../components/Accounting/ResponsiveAccountingComponents";
 
 const Expenses = () => {
+  const responsive = useResponsive();
   const [expenses, setExpenses] = useState([]);
   const [filteredExpenses, setFilteredExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,33 +134,27 @@ const Expenses = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <ResponsiveLoadingSpinner size="lg" />
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Expense Management</h1>
-              <p className="text-gray-600 mt-1">Track and manage company expenses</p>
-            </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Add New Expense
-            </button>
-          </div>
-        </div>
-      </header>
+  const actions = (
+    <ResponsiveButton 
+      variant="primary" 
+      size="md" 
+      onClick={() => setShowAddModal(true)}
+    >
+      Add New Expense
+    </ResponsiveButton>
+  );
 
-      {/* Summary Cards */}
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+  return (
+    <ResponsivePageWrapper 
+      title="Expense Management" 
+      subtitle="Track and manage company expenses"
+      actions={actions}
+    >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center">
@@ -312,7 +326,6 @@ const Expenses = () => {
             </table>
           </div>
         </div>
-      </div>
 
       {/* Add Expense Modal */}
       {showAddModal && (
@@ -413,7 +426,7 @@ const Expenses = () => {
           </div>
         </div>
       )}
-    </div>
+    </ResponsivePageWrapper>
   );
 };
 

@@ -4,8 +4,30 @@ import {
   addJournalEntry, 
   getAccountList 
 } from '../../services/AccountingService';
+import { useResponsive } from '../../hooks/useResponsive';
+import {
+  ResponsivePageWrapper,
+  ResponsiveCard,
+  ResponsiveGrid,
+  ResponsiveTable,
+  ResponsiveTableHeader,
+  ResponsiveTableHeaderCell,
+  ResponsiveTableBody,
+  ResponsiveTableRow,
+  ResponsiveTableCell,
+  ResponsiveButton,
+  ResponsiveFormGroup,
+  ResponsiveSelect,
+  ResponsiveInput,
+  ResponsiveTextarea,
+  ResponsiveModal,
+  ResponsiveLoadingSpinner,
+  ResponsiveBadge,
+  ResponsiveAlert
+} from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const JournalEntry = () => {
+  const responsive = useResponsive();
   const [journalEntries, setJournalEntries] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -145,17 +167,22 @@ const JournalEntry = () => {
 
   const { totalDebits, totalCredits } = calculateTotals();
 
+  const actions = (
+    <ResponsiveButton 
+      variant="primary" 
+      size="md" 
+      onClick={() => setShowForm(true)}
+    >
+      + Create Journal Entry
+    </ResponsiveButton>
+  );
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Journal Entries</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + Create Journal Entry
-        </button>
-      </div>
+    <ResponsivePageWrapper 
+      title="Journal Entries" 
+      subtitle="Manage general ledger journal entries"
+      actions={actions}
+    >
 
       {/* Journal Entries List */}
       {!showForm && (
@@ -470,7 +497,7 @@ const JournalEntry = () => {
           </form>
         </div>
       )}
-    </div>
+    </ResponsivePageWrapper>
   );
 };
 
