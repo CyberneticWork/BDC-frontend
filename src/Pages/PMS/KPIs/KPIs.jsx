@@ -31,6 +31,62 @@ import AddKpiTaskModal from "./AddKpiTaskModal";
 import AddCreatorRoleModal from "./AddCreatorRoleModal";
 import AddKpiWeightModal from "./AddKpiWeightModal";
 
+// Move this function outside of TaskModal, before the TaskModal component definition
+const mergeTemplateWithAssignmentWeights = (templateWeights, assignmentWeights) => {
+  // Create maps for fast lookups
+  const templateMap = new Map();
+  templateWeights.forEach(w => {
+    const key = w.id || w.name;
+    if (key) templateMap.set(key, { ...w, percentage: 0 });
+  });
+  
+  const assignmentMap = new Map();
+  if (Array.isArray(assignmentWeights)) {
+    assignmentWeights.forEach(w => {
+      // Try to match by id first, then by title/name
+      const key = w.id || w.title;
+      if (key) assignmentMap.set(key, w);
+    });
+  }
+  
+  // First add all template weights (with assignment percentages where available)
+  const result = [];
+  templateMap.forEach((templateWeight, key) => {
+    if (assignmentMap.has(key)) {
+      // This template weight exists in assignment weights - use assignment percentage
+      const assignmentWeight = assignmentMap.get(key);
+      result.push({
+        id: templateWeight.id,
+        title: templateWeight.name || assignmentWeight.title,
+        description: templateWeight.description || assignmentWeight.description || '',
+        percentage: assignmentWeight.percentage || 0
+      });
+      // Remove from assignment map so we don't add it twice
+      assignmentMap.delete(key);
+    } else {
+      // This is a new template weight not in assignment - add with 0%
+      result.push({
+        id: templateWeight.id,
+        title: templateWeight.name,
+        description: templateWeight.description || '',
+        percentage: 0
+      });
+    }
+  });
+  
+  // Then add any remaining assignment weights that weren't in templates
+  assignmentMap.forEach(weight => {
+    result.push({
+      id: weight.id,
+      title: weight.title || weight.name || '',
+      description: weight.description || '',
+      percentage: weight.percentage || 0
+    });
+  });
+  
+  return result;
+};
+
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
 const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false, isLoading = false, employees = [] }) => {
@@ -62,27 +118,45 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     const fetchWeights = async () => {
       setIsLoadingWeights(true);
       try {
-        const weights = await PMSService.getKpiWeights();
-        const mappedWeights = Array.isArray(weights) ? weights.map(w => ({
-          // normalize to the UI shape used across the modal
+        // Always fetch template weights
+        const templateWeights = await PMSService.getKpiWeights();
+        const mappedTemplateWeights = Array.isArray(templateWeights) ? templateWeights.map(w => ({
           id: w.id ?? null,
-          title: w.name ?? '',
+          name: w.name ?? '',
           description: w.description ?? '',
           percentage: 0
         })) : [];
         
-        setDbWeights(mappedWeights);
+        setDbWeights(mappedTemplateWeights);
 
-        // Only set formData.weights when:
-        // - not in edit mode, AND
-        // - formData.weights is empty or not set
-        setFormData(prev => {
-          const hasWeights = Array.isArray(prev.weights) && prev.weights.length > 0;
-          if (!isEdit && !hasWeights) {
-            return { ...prev, weights: mappedWeights };
+        // For edit mode with existing weights, merge template weights with assignment weights
+        if (isEdit && initialData?.weights) {
+          const mergedWeights = mergeTemplateWithAssignmentWeights(
+            mappedTemplateWeights,
+            initialData.weights
+          );
+          
+          setFormData(prev => ({
+            ...prev,
+            weights: mergedWeights
+          }));
+        } 
+        // For create mode, just use template weights if no weights set
+        else if (!isEdit) {
+          const hasWeights = Array.isArray(formData.weights) && formData.weights.length > 0;
+          if (!hasWeights) {
+            setFormData(prev => ({
+              ...prev,
+              weights: mappedTemplateWeights.map(w => ({
+                id: w.id,
+                title: w.name,  // Use title for consistency
+                name: w.name,   // Keep name as backup
+                description: w.description,
+                percentage: 0
+              }))
+            }));
           }
-          return prev;
-        });
+        }
       } catch (error) {
         console.error('Error fetching KPI weights:', error);
         // Fallback to hardcoded weights if database fetch fails
@@ -110,7 +184,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     if (isOpen) {
       fetchWeights();
     }
-  }, [isOpen, isEdit]);
+  }, [isOpen, isEdit, initialData?.weights]);
 
   const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
@@ -793,9 +867,9 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                     <div key={index} className="flex items-start gap-3">
                       <div className="flex-1">
                         <p className="text-sm text-gray-700">
-                          <strong>{weight.title}</strong>
+                          <strong>{weight.title || weight.name}</strong>
                           {weight.description && (
-                            <span className="text-xs text-gray-500 ml-1">{weight.description}</span>
+                            <span className="text-xs text-gray-500 ml-1"> - {weight.description}</span>
                           )}
                         </p>
                       </div>
@@ -1103,6 +1177,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
             try {
               const weights = await PMSService.getKpiWeights();
               const mappedWeights = Array.isArray(weights) ? weights.map(w => ({
+                id: w.id ?? null, // Include the ID for proper mapping
                 title: w.name,
                 description: w.description || '',
                 percentage: 0
@@ -1110,15 +1185,40 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               
               setDbWeights(mappedWeights);
               
-              // Only update if not in edit mode or if weights is empty
-              if (!isEdit && (!formData.weights || formData.weights.length === 0)) {
-                setFormData(prev => ({
-                  ...prev,
-                  weights: mappedWeights
-                }));
-              }
+              // Always update the form data weights to include the new weight
+              setFormData(prev => {
+                // If we're in edit mode and have existing weights, merge them properly
+                if (isEdit && prev.weights && prev.weights.length > 0) {
+                  const mergedWeights = mergeTemplateWithAssignmentWeights(mappedWeights, prev.weights);
+                  return {
+                    ...prev,
+                    weights: mergedWeights
+                  };
+                } else {
+                  // For create mode or empty weights, use the full template list
+                  return {
+                    ...prev,
+                    weights: mappedWeights
+                  };
+                }
+              });
+              
+              // Show success feedback
+              await Swal.fire({
+                icon: "success",
+                title: "Weight Added",
+                text: `"${newWeight.name}" has been added to the criteria list.`,
+                timer: 1500,
+                showConfirmButton: false,
+              });
+              
             } catch (error) {
-              console.error('Error fetching KPI weights:', error);
+              console.error('Error fetching KPI weights after creation:', error);
+              await Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "Failed to refresh weight list. Please close and reopen the modal.",
+              });
             } finally {
               setIsAddWeightModalOpen(false);
             }
@@ -1800,9 +1900,117 @@ const KPIs = (/* props */) => {
   };
 
   // Modal handlers
-  const openEditModal = (kpi) => {
-    setCurrentKpi(kpi);
-    setIsEditModalOpen(true);
+  const openEditModal = async (kpi) => {
+    try {
+      // Fetch current template weights from database
+      const templateWeights = await PMSService.getKpiWeights();
+      const mappedTemplateWeights = Array.isArray(templateWeights) 
+        ? templateWeights.map(w => ({
+            id: w.id ?? null,
+            title: w.name ?? '',
+            description: w.description ?? '',
+            percentage: 0
+          })) 
+        : [];
+      
+      // Get template weight IDs for filtering
+      const templateWeightIds = new Set(mappedTemplateWeights.map(w => w.id).filter(id => id !== null));
+      
+      // Filter existing assignment weights to only include:
+      // 1. Weights that exist in current templates, OR
+      // 2. Weights that have assigned percentage > 0 (to preserve user's work)
+      const existingWeights = Array.isArray(kpi.weights) ? kpi.weights : [];
+      const filteredExistingWeights = existingWeights.filter(weight => {
+        const hasId = weight.id !== null && weight.id !== undefined;
+        const existsInTemplate = hasId && templateWeightIds.has(weight.id);
+        const hasAssignedPercentage = weight.percentage && weight.percentage > 0;
+        
+        // Keep weight if it exists in current templates OR has assigned percentage
+        return existsInTemplate || hasAssignedPercentage;
+      });
+      
+      // Merge filtered existing weights with template weights
+      const mergedWeights = mergeTemplateWithAssignmentWeights(mappedTemplateWeights, filteredExistingWeights);
+      
+      // Helper function to format date consistently
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        try {
+          // Handle various date formats that might come from the API
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return '';
+          
+          // Format as YYYY-MM-DD for HTML date input
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          
+          return `${year}-${month}-${day}`;
+        } catch (error) {
+          console.error('Error formatting date:', dateString, error);
+          return '';
+        }
+      };
+      
+      // Set currentKpi with cleaned weights and properly formatted dates
+      setCurrentKpi({
+        ...kpi,
+        // Ensure dates are in the correct format for HTML date inputs
+        startDate: formatDateForInput(kpi.startDate),
+        endDate: formatDateForInput(kpi.endDate),
+        // Preserve other fields with fallbacks
+        name: kpi.name || '',
+        description: kpi.description || '',
+        company: kpi.company || kpi.company_id || '',
+        department: kpi.department || kpi.departmentId || kpi.department_id || '',
+        departmentId: kpi.departmentId || kpi.department_id || '',
+        companyName: kpi.companyName || '',
+        departmentName: kpi.departmentName || '',
+        assignees: Array.isArray(kpi.assignees) ? [...kpi.assignees] : [],
+        creatorRole: kpi.creatorRole || kpi.creator?.role || '',
+        priority: kpi.priority || 'medium',
+        status: kpi.status || 'active',
+        weights: mergedWeights,
+        // Add any other fields that might be needed
+        id: kpi.id,
+        created_at: kpi.created_at || kpi.createdAt,
+        updated_at: kpi.updated_at || kpi.updatedAt,
+        last_updated: kpi.last_updated || kpi.lastUpdated
+      });
+      
+      // Open edit modal
+      setIsEditModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching template weights for edit:", error);
+      
+      // Fall back to just opening the modal with existing weights but still fix dates
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        try {
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return '';
+          
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          
+          return `${year}-${month}-${day}`;
+        } catch (error) {
+          console.error('Error formatting date:', dateString, error);
+          return '';
+        }
+      };
+      
+      setCurrentKpi({
+        ...kpi,
+        startDate: formatDateForInput(kpi.startDate),
+        endDate: formatDateForInput(kpi.endDate),
+        departmentId: kpi.departmentId || kpi.department_id || '',
+        creatorRole: kpi.creatorRole || kpi.creator?.role || '',
+        assignees: Array.isArray(kpi.assignees) ? [...kpi.assignees] : []
+      });
+      setIsEditModalOpen(true);
+    }
   };
 
   const openDeleteModal = (kpi) => {
