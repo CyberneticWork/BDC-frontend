@@ -14,8 +14,28 @@ import {
   XCircle,
   AlertCircle,
 } from "lucide-react";
+import { useResponsive } from '../../hooks/useResponsive';
+import {
+  ResponsivePageWrapper,
+  ResponsiveCard,
+  ResponsiveGrid,
+  ResponsiveTable,
+  ResponsiveTableHeader,
+  ResponsiveTableHeaderCell,
+  ResponsiveTableBody,
+  ResponsiveTableRow,
+  ResponsiveTableCell,
+  ResponsiveButton,
+  ResponsiveFormGroup,
+  ResponsiveInput,
+  ResponsiveSelect,
+  ResponsiveLoadingSpinner,
+  ResponsiveBadge,
+  ResponsiveModal
+} from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const BankReconciliation = () => {
+  const responsive = useResponsive();
   const [reconciliations, setReconciliations] = useState([]);
   const [filteredReconciliations, setFilteredReconciliations] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -136,152 +156,227 @@ const BankReconciliation = () => {
 
   const uniqueBanks = [...new Set(reconciliations.map(rec => rec.bankAccount))];
 
-  return (
-    <div className="p-6">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Bank Reconciliation</h1>
-            <p className="text-gray-600">
-              Reconcile bank statements with book records
-            </p>
-          </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            New Reconciliation
-          </button>
-        </div>
+  const actions = (
+    <ResponsiveButton 
+      variant="primary" 
+      size={responsive.isMobile ? 'sm' : 'md'}
+      onClick={() => setShowAddModal(true)}
+    >
+      <Plus className="h-4 w-4" />
+      {responsive.isMobile ? '' : 'New Reconciliation'}
+    </ResponsiveButton>
+  );
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search reconciliations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <select
-            value={selectedBank}
-            onChange={(e) => setSelectedBank(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Banks</option>
-            {uniqueBanks.map(bank => (
-              <option key={bank} value={bank}>{bank}</option>
-            ))}
-          </select>
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="reconciled">Reconciled</option>
-            <option value="discrepancy">Discrepancy</option>
-          </select>
-          <div className="flex gap-2">
-            <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Export
-            </button>
-            <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Import
-            </button>
-          </div>
-        </div>
-      </div>
+  return (
+    <ResponsivePageWrapper 
+      title="Bank Reconciliation" 
+      subtitle="Reconcile bank statements with book records"
+      actions={actions}
+    >
+      {/* Filters */}
+      <ResponsiveCard className="mb-4 sm:mb-6">
+        <ResponsiveGrid 
+          cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'} 
+          gap="gap-4"
+        >
+          <ResponsiveFormGroup>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <ResponsiveInput
+                type="text"
+                placeholder="Search reconciliations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </ResponsiveFormGroup>
+          <ResponsiveFormGroup>
+            <ResponsiveSelect
+              value={selectedBank}
+              onChange={(e) => setSelectedBank(e.target.value)}
+            >
+              <option value="">All Banks</option>
+              {uniqueBanks.map(bank => (
+                <option key={bank} value={bank}>{bank}</option>
+              ))}
+            </ResponsiveSelect>
+          </ResponsiveFormGroup>
+          <ResponsiveFormGroup>
+            <ResponsiveSelect
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="reconciled">Reconciled</option>
+              <option value="discrepancy">Discrepancy</option>
+            </ResponsiveSelect>
+          </ResponsiveFormGroup>
+          <ResponsiveFormGroup>
+            <div className="flex gap-2">
+              <ResponsiveButton variant="outline" size="sm" className="flex-1">
+                <Download className="h-4 w-4" />
+                {responsive.isMobile ? '' : 'Export'}
+              </ResponsiveButton>
+              <ResponsiveButton variant="outline" size="sm" className="flex-1">
+                <Upload className="h-4 w-4" />
+                {responsive.isMobile ? '' : 'Import'}
+              </ResponsiveButton>
+            </div>
+          </ResponsiveFormGroup>
+        </ResponsiveGrid>
+      </ResponsiveCard>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow border">
+      <ResponsiveGrid 
+        cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'} 
+        gap="gap-4 sm:gap-6" 
+        className="mb-4 sm:mb-6"
+      >
+        <ResponsiveCard className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Reconciliations</p>
-              <p className="text-2xl font-bold text-gray-900">{reconciliations.length}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 truncate">Total Reconciliations</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{reconciliations.length}</p>
             </div>
-            <Building2 className="h-8 w-8 text-blue-500" />
+            <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0 ml-2" />
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
+        </ResponsiveCard>
+        <ResponsiveCard className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Reconciled</p>
-              <p className="text-2xl font-bold text-green-600">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 truncate">Reconciled</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">
                 {reconciliations.filter(r => r.status === 'reconciled').length}
               </p>
             </div>
-            <CheckCircle className="h-8 w-8 text-green-500" />
+            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0 ml-2" />
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
+        </ResponsiveCard>
+        <ResponsiveCard className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 truncate">Pending</p>
+              <p className="text-lg sm:text-2xl font-bold text-yellow-600 truncate">
                 {reconciliations.filter(r => r.status === 'pending').length}
               </p>
             </div>
-            <AlertCircle className="h-8 w-8 text-yellow-500" />
+            <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 flex-shrink-0 ml-2" />
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border">
+        </ResponsiveCard>
+        <ResponsiveCard className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Discrepancies</p>
-              <p className="text-2xl font-bold text-red-600">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 truncate">Discrepancies</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">
                 {reconciliations.filter(r => r.status === 'discrepancy').length}
               </p>
             </div>
-            <XCircle className="h-8 w-8 text-red-500" />
+            <XCircle className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 flex-shrink-0 ml-2" />
           </div>
-        </div>
-      </div>
+        </ResponsiveCard>
+      </ResponsiveGrid>
 
       {/* Reconciliations Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bank Account
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reconciliation Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statement Balance
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Book Balance
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Difference
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created By
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+      <ResponsiveCard>
+        {responsive.isMobile ? (
+          /* Mobile View - Card Layout */
+          <div className="space-y-4">
+            {filteredReconciliations.map((reconciliation) => (
+              <div key={reconciliation.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-medium text-gray-900 truncate">
+                      {reconciliation.bankAccount}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {reconciliation.accountNumber}
+                    </p>
+                  </div>
+                  <div className="ml-4 flex-shrink-0">
+                    <ResponsiveBadge 
+                      variant={reconciliation.status === 'reconciled' ? 'success' : 
+                              reconciliation.status === 'pending' ? 'warning' : 'danger'}
+                      size="sm"
+                    >
+                      {getStatusIcon(reconciliation.status)}
+                      {reconciliation.status}
+                    </ResponsiveBadge>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+                  <div>
+                    <span className="text-gray-500">Date:</span>
+                    <p className="font-medium">{new Date(reconciliation.reconciliationDate).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Statement Balance:</span>
+                    <p className="font-medium">{formatCurrency(reconciliation.statementBalance)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Book Balance:</span>
+                    <p className="font-medium">{formatCurrency(reconciliation.bookBalance)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Difference:</span>
+                    <p className={`font-medium ${
+                      reconciliation.difference === 0 
+                        ? 'text-green-600' 
+                        : reconciliation.difference > 0 
+                          ? 'text-blue-600' 
+                          : 'text-red-600'
+                    }`}>
+                      {formatCurrency(reconciliation.difference)}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                  <span className="text-xs text-gray-500">By: {reconciliation.createdBy}</span>
+                  <div className="flex space-x-2">
+                    <ResponsiveButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedReconciliation(reconciliation)}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </ResponsiveButton>
+                    <ResponsiveButton
+                      variant="danger"
+                      size="sm"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </ResponsiveButton>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {filteredReconciliations.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No bank reconciliations found.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Desktop View - Table Layout */
+          <ResponsiveTable>
+            <ResponsiveTableHeader>
+              <ResponsiveTableHeaderCell>Bank Account</ResponsiveTableHeaderCell>
+              <ResponsiveTableHeaderCell>Reconciliation Date</ResponsiveTableHeaderCell>
+              <ResponsiveTableHeaderCell align="right">Statement Balance</ResponsiveTableHeaderCell>
+              <ResponsiveTableHeaderCell align="right">Book Balance</ResponsiveTableHeaderCell>
+              <ResponsiveTableHeaderCell align="right">Difference</ResponsiveTableHeaderCell>
+              <ResponsiveTableHeaderCell>Status</ResponsiveTableHeaderCell>
+              <ResponsiveTableHeaderCell>Created By</ResponsiveTableHeaderCell>
+              <ResponsiveTableHeaderCell>Actions</ResponsiveTableHeaderCell>
+            </ResponsiveTableHeader>
+            <ResponsiveTableBody>
               {filteredReconciliations.map((reconciliation) => (
-                <tr key={reconciliation.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <ResponsiveTableRow key={reconciliation.id}>
+                  <ResponsiveTableCell>
                     <div>
                       <div className="text-sm font-medium text-gray-900">
                         {reconciliation.bankAccount}
@@ -290,17 +385,17 @@ const BankReconciliation = () => {
                         {reconciliation.accountNumber}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  </ResponsiveTableCell>
+                  <ResponsiveTableCell>
                     {new Date(reconciliation.reconciliationDate).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  </ResponsiveTableCell>
+                  <ResponsiveTableCell align="right">
                     {formatCurrency(reconciliation.statementBalance)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  </ResponsiveTableCell>
+                  <ResponsiveTableCell align="right">
                     {formatCurrency(reconciliation.bookBalance)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  </ResponsiveTableCell>
+                  <ResponsiveTableCell align="right">
                     <span className={`font-medium ${
                       reconciliation.difference === 0 
                         ? 'text-green-600' 
@@ -310,65 +405,67 @@ const BankReconciliation = () => {
                     }`}>
                       {formatCurrency(reconciliation.difference)}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusClass(reconciliation.status)}`}>
+                  </ResponsiveTableCell>
+                  <ResponsiveTableCell>
+                    <ResponsiveBadge 
+                      variant={reconciliation.status === 'reconciled' ? 'success' : 
+                              reconciliation.status === 'pending' ? 'warning' : 'danger'}
+                      size="sm"
+                    >
                       {getStatusIcon(reconciliation.status)}
                       {reconciliation.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </ResponsiveBadge>
+                  </ResponsiveTableCell>
+                  <ResponsiveTableCell>
                     {reconciliation.createdBy}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  </ResponsiveTableCell>
+                  <ResponsiveTableCell>
                     <div className="flex items-center gap-2">
-                      <button
+                      <ResponsiveButton
+                        variant="outline"
+                        size="sm"
                         onClick={() => setSelectedReconciliation(reconciliation)}
-                        className="text-blue-600 hover:text-blue-900"
                       >
                         <Edit className="h-4 w-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      </ResponsiveButton>
+                      <ResponsiveButton
+                        variant="danger"
+                        size="sm"
+                      >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </ResponsiveButton>
                     </div>
-                  </td>
-                </tr>
+                  </ResponsiveTableCell>
+                </ResponsiveTableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {filteredReconciliations.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No bank reconciliations found.</p>
-          </div>
+            </ResponsiveTableBody>
+          </ResponsiveTable>
         )}
-      </div>
+      </ResponsiveCard>
 
-      {/* Add/Edit Modal would go here */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">New Bank Reconciliation</h3>
-            <p className="text-gray-600 mb-4">
-              Bank reconciliation form would be implemented here.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Save
-              </button>
-            </div>
-          </div>
+      {/* Add/Edit Modal */}
+      <ResponsiveModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="New Bank Reconciliation"
+        size="md"
+      >
+        <p className="text-gray-600 mb-4">
+          Bank reconciliation form would be implemented here.
+        </p>
+        <div className="flex justify-end gap-2">
+          <ResponsiveButton
+            variant="secondary"
+            onClick={() => setShowAddModal(false)}
+          >
+            Cancel
+          </ResponsiveButton>
+          <ResponsiveButton variant="primary">
+            Save
+          </ResponsiveButton>
         </div>
-      )}
-    </div>
+      </ResponsiveModal>
+    </ResponsivePageWrapper>
   );
 };
 

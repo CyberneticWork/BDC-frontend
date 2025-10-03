@@ -19,8 +19,22 @@ import {
   getBalanceSheetData,
   getPreviousBalanceSheetData
 } from '../../services/AccountingService';
+import { useResponsive } from '../../hooks/useResponsive';
+import {
+  ResponsivePageWrapper,
+  ResponsiveCard,
+  ResponsiveGrid,
+  ResponsiveButton,
+  ResponsiveFormGroup,
+  ResponsiveInput,
+  ResponsiveSelect,
+  ResponsiveLoadingSpinner,
+  ResponsiveBadge,
+  ResponsiveAlert
+} from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const BalanceSheet = () => {
+  const responsive = useResponsive();
   const [selectedDate, setSelectedDate] = useState("2024-01-31");
   const [expandedSections, setExpandedSections] = useState({
     currentAssets: true,
@@ -158,113 +172,116 @@ const BalanceSheet = () => {
     workingCapital: currentTotals.currentAssets - currentTotals.currentLiabilities
   };
 
+  const actions = (
+    <>
+      <ResponsiveButton
+        variant="secondary"
+        size={responsive.isMobile ? 'sm' : 'md'}
+        onClick={handleRefresh}
+        loading={loading}
+      >
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        {responsive.isMobile ? '' : 'Refresh'}
+      </ResponsiveButton>
+      <ResponsiveButton
+        variant="primary"
+        size={responsive.isMobile ? 'sm' : 'md'}
+        onClick={exportToPDF}
+      >
+        <Download className="h-4 w-4" />
+        {responsive.isMobile ? '' : 'Export PDF'}
+      </ResponsiveButton>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Balance Sheet</h1>
-              <p className="text-gray-600 mt-1">Financial position as of {new Date(selectedDate).toLocaleDateString()}</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Export PDF
-              </button>
-            </div>
-          </div>
-        </div>
+    <ResponsivePageWrapper 
+      title="Balance Sheet" 
+      subtitle={`Financial position as of ${new Date(selectedDate).toLocaleDateString()}`}
+      actions={actions}
+    >
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Assets</p>
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(currentTotals.totalAssets)}</p>
-              </div>
-              <Building className="h-8 w-8 text-blue-600" />
+      {/* Key Metrics */}
+      <ResponsiveGrid 
+        cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'} 
+        gap="gap-4 sm:gap-6" 
+        className="mb-4 sm:mb-6"
+      >
+        <ResponsiveCard className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Assets</p>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600 truncate">{formatCurrency(currentTotals.totalAssets)}</p>
             </div>
+            <Building className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0 ml-2" />
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Liabilities</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(currentTotals.totalLiabilities)}</p>
-              </div>
-              <CreditCard className="h-8 w-8 text-red-600" />
+        </ResponsiveCard>
+        <ResponsiveCard className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Liabilities</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatCurrency(currentTotals.totalLiabilities)}</p>
             </div>
+            <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 flex-shrink-0 ml-2" />
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Equity</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(currentTotals.totalEquity)}</p>
-              </div>
-              <PieChart className="h-8 w-8 text-green-600" />
+        </ResponsiveCard>
+        <ResponsiveCard className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Equity</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">{formatCurrency(currentTotals.totalEquity)}</p>
             </div>
+            <PieChart className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0 ml-2" />
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Balance Status</p>
-                <p className={`text-lg font-bold ${
-                  currentTotals.isBalanced ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {currentTotals.isBalanced ? 'Balanced' : 'Out of Balance'}
-                </p>
-              </div>
-              {currentTotals.isBalanced ? (
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              ) : (
-                <AlertCircle className="h-8 w-8 text-red-600" />
-              )}
+        </ResponsiveCard>
+        <ResponsiveCard className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Balance Status</p>
+              <p className={`text-base sm:text-lg font-bold truncate ${
+                currentTotals.isBalanced ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {currentTotals.isBalanced ? 'Balanced' : 'Out of Balance'}
+              </p>
             </div>
+            {currentTotals.isBalanced ? (
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0 ml-2" />
+            ) : (
+              <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 flex-shrink-0 ml-2" />
+            )}
           </div>
-        </div>
+        </ResponsiveCard>
+      </ResponsiveGrid>
 
-        {/* Date and Comparison Selectors */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex items-center gap-4">
-            <Calendar className="h-5 w-5 text-gray-400" />
-            <div className="flex gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">As of Date</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Compare to</label>
-                <select
-                  value={comparisonPeriod}
-                  onChange={(e) => setComparisonPeriod(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="previous-month">Previous Month</option>
-                  <option value="previous-quarter">Previous Quarter</option>
-                  <option value="previous-year">Previous Year</option>
-                </select>
-              </div>
-            </div>
-          </div>
+      {/* Date and Comparison Selectors */}
+      <ResponsiveCard className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+          <ResponsiveGrid 
+            cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'} 
+            gap="gap-4" 
+            className="flex-1"
+          >
+            <ResponsiveFormGroup label="As of Date">
+              <ResponsiveInput
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+            </ResponsiveFormGroup>
+            <ResponsiveFormGroup label="Compare to">
+              <ResponsiveSelect
+                value={comparisonPeriod}
+                onChange={(e) => setComparisonPeriod(e.target.value)}
+              >
+                <option value="previous-month">Previous Month</option>
+                <option value="previous-quarter">Previous Quarter</option>
+                <option value="previous-year">Previous Year</option>
+              </ResponsiveSelect>
+            </ResponsiveFormGroup>
+          </ResponsiveGrid>
         </div>
+      </ResponsiveCard>
 
         {/* Balance Sheet */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
@@ -439,70 +456,68 @@ const BalanceSheet = () => {
         </div>
 
         {/* Financial Ratios */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h4 className="font-semibold text-gray-900 mb-4">Key Financial Ratios</h4>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${
+        <ResponsiveCard className="mb-4 sm:mb-6">
+          <h4 className="font-semibold text-base sm:text-lg text-gray-900 mb-4 sm:mb-6">Key Financial Ratios</h4>
+          <ResponsiveGrid 
+            cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'} 
+            gap="gap-4 sm:gap-6"
+          >
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className={`text-xl sm:text-2xl font-bold ${
                 ratios.currentRatio > 2 ? 'text-green-600' : 
                 ratios.currentRatio > 1 ? 'text-yellow-600' : 'text-red-600'
               }`}>
                 {ratios.currentRatio.toFixed(2)}
               </div>
-              <div className="text-sm text-gray-600">Current Ratio</div>
+              <div className="text-xs sm:text-sm text-gray-600 mt-1">Current Ratio</div>
               <div className="text-xs text-gray-500 mt-1">Current Assets / Current Liabilities</div>
             </div>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className={`text-xl sm:text-2xl font-bold ${
                 ratios.debtToEquity < 1 ? 'text-green-600' : 
                 ratios.debtToEquity < 2 ? 'text-yellow-600' : 'text-red-600'
               }`}>
                 {ratios.debtToEquity.toFixed(2)}
               </div>
-              <div className="text-sm text-gray-600">Debt-to-Equity</div>
+              <div className="text-xs sm:text-sm text-gray-600 mt-1">Debt-to-Equity</div>
               <div className="text-xs text-gray-500 mt-1">Total Liabilities / Total Equity</div>
             </div>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className={`text-xl sm:text-2xl font-bold ${
                 ratios.equityRatio > 0.5 ? 'text-green-600' : 
                 ratios.equityRatio > 0.3 ? 'text-yellow-600' : 'text-red-600'
               }`}>
                 {(ratios.equityRatio * 100).toFixed(1)}%
               </div>
-              <div className="text-sm text-gray-600">Equity Ratio</div>
+              <div className="text-xs sm:text-sm text-gray-600 mt-1">Equity Ratio</div>
               <div className="text-xs text-gray-500 mt-1">Total Equity / Total Assets</div>
             </div>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className={`text-xl sm:text-2xl font-bold ${
                 ratios.workingCapital > 10000 ? 'text-green-600' : 
                 ratios.workingCapital > 0 ? 'text-yellow-600' : 'text-red-600'
               }`}>
                 {formatCurrency(ratios.workingCapital)}
               </div>
-              <div className="text-sm text-gray-600">Working Capital</div>
+              <div className="text-xs sm:text-sm text-gray-600 mt-1">Working Capital</div>
               <div className="text-xs text-gray-500 mt-1">Current Assets - Current Liabilities</div>
             </div>
-          </div>
-        </div>
+          </ResponsiveGrid>
+        </ResponsiveCard>
 
         {/* Balance Check Alert */}
         {!currentTotals.isBalanced && (
-          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <div>
-                <h4 className="font-medium text-red-800">Balance Sheet is Out of Balance</h4>
-                <p className="text-sm text-red-700 mt-1">
-                  Total Assets ({formatCurrency(currentTotals.totalAssets)}) does not equal 
-                  Total Liabilities & Equity ({formatCurrency(currentTotals.totalLiabilitiesAndEquity)}). 
-                  Please review your account balances.
-                </p>
-              </div>
-            </div>
-          </div>
+          <ResponsiveAlert
+            variant="danger"
+            title="Balance Sheet is Out of Balance"
+            className="mt-4 sm:mt-6"
+          >
+            Total Assets ({formatCurrency(currentTotals.totalAssets)}) does not equal 
+            Total Liabilities & Equity ({formatCurrency(currentTotals.totalLiabilitiesAndEquity)}). 
+            Please review your account balances.
+          </ResponsiveAlert>
         )}
-      </div>
-    </div>
+    </ResponsivePageWrapper>
   );
 };
 

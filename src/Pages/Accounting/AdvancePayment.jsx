@@ -5,13 +5,34 @@ import {
   getSuppliers, 
   getAccountList 
 } from '../../services/AccountingService';
+import { useResponsive } from '../../hooks/useResponsive';
+import {
+  ResponsivePageWrapper,
+  ResponsiveCard,
+  ResponsiveGrid,
+  ResponsiveTable,
+  ResponsiveTableHeader,
+  ResponsiveTableHeaderCell,
+  ResponsiveTableBody,
+  ResponsiveTableRow,
+  ResponsiveTableCell,
+  ResponsiveButton,
+  ResponsiveFormGroup,
+  ResponsiveInput,
+  ResponsiveSelect,
+  ResponsiveTextarea,
+  ResponsiveLoadingSpinner,
+  ResponsiveBadge
+} from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const AdvancePayment = () => {
+  const responsive = useResponsive();
   const [advancePayments, setAdvancePayments] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     supplier: '',
     paymentMethod: 'Cash',
@@ -56,6 +77,8 @@ const AdvancePayment = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    setLoading(true);
+    
     const paymentData = {
       ...formData,
       amount: parseFloat(formData.amount),
@@ -69,8 +92,11 @@ const AdvancePayment = () => {
       addAdvancePayment(paymentData);
     }
 
-    resetForm();
-    loadData();
+    setTimeout(() => {
+      resetForm();
+      loadData();
+      setLoading(false);
+    }, 500);
   };
 
   const resetForm = () => {
@@ -105,156 +131,232 @@ const AdvancePayment = () => {
     setShowForm(true);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return 'text-green-600 bg-green-100';
-      case 'Partially Adjusted': return 'text-yellow-600 bg-yellow-100';
-      case 'Fully Adjusted': return 'text-blue-600 bg-blue-100';
-      case 'Cancelled': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getPaymentMethodColor = (method) => {
-    switch (method) {
-      case 'Cash': return 'text-green-600 bg-green-100';
-      case 'Check': return 'text-blue-600 bg-blue-100';
-      case 'Bank Transfer': return 'text-purple-600 bg-purple-100';
-      case 'Credit Card': return 'text-orange-600 bg-orange-100';
-      case 'Online Transfer': return 'text-indigo-600 bg-indigo-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
+  const actions = (
+    <ResponsiveButton 
+      variant="primary" 
+      size={responsive.isMobile ? 'sm' : 'md'}
+      onClick={() => setShowForm(true)}
+    >
+      + New Advance Payment
+    </ResponsiveButton>
+  );
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Advance Payments</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + New Advance Payment
-        </button>
-      </div>
-
+    <ResponsivePageWrapper 
+      title="Advance Payments" 
+      subtitle="Manage advance payments to suppliers and vendors"
+      actions={actions}
+    >
       {/* Advance Payments List */}
       {!showForm && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Advance ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supplier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Purpose
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Method
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Remaining
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {advancePayments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {payment.advanceId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {payment.supplier}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {payment.paymentDate}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {payment.purpose}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentMethodColor(payment.paymentMethod)}`}>
-                        {payment.paymentMethod}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${payment.amount?.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${payment.remainingAmount?.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(payment.status)}`}>
+        <ResponsiveCard>
+          {responsive.isMobile ? (
+            /* Mobile View - Card Layout */
+            <div className="space-y-4">
+              {advancePayments.map((payment) => (
+                <div key={payment.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-medium text-gray-900 truncate">
+                        {payment.supplier}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        ID: {payment.advanceId}
+                      </p>
+                    </div>
+                    <div className="ml-4 flex-shrink-0">
+                      <ResponsiveBadge 
+                        variant={payment.status === 'Active' ? 'success' : 
+                                payment.status === 'Partially Adjusted' ? 'warning' :
+                                payment.status === 'Fully Adjusted' ? 'info' : 'danger'}
+                        size="sm"
+                      >
                         {payment.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
+                      </ResponsiveBadge>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+                    <div>
+                      <span className="text-gray-500">Date:</span>
+                      <p className="font-medium">{payment.paymentDate}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Purpose:</span>
+                      <p className="font-medium truncate">{payment.purpose}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Amount:</span>
+                      <p className="font-medium text-green-600">${payment.amount?.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Remaining:</span>
+                      <p className="font-medium text-blue-600">${payment.remainingAmount?.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                    <ResponsiveBadge 
+                      variant={payment.paymentMethod === 'Cash' ? 'success' :
+                              payment.paymentMethod === 'Check' ? 'info' :
+                              payment.paymentMethod === 'Bank Transfer' ? 'default' :
+                              payment.paymentMethod === 'Credit Card' ? 'warning' : 'default'}
+                      size="sm"
+                    >
+                      {payment.paymentMethod}
+                    </ResponsiveBadge>
+                    <div className="flex space-x-2">
+                      <ResponsiveButton
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleEdit(payment)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
                         Edit
-                      </button>
-                      <button className="text-green-600 hover:text-green-900 mr-4">
+                      </ResponsiveButton>
+                      <ResponsiveButton
+                        variant="success"
+                        size="sm"
+                      >
                         Adjust
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        Cancel
-                      </button>
-                    </td>
-                  </tr>
+                      </ResponsiveButton>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {advancePayments.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No advance payments found.</p>
+                  <ResponsiveButton
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowForm(true)}
+                    className="mt-4"
+                  >
+                    Create First Payment
+                  </ResponsiveButton>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Desktop View - Table Layout */
+            <ResponsiveTable>
+              <ResponsiveTableHeader>
+                <ResponsiveTableHeaderCell>Advance ID</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell>Supplier</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell>Date</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell>Purpose</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell>Method</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell align="right">Amount</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell align="right">Remaining</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell>Status</ResponsiveTableHeaderCell>
+                <ResponsiveTableHeaderCell>Actions</ResponsiveTableHeaderCell>
+              </ResponsiveTableHeader>
+              <ResponsiveTableBody>
+                {advancePayments.map((payment) => (
+                  <ResponsiveTableRow key={payment.id}>
+                    <ResponsiveTableCell>
+                      <span className="font-medium">{payment.advanceId}</span>
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell truncate>
+                      {payment.supplier}
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell>
+                      {payment.paymentDate}
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell truncate>
+                      {payment.purpose}
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell>
+                      <ResponsiveBadge 
+                        variant={payment.paymentMethod === 'Cash' ? 'success' :
+                                payment.paymentMethod === 'Check' ? 'info' :
+                                payment.paymentMethod === 'Bank Transfer' ? 'default' :
+                                payment.paymentMethod === 'Credit Card' ? 'warning' : 'default'}
+                        size="sm"
+                      >
+                        {payment.paymentMethod}
+                      </ResponsiveBadge>
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell align="right">
+                      <span className="font-medium text-green-600">
+                        ${payment.amount?.toFixed(2)}
+                      </span>
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell align="right">
+                      <span className="font-medium text-blue-600">
+                        ${payment.remainingAmount?.toFixed(2)}
+                      </span>
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell>
+                      <ResponsiveBadge 
+                        variant={payment.status === 'Active' ? 'success' : 
+                                payment.status === 'Partially Adjusted' ? 'warning' :
+                                payment.status === 'Fully Adjusted' ? 'info' : 'danger'}
+                        size="sm"
+                      >
+                        {payment.status}
+                      </ResponsiveBadge>
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell>
+                      <div className="flex items-center space-x-2">
+                        <ResponsiveButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(payment)}
+                        >
+                          Edit
+                        </ResponsiveButton>
+                        <ResponsiveButton
+                          variant="success"
+                          size="sm"
+                        >
+                          Adjust
+                        </ResponsiveButton>
+                        <ResponsiveButton
+                          variant="danger"
+                          size="sm"
+                        >
+                          Cancel
+                        </ResponsiveButton>
+                      </div>
+                    </ResponsiveTableCell>
+                  </ResponsiveTableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </ResponsiveTableBody>
+            </ResponsiveTable>
+          )}
+        </ResponsiveCard>
       )}
 
       {/* Advance Payment Form */}
       {showForm && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">
+        <ResponsiveCard>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
               {editingPayment ? 'Edit Advance Payment' : 'New Advance Payment'}
             </h2>
-            <button
+            <ResponsiveButton
+              variant="secondary"
+              size={responsive.isMobile ? 'sm' : 'md'}
               onClick={resetForm}
-              className="text-gray-500 hover:text-gray-700"
             >
-              ✕
-            </button>
+              ✕ {responsive.isMobile ? '' : 'Cancel'}
+            </ResponsiveButton>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Supplier*
-                </label>
-                <select
+            <ResponsiveGrid 
+              cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} 
+              gap="gap-4 sm:gap-6"
+            >
+              <ResponsiveFormGroup label="Supplier" required>
+                <ResponsiveSelect
                   name="supplier"
                   value={formData.supplier}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Supplier</option>
                   {suppliers.map((supplier) => (
@@ -262,35 +364,30 @@ const AdvancePayment = () => {
                       {supplier.name}
                     </option>
                   ))}
-                </select>
-              </div>
+                </ResponsiveSelect>
+              </ResponsiveFormGroup>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Date*
-                </label>
-                <input
+              <ResponsiveFormGroup label="Payment Date" required>
+                <ResponsiveInput
                   type="date"
                   name="paymentDate"
                   value={formData.paymentDate}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
-            </div>
+              </ResponsiveFormGroup>
+            </ResponsiveGrid>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Purpose*
-                </label>
-                <select
+            <ResponsiveGrid 
+              cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} 
+              gap="gap-4 sm:gap-6"
+            >
+              <ResponsiveFormGroup label="Purpose" required>
+                <ResponsiveSelect
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Purpose</option>
                   {purposes.map((purpose) => (
@@ -298,70 +395,60 @@ const AdvancePayment = () => {
                       {purpose}
                     </option>
                   ))}
-                </select>
-              </div>
+                </ResponsiveSelect>
+              </ResponsiveFormGroup>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Method*
-                </label>
-                <select
+              <ResponsiveFormGroup label="Payment Method" required>
+                <ResponsiveSelect
                   name="paymentMethod"
                   value={formData.paymentMethod}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {paymentMethods.map((method) => (
                     <option key={method} value={method}>
                       {method}
                     </option>
                   ))}
-                </select>
-              </div>
-            </div>
+                </ResponsiveSelect>
+              </ResponsiveFormGroup>
+            </ResponsiveGrid>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount*
-                </label>
-                <input
+            <ResponsiveGrid 
+              cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} 
+              gap="gap-4 sm:gap-6"
+            >
+              <ResponsiveFormGroup label="Amount" required>
+                <ResponsiveInput
                   type="number"
                   step="0.01"
                   name="amount"
                   value={formData.amount}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
+              </ResponsiveFormGroup>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reference Number
-                </label>
-                <input
+              <ResponsiveFormGroup label="Reference Number">
+                <ResponsiveInput
                   type="text"
                   name="referenceNumber"
                   value={formData.referenceNumber}
                   onChange={handleInputChange}
                   placeholder="Check number, transaction ID, etc."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
-            </div>
+              </ResponsiveFormGroup>
+            </ResponsiveGrid>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Account
-                </label>
-                <select
+            <ResponsiveGrid 
+              cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} 
+              gap="gap-4 sm:gap-6"
+            >
+              <ResponsiveFormGroup label="Account">
+                <ResponsiveSelect
                   name="account"
                   value={formData.account}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Account</option>
                   {accounts.map((account) => (
@@ -369,61 +456,59 @@ const AdvancePayment = () => {
                       {account.accountName}
                     </option>
                   ))}
-                </select>
-              </div>
+                </ResponsiveSelect>
+              </ResponsiveFormGroup>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <select
+              <ResponsiveFormGroup label="Status">
+                <ResponsiveSelect
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="Active">Active</option>
                   <option value="Partially Adjusted">Partially Adjusted</option>
                   <option value="Fully Adjusted">Fully Adjusted</option>
                   <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
-            </div>
+                </ResponsiveSelect>
+              </ResponsiveFormGroup>
+            </ResponsiveGrid>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
+            <ResponsiveFormGroup label="Description">
+              <ResponsiveTextarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={3}
                 placeholder="Additional notes about the advance payment..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </div>
+            </ResponsiveFormGroup>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-4">
-              <button
+            <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-4 sm:pt-6">
+              <ResponsiveButton
                 type="button"
+                variant="secondary"
+                size={responsive.isMobile ? 'md' : 'md'}
                 onClick={resetForm}
-                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                fullWidth={responsive.isMobile}
               >
                 Cancel
-              </button>
-              <button
+              </ResponsiveButton>
+              <ResponsiveButton
                 type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                variant="primary"
+                size={responsive.isMobile ? 'md' : 'md'}
+                loading={loading}
+                disabled={loading}
+                fullWidth={responsive.isMobile}
               >
                 {editingPayment ? 'Update Advance Payment' : 'Create Advance Payment'}
-              </button>
+              </ResponsiveButton>
             </div>
           </form>
-        </div>
+        </ResponsiveCard>
       )}
-    </div>
+    </ResponsivePageWrapper>
   );
 };
 

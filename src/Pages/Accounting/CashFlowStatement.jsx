@@ -21,8 +21,22 @@ import {
   getCashFlowData,
   getPreviousCashFlowData
 } from '../../services/AccountingService';
+import { useResponsive } from '../../hooks/useResponsive';
+import {
+  ResponsivePageWrapper,
+  ResponsiveCard,
+  ResponsiveGrid,
+  ResponsiveButton,
+  ResponsiveFormGroup,
+  ResponsiveInput,
+  ResponsiveSelect,
+  ResponsiveLoadingSpinner,
+  ResponsiveBadge,
+  ResponsiveAlert
+} from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const CashFlowStatement = () => {
+  const responsive = useResponsive();
   const [selectedPeriod, setSelectedPeriod] = useState("current-month");
   const [expandedSections, setExpandedSections] = useState({
     operating: true,
@@ -157,35 +171,34 @@ const CashFlowStatement = () => {
     );
   };
 
+  const actions = (
+    <>
+      <ResponsiveButton
+        variant="secondary"
+        size={responsive.isMobile ? 'sm' : 'md'}
+        onClick={handleRefresh}
+        loading={loading}
+      >
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        {responsive.isMobile ? '' : 'Refresh'}
+      </ResponsiveButton>
+      <ResponsiveButton
+        variant="primary"
+        size={responsive.isMobile ? 'sm' : 'md'}
+        onClick={exportToPDF}
+      >
+        <Download className="h-4 w-4" />
+        {responsive.isMobile ? '' : 'Export PDF'}
+      </ResponsiveButton>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Cash Flow Statement</h1>
-              <p className="text-gray-600 mt-1">Track cash inflows and outflows for {getPeriodLabel()}</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Export PDF
-              </button>
-            </div>
-          </div>
-        </div>
+    <ResponsivePageWrapper 
+      title="Cash Flow Statement" 
+      subtitle={`Track cash inflows and outflows for ${getPeriodLabel()}`}
+      actions={actions}
+    >
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -404,82 +417,83 @@ const CashFlowStatement = () => {
         </div>
 
         {/* Cash Flow Analysis */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Cash Flow Trends */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h4 className="font-semibold text-gray-900 mb-4">Cash Flow Analysis</h4>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Operating Cash Flow Margin</span>
-                <span className={`font-semibold ${
-                  (currentTotals.operatingCashFlow / 100000) > 0.15 ? 'text-green-600' : 'text-yellow-600'
-                }`}>
-                  {((currentTotals.operatingCashFlow / 100000) * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Free Cash Flow</span>
-                <span className={`font-semibold ${
-                  (currentTotals.operatingCashFlow - 15000) >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {formatCurrency(currentTotals.operatingCashFlow - 15000)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Cash Conversion Cycle</span>
-                <span className="font-semibold text-blue-600">45 days</span>
+        <ResponsiveCard>
+          <ResponsiveGrid cols="grid-cols-1 md:grid-cols-2" gap="gap-4 sm:gap-6">
+            {/* Cash Flow Trends */}
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-4">Cash Flow Analysis</h4>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Operating Cash Flow Margin</span>
+                  <span className={`font-semibold ${
+                    (currentTotals.operatingCashFlow / 100000) > 0.15 ? 'text-green-600' : 'text-yellow-600'
+                  }`}>
+                    {((currentTotals.operatingCashFlow / 100000) * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Free Cash Flow</span>
+                  <span className={`font-semibold ${
+                    (currentTotals.operatingCashFlow - 15000) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(currentTotals.operatingCashFlow - 15000)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Cash Conversion Cycle</span>
+                  <span className="font-semibold text-blue-600">45 days</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Cash Flow Health Indicators */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h4 className="font-semibold text-gray-900 mb-4">Financial Health Indicators</h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Operating Cash Flow</span>
-                <div className="flex items-center gap-2">
-                  {currentTotals.operatingCashFlow > 0 ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                  )}
-                  <span className={currentTotals.operatingCashFlow > 0 ? 'text-green-600' : 'text-red-600'}>
-                    {currentTotals.operatingCashFlow > 0 ? 'Positive' : 'Negative'}
-                  </span>
+            {/* Cash Flow Health Indicators */}
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-4">Financial Health Indicators</h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Operating Cash Flow</span>
+                  <div className="flex items-center gap-2">
+                    {currentTotals.operatingCashFlow > 0 ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                    )}
+                    <span className={currentTotals.operatingCashFlow > 0 ? 'text-green-600' : 'text-red-600'}>
+                      {currentTotals.operatingCashFlow > 0 ? 'Positive' : 'Negative'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Investment in Growth</span>
-                <div className="flex items-center gap-2">
-                  {currentTotals.investingCashFlow < 0 ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  )}
-                  <span className={currentTotals.investingCashFlow < 0 ? 'text-green-600' : 'text-yellow-600'}>
-                    {currentTotals.investingCashFlow < 0 ? 'Investing' : 'Divesting'}
-                  </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Investment in Growth</span>
+                  <div className="flex items-center gap-2">
+                    {currentTotals.investingCashFlow < 0 ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    )}
+                    <span className={currentTotals.investingCashFlow < 0 ? 'text-green-600' : 'text-yellow-600'}>
+                      {currentTotals.investingCashFlow < 0 ? 'Investing' : 'Divesting'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Overall Cash Position</span>
-                <div className="flex items-center gap-2">
-                  {currentTotals.netChangeInCash >= 0 ? (
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                  )}
-                  <span className={currentTotals.netChangeInCash >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {currentTotals.netChangeInCash >= 0 ? 'Improving' : 'Declining'}
-                  </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Overall Cash Position</span>
+                  <div className="flex items-center gap-2">
+                    {currentTotals.netChangeInCash >= 0 ? (
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                    )}
+                    <span className={currentTotals.netChangeInCash >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {currentTotals.netChangeInCash >= 0 ? 'Improving' : 'Declining'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          </ResponsiveGrid>
+        </ResponsiveCard>
+    </ResponsivePageWrapper>
   );
 };
 
