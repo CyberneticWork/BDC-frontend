@@ -29,10 +29,19 @@ import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
 import AddKpiTaskModal from "./AddKpiTaskModal";
 import AddCreatorRoleModal from "./AddCreatorRoleModal";
+import AddKpiWeightModal from "./AddKpiWeightModal";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
 const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false, isLoading = false, employees = [] }) => {
+  // Add this new state for the weight modal
+  const [isAddWeightModalOpen, setIsAddWeightModalOpen] = useState(false);
+  
+  // Add this new state for database weights
+  const [dbWeights, setDbWeights] = useState([]);
+  const [isLoadingWeights, setIsLoadingWeights] = useState(false);
+
+  // Existing formData state - keep as is but update the initialization
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -43,17 +52,65 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     department: "",
     category: "",
     priority: "medium",
-    creatorRole: "", // New field for creator role
-    weights: [ // New weights field with predefined criteria - set to empty percentages
-      { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
-      { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
-      { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
-      { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
-      { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
-      { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
-    ],
+    creatorRole: "",
+    weights: [], // Start with empty array, will be populated from database
     ...initialData,
   });
+
+  // Add this useEffect to fetch weights from database
+  useEffect(() => {
+    const fetchWeights = async () => {
+      setIsLoadingWeights(true);
+      try {
+        const weights = await PMSService.getKpiWeights();
+        const mappedWeights = Array.isArray(weights) ? weights.map(w => ({
+          // normalize to the UI shape used across the modal
+          id: w.id ?? null,
+          title: w.name ?? '',
+          description: w.description ?? '',
+          percentage: 0
+        })) : [];
+        
+        setDbWeights(mappedWeights);
+
+        // Only set formData.weights when:
+        // - not in edit mode, AND
+        // - formData.weights is empty or not set
+        setFormData(prev => {
+          const hasWeights = Array.isArray(prev.weights) && prev.weights.length > 0;
+          if (!isEdit && !hasWeights) {
+            return { ...prev, weights: mappedWeights };
+          }
+          return prev;
+        });
+      } catch (error) {
+        console.error('Error fetching KPI weights:', error);
+        // Fallback to hardcoded weights if database fetch fails
+        const fallbackWeights = [
+          { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+          { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty.", percentage: 0 },
+          { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries.", percentage: 0 },
+          { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+          { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+          { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+        ];
+        setDbWeights(fallbackWeights);
+        setFormData(prev => {
+          const hasWeights = Array.isArray(prev.weights) && prev.weights.length > 0;
+          if (!isEdit && !hasWeights) {
+            return { ...prev, weights: fallbackWeights };
+          }
+          return prev;
+        });
+      } finally {
+        setIsLoadingWeights(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchWeights();
+    }
+  }, [isOpen, isEdit]);
 
   const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
@@ -225,17 +282,10 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
           category: initialData.category || "",
           priority: initialData.priority || "medium",
           creatorRole: initialData.creatorRole || "",
-          weights: initialData.weights || [
-            { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
-            { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
-            { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
-            { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
-            { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
-            { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
-          ],
+          weights: initialData.weights || dbWeights, // Use dbWeights as fallback
         });
       } else if (!isEdit) {
-        // Add mode: only reset if no existing data to preserve
+        // Add mode: use database weights
         const hasExistingData = formData.name || formData.description || formData.assignees?.length > 0;
         if (!hasExistingData) {
           setFormData({
@@ -249,14 +299,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
             category: "",
             priority: "medium",
             creatorRole: "",
-            weights: [
-              { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
-              { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
-              { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
-              { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
-              { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
-              { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
-            ],
+            weights: dbWeights, // Use database weights
           });
         }
       }
@@ -267,7 +310,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     }
     
     prevIsOpen.current = isOpen;
-  }, [isOpen, isEdit]); // Removed initialData from dependencies
+  }, [isOpen, isEdit, dbWeights]);
 
   // Add a separate useEffect to handle initialData changes only when necessary
   useEffect(() => {
@@ -293,11 +336,11 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
           category: initialData.category || "",
           priority: initialData.priority || "medium",
           creatorRole: initialData.creatorRole || "",
-          weights: initialData.weights || formData.weights, // Preserve existing weights if no new ones
+          weights: initialData.weights || dbWeights, // Use dbWeights as fallback
         });
       }
     }
-  }, [initialData?.id, isOpen, isEdit]); // Only trigger when the record ID changes
+  }, [initialData?.id, isOpen, isEdit, dbWeights]);
 
   // Ensure numeric IDs for company/department/creatorRole
   const handleChange = (e) => {
@@ -446,13 +489,32 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     );
   };
   
+  // handle single weight input change with total <= 100% validation
   const handleWeightChange = (index, value) => {
-    const updatedWeights = [...formData.weights];
-    updatedWeights[index].percentage = parseInt(value, 10) || 0;
-    setFormData(prev => ({
-      ...prev,
-      weights: updatedWeights
-    }));
+    const newVal = Number(value) || 0;
+    setFormData(prev => {
+      const currentWeights = Array.isArray(prev.weights) ? [...prev.weights] : [];
+      // ensure an entry exists for this index
+      while (currentWeights.length <= index) {
+        currentWeights.push({ title: "", description: "", percentage: 0 });
+      }
+      // simulate new total
+      const simulated = currentWeights.map((w, i) => i === index ? ({ ...w, percentage: newVal }) : w);
+      const total = simulated.reduce((s, w) => s + (Number(w.percentage) || 0), 0);
+      if (total > 100) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Weights exceed 100%',
+          html: `The total of all criteria would be <strong>${total}%</strong>. Please adjust to make the total <= 100%.`,
+          confirmButtonColor: '#F59E0B'
+        });
+        // reject the change by returning previous state unchanged
+        return prev;
+      }
+      // commit the change
+      currentWeights[index] = { ...(currentWeights[index] || {}), percentage: newVal };
+      return { ...prev, weights: currentWeights };
+    });
   };
 
   // Add: select-all handler to fetch employees from backend and populate assignees
@@ -711,6 +773,19 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 <span className="text-sm font-medium text-gray-700">Performance Criteria Weights (%)</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${showWeights ? 'rotate-180' : ''}`} />
               </button>
+              
+              {/* Add the new button with flex container */}
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-gray-500">Configure custom weight criteria</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddWeightModalOpen(true)}
+                  className="inline-flex items-center px-2 py-1 text-xs bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Manage Weights
+                </button>
+              </div>
               
               {showWeights && (
                 <div className="mt-3 space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -1018,6 +1093,37 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
             </button>
           </div>
         </form>
+
+        {/* Add Weight Modal */}
+        <AddKpiWeightModal
+          isOpen={isAddWeightModalOpen}
+          onClose={() => setIsAddWeightModalOpen(false)}
+          onCreated={async (newWeight) => {
+            // refresh authoritative list and include the new weight
+            try {
+              const weights = await PMSService.getKpiWeights();
+              const mappedWeights = Array.isArray(weights) ? weights.map(w => ({
+                title: w.name,
+                description: w.description || '',
+                percentage: 0
+              })) : [];
+              
+              setDbWeights(mappedWeights);
+              
+              // Only update if not in edit mode or if weights is empty
+              if (!isEdit && (!formData.weights || formData.weights.length === 0)) {
+                setFormData(prev => ({
+                  ...prev,
+                  weights: mappedWeights
+                }));
+              }
+            } catch (error) {
+              console.error('Error fetching KPI weights:', error);
+            } finally {
+              setIsAddWeightModalOpen(false);
+            }
+          }}
+        />
       </div>
     </div>
   );
@@ -1029,7 +1135,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, kpiName, isLoadin
   
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-2xl shadow-xl w/full max-w-md mx-4">
         <div className="p-6 text-center">
           <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
             <AlertCircle className="h-8 w-8 text-red-600" />
@@ -1730,6 +1836,7 @@ const KPIs = (/* props */) => {
   };
 
   // Update getUniqueValues to include company
+
   const getUniqueValues = (key) => {
     return [...new Set(kpis.map((kpi) => kpi[key]))];
   };
@@ -1742,7 +1849,7 @@ const KPIs = (/* props */) => {
     if (!kpi.assignees || kpi.assignees.length === 0) {
       return kpi.progress || 0;
     }
-    
+
     kpi.assignees.forEach(idStr => {
       const empId = parseInt(idStr);
       const assigneeUpdates = kpi.assigneeUpdates?.find(au => au.employeeId === empId);

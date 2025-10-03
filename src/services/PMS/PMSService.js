@@ -559,6 +559,48 @@ class PMSService {
       throw error;
     }
   }
+
+  // Get KPI weight templates
+  async getKpiWeights() {
+    try {
+      const response = await axios.get('/pms/kpi-weights');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching KPI weights:", error);
+      throw error;
+    }
+  }
+
+  // KPI Weights CRUD operations
+  async createKpiWeight(weightData) {
+    try {
+      const response = await axios.post('/pms/kpi-weights', weightData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating KPI weight:", error);
+      throw error;
+    }
+  }
+
+  async updateKpiWeight(id, weightData) {
+    try {
+      const response = await axios.put(`/pms/kpi-weights/${id}`, weightData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating KPI weight:", error);
+      throw error;
+    }
+  }
+
+  async deleteKpiWeight(id) {
+    try {
+      const response = await axios.delete(`/pms/kpi-weights/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting KPI weight:", error);
+      throw error;
+    }
+  }
 }
 
 export default new PMSService();
