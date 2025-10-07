@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   PieChart,
   Search,
@@ -25,8 +25,10 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import PMSService from "../../../services/PMS/PMSService";
+import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
+import AddKpiTaskModal from "./AddKpiTaskModal";
+import AddCreatorRoleModal from "./AddCreatorRoleModal";
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
@@ -56,9 +58,15 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
 
+  // Local state for the small "+" Add KPI Task modal used inside TaskModal
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  
   // Creator roles from backend
   const [creatorRoles, setCreatorRoles] = useState([]);
   const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
+
+  // Local state to open Add Creator Role modal
+  const [isAddCreatorRoleModalOpen, setIsAddCreatorRoleModalOpen] = useState(false);
 
   // NEW: backend-driven state
   const [taskOptions, setTaskOptions] = useState([]);
@@ -77,21 +85,23 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const [isLoadingFilterCompanies, setIsLoadingFilterCompanies] = useState(false);
   const [isLoadingFilterDepartments, setIsLoadingFilterDepartments] = useState(false);
   
-  // Fetch KPI task names from backend
+  // NEW: fetch tasks function moved outside useEffect so it can be called after create
+  const fetchTaskOptions = async () => {
+    setIsLoadingTasks(true);
+    try {
+      const tasks = await PMSService.getKpiTasks(); // [`PMSService.getKpiTasks`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js)
+      setTaskOptions(Array.isArray(tasks) ? tasks : []);
+    } catch (e) {
+      console.error("Error fetching KPI task names:", e);
+      setTaskOptions([]);
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
+
+  // Fetch KPI task names from backend on mount
   useEffect(() => {
-    const fetchTasks = async () => {
-      setIsLoadingTasks(true);
-      try {
-        const tasks = await PMSService.getKpiTasks(); // [{id, task_name}]
-        setTaskOptions(Array.isArray(tasks) ? tasks : []);
-      } catch (e) {
-        console.error("Error fetching KPI task names:", e);
-        setTaskOptions([]);
-      } finally {
-        setIsLoadingTasks(false);
-      }
-    };
-    fetchTasks();
+    fetchTaskOptions();
   }, []);
 
   // Fetch companies from backend
@@ -173,13 +183,13 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     };
   }, [formData.company, formData.department, empSearch]);
   
-  // Fetch creator roles once
+  // Fetch creator roles once (extracted to a function so we can refresh on new create)
   useEffect(() => {
     let mounted = true;
-    const fetchRoles = async () => {
+    const fetchCreatorRoles = async () => {
       setIsLoadingCreatorRoles(true);
       try {
-        const roles = await PMSService.getCreatorRoles(); // calls /creator-roles
+        const roles = await PMSService.getCreatorRoles(); // [`PMSService.getCreatorRoles`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js)
         if (!mounted) return;
         setCreatorRoles(Array.isArray(roles) ? roles : []);
       } catch (err) {
@@ -189,35 +199,105 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
         if (mounted) setIsLoadingCreatorRoles(false);
       }
     };
-    fetchRoles();
+    fetchCreatorRoles();
     return () => { mounted = false; };
   }, []);
 
   // Reset form when modal opens with new data
+  const prevIsOpen = useRef(false);
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    setFormData({
-      name: initialData.name || "",
-      description: initialData.description || "",
-      startDate: initialData.startDate || "",
-      endDate: initialData.endDate || "",
-      assignees: initialData.assignees ? [...initialData.assignees] : [],
-      company: initialData.company || "",
-      department: initialData.departmentId || initialData.department || "",
-      category: initialData.category || "",
-      priority: initialData.priority || "medium",
-      creatorRole: initialData.creatorRole || "",
-      weights: initialData.weights || [
-        { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
-        { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
-        { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
-        { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
-        { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
-        { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
-      ],
-    });
-    setEmpSearch("");
-    setShowWeights(false); // Reset weights visibility
-  }, [initialData, isOpen]);
+    // Only reset form data when modal is actually opening for the first time
+    // OR when switching between different records in edit mode
+    if (isOpen && !prevIsOpen.current) {
+      // Modal is opening - initialize form
+      if (isEdit && initialData && Object.keys(initialData).length > 0) {
+        // Edit mode: populate with initial data
+        setFormData({
+          name: initialData.name || "",
+          description: initialData.description || "",
+          startDate: initialData.startDate || "",
+          endDate: initialData.endDate || "",
+          assignees: initialData.assignees ? [...initialData.assignees] : [],
+          company: initialData.company || "",
+          department: initialData.departmentId || initialData.department || "",
+          category: initialData.category || "",
+          priority: initialData.priority || "medium",
+          creatorRole: initialData.creatorRole || "",
+          weights: initialData.weights || [
+            { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+            { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
+            { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
+            { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+            { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+            { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+          ],
+        });
+      } else if (!isEdit) {
+        // Add mode: only reset if no existing data to preserve
+        const hasExistingData = formData.name || formData.description || formData.assignees?.length > 0;
+        if (!hasExistingData) {
+          setFormData({
+            name: "",
+            description: "",
+            startDate: "",
+            endDate: "",
+            assignees: [],
+            company: "",
+            department: "",
+            category: "",
+            priority: "medium",
+            creatorRole: "",
+            weights: [
+              { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+              { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
+              { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
+              { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+              { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+              { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+            ],
+          });
+        }
+      }
+      hasInitialized.current = true;
+    } else if (!isOpen && prevIsOpen.current) {
+      // Modal is closing - reset the initialization flag
+      hasInitialized.current = false;
+    }
+    
+    prevIsOpen.current = isOpen;
+  }, [isOpen, isEdit]); // Removed initialData from dependencies
+
+  // Add a separate useEffect to handle initialData changes only when necessary
+  useEffect(() => {
+    // Only update form data with initialData if:
+    // 1. Modal is open
+    // 2. We're in edit mode  
+    // 3. initialData has meaningful content
+    // 4. Current form is empty (to avoid overriding user input)
+    if (isOpen && isEdit && initialData && Object.keys(initialData).length > 0) {
+      const currentFormHasData = formData.name || formData.description || formData.assignees?.length > 0;
+      
+      // Only populate if form is currently empty (first load) or if the ID changed (different record)
+      if (!currentFormHasData || (initialData.id && initialData.id !== formData.id)) {
+        setFormData({
+          id: initialData.id, // Track the record ID
+          name: initialData.name || "",
+          description: initialData.description || "",
+          startDate: initialData.startDate || "",
+          endDate: initialData.endDate || "",
+          assignees: initialData.assignees ? [...initialData.assignees] : [],
+          company: initialData.company || "",
+          department: initialData.departmentId || initialData.department || "",
+          category: initialData.category || "",
+          priority: initialData.priority || "medium",
+          creatorRole: initialData.creatorRole || "",
+          weights: initialData.weights || formData.weights, // Preserve existing weights if no new ones
+        });
+      }
+    }
+  }, [initialData?.id, isOpen, isEdit]); // Only trigger when the record ID changes
 
   // Ensure numeric IDs for company/department/creatorRole
   const handleChange = (e) => {
@@ -276,11 +356,29 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     return new Date().toISOString().split('T')[0];
   };
 
+  // Mode-aware min start date:
+  // - Create mode: disallow past dates (min = today)
+  // - Edit mode: allow selecting back to the record creation date (if provided) or existing startDate
+  const computeMinStartDate = (initial) => {
+    if (!isEdit) return getToday();
+    const created = initial?.created_at || initial?.createdAt || initial?.created || initial?.startDate || null;
+    if (created) {
+      try {
+        return new Date(created).toISOString().split('T')[0];
+      } catch (e) {
+        // fallthrough
+      }
+    }
+    return initial?.startDate || getToday();
+  };
+
+  const minStartDateForMode = computeMinStartDate(initialData);
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Prevent start date in the past
-    if (formData.startDate && formData.startDate < getToday()) {
+    // Prevent start date in the past only for Create mode
+    if (!isEdit && formData.startDate && formData.startDate < getToday()) {
       Swal.fire({
         icon: "warning",
         title: "Invalid Start Date",
@@ -301,6 +399,22 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       return;
     }
 
+    // Validate weights total: must not exceed 100%
+    const totalWeights = Array.isArray(formData.weights)
+      ? formData.weights.reduce((sum, w) => sum + (Number(w.percentage) || 0), 0)
+      : 0;
+    
+    if (totalWeights > 100) {
+      // show validation and keep current form data intact
+      Swal.fire({
+        icon: "warning",
+        title: "Weights sum exceeds 100%",
+        html: `The total of all performance criteria weights is <strong>${totalWeights}%</strong>. Please adjust so the total does not exceed <strong>100%</strong>.`,
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+    
     // Add computed names to formData before submitting
     const enrichedFormData = {
       ...formData,
@@ -450,25 +564,63 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 Task Name*
               </label>
               <div className="relative">
-                <select
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none"
-                  disabled={isLoadingTasks}
-                >
-                  <option value="">Select task name</option>
-                  {taskOptions.map(t => (
-                    <option key={t.id} value={t.task_name}>{t.task_name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  {/* Select with visible dropdown icon */}
+                  <div className="relative flex-1">
+                    <select
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none pr-10" /* space for icon */
+                      disabled={isLoadingTasks}
+                    >
+                      <option value="">Select task name</option>
+                      {taskOptions.map((t) => (
+                        <option
+                          key={t.id ?? t.task_name}
+                          value={t.task_name}
+                        >
+                          {t.task_name}
+                        </option>
+                      ))}
+                    </select>
+                    {/* dropdown icon */}
+                    <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddTaskModalOpen(true)}
+                    className="inline-flex items-center justify-center w-9 h-9 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                    title="Add new KPI task"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {isLoadingTasks && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                     <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
                   </div>
                 )}
               </div>
+               {/* Add KPI Task Modal */}
+               <AddKpiTaskModal
+                 isOpen={isAddTaskModalOpen}
+                 onClose={() => setIsAddTaskModalOpen(false)}
+                 onCreated={async (newTask) => {
+                   // refresh authoritative list from backend so dropdown shows exact DB rows
+                   await fetchTaskOptions();
+                   // select the created task (backend record should set task_name)
+                   if (newTask && newTask.task_name) {
+                     setFormData(prev => ({ ...prev, name: newTask.task_name }));
+                   }
+                   setIsAddTaskModalOpen(false);
+                 }}
+               />
             </div>
 
             <div>
@@ -489,29 +641,64 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Creator Role*
               </label>
-              <div className="relative">
-                <select
-                  name="creatorRole"
-                  value={formData.creatorRole}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
-                  disabled={isLoadingCreatorRoles}
-                >
-                  <option value="">Select Creator Role</option>
-                  {creatorRoles.map((r) => (
-                    // Use the role name string so the UI can call .split() safely
-                    <option key={r.id} value={r.role_name}>
-                      {r.role_name || r.name || `Role ${r.id}`}
-                    </option>
-                  ))}
-                </select>
-                {isLoadingCreatorRoles && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <select
+                    name="creatorRole"
+                    value={formData.creatorRole}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none pr-10"
+                    disabled={isLoadingCreatorRoles}
+                  >
+                    <option value="">Select Creator Role</option>
+                    {creatorRoles.map((r) => (
+                      // Use the role name string so the UI can call .split() safely
+                      <option key={r.id ?? r.role_name} value={r.role_name}>
+                        {r.role_name || r.name || `Role ${r.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  {/* dropdown icon */}
+                  <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
                   </div>
-                )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddCreatorRoleModalOpen(true)}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                  title="Add new Creator Role"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
+              {isLoadingCreatorRoles && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              )}
+              
+              {/* Add Creator Role Modal */}
+              <AddCreatorRoleModal
+                isOpen={isAddCreatorRoleModalOpen}
+                onClose={() => setIsAddCreatorRoleModalOpen(false)}
+                onCreated={async (newRole) => {
+                  // refresh authoritative list and select created role
+                  try {
+                    const roles = await PMSService.getCreatorRoles();
+                    setCreatorRoles(Array.isArray(roles) ? roles : []);
+                    if (newRole && (newRole.role_name || newRole.name)) {
+                      setFormData(prev => ({ ...prev, creatorRole: newRole.role_name || newRole.name }));
+                    }
+                  } catch (err) {
+                    console.error("Failed to refresh creator roles after create:", err);
+                  } finally {
+                    setIsAddCreatorRoleModalOpen(false);
+                  }
+                }}
+              />
             </div>
 
             {/* Weights Section - Collapsible Dropdown */}
@@ -637,7 +824,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                     value={formData.startDate}
                     onChange={handleChange}
                     required
-                    min={getToday()}
+                    min={minStartDateForMode}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
@@ -1184,7 +1371,7 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
   );
 };
 
-const KPIs = () => {
+const KPIs = (/* props */) => {
   const [kpis, setKpis] = useState([]);
   const [filteredKpis, setFilteredKpis] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1209,6 +1396,9 @@ const KPIs = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentKpi, setCurrentKpi] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add missing state for the small "Add Task" (+) modal next to Task Name select
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   
   // Shared employees list used by TaskModal and TaskViewModal
   const [employees, setEmployees] = useState([]);
@@ -1219,6 +1409,20 @@ const KPIs = () => {
   // Add a state to store all employees for modals
   const [allEmployeesForModals, setAllEmployeesForModals] = useState([]);
 
+  // New states for KPI performance stats
+  const [isLoadingKpiStats, setIsLoadingKpiStats] = useState(false);
+  const [kpiStats, setKpiStats] = useState({
+    onTarget: 0,
+    needAttention: 0,
+    totalInWindow: 0,
+    startDate: null,
+    endDate: null
+  });
+
+  // Optional date-range state (you may already have these controls)
+  const [filterStartDate, setFilterStartDate] = useState(null);
+  const [filterEndDate, setFilterEndDate] = useState(null);
+
   useEffect(() => {
     fetchKpis();
   }, []);
@@ -1228,12 +1432,15 @@ const KPIs = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await PMSService.getKpiTaskAssignments(); // Fetch from backend
+      const data = await PMSService.getKpiTaskAssignments();
       setKpis(Array.isArray(data) ? data : []);
+      
+      // Also refresh KPI stats when tasks are fetched
+      await fetchKpiStats(filterStartDate, filterEndDate);
     } catch (e) {
       setError("Failed to fetch KPI task assignments");
       console.error(e);
-      setKpis([]); // Fallback to empty array
+      setKpis([]);
     } finally {
       setIsLoading(false);
     }
@@ -1272,6 +1479,30 @@ const KPIs = () => {
     fetchEmployeesForModals();
   }, []);
 
+  // New: fetch KPI performance stats
+  const fetchKpiStats = async (startDate = null, endDate = null) => {
+    setIsLoadingKpiStats(true);
+    try {
+      const params = {};
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      const data = await PMSService.getKpiPerformance(params);
+      setKpiStats({
+        onTarget: data.onTarget ?? 0,
+        needAttention: data.needAttention ?? 0,
+        totalInWindow: data.totalInWindow ?? 0,
+        startDate: data.startDate ?? startDate,
+        endDate: data.endDate ?? endDate
+      });
+    } catch (err) {
+      console.error('Failed to load KPI performance stats', err);
+      setKpiStats(s => ({ ...s, onTarget: 0, needAttention: 0 }));
+    } finally {
+      setIsLoadingKpiStats(false);
+    }
+  };
+
+  // Filter and pagination effects
   useEffect(() => {
     applyFilters();
   }, [kpis, statusFilter, departmentFilter, companyFilter]); // Removed searchTerm
@@ -1347,22 +1578,47 @@ const KPIs = () => {
       await Swal.fire({
         icon: "success",
         title: "Success",
-        text: "KPI task assignment created successfully.",
-        timer: 1500,
+        text: `KPI task assignment created successfully. ${result.total_created || result.length || 1} assignment(s) created.`,
+        timer: 2000,
         showConfirmButton: false,
       });
+      
+      // Only close modal and refresh data after successful creation
       setIsAddModalOpen(false);
-      
-      // Refresh the KPI list to get the latest data from server
-      await fetchKpis();
-      
+      await fetchKpis(); // This now includes stats refresh
+
     } catch (e) {
       console.error(e);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to create KPI task assignment. Please try again.",
-      });
+      
+      // Handle duplicate error specifically
+      if (e.response?.status === 422 && e.response?.data?.duplicates) {
+        const duplicates = e.response.data.duplicates;
+        let duplicateList = duplicates.map(dup => 
+          `• ${dup.employee} (${dup.attendance_no})\n  Existing: ${dup.existing_start} to ${dup.existing_end}\n  New: ${dup.new_start} to ${dup.new_end}`
+        ).join('\n\n');
+
+        await Swal.fire({
+          icon: "warning",
+          title: "Duplicate Assignments Detected",
+          text: `The following employees already have this KPI task assigned with overlapping dates:\n\n${duplicateList}\n\nPlease choose different date ranges that don't overlap with existing assignments.`,
+          confirmButtonColor: "#F59E0B",
+          customClass: {
+            popup: 'text-left'
+          }
+        });
+        // IMPORTANT: Don't close modal or reset any state here
+        // Let the user fix the validation issues
+      } else {
+        // Handle other errors
+        const errorMessage = e.response?.data?.message || e.response?.data?.error || "Failed to create KPI task assignment. Please try again.";
+        
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: errorMessage,
+        });
+        // IMPORTANT: Don't close modal or reset any state here either
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1394,9 +1650,9 @@ const KPIs = () => {
       });
       setIsEditModalOpen(false);
       
-      // FIX: Ensure we refresh the list after update
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1422,9 +1678,9 @@ const KPIs = () => {
       });
       setIsDeleteModalOpen(false);
       
-      // FIX: Ensure we refresh the list after deletion
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1566,6 +1822,11 @@ const KPIs = () => {
     return () => { mounted = false; };
   }, [companyFilter]); // note: departmentFilter may be reset inside
 
+  // initial load - you can pass date range here if you have controls
+  useEffect(() => {
+    fetchKpiStats(filterStartDate, filterEndDate);
+  }, [filterStartDate, filterEndDate]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1609,6 +1870,7 @@ const KPIs = () => {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSubmit={handleEditKpi}
+
         initialData={currentKpi ? {
           name: currentKpi.name,
           description: currentKpi.description,
@@ -1655,7 +1917,7 @@ const KPIs = () => {
               </div>
               Key Performance Indicators
             </h1>
-            <p className="text-gray-600 mt-2">
+                       <p className="text-gray-600 mt-2">
               Monitor and track your organization's key performance metrics
             </p>
           </div>
@@ -1680,41 +1942,64 @@ const KPIs = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total KPIs</p>
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="total">📊</span>
+                Total KPIs
+              </p>
               <p className="text-2xl font-bold text-gray-900">{kpis.length}</p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <BarChart3 className="w-6 h-6 text-purple-600" />
+            <div className="p-3 bg-indigo-50 rounded-xl">
+              <div className="p-2 bg-indigo-100 rounded-full">
+                <BarChart3 className="w-6 h-6 text-indigo-600" />
+              </div>
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">On Target</p>
-              <p className="text-2xl font-bold text-green-600">
-                {kpis.filter((k) => k.current >= k.target).length}
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="ontarget">✅</span>
+                On Target
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoadingKpiStats ? "—" : kpiStats.onTarget}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {kpiStats.startDate && kpiStats.endDate ? `${kpiStats.startDate} → ${kpiStats.endDate}` : "This month"}
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-green-50 rounded-xl">
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Need Attention</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {kpis.filter((k) => k.status === "attention").length}
+              <p className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <span role="img" aria-label="attention">⚠️</span>
+                Need Attention
               </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isLoadingKpiStats ? "—" : kpiStats.needAttention}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">No submissions in period</p>
             </div>
-            <div className="p-3 bg-yellow-100 rounded-xl">
-              <AlertCircle className="w-6 h-6 text-yellow-600" />
+            <div className="p-3 bg-yellow-50 rounded-xl">
+              <div className="p-2 bg-yellow-100 rounded-full">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+
+        {/* other existing cards... */}
+           </div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -1831,7 +2116,7 @@ const KPIs = () => {
                     </div>
                                    </td>
                   {/* Performance */}
-                  <td className="px-6 py-4">
+                  {/* <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
@@ -1843,14 +2128,20 @@ const KPIs = () => {
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              getLatestProgress(kpi) < 30 ? "bg-red-500" : getLatestProgress(kpi) < 70 ? "bg-yellow-500" : "bg-green-500"
+                              kpi.current >= kpi.target
+                                ? "bg-green-500"
+                                : kpi.current >= kpi.target * 0.8
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
                             }`}
-                            style={{ width: `${getLatestProgress(kpi)}%` }}
+                            style={{
+                              width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%`,
+                            }}
                           />
                         </div>
                       </div>
                     </div>
-                  </td>
+                  </td> */}
   
                   {/* Weights */}
                   <td className="px-6 py-4">
@@ -1975,7 +2266,7 @@ const KPIs = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <PieChart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No KPIs found</h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-4">
             {statusFilter !== "all" || departmentFilter !== "all" || companyFilter !== "all"
               ? "Try adjusting your filter criteria"
               : "Get started by creating your first KPI"}

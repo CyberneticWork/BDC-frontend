@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { 
   Calendar, 
@@ -35,15 +35,55 @@ import { permissions } from '../../../config/permissions';
 import { useAuth } from '../../../contexts/AuthContext';
 import Swal from "sweetalert2";
 
+// Status options used by ProgressReviewModal select
+const statusOptions = [
+  'In Progress',
+  'Pending',          // maps to Pending Manager when sending
+  'Completed'
+];
+
+// Grade options used by ProgressReviewModal
+const gradeOptions = ['A+','A','B','C','C-'];
+
+/**
+ * Map a linked task name to the metric key in performanceMetrics.
+ * Keep this mapping small and similar to TaskProgressUpdateModal.taskNameToMetricKey.
+ */
+const getMetricKeyFromTask = (task) => {
+  if (!task || !task.name) return null;
+  const name = String(task.name).toLowerCase();
+
+  const mapping = [
+    { match: 'job knowledge', key: 'jobKnowledge' },
+    { match: 'quality', key: 'qualityOfWork' },
+    { match: 'productivity', key: 'productivity' },
+    { match: 'communication', key: 'communicationSkills' },
+    { match: 'teamwork', key: 'teamwork' },
+    { match: 'behavior', key: 'behaviorAtWork' },
+    { match: 'problem', key: 'problemSolving' },
+    { match: 'attendance', key: 'attendance' },
+    { match: 'adapt', key: 'adaptability' },
+    { match: 'self', key: 'selfDevelopment' },
+    { match: 'discipline', key: 'discipline' },
+    { match: 'guideline', key: 'adherenceToGuidelines' },
+  ];
+
+  for (const m of mapping) {
+    if (name.includes(m.match)) return m.key;
+  }
+  return null;
+};
+
 // Progress Review Modal Component
-const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove useDatabase prop
-  // **FIXED**: Initialize with supervisor progress from performance_reviews table, not self-reported
-  const [progress, setProgress] = useState(0); // Start with 0, will be set in useEffect
+const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
+  const [progress, setProgress] = useState(0);
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
   const [statusState, setStatusState] = useState(review?.status || 'In Progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCategoryDetails, setShowCategoryDetails] = useState(false);
+  const [taskDetails, setTaskDetails] = useState(null);
+  const [isLoadingTask, setIsLoadingTask] = useState(false);
   
   // Add performance metrics state
   const [performanceMetrics, setPerformanceMetrics] = useState({
@@ -61,120 +101,120 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
     adherenceToGuidelines: 0
   });
 
-  const [taskDetails, setTaskDetails] = useState(null);
-
-  // keep only the grades you mentioned
-  const gradeOptions = ['A+', 'A', 'B', 'C', 'C-'];
-  const statusOptions = ['Completed', 'In Progress', 'Pending'];
-
-  // Map from task name to performance metric key
-  const taskNameToMetricKey = {
-    "Job Knowledge and Skills": "jobKnowledge",
-    "Quality of Work": "qualityOfWork",
-    "Productivity": "productivity",
-    "Communication Skills": "communicationSkills",
-    "Teamwork and Collaboration": "teamwork",
-    "Behavior at work": "behaviorAtWork",
-    "Problem-Solving and Decision-Making": "problemSolving",
-    "Attendance and Punctuality": "attendance",
-    "Adaptability and Flexibility": "adaptability",
-    "Self-Development": "selfDevelopment",
-    "Discipline and conduct at work": "discipline",
-    "Adherence to the given Guidelines": "adherenceToGuidelines"
-  };
-
-  // Fetch detailed task and submission data when using database
+  // Fetch task details when modal opens
   useEffect(() => {
-    if (isOpen && review && review.id) { // Remove useDatabase check
-      // Fetch task details if using database
-      const fetchTaskDetails = async () => {
-        try {
-          const details = await PMSService.getPerformanceReviewDetails(review.id);
-          setTaskDetails(details);
-        } catch (error) {
-          console.error('Error fetching task details:', error);
-        }
-      };
-      fetchTaskDetails();
-    }
-  }, [isOpen, review]);
+    const fetchTaskDetails = async () => {
+      if (!isOpen || !review?.id) return;
+      
+      setIsLoadingTask(true);
+      try {
+        const details = await PMSService.getPerformanceReviewDetails(review.id);
+        console.log('Fetched task details:', details);
+        setTaskDetails(details);
+      } catch (error) {
+        console.error('Error fetching task details:', error);
+        toast.error('Failed to load task details');
+      } finally {
+        setIsLoadingTask(false);
+      }
+    };
+    
+    fetchTaskDetails();
+  }, [isOpen, review?.id]);
 
-  // **FIXED**: Initialize with supervisor progress from performance_reviews table
+  // Update values when review changes
   useEffect(() => {
     if (review) {
-      // Use supervisor progress from performance_reviews table (0 if not set)
-      setProgress(review.progress || 0); // This comes from performance_reviews.progress column
+      // Initialize from review data first
+      setProgress(review.progress || 0);
       setGrade(review.grade || '');
       setComments(review.supervisorComments || '');
       setStatusState(review.status || 'In Progress');
       
-      // Initialize performance metrics from supervisor review if exists, otherwise start fresh
+      // Initialize performance metrics from supervisor review if exists
       if (review.performanceMetrics && Object.values(review.performanceMetrics).some(v => v > 0)) {
         setPerformanceMetrics(review.performanceMetrics);
       } else {
-        // Start with fresh metrics
-        setPerformanceMetrics({
-          jobKnowledge: 0,
-          qualityOfWork: 0,
-          productivity: 0,
-          communicationSkills: 0,
-          teamwork: 0,
-          behaviorAtWork: 0,
-          problemSolving: 0,
-          attendance: 0,
-          adaptability: 0,
-          selfDevelopment: 0,
-          discipline: 0,
-          adherenceToGuidelines: 0
-        });
+        // Reset metrics if no supervisor review exists yet
+        resetMetrics();
       }
     }
-  }, [review]);
+    
+    // When task details are loaded, override with saved supervisor data if available
+    if (taskDetails?.supervisor_review) {
+      const supervisorData = taskDetails.supervisor_review;
+      setProgress(supervisorData.progress || 0); // Use supervisor's saved progress
+      setGrade(supervisorData.grade || '');
+      setComments(supervisorData.comments || '');
+      setStatusState(supervisorData.status || 'In Progress');
+      
+      if (supervisorData.performance_metrics && Object.values(supervisorData.performance_metrics).some(v => v > 0)) {
+        setPerformanceMetrics(supervisorData.performance_metrics);
+      }
+    }
+  }, [review, taskDetails]);
 
   // Get the linked task if available
   const getLinkedTask = () => {
-    if (taskDetails) { // Remove useDatabase check
-      return {
-        id: taskDetails.assignment.id,
-        name: taskDetails.assignment.task_name,
-        description: taskDetails.assignment.description,
-        startDate: taskDetails.assignment.start_date,
-        endDate: taskDetails.assignment.end_date,
-        weights: taskDetails.assignment.weights
-      };
-    }
-    return null; // Remove dummy data fallback
+  // Defensive: prefer taskDetails top-level shape from API (details.taskName),
+  // fall back to original review fields if available.
+  if (!taskDetails) return review?.taskId || review?.taskName ? {
+    id: review?.taskId ?? null,
+    name: review?.taskName ?? review?.taskName ?? null,
+    description: null,
+    startDate: null,
+    endDate: null,
+    weights: []
+  } : null;
+
+  // If API returned taskName at top-level use that, otherwise try nested assignment
+  const name = taskDetails.taskName ?? taskDetails.assignment?.task_name ?? null;
+  const id = taskDetails.id ?? taskDetails.assignment?.id ?? null;
+  return {
+    id,
+    name,
+    description: taskDetails.description ?? taskDetails.assignment?.description ?? null,
+    startDate: taskDetails.startDate ?? taskDetails.assignment?.start_date ?? null,
+    endDate: taskDetails.endDate ?? taskDetails.assignment?.end_date ?? null,
+    weights: taskDetails.weights ?? taskDetails.assignment?.weights ?? []
   };
+};
 
   const linkedTask = getLinkedTask();
-  const taskSpecificMetricKey = linkedTask ? taskNameToMetricKey[linkedTask.name] : null;
+  const taskSpecificMetricKey = linkedTask ? getMetricKeyFromTask(linkedTask) : null;
 
+  // Ensure dynamic metric key exists in performanceMetrics state when linkedTask or review changes
+  useEffect(() => {
+    if (!taskSpecificMetricKey) return;
+    setPerformanceMetrics(prev => {
+      if (prev.hasOwnProperty(taskSpecificMetricKey)) return prev;
+      return { ...prev, [taskSpecificMetricKey]: review?.progress ?? 0 };
+    });
+  }, [taskSpecificMetricKey, review?.progress]);
+  
   // Calculate overall progress from the performance metrics
   const calculateOverallProgress = (metrics) => {
-    if (taskSpecificMetricKey) {
-      // If task-specific, use only that metric's value
+    // If a task-specific key exists, prefer its value (covers DB tasks and legacy mapping)
+    if (taskSpecificMetricKey && metrics.hasOwnProperty(taskSpecificMetricKey)) {
       return metrics[taskSpecificMetricKey] || 0;
-    } else {
-      // Fallback to average of all metrics
-      const values = Object.values(metrics);
-      if (values.length === 0) return 0;
-      const sum = values.reduce((acc, val) => acc + val, 0);
-      return Math.round(sum / values.length);
     }
+    // Otherwise fallback to the average of all metrics
+    const values = Object.values(metrics);
+    if (values.length === 0) return 0;
+    const sum = values.reduce((acc, val) => acc + (Number(val) || 0), 0);
+    return Math.round(sum / values.length);
   };
-
+  
   // Update progress whenever performanceMetrics changes
   useEffect(() => {
-    const overall = calculateOverallProgress(performanceMetrics);
-    setProgress(overall);
+    // Since we're now focusing on task-specific rating, we don't need to calculate from multiple metrics
+    // The progress is directly controlled by the single slider for the specific task
   }, [performanceMetrics, taskSpecificMetricKey]);
 
   // Handle individual metric changes
   const handleMetricChange = (metric, value) => {
-    setPerformanceMetrics(prev => ({
-      ...prev,
-      [metric]: parseInt(value, 10)
-    }));
+    // For the simplified version, we just update the main progress
+    setProgress(parseInt(value, 10));
   };
 
   // Reset metrics helper
@@ -371,14 +411,22 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
           <div>
             <h2 className="text-xl font-bold text-gray-900">Review Progress</h2>
             <div className="text-sm text-gray-600 mt-1">
-              <span className="font-medium">{review.employeeName}</span> • {review.position || 'Employee'}
+              <span className="font-medium">{review?.employeeName}</span> • {review?.position || 'Employee'}
             </div>
-            {linkedTask && (
-              <div className="text-sm text-indigo-600 mt-1">
+            {isLoadingTask ? (
+              <div className="mt-1 flex items-center">
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                <span className="text-sm text-gray-500">Loading task...</span>
+              </div>
+            ) : linkedTask ? (
+              <div className="text-sm text-indigo-600 mt-1 font-medium">
                 Task: {linkedTask.name}
               </div>
+            ) : (
+              <div className="text-sm text-amber-600 mt-1">
+                Task details not available
+              </div>
             )}
-            {/* Remove useDatabase indicator */}
           </div>
           <button
             onClick={onClose}
@@ -421,51 +469,55 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                     <BarChart className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Performance Metrics</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Performance Review</h3>
                     <p className="text-sm text-gray-600">
-                      {linkedTask 
-                        ? `Rate performance for: ${linkedTask.name}`
-                        : "Rate employee performance across key areas"
-                      }
+                      {linkedTask ? `Task: ${linkedTask.name}` : "General Performance Review"}
                     </p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  {/* Current Progress Display - FIXED to show supervisor progress */}
+                <div className="flex items-center gap-4">
+                  {/* Current Progress Display */}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-indigo-600">{progress}%</div>
                     <div className="text-xs text-gray-500">Supervisor Rating</div>
                   </div>
                   
-                  {/* Show employee's self-reported progress separately if available */}
+                  {/* Show employee's self-reported progress if available */}
                   {review?.selfReportedProgress > 0 && (
-                    <div className="text-center border-l border-gray-200 pl-3">
+                    <div className="text-center border-l border-gray-200 pl-4">
                       <div className="text-lg font-medium text-blue-600">{review.selfReportedProgress}%</div>
                       <div className="text-xs text-gray-500">Employee Self-Report</div>
                     </div>
                   )}
-
-                  {/* Enhanced Toggle Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowCategoryDetails(prev => !prev)}
-                    onKeyDown={handleHeaderKeyDown}
-                    aria-expanded={showCategoryDetails}
-                    aria-controls="performance-metrics-panel"
-                    className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
-                    title={showCategoryDetails ? "Hide detailed metrics" : "Show detailed metrics"}
-                  >
-                    <span className="text-sm font-medium text-gray-700">
-                      {showCategoryDetails ? "Hide Details" : "Rate Performance"}
-                    </span>
-                    <div className={`transform transition-transform duration-200 ${showCategoryDetails ? 'rotate-180' : ''}`}>
-                      <ChevronDown className="h-4 w-4 text-indigo-600" />
-                    </div>
-                  </button>
                 </div>
               </div>
               
+              {/* Single Progress Bar - Visual indicator only (not interactive) */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    {linkedTask ? `${linkedTask.name} Performance` : "Overall Performance"}
+                  </span>
+                  <span className="text-sm font-bold text-indigo-600">{progress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className={`h-3 rounded-full transition-all duration-300 ${
+                      progress < 30 ? 'bg-red-500' : 
+                      progress < 70 ? 'bg-yellow-500' : 
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>Poor (0%)</span>
+                  <span>Good (50%)</span>
+                  <span>Excellent (100%)</span>
+                </div>
+              </div>
+
               {/* Quick Actions Row */}
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-indigo-200">
                 <div className="flex items-center gap-2">
@@ -482,348 +534,172 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => { // Remove
                     type="button"
                     onClick={resetMetrics}
                     className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-                    title="Reset all metrics to 0"
+                    title="Reset progress to 0"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Reset
                   </button>
                 </div>
                 
-                {/* Progress Bar Preview */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">Progress:</span>
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        progress < 30 ? 'bg-red-500' : 
-                        progress < 70 ? 'bg-yellow-500' : 
-                        'bg-green-500'
-                      }`}
-                      style={{ width: `${progress}%` }}
-                    ></div>
+                {/* Toggle for detailed metrics */}
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryDetails(prev => !prev)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-indigo-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                  title={showCategoryDetails ? "Hide task details" : "Show task details"}
+                >
+                  <span className="text-sm font-medium text-gray-700">
+                    {showCategoryDetails ? "Hide Task Details" : "Show Task Details"}
+                  </span>
+                  <div className={`transform transition-transform duration-200 ${showCategoryDetails ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="h-4 w-4 text-indigo-600" />
                   </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Main Progress Control - Single Interactive Slider */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Rate Performance for: <span className="font-semibold text-indigo-600">
+                      {linkedTask ? linkedTask.name : "Overall Performance"}
+                    </span>
+                  </label>
+                  <div className="px-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={progress}
+                      onChange={(e) => setProgress(parseInt(e.target.value, 10))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-2">
+                      <span>0%</span>
+                      <span>25%</span>
+                      <span>50%</span>
+                      <span>75%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Progress indicator text */}
+                <div className="text-center">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    progress < 30 ? 'bg-red-100 text-red-800' : 
+                    progress < 70 ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {progress < 30 ? 'Needs Improvement' : 
+                     progress < 70 ? 'Good Performance' : 
+                     'Excellent Performance'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Collapsible Metrics Panel */}
+            {/* Collapsible Task Details Panel */}
             <div 
-              id="performance-metrics-panel"
               className={`bg-gray-50 rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 ${
                 showCategoryDetails ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
               }`}
             >
               <div className="p-6">
                 <div className="mb-4">
-                  <h4 className="text-md font-semibold text-gray-900 mb-2">Detailed Performance Categories</h4>
+                  <h4 className="text-md font-semibold text-gray-900 mb-2">Task Information</h4>
                   <p className="text-sm text-gray-600 mb-4">
-                    {linkedTask 
-                      ? `Adjust the slider below to rate the employee's performance in: ${linkedTask.name}`
-                      : "Adjust the sliders below to rate the employee's performance in each category (0-100%):"
-                    }
+                    View detailed information about the task being reviewed.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {taskSpecificMetricKey ? (
-                    // Show only the task-specific metric
-                    (() => {
-                      const metricKey = taskSpecificMetricKey;
-                      const metricName = linkedTask.name;
-                      const metricValue = performanceMetrics[metricKey];
-                      
-                      return (
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            {metricName}: <span className="font-bold text-indigo-600">{metricValue}%</span>
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            step="1"
-                            value={metricValue}
-                            onChange={(e) => handleMetricChange(metricKey, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            aria-label={metricName}
-                            className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>Poor</span>
-                            <span>Excellent</span>
+                {/* Show only task information (no duplicate sliders) */}
+                {linkedTask ? (
+                  <div className="space-y-6">
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-semibold text-gray-800">{linkedTask.name}</h5>
+                          <span className="text-lg font-bold text-indigo-600">{progress}%</span>
+                        </div>
+                        
+                        {/* Task details only - no slider */}
+                        <div className="pt-3 border-t border-gray-200">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Start Date:</span>
+                              <p className="font-medium text-gray-900">
+                                {linkedTask.startDate ? new Date(linkedTask.startDate).toLocaleDateString() : 'Not set'}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">End Date:</span>
+                              <p className="font-medium text-gray-900">
+                                {linkedTask.endDate ? new Date(linkedTask.endDate).toLocaleDateString() : 'Not set'}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    // Fallback: Show all metrics if no task is linked
-                    <>
-                      {/* Job Knowledge and Skills */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Job Knowledge and Skills: <span className="font-bold text-indigo-600">{performanceMetrics.jobKnowledge}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.jobKnowledge}
-                          onChange={(e) => handleMetricChange('jobKnowledge', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Job Knowledge and Skills"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
+                          
+                          {linkedTask.description && (
+                            <div className="mt-3">
+                              <span className="text-gray-600 text-sm">Description:</span>
+                              <p className="text-gray-900 text-sm mt-1">{linkedTask.description}</p>
+                            </div>
+                          )}
 
-                      {/* Quality of Work */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Quality of Work: <span className="font-bold text-indigo-600">{performanceMetrics.qualityOfWork}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.qualityOfWork}
-                          onChange={(e) => handleMetricChange('qualityOfWork', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Quality of Work"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
+                          {/* Show task weights if available */}
+                          {linkedTask.weights && linkedTask.weights.length > 0 && (
+                            <div className="mt-3">
+                              <span className="text-gray-600 text-sm">Performance Criteria:</span>
+                              <div className="mt-2 space-y-1">
+                                {linkedTask.weights.map((weight, idx) => (
+                                  <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                    <span className="text-sm text-gray-700">{weight.title || `Criteria ${idx + 1}`}</span>
+                                    <span className="text-sm font-medium text-indigo-600">{weight.percentage}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
 
-                      {/* Productivity */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Productivity: <span className="font-bold text-indigo-600">{performanceMetrics.productivity}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.productivity}
-                          onChange={(e) => handleMetricChange('productivity', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Productivity"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Low</span>
-                          <span>High</span>
+                        {/* Progress indicator for this specific task */}
+                        <div className="flex items-center justify-center pt-3 border-t border-gray-200">
+                          <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
+                            progress < 30 ? 'bg-red-100 text-red-800' : 
+                            progress < 70 ? 'bg-yellow-100 text-yellow-800' : 
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {progress < 30 ? 'Needs Improvement' : 
+                             progress < 70 ? 'Good Performance' : 
+                             'Excellent Performance'}
+                          </span>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Communication Skills */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Communication Skills: <span className="font-bold text-indigo-600">{performanceMetrics.communicationSkills}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.communicationSkills}
-                          onChange={(e) => handleMetricChange('communicationSkills', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Communication Skills"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Teamwork and Collaboration */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Teamwork and Collaboration: <span className="font-bold text-indigo-600">{performanceMetrics.teamwork}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.teamwork}
-                          onChange={(e) => handleMetricChange('teamwork', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Teamwork and Collaboration"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Behavior at work */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Behavior at Work: <span className="font-bold text-indigo-600">{performanceMetrics.behaviorAtWork}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.behaviorAtWork}
-                          onChange={(e) => handleMetricChange('behaviorAtWork', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Behavior at Work"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Problem-Solving and Decision-Making */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Problem-Solving: <span className="font-bold text-indigo-600">{performanceMetrics.problemSolving}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.problemSolving}
-                          onChange={(e) => handleMetricChange('problemSolving', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Problem-Solving and Decision-Making"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Attendance and Punctuality */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Attendance and Punctuality: <span className="font-bold text-indigo-600">{performanceMetrics.attendance}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.attendance}
-                          onChange={(e) => handleMetricChange('attendance', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Attendance and Punctuality"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Adaptability and Flexibility */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Adaptability and Flexibility: <span className="font-bold text-indigo-600">{performanceMetrics.adaptability}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.adaptability}
-                          onChange={(e) => handleMetricChange('adaptability', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Adaptability and Flexibility"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Low</span>
-                          <span>High</span>
-                        </div>
-                      </div>
-
-                      {/* Self-Development */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Self-Development: <span className="font-bold text-indigo-600">{performanceMetrics.selfDevelopment}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.selfDevelopment}
-                          onChange={(e) => handleMetricChange('selfDevelopment', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Self-Development"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Low</span>
-                          <span>High</span>
-                        </div>
-                      </div>
-
-                      {/* Discipline and conduct at work */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Discipline and Conduct: <span className="font-bold text-indigo-600">{performanceMetrics.discipline}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.discipline}
-                          onChange={(e) => handleMetricChange('discipline', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Discipline and conduct at work"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-
-                      {/* Adherence to the given Guidelines */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Adherence to Guidelines: <span className="font-bold text-indigo-600">{performanceMetrics.adherenceToGuidelines}%</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={performanceMetrics.adherenceToGuidelines}
-                          onChange={(e) => handleMetricChange('adherenceToGuidelines', e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label="Adherence to the given Guidelines"
-                          className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Poor</span>
-                          <span>Excellent</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> Use the slider above to rate the employee's performance for the task "{linkedTask.name}". 
+                        This rating will be used as the overall progress for this performance review.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Fallback if no specific task is linked */
+                  <div className="text-center py-8">
+                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <FileText className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Specific Task</h3>
+                    <p className="text-gray-500">
+                      This review is not linked to a specific task. Use the slider above to rate overall performance.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -934,25 +810,25 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
     setIsLoadingDetails(true);
     try {
       const details = await PMSService.getPerformanceReviewDetails(review.id);
-      
-      // Transform backend data to match the expected format
+      /* old code used details.assignment.* and failed when backend returned top-level properties */
+      // Map backend shape robustly: support both top-level fields (taskName, employee, submissions)
       const transformedDetails = {
         id: review.id,
-        taskName: details.assignment.task_name,
-        employeeName: details.assignment.employee_name,
-        employeeId: details.assignment.employee_id,
+        taskName: details?.taskName ?? details?.assignment?.task_name ?? review.taskName ?? null,
+        employeeName: details?.employee?._attributes?.full_name ?? details?.employee?.full_name ?? details?.assignment?.employee_name ?? review.employeeName ?? 'Employee',
+        employeeId: details?.employee?.id ?? details?.assignment?.employee_id ?? review.employeeId ?? null,
         position: review.position || 'Employee',
-        department: details.assignment.department,
-        company: details.assignment.company,
+        department: details?.department?.name ?? details?.assignment?.department ?? review.department ?? null,
+        company: details?.company ?? details?.assignment?.company ?? null,
         type: 'Performance Review',
         status: review.status,
-        startDate: details.assignment.start_date,
-        dueDate: details.assignment.end_date,
+        startDate: details?.startDate ?? details?.assignment?.start_date ?? review.startDate ?? null,
+        dueDate: details?.endDate ?? details?.assignment?.end_date ?? review.dueDate ?? null,
         completedDate: review.completedDate,
         cycle: review.cycle,
-        description: details.assignment.description,
+        description: details?.description ?? details?.assignment?.description ?? review.description ?? null,
         priority: review.priority,
-        weights: details.assignment.weights,
+        weights: details?.weights ?? details?.assignment?.weights ?? review.weights ?? [],
         manager: 'Supervisor',
         overallRating: review.overallRating,
         grade: review.grade,
@@ -962,13 +838,12 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
         selfReportedProgress: review.selfReportedProgress,
         selfReportedLastUpdated: review.selfReportedLastUpdated,
         selfReportedAuthor: review.selfReportedAuthor,
-        submissionCount: details.submissions.length,
-        latestSubmissionNote: details.submissions.length > 0 ? details.submissions[0].note : null,
-        documentCount: review.documentCount,
+        submissionCount: Array.isArray(details?.submissions) ? details.submissions.length : 0,
+        latestSubmissionNote: Array.isArray(details?.submissions) && details.submissions.length > 0 ? details.submissions[0].note : null,
+        documentCount: Array.isArray(details?.submissions) ? details.submissions.filter(s => s.documentName).length : (review.documentCount || 0),
         performanceMetrics: review.performanceMetrics,
-        submissions: details.submissions
+        submissions: details?.submissions ?? []
       };
-      
       setReviewDetails(transformedDetails);
     } catch (error) {
       console.error('Error fetching review details:', error);
@@ -1227,7 +1102,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
               <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <FileText className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">No Details Available</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Details Available</h3>
               <p className="text-gray-500 mt-2">Unable to load review details at this time.</p>
             </div>
           )}
@@ -1273,17 +1148,10 @@ const PerformanceReviews = () => {
   });
 
   // Function to fetch reviews from database - Always fetch from database
-  const fetchReviewsFromDatabase = async (page = 1) => {
+  // stable via useCallback so we can call it from effects reliably
+  const fetchReviewsFromDatabase = useCallback(async (page = 1) => {
     setIsLoadingFromDB(true);
     try {
-      // DO NOT call hooks here: useAuth() must be used at component top-level.
-      // Use `user` from component scope instead (already obtained via useAuth at top of component).
-      if (!user) {
-        console.error('User not authenticated');
-        setReviewData([]);
-        return;
-      }
-
       const res = await PMSService.getPerformanceReviewsFromDB({
         page,
         per_page: pagination.per_page
@@ -1292,27 +1160,30 @@ const PerformanceReviews = () => {
       if (res.meta) setPagination(res.meta);
     } catch (error) {
       console.error('Error fetching reviews from database:', error);
-      
-      // Handle authentication errors specifically
-      if (error.response?.status === 401) {
-        console.error('Authentication failed - redirecting to login');
-        toast.error('Session expired. Please log in again.');
-        // Optionally redirect to login:
-        // window.location.href = '/login';
-      }
-      
       setReviewData([]);
     } finally {
       setIsLoadingFromDB(false);
     }
-  };
+  }, [pagination.per_page]);
+  
+  // refresh flag - set true when any modal action modifies data
+  const [needsRefresh, setNeedsRefresh] = useState(false);
 
-  // Subscribe to store updates so this view refreshes automatically - Remove dummy data subscription
+  // when flagged, re-fetch current page once
+  useEffect(() => {
+    if (!needsRefresh) return;
+    (async () => {
+      await fetchReviewsFromDatabase(pagination.current_page);
+      setNeedsRefresh(false);
+    })();
+  }, [needsRefresh, fetchReviewsFromDatabase, pagination.current_page]);
+
+   // Subscribe to store updates so this view refreshes automatically - Remove dummy data subscription
   useEffect(() => {
     fetchReviewsFromDatabase(pagination.current_page);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.current_page]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchReviewsFromDatabase, pagination.current_page]);
+ 
   const goToPage = (p) => {
     if (p < 1 || p > pagination.last_page || p === pagination.current_page) return;
     setPagination(prev => ({ ...prev, current_page: p }));
@@ -1407,6 +1278,43 @@ const PerformanceReviews = () => {
   const userRole = user?.role || 'user'; // Default to 'user' if not available
   const userPermissions = permissions[userRole]?.performanceReviews || {};
 
+  // Helper: determine if current user can review (update) this submission
+  const canReviewSubmission = (review) => {
+    if (!user || !review) return false;
+    const role = (user.role || '').toLowerCase();
+    
+    // Admin can review everything
+    if (role === 'admin') return true;
+    
+    // Prevent anyone from reviewing their own self-submission
+    if (user.employee_id && review.employeeId && Number(user.employee_id) === Number(review.employeeId)) {
+      return false;
+    }
+    
+    // Creator of the task (creatorId) can review
+    if (review.creatorId && Number(review.creatorId) === Number(user.id)) {
+      return true;
+    }
+    
+    // Supervisors can only review tasks they created
+    if (role === 'supervisor') {
+      return review.creatorId && Number(review.creatorId) === Number(user.id);
+    }
+    
+    // HR can review tasks created by supervisors (if creatorRole provided)
+    if (role === 'hr') {
+      if (review.creatorRole) {
+        const cr = String(review.creatorRole).toLowerCase();
+        return cr === 'supervisor' || cr === 'manager' || cr === 'operations' || cr.includes('supervisor');
+      }
+      // If backend didn't include creatorRole, be permissive for HR (or adjust to conservative false)
+      return true;
+    }
+  
+    // Default: no review permission
+    return false;
+  };
+
   // >>> ADD MISSING HANDLERS (restored) <<<
   const openProgressModal = (review) => {
     setSelectedReview(review);
@@ -1428,6 +1336,660 @@ const PerformanceReviews = () => {
     setIsDocumentsModalOpen(true);
   };
 
+  // Open Practical Feedback prompt (Enhanced Professional Modal with Subject)
+  const openPracticalFeedbackModal = async (review) => {
+    setSelectedReview(review);
+
+    // Fetch detailed info and employee email from user table
+    let details = null;
+    let currentUserEmail = user?.email || '';
+    let currentUserName = user?.name || 'System User';
+    
+    try {
+      setIsLoading(true);
+      details = await PMSService.getPerformanceReviewDetails(review.id);
+    } catch (err) {
+      console.warn('Could not load review details, continuing with available data', err);
+    } finally {
+      setIsLoading(false);
+    }
+
+    const taskName = details?.taskName ?? details?.kpiAssignment?.kpiTask?.task_name ?? review.taskName ?? 'N/A';
+    const employeeName = details?.employee?.full_name ?? review.employeeName ?? 'Employee';
+    
+    // Prioritize user table email, then contact detail email, then fallback
+    const employeeEmail = details?.employeeUser?.email ?? 
+                         details?.employee?.contactDetail?.email ?? 
+                         details?.employee?.email ?? 
+                         review.employeeEmail ?? 
+                         '';
+    
+    // Auto-generate subject based on task
+    const defaultSubject = `Performance Feedback - ${taskName}`;
+
+    // Enhanced Professional Modal with Subject Field
+    const result = await Swal.fire({
+      title: 'Send Practical Feedback',
+      html: `
+        <div class="pms-feedback-modal">
+          <!-- Header Card -->
+          <div class="feedback-header-card">
+            <div class="employee-info">
+              <div class="employee-avatar">
+                <svg class="avatar-icon" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+              <div class="employee-details">
+                <h3 class="employee-name">${employeeName}</h3>
+                <p class="employee-role">${review.position || 'Employee'} • ${review.department || 'Department'}</p>
+              </div>
+            </div>
+            
+            <div class="task-info">
+              <div class="task-label">Task</div>
+              <div class="task-name">${taskName}</div>
+            </div>
+          </div>
+
+          <!-- Communication Details -->
+          <div class="communication-card">
+            <div class="comm-row">
+              <div class="comm-item">
+                <div class="comm-label">From</div>
+                <div class="comm-value">${currentUserName}</div>
+                <div class="comm-email">${currentUserEmail}</div>
+              </div>
+              <div class="comm-divider"></div>
+              <div class="comm-item">
+                <div class="comm-label">To</div>
+                <div class="comm-value">${employeeName}</div>
+                <input type="email" id="swal-email" class="comm-email-input" value="${employeeEmail}" placeholder="Enter employee email" ${employeeEmail ? 'readonly' : ''} />
+              </div>
+            </div>
+          </div>
+
+          <!-- Subject Input -->
+          <div class="subject-input-section">
+            <label for="swal-subject" class="subject-label">
+              <svg class="subject-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+              </svg>
+              Subject
+            </label>
+            <input 
+              type="text" 
+              id="swal-subject" 
+              class="subject-input" 
+              value="${defaultSubject}"
+              placeholder="Enter email subject..."
+              maxlength="255"
+            />
+          </div>
+
+          <!-- Feedback Input -->
+          <div class="feedback-input-section">
+            <label for="swal-feedback" class="feedback-label">
+              <svg class="feedback-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              Practical Feedback
+            </label>
+            <textarea 
+              id="swal-feedback" 
+              class="feedback-textarea" 
+              placeholder="Provide specific, actionable feedback to help improve performance..."
+              rows="4"
+            ></textarea>
+            <div class="feedback-helper">
+              <svg class="helper-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+              </svg>
+              <span>Focus on specific actions and behaviors that can be improved</span>
+            </div>
+          </div>
+        </div>
+
+        <style>
+          .pms-feedback-modal {
+            text-align: left;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          }
+
+          .feedback-header-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: white;
+          }
+
+          .employee-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+          }
+
+          .employee-avatar {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+          }
+
+          .avatar-icon {
+            width: 24px;
+            height: 24px;
+            color: white;
+          }
+
+          .employee-details h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: white;
+          }
+
+          .employee-details p {
+            font-size: 14px;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.8);
+          }
+
+          .task-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+          }
+
+          .task-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .task-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+          }
+
+          .communication-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+          }
+
+          .comm-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+          }
+
+          .comm-item {
+            flex: 1;
+          }
+
+          .comm-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .comm-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 4px;
+          }
+
+          .comm-email {
+            font-size: 13px;
+            color: #64748b;
+          }
+
+          .comm-email-input {
+            font-size: 13px;
+            color: #64748b;
+            background: transparent;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 10px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+          }
+
+          .comm-email-input:focus {
+            border-color: #6366f1;
+          }
+
+          .comm-email-input:not([readonly]) {
+            background: white;
+          }
+
+          .comm-divider {
+            width: 1px;
+            height: 40px;
+            background: #e2e8f0;
+            flex-shrink: 0;
+          }
+
+          .subject-input-section {
+            margin-bottom: 16px;
+          }
+
+          .subject-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+          }
+
+          .subject-icon {
+            width: 18px;
+            height: 18px;
+            color: #8b5cf6;
+          }
+
+          .subject-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #374151;
+            background: white;
+            transition: all 0.2s ease;
+            font-family: inherit;
+          }
+
+          .subject-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+          }
+
+          .feedback-input-section {
+            margin-bottom: 8px;
+          }
+
+          .feedback-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+          }
+
+          .feedback-icon {
+            width: 18px;
+            height: 18px;
+            color: #6366f1;
+          }
+
+          .feedback-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #374151;
+            background: white;
+            resize: vertical;
+            transition: all 0.2s ease;
+            font-family: inherit;
+          }
+
+          .feedback-textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+          }
+
+          .feedback-textarea::placeholder {
+            color: #9ca3af;
+          }
+
+          .feedback-helper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 12px 16px;
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #92400e;
+          }
+
+          .helper-icon {
+            width: 16px;
+            height: 16px;
+            color: #f59e0b;
+            flex-shrink: 0;
+          }
+
+          /* SweetAlert2 customizations */
+          .swal2-popup {
+            border-radius: 16px !important;
+            padding: 0 !important;
+            width: 520px !important;
+            max-width: 90vw !important;
+          }
+
+          .swal2-header {
+            padding: 24px 24px 0 24px !important;
+            border-bottom: none !important;
+          }
+
+          .swal2-title {
+            font-size: 20px !important;
+            font-weight: 700 !important;
+            color: #1f2937 !important;
+            margin: 0 !important;
+          }
+
+          .swal2-html-container {
+            padding: 0 24px !important;
+            margin: 16px 0 0 0 !important;
+          }
+
+          .swal2-actions {
+            padding: 16px 24px 24px 24px !important;
+            margin: 0 !important;
+            gap: 12px !important;
+          }
+
+          .swal2-confirm {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+            border: none !important;
+            border-radius: 10px !important;
+            padding: 12px 24px !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+            transition: all 0.2s ease !important;
+          }
+
+          .swal2-confirm:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4) !important;
+          }
+
+          .swal2-cancel {
+            background: #f1f5f9 !important;
+            color: #64748b !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 10px !important;
+            padding: 12px 24px !important;
+            font-weight: 500 !important;
+            font-size: 14px !important;
+            transition: all 0.2s ease !important;
+          }
+
+          .swal2-cancel:hover {
+            background: #e2e8f0 !important;
+            color: #475569 !important;
+          }
+        </style>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: '📤 Send Feedback',
+      cancelButtonText: 'Cancel',
+      customClass: {
+        popup: 'pms-feedback-popup',
+        confirmButton: 'pms-confirm-btn',
+        cancelButton: 'pms-cancel-btn'
+      },
+      willOpen: () => {
+        // Focus textarea when opened
+        setTimeout(() => {
+          const ta = document.getElementById('swal-feedback');
+          if (ta) ta.focus();
+        }, 150);
+      },
+      preConfirm: () => {
+        const feedback = (document.getElementById('swal-feedback')?.value || '').trim();
+        const email = (document.getElementById('swal-email')?.value || '').trim();
+        const subject = (document.getElementById('swal-subject')?.value || '').trim();
+        
+        if (!feedback) {
+          Swal.showValidationMessage('Please provide feedback');
+          return false;
+        }
+        if (feedback.length < 10) {
+          Swal.showValidationMessage('Feedback must be at least 10 characters');
+          return false;
+        }
+        if (feedback.length > 1000) {
+          Swal.showValidationMessage('Feedback must be less than 1000 characters');
+          return false;
+        }
+        if (!email) {
+          Swal.showValidationMessage('Employee email is required');
+          return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          Swal.showValidationMessage('Please enter a valid email address');
+          return false;
+        }
+        if (!subject) {
+          Swal.showValidationMessage('Subject is required');
+          return false;
+        }
+        if (subject.length < 5) {
+          Swal.showValidationMessage('Subject must be at least 5 characters');
+          return false;
+        }
+        
+        return { feedback, email, subject };
+      }
+    });
+
+    if (result.isConfirmed && result.value) {
+      const { feedback, email, subject } = result.value;
+      
+      // Show loading state
+      Swal.fire({
+        title: 'Sending Feedback...',
+        html: `
+          <div style="text-align: center; padding: 20px;">
+            <div class="sending-animation" style="margin-bottom:   16px;">
+              <svg style="width: 48px; height: 48px; color: #6366f1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+              </svg>
+            </div>
+            <p style="color: #64748b; margin: 0;">Please wait while we send your feedback...</p>
+          </div>
+          <style>
+            .sending-animation svg {
+              animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
+            }
+          </style>
+        `,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        customClass: {
+          popup: 'pms-loading-popup'
+        }
+      });
+
+      try {
+        const response = await PMSService.submitPracticalFeedback(review.id, { 
+          feedback, 
+          email, 
+          subject,
+          taskName 
+        });
+        
+        // Show success message with enhanced styling
+        await Swal.fire({
+          icon: 'success',
+          title: 'Feedback Sent Successfully!',
+          html: `
+            <div class="success-content">
+              <div class="success-details">
+                <div class="success-row">
+                  <span class="success-label">To:</span>
+                  <span class="success-value">${employeeName}</span>
+                </div>
+                <div class="success-row">
+                  <span class="success-label">Email:</span>
+                  <span class="success-value">${response.data?.sent_to || email}</span>
+                </div>
+                <div class="success-row">
+                  <span class="success-label">Subject:</span>
+                  <span class="success-value">${response.data?.subject || subject}</span>
+                </div>
+                <div class="success-row">
+                  <span class="success-label">Task:</span>
+                  <span class="success-value">${taskName}</span>
+                </div>
+              </div>
+              <div class="feedback-preview">
+                <div class="preview-label">Feedback Preview:</div>
+                <div class="preview-text">${feedback.substring(0, 120)}${feedback.length > 120 ? '...' : ''}</div>
+              </div>
+            </div>
+            <style>
+              .success-content {
+                text-align: left;
+                padding: 8px 0;
+              }
+              .success-details {
+                background: #f0fdf4;
+                border: 1px solid #bbf7d0;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 16px;
+              }
+              .success-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 8px;
+              }
+              .success-row:last-child {
+                margin-bottom: 0;
+              }
+              .success-label {
+                font-weight: 500;
+                color: #166534;
+              }
+              .success-value {
+                color: #15803d;
+                font-weight: 600;
+              }
+              .feedback-preview {
+                background: #fafafa;
+                border-radius: 8px;
+                padding: 12px;
+              }
+              .preview-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: #64748b;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .preview-text {
+                font-size: 14px;
+                color: #374151;
+                line-height: 1.4;
+              }
+            </style>
+          `,
+          confirmButtonText: 'Done',
+          customClass: {
+            popup: 'pms-success-popup',
+            confirmButton: 'pms-success-btn'
+          }
+        });
+        
+        // Show toast for quick confirmation
+        toast.success('Practical feedback sent successfully!');
+        
+      } catch (e) {
+        console.error('Failed to send practical feedback', e);
+        
+        // Show error with better UX
+        await Swal.fire({
+          icon: 'error',
+          title: 'Failed to Send Feedback',
+          html: `
+            <div class="error-content">
+              <p class="error-message">${e?.response?.data?.message || 'An unexpected error occurred while sending the feedback.'}</p>
+              <div class="error-actions">
+                <p class="error-suggestion">Please try again or contact support if the problem persists.</p>
+              </div>
+            </div>
+            <style>
+              .error-content {
+                text-align: left;
+                padding: 8px 0;
+              }
+              .error-message {
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                border-radius: 8px;
+                padding: 12px;
+                color: #dc2626;
+                margin-bottom: 16px;
+                font-size: 14px;
+              }
+              .error-suggestion {
+                color: #64748b;
+                font-size: 13px;
+                margin: 0;
+              }
+            </style>
+          `,
+          confirmButtonText: 'Try Again',
+          showCancelButton: true,
+          cancelButtonText: 'Close',
+          customClass: {
+            popup: 'pms-error-popup'
+          }
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Recursively call the function to try again
+            setTimeout(() => openPracticalFeedbackModal(review), 100);
+          }
+        });
+        
+        toast.error('Failed to send practical feedback');
+      }
+    }
+  };
+  
   const handleSaveProgressReview = async (updatedReview) => {
     try {
       setIsLoading(true);
@@ -1438,9 +2000,12 @@ const PerformanceReviews = () => {
         status: updatedReview.status,
         performance_metrics: updatedReview.performanceMetrics
       };
+      // call backend (see [`PMSService.updatePerformanceReview`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js))
       await PMSService.updatePerformanceReview(updatedReview.id, payload);
       toast.success('Review updated');
-      await fetchReviewsFromDatabase(pagination.current_page);
+      // mark for refresh and close modal
+      setNeedsRefresh(true);
+      setIsProgressModalOpen(false);
     } catch (e) {
       console.error('Update failed', e);
       toast.error(e?.response?.data?.message || 'Failed to update review');
@@ -1452,11 +2017,12 @@ const PerformanceReviews = () => {
   const handleCreateReview = async (formData) => {
     try {
       setIsLoading(true);
-      await PMSService.createReview(formData); // adjust if endpoint differs
+      await PMSService.createReview(formData);
       toast.success('Review created');
       setIsNewReviewModalOpen(false);
-      await fetchReviewsFromDatabase(1);
+      // reset to first page and request refresh
       setPagination(p => ({ ...p, current_page: 1 }));
+      setNeedsRefresh(true);
     } catch (e) {
       console.error('Create failed', e);
       toast.error(e?.response?.data?.message || 'Failed to create review');
@@ -1465,6 +2031,17 @@ const PerformanceReviews = () => {
     }
   };
 
+  // When modals are closed without a save we still want to ensure latest data is shown.
+  // If the modal closed and needsRefresh is false, we still re-fetch once to keep UI consistent.
+  useEffect(() => {
+    if (!isProgressModalOpen && !isDetailsModalOpen && !isNewReviewModalOpen && !isDocumentsModalOpen) {
+      // small debounce to avoid double fetches
+      const t = setTimeout(() => fetchReviewsFromDatabase(pagination.current_page), 200);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProgressModalOpen, isDetailsModalOpen, isNewReviewModalOpen, isDocumentsModalOpen]);
+ 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Remove database toggle */}
@@ -1555,12 +2132,12 @@ const PerformanceReviews = () => {
             <div className="p-3 rounded-lg bg-gray-100 text-gray-600 mr-4">
               <FileText className="h-6 w-6" />
             </div>
-            <div>
+            {/* <div>
               <div className="text-sm font-medium text-gray-500">Draft</div>
               <div className="text-xl font-semibold text-gray-900">
                 {reviewData.filter(r => normalizeStatus(r.status) === 'Draft').length}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -1741,7 +2318,8 @@ const PerformanceReviews = () => {
                               <div
                                 className={`h-1.5 rounded-full ${
                                   review.selfReportedProgress < 30 ? 'bg-red-500' :
-                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' :
+                                 
+                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' : 
                                   'bg-green-500'
                                 }`}
                                 style={{ width: `${review.selfReportedProgress}%` }}
@@ -1822,8 +2400,8 @@ const PerformanceReviews = () => {
                           </button>
                         )}
 
-                        {/* Show Update Progress only if not "user" role and has edit permission */}
-                        {userRole !== 'user' && userPermissions.edit && (
+                        {/* Show Update Progress only if user can review this submission */}
+                        {userPermissions.edit && canReviewSubmission(review) && (
                           <button 
                             className="text-indigo-600 hover:text-indigo-900 p-1"
                             onClick={() => openProgressModal(review)}
@@ -1841,6 +2419,17 @@ const PerformanceReviews = () => {
                             title="View Documents"
                           >
                             <File className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Practical Feedback - open feedback prompt */}
+                        {userRole !== 'user' && userPermissions.edit && (
+                          <button
+                            className="text-teal-600 hover:text-teal-900 p-1"
+                            onClick={() => openPracticalFeedbackModal(review)}
+                            title="Practical Feedback"
+                          >
+                            <Award className="h-4 w-4" />
                           </button>
                         )}
 
