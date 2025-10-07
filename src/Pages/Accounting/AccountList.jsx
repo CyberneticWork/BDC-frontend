@@ -180,8 +180,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
 const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     accountType: "",
-    accountSubCategory: "",
-    accountCategoryName: ""
+    accountSubCategory: ""
   });
 
   const accountTypes = [
@@ -242,8 +241,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
     if (!isOpen) {
       setFormData({
         accountType: "",
-        accountSubCategory: "",
-        accountCategoryName: ""
+        accountSubCategory: ""
       });
     }
   }, [isOpen]);
@@ -259,7 +257,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.accountType && formData.accountSubCategory && formData.accountCategoryName) {
+    if (formData.accountType && formData.accountSubCategory) {
       onSave({
         ...formData,
         id: Date.now()
@@ -356,19 +354,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
             </div>
           )}
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Account Category Name
-            </label>
-            <input
-              type="text"
-              value={formData.accountCategoryName}
-              onChange={(e) => setFormData({...formData, accountCategoryName: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
-              placeholder="Enter category name"
-              required
-            />
-          </div>
+
           
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
