@@ -659,7 +659,7 @@ const TaskApproval = () => {
  
   // Open reject confirmation and act immediately if confirmed
   const openRejectModal = async (task) => {
-    setCurrentTask(task);
+    // Don't set currentTask here to avoid state race condition
     const result = await Swal.fire({
       title: `Reject KPI Task?`,
       text: `Are you sure you want to reject "${task.name}"?`,
@@ -669,10 +669,54 @@ const TaskApproval = () => {
       confirmButtonText: "Yes, reject",
       cancelButtonText: "Cancel",
     });
+    
     if (result.isConfirmed) {
-      await handleRejectTask();
-    } else {
+      // Set currentTask right before calling the reject function
+      setCurrentTask(task);
+      
+      // Call reject function directly with the task parameter
+      await handleRejectTaskDirectly(task);
+    }
+  };
+
+  // New function to handle reject with direct task parameter
+  const handleRejectTaskDirectly = async (task) => {
+    if (!task) return;
+    
+    const prevPage = currentPage; // preserve current page
+    setIsSubmitting(true);
+    
+    try {
+      await PMSService.rejectKpiTask(task.id); // Use task.id directly
+
+      await Swal.fire({
+        icon: "success",
+        title: "Rejected",
+        text: "KPI task has been rejected.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      // Optimistic UI update
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, approval_status: 'rejected' } : t));
+      setFilteredTasks(prev => prev.map(t => t.id === task.id ? { ...t, approval_status: 'rejected' } : t));
+
+      // Refresh authoritative data from server and restore page
+      await fetchTasks();
+      setCurrentPage(prevPage);
+
+      // Clear current task
       setCurrentTask(null);
+      
+    } catch (e) {
+      console.error(e);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to reject the KPI task. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
  
@@ -955,30 +999,57 @@ const TaskApproval = () => {
                     {/* Actions */}
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
+                        {/* View button - always visible */
                         <button 
                           onClick={() => openViewModal(task)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="View details"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
+                        </button>}
 
-                        {/* Always show Approve and Reject buttons (do not hide after status change) */}
-                        <button 
-                          onClick={() => openApproveModal(task)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title={task.approval_status === "approved" ? "Approve (already approved)" : "Approve"}
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        
-                        <button 
-                          onClick={() => openRejectModal(task)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title={task.approval_status === "rejected" ? "Reject (already rejected)" : "Reject"}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        {/* Conditional Approve and Reject buttons based on approval_status */}
+                        {task.approval_status === "pending" && (
+                          <>
+                            <button 
+                              onClick={() => openApproveModal(task)}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Approve task"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            
+                            <button 
+                              onClick={() => openRejectModal(task)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Reject task"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+
+                        {/* Show only reject button for approved tasks */}
+                        {task.approval_status === "approved" && (
+                          <button 
+                            onClick={() => openRejectModal(task)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Reject approved task"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {/* Show only approve button for rejected tasks */}
+                        {task.approval_status === "rejected" && (
+                          <button 
+                            onClick={() => openApproveModal(task)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Approve rejected task"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
