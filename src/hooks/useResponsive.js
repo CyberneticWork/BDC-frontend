@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
  * - Window dimensions
  * - Responsive utilities
  */
+
 export const useResponsive = () => {
   const [windowDimensions, setWindowDimensions] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 1024,

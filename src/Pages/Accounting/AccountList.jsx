@@ -180,7 +180,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
 const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     accountType: "",
-    accountSubCategory: ""
+    accountCategoryName: ""
   });
 
   const accountTypes = [
@@ -191,73 +191,18 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
     "ASSETS"
   ];
 
-  // Define account sub categories based on account type
-  const getAccountSubCategories = (accountType) => {
-    switch (accountType) {
-      case "ASSETS":
-        return [
-          "Bank Accounts",
-          "Cash On Hand", 
-          "Accounts Receivables",
-          "Fixed Assets",
-          "Inventory"
-        ];
-      case "LIABILITIES":
-        return {
-          "Current Liabilities": [
-            "Accounts Payable",
-            "Credit Card Payables",
-            "Accrued Liabilities",
-            "Customer Deposits"
-          ],
-          "Long-term Liabilities": [
-            "Notes Payable"
-          ]
-        };
-      case "EQUITY":
-        return [
-          "Common Stock",
-          "Retained Earnings",
-          "Shareholders' Equity",
-          "Draws"
-        ];
-      case "INCOME":
-        return [
-          "Sales",
-          "Interest Income"
-        ];
-      case "EXPENSES":
-        return [
-          "Cost Of Goods Sold(COGS)",
-          "Depreciation Expense",
-          "Other Expenses"
-        ];
-      default:
-        return [];
-    }
-  };
-
   useEffect(() => {
     if (!isOpen) {
       setFormData({
         accountType: "",
-        accountSubCategory: ""
+        accountCategoryName: ""
       });
     }
   }, [isOpen]);
 
-  // Reset account sub category when account type changes
-  const handleAccountTypeChange = (accountType) => {
-    setFormData({
-      ...formData,
-      accountType,
-      accountSubCategory: "" // Reset sub category when type changes
-    });
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.accountType && formData.accountSubCategory) {
+    if (formData.accountType && formData.accountCategoryName) {
       onSave({
         ...formData,
         id: Date.now()
@@ -292,7 +237,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
             </label>
             <select
               value={formData.accountType}
-              onChange={(e) => handleAccountTypeChange(e.target.value)}
+              onChange={(e) => setFormData({...formData, accountType: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
               required
             >
@@ -305,56 +250,19 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
             </select>
           </div>
           
-          {/* Account Sub Category Field */}
-          {formData.accountType && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Sub Category
-              </label>
-              {formData.accountType === "LIABILITIES" ? (
-                // Special handling for LIABILITY with grouped options
-                <select
-                  value={formData.accountSubCategory}
-                  onChange={(e) => setFormData({...formData, accountSubCategory: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
-                  required
-                >
-                  <option value="">Select Sub Category</option>
-                  <optgroup label="Current Liabilities">
-                    {getAccountSubCategories("LIABILITIES")["Current Liabilities"].map((subCategory) => (
-                      <option key={subCategory} value={subCategory}>
-                        {subCategory}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Long-term Liabilities">
-                    {getAccountSubCategories("LIABILITIES")["Long-term Liabilities"].map((subCategory) => (
-                      <option key={subCategory} value={subCategory}>
-                        {subCategory}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              ) : (
-                // Regular dropdown for other account types
-                <select
-                  value={formData.accountSubCategory}
-                  onChange={(e) => setFormData({...formData, accountSubCategory: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
-                  required
-                >
-                  <option value="">Select Sub Category</option>
-                  {getAccountSubCategories(formData.accountType).map((subCategory) => (
-                    <option key={subCategory} value={subCategory}>
-                      {subCategory}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-          
-
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Account Category Name
+            </label>
+            <input
+              type="text"
+              value={formData.accountCategoryName}
+              onChange={(e) => setFormData({...formData, accountCategoryName: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
+              placeholder="Enter category name"
+              required
+            />
+          </div>
           
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
