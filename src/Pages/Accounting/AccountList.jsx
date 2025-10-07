@@ -68,6 +68,7 @@ const getAccountSubCategories = (accountType) => {
 // Chart of Account Modal Component
 const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) => {
   const [formData, setFormData] = useState({
+    accountNumber: "",
     accountName: "",
     accountType: "",
     accountSubCategory: "",
@@ -84,6 +85,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
 
     if (editAccount) {
       setFormData({
+        accountNumber: editAccount.accountNumber || "",
         accountName: editAccount.accountName || "",
         accountType: editAccount.accountType || "",
         accountSubCategory: editAccount.accountSubCategory || "",
@@ -92,6 +94,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
       });
     } else {
       setFormData({
+        accountNumber: "",
         accountName: "",
         accountType: "",
         accountSubCategory: "",
@@ -141,6 +144,20 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
         </div>
         
         <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Account Number
+            </label>
+            <input
+              type="text"
+              value={formData.accountNumber}
+              onChange={(e) => setFormData({...formData, accountNumber: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
+              placeholder="Enter account number"
+              required
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Chart of Account Name
