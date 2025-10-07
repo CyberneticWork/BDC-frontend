@@ -2084,7 +2084,7 @@ const PerformanceReviews = () => {
       </div>
 
       {/* Status Summary Cards - moved here (below header, above table) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-blue-100 text-blue-600 mr-4">
@@ -2127,20 +2127,8 @@ const PerformanceReviews = () => {
           </div>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-gray-100 text-gray-600 mr-4">
-              <FileText className="h-6 w-6" />
-            </div>
-            {/* <div>
-              <div className="text-sm font-medium text-gray-500">Draft</div>
-              <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => normalizeStatus(r.status) === 'Draft').length}
-              </div>
-            </div> */}
-          </div>
-        </div>
-      </div>
+        {/* Draft card intentionally removed / commented out */}
+       </div>
 
       {/* Grade Legend */}
       <div className="mb-6 bg-white rounded-xl p-3 border border-gray-100 flex gap-3 items-center">
@@ -2208,7 +2196,7 @@ const PerformanceReviews = () => {
             >
               Completed
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveTab('draft')}
               className={`px-4 py-2 text-sm font-medium rounded-md ${
                 activeTab === 'draft'
@@ -2217,7 +2205,7 @@ const PerformanceReviews = () => {
               }`}
             >
               Draft
-            </button>
+            </button> */}
           </div>
 
           {/* Search - filter button removed */}

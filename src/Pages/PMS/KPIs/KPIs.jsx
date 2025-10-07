@@ -197,7 +197,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
 
   // Local state to open Add Creator Role modal
-  const [isAddCreatorRoleModalOpen, setIsAddCreatorRoleModalOpen] = useState(false);
+  const [isAddCreatorRoleModalOpen, setIsAddCreatorRoleModalOpen] = useState(false); // Fix: rename from isAddCreatorRoleModal
 
   // NEW: backend-driven state
   const [taskOptions, setTaskOptions] = useState([]);
@@ -422,14 +422,23 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     // Only company and department should be cast to Number.
     // creatorRole must remain a string (role name) so the UI can call .split on it safely.
     const isNumericField = name === "company" || name === "department";
-    setFormData(prev => ({
-      ...prev,
-      [name]: isNumericField ? (value ? Number(value) : "") : value
-    }));
+    
+    setFormData(prev => {
+      const updates = {
+        [name]: isNumericField ? (value ? Number(value) : "") : value
+      };
 
-    if (name === "company") {
-      setFormData(prev => ({ ...prev, department: "" }));
-    }
+      if (name === "company") {
+        // Clear department and assignees when company changes
+        updates.department = "";
+        updates.assignees = []; // Clear all assignees when company changes
+      }
+
+      return {
+        ...prev,
+        ...updates
+      };
+    });
   };
 
   // Filter employees based on selected company and department (now uses companyEmployees from backend)
@@ -818,7 +827,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               
               {/* Add Creator Role Modal */}
               <AddCreatorRoleModal
-                isOpen={isAddCreatorRoleModalOpen}
+                isOpen={isAddCreatorRoleModalOpen} // This should now work
                 onClose={() => setIsAddCreatorRoleModalOpen(false)}
                 onCreated={async (newRole) => {
                   // refresh authoritative list and select created role
@@ -1187,18 +1196,50 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               
               // Always update the form data weights to include the new weight
               setFormData(prev => {
-                // If we're in edit mode and have existing weights, merge them properly
-                if (isEdit && prev.weights && prev.weights.length > 0) {
-                  const mergedWeights = mergeTemplateWithAssignmentWeights(mappedWeights, prev.weights);
+                // For both edit and create modes, we need to handle this properly
+                const currentWeights = Array.isArray(prev.weights) ? prev.weights : [];
+                
+                // Check if the new weight already exists in current weights
+                const newWeightExists = currentWeights.some(w => 
+                  (w.id && w.id === newWeight.id) || 
+                  (w.title === newWeight.name) || 
+                  (w.name === newWeight.name)
+                );
+                
+                if (!newWeightExists) {
+                  // Add the new weight to the existing weights
+                  const updatedWeights = [
+                    ...currentWeights,
+                    {
+                      id: newWeight.id,
+                      title: newWeight.name,
+                      name: newWeight.name,
+                      description: newWeight.description || '',
+                      percentage: 0
+                    }
+                  ];
+                  
                   return {
                     ...prev,
-                    weights: mergedWeights
+                    weights: updatedWeights
                   };
                 } else {
-                  // For create mode or empty weights, use the full template list
+                  // If it already exists, just ensure we have the latest template data
+                  const updatedWeights = currentWeights.map(w => {
+                    if ((w.id && w.id === newWeight.id) || (w.title === newWeight.name)) {
+                      return {
+                        ...w,
+                        title: newWeight.name,
+                        name: newWeight.name,
+                        description: newWeight.description || w.description
+                      };
+                    }
+                    return w;
+                  });
+                  
                   return {
                     ...prev,
-                    weights: mappedWeights
+                    weights: updatedWeights
                   };
                 }
               });
@@ -1606,6 +1647,10 @@ const KPIs = (/* props */) => {
   // Add missing state for the small "Add Task" (+) modal next to Task Name select
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   
+  // Creator roles from backend
+  const [creatorRoles, setCreatorRoles] = useState([]);
+  const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
+
   // Shared employees list used by TaskModal and TaskViewModal
   const [employees, setEmployees] = useState([]);
 
@@ -1761,7 +1806,7 @@ const KPIs = (/* props */) => {
         return Swal.fire({
           icon: "warning",
           title: "Add Assignee",
-          text: "Please add at least one assignee before creating the KPI task.",
+                                     text: "Please add at least one assignee before creating the KPI task.",
         });
       }
 
@@ -2382,10 +2427,9 @@ const KPIs = (/* props */) => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   KPI Name
                 </th>
-                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Performance
-                </th> */}
-                {/* Category column removed */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Assignees
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Weights
                 </th>
@@ -2429,35 +2473,50 @@ const KPIs = (/* props */) => {
                       <div className="text-sm text-gray-500">{kpi.description}</div>
                       <div className="text-xs text-gray-400">{kpi.departmentName || kpi.department}</div>
                     </div>
-                                   </td>
-                  {/* Performance */}
-                  {/* <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-sm font-medium ${getPerformanceColor(kpi.current, kpi.target)}`}>
-                            {kpi.current}{kpi.unit}
-                          </span>
-                          <span className="text-xs text-gray-500">Target: {kpi.target}{kpi.unit}</span>
+                  </td>
+
+                  {/* Assignees */}
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      {kpi.assignees && kpi.assignees.length > 0 ? (
+                        kpi.assignees.slice(0, 3).map((assigneeId) => {
+                          const employee = allEmployeesForModals.find(emp => 
+                            String(emp.id) === String(assigneeId)
+                          ) || { 
+                            id: assigneeId, 
+                            name: `Employee ${assigneeId}`, 
+                            department: "Unknown" 
+                          };
+                          
+                          return (
+                            <div key={assigneeId} className="flex items-center gap-2">
+                              <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                                <User className="h-3 w-3 text-indigo-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-gray-900 truncate">
+                                  {employee.name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {employee.department}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <span className="text-xs text-gray-500">No assignees</span>
+                      )}
+                      
+                      {/* Show count if more than 3 assignees */}
+                      {kpi.assignees && kpi.assignees.length > 3 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          +{kpi.assignees.length - 3} more
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              kpi.current >= kpi.target
-                                ? "bg-green-500"
-                                : kpi.current >= kpi.target * 0.8
-                                ? "bg-yellow-500"
-                                : "bg-red-500"
-                            }`}
-                            style={{
-                              width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
+                      )}
                     </div>
-                  </td> */}
-  
+                  </td>
+
                   {/* Weights */}
                   <td className="px-6 py-4">
                     <div className="text-sm">
@@ -2472,7 +2531,7 @@ const KPIs = (/* props */) => {
                       )}
                     </div>
                   </td>
-  
+
                   {/* Status */}
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(kpi.status)}`}>
@@ -2532,7 +2591,7 @@ const KPIs = (/* props */) => {
                     </div>
                   </td>
                 </tr>
-               ))}
+              ))}
             </tbody>
           </table>
         </div>
