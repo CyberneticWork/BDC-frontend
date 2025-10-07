@@ -592,12 +592,14 @@ class PMSService {
     }
   }
 
-  async deleteKpiWeight(id) {
+  async deleteKpiWeight(id, force = false) {
     try {
-      const response = await axios.delete(`/pms/kpi-weights/${id}`);
+      const url = `/pms/kpi-weights/${id}`;
+      const params = force ? { force: true } : {};
+      const response = await axios.delete(url, { params });
       return response.data;
     } catch (error) {
-      console.error("Error deleting KPI weight:", error);
+      console.error('Error deleting KPI weight:', error);
       throw error;
     }
   }
