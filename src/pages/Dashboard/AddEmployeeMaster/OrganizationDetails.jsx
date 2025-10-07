@@ -9,6 +9,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  X,
 } from "lucide-react";
 
 import {
@@ -16,6 +17,7 @@ import {
   fetchDepartmentsById,
   fetchSubDepartmentsById,
   fetchDesignations,
+  addNewDesignation,
 } from "@services/ApiDataService";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
@@ -41,6 +43,50 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
     contractEnabled: false,
     confirmationEnabled: false,
   });
+
+  // State
+  const [showAddDesignationModal, setShowAddDesignationModal] = useState(false);
+  const [newDesignationName, setNewDesignationName] = useState("");
+  const [newDesignationError, setNewDesignationError] = useState("");
+  const [newDesignationSubmitting, setNewDesignationSubmitting] =
+    useState(false);
+
+  // Handlers
+  const handleDesignationChange = (e) => {
+    const value = e.target.value;
+
+    if (value === "add-new") {
+      setShowAddDesignationModal(true);
+      // Reset the select to previous value or empty
+      e.target.value = formData.organization.designation || "";
+    } else {
+      handleChange(e); // Your original handleChange function
+    }
+  };
+
+  const handleAddDesignation = async () => {
+    if (!newDesignationName.trim()) {
+      setNewDesignationError("Please enter a designation name");
+      return;
+    }
+    setNewDesignationSubmitting(true);
+    try {
+      // Call your API to add new designation
+      const newDesignation = await addNewDesignation(newDesignationName.trim());
+
+      const DesignationsData = await fetchDesignations();
+
+      setDesignations(DesignationsData);
+
+      // Reset and close modal
+      setNewDesignationName("");
+      setNewDesignationError("");
+      setShowAddDesignationModal(false);
+      setNewDesignationSubmitting(false);
+    } catch (error) {
+      setNewDesignationError("Failed to add designation. Please try again.");
+    }
+  };
 
   // Load companies and designations from API
   useEffect(() => {
@@ -257,7 +303,6 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                         ? "border-red-500"
                         : "border-gray-300"
                     } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    required
                   >
                     <option value="">Select Company</option>
                     {companies.map((c) => (
@@ -414,24 +459,105 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
                     <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-purple-500"></div>
                   </div>
                 ) : (
-                  <select
-                    name="designation"
-                    value={formData.organization.designation}
-                    onChange={handleChange}
-                    className={`w-full pl-8 pr-3 py-2 border ${
-                      errors.organization?.designation
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    required
-                  >
-                    <option value="">Select designations</option>
-                    {designations.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
+                  <>
+                    <select
+                      name="designation"
+                      value={formData.organization.designation}
+                      onChange={handleDesignationChange}
+                      className={`w-full pl-8 pr-3 py-2 border ${
+                        errors.organization?.designation
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      required
+                    >
+                      <option value="">Select designation</option>
+                      {designations.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                      <option
+                        value="add-new"
+                        className="text-blue-500 font-medium"
+                      >
+                        + Add New Designation
                       </option>
-                    ))}
-                  </select>
+                    </select>
+
+                    {/* Add New Designation Modal */}
+                    {showAddDesignationModal && (
+                      <div className="fixed inset-0 backdrop-blur-md bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold">
+                              Add New Designation
+                            </h3>
+                            <button
+                              onClick={() => setShowAddDesignationModal(false)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Designation Name
+                              </label>
+                              <input
+                                type="text"
+                                value={newDesignationName}
+                                onChange={(e) =>
+                                  setNewDesignationName(e.target.value)
+                                }
+                                placeholder="Enter designation name"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                              />
+                            </div>
+
+                            {newDesignationError && (
+                              <p className="text-red-500 text-sm">
+                                {newDesignationError}
+                              </p>
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-2">
+                              <button
+                                onClick={() => {
+                                  setShowAddDesignationModal(false);
+                                  setNewDesignationName("");
+                                  setNewDesignationError("");
+                                }}
+                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              {newDesignationSubmitting ? (
+                                <button
+                                  disabled
+                                  className="px-4 py-2 bg-blue-500 text-white rounded-md flex items-center justify-center gap-2 cursor-not-allowed opacity-80"
+                                >
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                  <span>Adding...</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={handleAddDesignation}
+                                  disabled={!newDesignationName.trim()}
+                                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Add Designation
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
