@@ -393,6 +393,18 @@ useEffect(() => {
                           toggle: toggleAccounting,
                           expanded: expandedItems.accounting,
                         },
+                        chartOfAccounts: {
+                          toggle: toggleChartOfAccounts,
+                          expanded: expandedItems.chartOfAccounts,
+                        },
+                        transactions: {
+                          toggle: toggleTransactions,
+                          expanded: expandedItems.transactions,
+                        },
+                        financeReports: {
+                          toggle: toggleFinanceReports,
+                          expanded: expandedItems.financeReports,
+                        },
                       };
                       const top = topDropdowns[item.id] || {
                         toggle: () => {},
@@ -456,6 +468,7 @@ useEffect(() => {
 
                     {/* use top-expanded state to render children */}
                     {(() => {
+                      // Support for accounting top-level dropdowns
                       const topExpanded =
                         item.id === "hrMaster"
                           ? expandedItems.hrMaster
@@ -488,14 +501,32 @@ useEffect(() => {
                                 toggle: toggleTimeAttendance,
                                 expanded: expandedItems.timeAttendance,
                               },
+                              chartOfAccounts: {
+                                toggle: toggleChartOfAccounts,
+                                expanded: expandedItems.chartOfAccounts,
+                              },
+                              transactions: {
+                                toggle: toggleTransactions,
+                                expanded: expandedItems.transactions,
+                              },
+                              financeReports: {
+                                toggle: toggleFinanceReports,
+                                expanded: expandedItems.financeReports,
+                              },
                             };
 
                             if (subItem.subItems) {
                               const dropdown = subDropdowns[subItem.id] || {};
+                              // Check if this is an accounting-related dropdown
+                              const isAccountingSubDropdown = ["chartOfAccounts", "transactions", "financeReports"].includes(subItem.id);
                               return (
                                 <li key={subItem.id}>
                                   <button
-                                    onClick={dropdown.toggle}
+                                    onClick={dropdown.toggle || (isAccountingSubDropdown ? (
+                                      subItem.id === "chartOfAccounts" ? toggleChartOfAccounts : 
+                                      subItem.id === "transactions" ? toggleTransactions : 
+                                      subItem.id === "financeReports" ? toggleFinanceReports : undefined
+                                    ) : undefined)}
                                     className={`
                                      w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium
                                      transition-all duration-200
@@ -521,7 +552,10 @@ useEffect(() => {
                                       )}
                                     </span>
                                   </button>
-                                  {dropdown.expanded && (
+                                  {(dropdown.expanded || 
+                                   (subItem.id === "chartOfAccounts" && expandedItems.chartOfAccounts) || 
+                                   (subItem.id === "transactions" && expandedItems.transactions) || 
+                                   (subItem.id === "financeReports" && expandedItems.financeReports)) && (
                                     <ul className="ml-4 mt-1 space-y-1">
                                       {subItem.subItems.map((subSubItem) => (
                                         <li key={subSubItem.id}>
