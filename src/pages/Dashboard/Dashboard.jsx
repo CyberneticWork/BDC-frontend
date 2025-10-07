@@ -69,6 +69,18 @@ import Invoices from "../Accounting/Invoices";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
+// Import new accounting pages
+import SupplierEnterBill from "../Accounting/SupplierEnterBill";
+import Payment from "../Accounting/Payment";
+import AdvancePayment from "../Accounting/AdvancePayment";
+import MakeDeposit from "../Accounting/MakeDeposit";
+import Receipt from "../Accounting/Receipt";
+import UtilityBill from "../Accounting/UtilityBill";
+import UtilityBillPayment from "../Accounting/UtilityBillPayment";
+import JournalEntry from "../Accounting/JournalEntry";
+import PettyCash from "../Accounting/PettyCash";
+import Cheque from "../Accounting/Cheque";
+import BankReconciliation from "../Accounting/BankReconciliation";
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -501,13 +513,10 @@ const Dashboard = ({ user, onLogout }) => {
     else navigate(`/dashboard/${id}`, { replace: false });
   };
 
-  // Scroll to top on activeItem change
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [activeItem]);
+  // Removed automatic scroll to top to allow independent scrolling
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       <Sidebar
         user={user}
         onLogout={onLogout}
@@ -516,10 +525,10 @@ const Dashboard = ({ user, onLogout }) => {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
       />
-      <div className="flex-1 flex flex-col min-h-screen">
-        <nav className="bg-white shadow-lg border-b border-gray-200">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
+      <div className="flex-1 flex flex-col h-screen lg:ml-0">
+        <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
+          <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
+            <div className="flex justify-between h-14 sm:h-16">
               <div className="flex items-center lg:hidden">
                 <button
                   onClick={() => setIsOpen(true)}
@@ -576,8 +585,8 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </div>
         </nav>
-        <div className="py-6 sm:px-6 lg:px-8 flex-1">
-          <div className="px-4 py-6 sm:px-0 h-full">
+        <div className="flex-1 overflow-y-auto">
+          <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8">
             {activeItem === "employeeMaster" ? (
               <ProtectedComponent module="employeeMaster" action="view">
                 <EmployeeMaster />
@@ -718,7 +727,7 @@ const Dashboard = ({ user, onLogout }) => {
               </ProtectedComponent>
             ) : activeItem === "accountingDashboard" ? (
               <ProtectedComponent module="accountingDashboard" action="view">
-                <AccountingDashboard />
+                <AccountingDashboard setActiveItem={setActiveItem} />
               </ProtectedComponent>
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">
@@ -763,6 +772,50 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "accountingSettings" ? (
               <ProtectedComponent module="accountingSettings" action="view">
                 <AccountingSettings />
+              </ProtectedComponent>
+            ) : activeItem === "supplierEnterBill" ? (
+              <ProtectedComponent module="supplierEnterBill" action="view">
+                <SupplierEnterBill />
+              </ProtectedComponent>
+            ) : activeItem === "payment" ? (
+              <ProtectedComponent module="payment" action="view">
+                <Payment />
+              </ProtectedComponent>
+            ) : activeItem === "advancePayment" ? (
+              <ProtectedComponent module="advancePayment" action="view">
+                <AdvancePayment />
+              </ProtectedComponent>
+            ) : activeItem === "makeDeposit" ? (
+              <ProtectedComponent module="makeDeposit" action="view">
+                <MakeDeposit />
+              </ProtectedComponent>
+            ) : activeItem === "receipt" ? (
+              <ProtectedComponent module="receipt" action="view">
+                <Receipt />
+              </ProtectedComponent>
+            ) : activeItem === "createUtilityBill" ? (
+              <ProtectedComponent module="createUtilityBill" action="view">
+                <UtilityBill />
+              </ProtectedComponent>
+            ) : activeItem === "utilityBillPayment" ? (
+              <ProtectedComponent module="utilityBillPayment" action="view">
+                <UtilityBillPayment />
+              </ProtectedComponent>
+            ) : activeItem === "journalEntry" ? (
+              <ProtectedComponent module="journalEntry" action="view">
+                <JournalEntry />
+              </ProtectedComponent>
+            ) : activeItem === "pettyCash" ? (
+              <ProtectedComponent module="pettyCash" action="view">
+                <PettyCash />
+              </ProtectedComponent>
+            ) : activeItem === "cheque" ? (
+              <ProtectedComponent module="cheque" action="view">
+                <Cheque />
+              </ProtectedComponent>
+            ) : activeItem === "bankReconciliation" ? (
+              <ProtectedComponent module="bankReconciliation" action="view">
+                <BankReconciliation />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">
