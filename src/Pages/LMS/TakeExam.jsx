@@ -109,7 +109,11 @@ const TakeExam = ({ examId, onBack }) => {
     try {
       console.log("Submitting exam...");
       setIsSubmitted(true);
-      const results = await LMSService.submitExam(examId, userAnswers);
+      // Replace null answers with -1 to indicate unanswered
+      const processedAnswers = userAnswers.map((answer) =>
+        answer === null ? -1 : answer
+      );
+      const results = await LMSService.submitExam(examId, processedAnswers);
       console.log("Exam results:", results);
       setExamResults(results);
       setShowResults(true);

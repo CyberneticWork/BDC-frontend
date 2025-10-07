@@ -16,6 +16,7 @@ import {
   Play,
 } from "lucide-react";
 import LMSService from "../../services/LMSService";
+import UserManagementService from "../../services/UserManagementService";
 import { useAuth } from "../../contexts/AuthContext";
 import Swal from "sweetalert2";
 
@@ -46,14 +47,10 @@ const ManageCourses = ({ onViewCourse }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [creatorNames, setCreatorNames] = useState({}); // id -> name cache
 
   const isCourseOwner = (course) => {
-    // Admin users can edit/delete any course
-    if (user && user.role === "admin") {
-      return true;
-    }
-    // Regular users can only edit/delete their own courses
-    return user && course.createdBy === user.id;
+    return !!(user && course && course.createdBy === user.id);
   };
 
   const validateForm = () => {
@@ -97,6 +94,38 @@ const ManageCourses = ({ onViewCourse }) => {
   useEffect(() => {
     loadCourses();
   }, []);
+
+  // Ensure we have names for all course creators; cache results
+  const ensureCreatorNames = async (coursesList) => {
+    try {
+      const uniqueIds = Array.from(
+        new Set((coursesList || []).map((c) => c.createdBy).filter(Boolean))
+      );
+      const missingIds = uniqueIds.filter((id) => !(id in creatorNames));
+      if (missingIds.length === 0) return;
+
+      const results = await Promise.all(
+        missingIds.map(async (id) => {
+          try {
+            const u = await UserManagementService.getUserById(id);
+            const name = u?.name || u?.fullName || u?.username || `User ${id}`;
+            return [id, name];
+          } catch (e) {
+            console.warn("Failed to load creator name for id", id, e);
+            return [id, `User ${id}`];
+          }
+        })
+      );
+
+      setCreatorNames((prev) => {
+        const next = { ...prev };
+        results.forEach(([id, name]) => (next[id] = name));
+        return next;
+      });
+    } catch (e) {
+      console.warn("ensureCreatorNames failed", e);
+    }
+  };
 
   const handleEnroll = async (courseId) => {
     try {
@@ -142,6 +171,8 @@ const ManageCourses = ({ onViewCourse }) => {
       }));
 
       setCourses(coursesWithEnrollment);
+      // Preload creator names for display
+      ensureCreatorNames(coursesWithEnrollment);
       // Load detailed user progress (completed/total modules per course)
       try {
         const progressData = await LMSService.getUserProgress();
@@ -612,7 +643,8 @@ const ManageCourses = ({ onViewCourse }) => {
 
               <div className="text-xs text-gray-400 mb-4">
                 Created by:{" "}
-                {LMSService.getCourseCreator(course.id)?.name || "Unknown"}
+                {creatorNames[course.createdBy] ??
+                  `User ${course.createdBy ?? "Unknown"}`}
               </div>
 
               <div className="flex space-x-2">
@@ -713,23 +745,25 @@ const ManageCourses = ({ onViewCourse }) => {
                       <BookOpen className="h-4 w-4 mr-1" />
                       View
                     </button>
-                    {isCourseOwner(course) && (
-                      <button
-                        onClick={() => handleEditCourse(course)}
-                        className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </button>
-                    )}
-                    {isCourseOwner(course) && (
-                      <button
-                        onClick={() => handleDeleteCourse(course.id)}
-                        className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() =>
+                        isCourseOwner(course) && handleEditCourse(course)
+                      }
+                      disabled={!isCourseOwner(course)}
+                      className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() =>
+                        isCourseOwner(course) && handleDeleteCourse(course.id)
+                      }
+                      disabled={!isCourseOwner(course)}
+                      className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 )}
               </div>

@@ -8,6 +8,7 @@ import {
   DollarSign,
   PieChart,
 } from "lucide-react";
+import NotificationBell from "../../components/NotificationBell";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -68,7 +69,6 @@ import Invoices from "../Accounting/Invoices";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
-
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -565,6 +565,7 @@ const Dashboard = ({ user, onLogout }) => {
                     {user.role}
                   </span>
                 </span>
+                <NotificationBell />
                 <button
                   onClick={onLogout}
                   className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
