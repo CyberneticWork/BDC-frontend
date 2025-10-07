@@ -78,6 +78,18 @@ import StockVerification from "../Accounting/StockVerification";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
+// Import new accounting pages
+import SupplierEnterBill from "../Accounting/SupplierEnterBill";
+import Payment from "../Accounting/Payment";
+import AdvancePayment from "../Accounting/AdvancePayment";
+import MakeDeposit from "../Accounting/MakeDeposit";
+import Receipt from "../Accounting/Receipt";
+import UtilityBill from "../Accounting/UtilityBill";
+import UtilityBillPayment from "../Accounting/UtilityBillPayment";
+import JournalEntry from "../Accounting/JournalEntry";
+import PettyCash from "../Accounting/PettyCash";
+import Cheque from "../Accounting/Cheque";
+import BankReconciliation from "../Accounting/BankReconciliation";
 
 
 import employeeService from "../../services/EmployeeDataService";
@@ -726,7 +738,7 @@ const Dashboard = ({ user, onLogout }) => {
               </ProtectedComponent>
             ) : activeItem === "accountingDashboard" ? (
               <ProtectedComponent module="accountingDashboard" action="view">
-                <AccountingDashboard />
+                <AccountingDashboard setActiveItem={setActiveItem} />
               </ProtectedComponent>
             ) : activeItem === "customer" ? (
               <ProtectedComponent module="customer" action="view">
@@ -815,6 +827,50 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "accountingSettings" ? (
               <ProtectedComponent module="accountingSettings" action="view">
                 <AccountingSettings />
+              </ProtectedComponent>
+            ) : activeItem === "supplierEnterBill" ? (
+              <ProtectedComponent module="supplierEnterBill" action="view">
+                <SupplierEnterBill />
+              </ProtectedComponent>
+            ) : activeItem === "payment" ? (
+              <ProtectedComponent module="payment" action="view">
+                <Payment />
+              </ProtectedComponent>
+            ) : activeItem === "advancePayment" ? (
+              <ProtectedComponent module="advancePayment" action="view">
+                <AdvancePayment />
+              </ProtectedComponent>
+            ) : activeItem === "makeDeposit" ? (
+              <ProtectedComponent module="makeDeposit" action="view">
+                <MakeDeposit />
+              </ProtectedComponent>
+            ) : activeItem === "receipt" ? (
+              <ProtectedComponent module="receipt" action="view">
+                <Receipt />
+              </ProtectedComponent>
+            ) : activeItem === "createUtilityBill" ? (
+              <ProtectedComponent module="createUtilityBill" action="view">
+                <UtilityBill />
+              </ProtectedComponent>
+            ) : activeItem === "utilityBillPayment" ? (
+              <ProtectedComponent module="utilityBillPayment" action="view">
+                <UtilityBillPayment />
+              </ProtectedComponent>
+            ) : activeItem === "journalEntry" ? (
+              <ProtectedComponent module="journalEntry" action="view">
+                <JournalEntry />
+              </ProtectedComponent>
+            ) : activeItem === "pettyCash" ? (
+              <ProtectedComponent module="pettyCash" action="view">
+                <PettyCash />
+              </ProtectedComponent>
+            ) : activeItem === "cheque" ? (
+              <ProtectedComponent module="cheque" action="view">
+                <Cheque />
+              </ProtectedComponent>
+            ) : activeItem === "bankReconciliation" ? (
+              <ProtectedComponent module="bankReconciliation" action="view">
+                <BankReconciliation />
               </ProtectedComponent>
             ) : (
               <div className="space-y-4 sm:space-y-6 lg:space-y-8">
