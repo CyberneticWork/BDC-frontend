@@ -320,7 +320,7 @@ const Sidebar = ({
       {/* Sidebar */}
       <div
         className={`
-        min-h-screen bg-white border-r border-gray-200 shadow-lg z-50
+        h-screen bg-white border-r border-gray-200 shadow-lg z-50 flex flex-col
         transform transition-transform duration-300 ease-in-out
         w-64
         fixed left-0 top-0
@@ -329,7 +329,7 @@ const Sidebar = ({
       `}
       >
         {/* Header */}
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-indigo-600 p-2 rounded-lg">
@@ -350,7 +350,7 @@ const Sidebar = ({
         </div>
 
         {/* User Profile Section */}
-        <div className="p-4 border-b border-gray-100">
+        <div className="p-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
             <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
               <span className="text-white font-semibold text-sm">
@@ -368,8 +368,9 @@ const Sidebar = ({
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 overflow-y-auto">
+          <div className="p-4">
+            <ul className="space-y-2">
             {filteredMenuItems.map((item) => (
               <li key={item.id}>
                 {item.subItems ? (
@@ -407,9 +408,9 @@ const Sidebar = ({
     }
   `}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-1">
                             <item.icon
-                              className={`h-5 w-5 ${
+                              className={`h-5 w-5 flex-shrink-0 ${
                                 activeItem === item.id ||
                                 item.subItems.some(
                                   (subItem) => activeItem === subItem.id
@@ -418,12 +419,11 @@ const Sidebar = ({
                                   : "text-gray-400 group-hover:text-gray-600"
                               }`}
                             />
+                            <span className="flex-1 text-left truncate">
+                              {item.name}
+                            </span>
                           </div>
-                          <span className="flex-10 text-left mr-10">
-                            {item.name}
-                          </span>{" "}
-                          {/* Changed here */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             {item.badge && (
                               <span
                                 className={`
@@ -516,15 +516,17 @@ const Sidebar = ({
                                      }
                                    `}
                                   >
-                                    <span className="flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                                      {subItem.name}
+                                    <span className="flex items-center gap-2 flex-1 text-left">
+                                      <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
+                                      <span className="truncate">{subItem.name}</span>
                                     </span>
-                                    {dropdown.expanded ? (
-                                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                                    )}
+                                    <span className="flex-shrink-0">
+                                      {dropdown.expanded ? (
+                                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-gray-500" />
+                                      )}
+                                    </span>
                                   </button>
                                   {dropdown.expanded && (
                                     <ul className="ml-4 mt-1 space-y-1">
@@ -544,8 +546,8 @@ const Sidebar = ({
                                              }
                                            `}
                                           >
-                                            <span className="w-2 h-2 rounded-full bg-gray-300"></span>
-                                            <span>{subSubItem.name}</span>
+                                            <span className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0"></span>
+                                            <span className="flex-1 text-left truncate">{subSubItem.name}</span>
                                           </button>
                                         </li>
                                       ))}
@@ -568,8 +570,8 @@ const Sidebar = ({
                                    }
                                  `}
                                 >
-                                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                                  <span>{subItem.name}</span>
+                                  <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
+                                  <span className="flex-1 text-left truncate">{subItem.name}</span>
                                 </button>
                               </li>
                             );
@@ -618,10 +620,11 @@ const Sidebar = ({
               </li>
             ))}
           </ul>
+          </div>
         </nav>
 
         {/* Bottom Actions */}
-        <div className="p-4 border-t border-gray-100 space-y-2">
+        <div className="p-4 border-t border-gray-100 space-y-2 flex-shrink-0">
           <button
             onClick={() => setActiveItem("settings")}
             className={`
