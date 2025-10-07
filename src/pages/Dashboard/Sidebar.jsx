@@ -46,6 +46,9 @@ const Sidebar = ({
     pms: false,
     lms: false,
     accounting: false,
+  chartOfAccounts: false, // Added this
+    transactions: false, // Added this
+    financeReports: false, // Added this
   });
 
   const menuItems = [
@@ -156,7 +159,6 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "accountingDashboard", name: "Dashboard" },
-<<<<<<< HEAD
         { id: "customer", name: "Customer" },
         { id: "center", name: "Center" },
         {
@@ -204,18 +206,6 @@ const Sidebar = ({
         },
         // { id: "ledger", name: "Ledger" },
         // { id: "expenses", name: "Expenses" },
-=======
-        { id: "chartOfAccounts", name: "Chart of Accounts" },
-        { id: "transactions", name: "Transactions" },
-        { id: "ledger", name: "Ledger" },
-        { id: "trialBalance", name: "Trial Balance" },
-        { id: "incomeStatement", name: "Income Statement" },
-        { id: "balanceSheet", name: "Balance Sheet" },
-        { id: "cashFlowStatement", name: "Cash Flow Statement" },
-        { id: "invoices", name: "Invoices" },
-        { id: "expenses", name: "Expenses" },
-        { id: "accountingReports", name: "Reports" },
->>>>>>> janitha
         { id: "accountingSettings", name: "Settings" },
       ],
     },
@@ -224,7 +214,7 @@ const Sidebar = ({
   ];
 
   // NEW: auto-expand nested groups based on the current activeItem (works on reload)
-  useEffect(() => {
+useEffect(() => {
     const findPath = (items, target) => {
       for (const item of items) {
         if (item.id === target) return [item.id];
@@ -251,12 +241,11 @@ const Sidebar = ({
       pms: path.includes("pms") || activeItem === "pms",
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",
-<<<<<<< HEAD
       chartOfAccounts: path.includes("chartOfAccounts") || activeItem === "chartOfAccounts" || ["accountList", "supplierEnterBill", "payment", "advancePayment", "makeDeposit", "receipt", "createUtilityBill", "utilityBillPayment", "journalEntry", "pettyCash", "cheque", "bankReconciliation"].includes(activeItem),
       transactions: path.includes("transactions") || activeItem === "transactions" || ["transactionsList", "invoices", "salesOrder", "salesReturn", "grn", "purchaseReturn", "purchaseOrder", "stockTransfer", "stockVerification"].includes(activeItem),
       financeReports: path.includes("financeReports") || activeItem === "financeReports" || ["trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
-=======
->>>>>>> janitha
+
+        
     });
   }, [activeItem]);
 
@@ -284,6 +273,7 @@ const Sidebar = ({
       timeAttendance: !prev.timeAttendance,
     }));
   };
+  
   const togglePMS = () => {
     setExpandedItems((prev) => ({ ...prev, pms: !prev.pms }));
   };
@@ -292,6 +282,15 @@ const Sidebar = ({
   };
   const toggleAccounting = () => {
     setExpandedItems((prev) => ({ ...prev, accounting: !prev.accounting }));
+  };
+   const toggleChartOfAccounts = () => {
+    setExpandedItems((prev) => ({ ...prev, chartOfAccounts: !prev.chartOfAccounts }));
+  };
+  const toggleTransactions = () => {
+    setExpandedItems((prev) => ({ ...prev, transactions: !prev.transactions }));
+  };
+  const toggleFinanceReports = () => {
+    setExpandedItems((prev) => ({ ...prev, financeReports: !prev.financeReports }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -335,11 +334,7 @@ const Sidebar = ({
       `}
       >
         {/* Header */}
-<<<<<<< HEAD
         <div className="p-6 border-b border-gray-100 flex-shrink-0">
-=======
-        <div className="p-6 border-b border-gray-100">
->>>>>>> janitha
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-indigo-600 p-2 rounded-lg">
@@ -360,11 +355,7 @@ const Sidebar = ({
         </div>
 
         {/* User Profile Section */}
-<<<<<<< HEAD
         <div className="p-4 border-b border-gray-100 flex-shrink-0">
-=======
-        <div className="p-4 border-b border-gray-100">
->>>>>>> janitha
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
             <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
               <span className="text-white font-semibold text-sm">
@@ -382,14 +373,9 @@ const Sidebar = ({
         </div>
 
         {/* Navigation Menu */}
-<<<<<<< HEAD
         <nav className="flex-1 overflow-y-auto">
           <div className="p-4">
             <ul className="space-y-2">
-=======
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
->>>>>>> janitha
             {filteredMenuItems.map((item) => (
               <li key={item.id}>
                 {item.subItems ? (
@@ -427,15 +413,9 @@ const Sidebar = ({
     }
   `}
                         >
-<<<<<<< HEAD
                           <div className="flex items-center gap-3 flex-1">
                             <item.icon
                               className={`h-5 w-5 flex-shrink-0 ${
-=======
-                          <div className="flex items-center gap-3">
-                            <item.icon
-                              className={`h-5 w-5 ${
->>>>>>> janitha
                                 activeItem === item.id ||
                                 item.subItems.some(
                                   (subItem) => activeItem === subItem.id
@@ -444,20 +424,11 @@ const Sidebar = ({
                                   : "text-gray-400 group-hover:text-gray-600"
                               }`}
                             />
-<<<<<<< HEAD
                             <span className="flex-1 text-left truncate">
                               {item.name}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-=======
-                          </div>
-                          <span className="flex-10 text-left mr-10">
-                            {item.name}
-                          </span>{" "}
-                          {/* Changed here */}
-                          <div className="flex items-center gap-2">
->>>>>>> janitha
                             {item.badge && (
                               <span
                                 className={`
@@ -538,7 +509,6 @@ const Sidebar = ({
                                      }
                                    `}
                                   >
-<<<<<<< HEAD
                                     <span className="flex items-center gap-2 flex-1 text-left">
                                       <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
                                       <span className="truncate">{subItem.name}</span>
@@ -550,17 +520,6 @@ const Sidebar = ({
                                         <ChevronRight className="h-4 w-4 text-gray-500" />
                                       )}
                                     </span>
-=======
-                                    <span className="flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                                      {subItem.name}
-                                    </span>
-                                    {dropdown.expanded ? (
-                                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                                    )}
->>>>>>> janitha
                                   </button>
                                   {dropdown.expanded && (
                                     <ul className="ml-4 mt-1 space-y-1">
@@ -580,13 +539,8 @@ const Sidebar = ({
                                              }
                                            `}
                                           >
-<<<<<<< HEAD
                                             <span className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0"></span>
                                             <span className="flex-1 text-left truncate">{subSubItem.name}</span>
-=======
-                                            <span className="w-2 h-2 rounded-full bg-gray-300"></span>
-                                            <span>{subSubItem.name}</span>
->>>>>>> janitha
                                           </button>
                                         </li>
                                       ))}
@@ -609,13 +563,8 @@ const Sidebar = ({
                                    }
                                  `}
                                 >
-<<<<<<< HEAD
                                   <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
                                   <span className="flex-1 text-left truncate">{subItem.name}</span>
-=======
-                                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                                  <span>{subItem.name}</span>
->>>>>>> janitha
                                 </button>
                               </li>
                             );
