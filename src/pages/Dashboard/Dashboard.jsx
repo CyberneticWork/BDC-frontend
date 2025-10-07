@@ -524,13 +524,10 @@ const Dashboard = ({ user, onLogout }) => {
     else navigate(`/dashboard/${id}`, { replace: false });
   };
 
-  // Scroll to top on activeItem change
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [activeItem]);
+  // Removed automatic scroll to top to allow independent scrolling
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       <Sidebar
         user={user}
         onLogout={onLogout}
@@ -539,8 +536,8 @@ const Dashboard = ({ user, onLogout }) => {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
       />
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
-        <nav className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-10">
+      <div className="flex-1 flex flex-col h-screen lg:ml-0">
+        <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
           <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
             <div className="flex justify-between h-14 sm:h-16">
               <div className="flex items-center lg:hidden">
@@ -600,8 +597,8 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </div>
         </nav>
-        <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8 flex-1">
-          <div className="h-full">
+        <div className="flex-1 overflow-y-auto">
+          <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8">
             {activeItem === "employeeMaster" ? (
               <ProtectedComponent module="employeeMaster" action="view">
                 <EmployeeMaster />
