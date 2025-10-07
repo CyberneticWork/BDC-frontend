@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   PieChart,
   Search,
@@ -29,10 +29,75 @@ import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
 import AddKpiTaskModal from "./AddKpiTaskModal";
 import AddCreatorRoleModal from "./AddCreatorRoleModal";
+import AddKpiWeightModal from "./AddKpiWeightModal";
+
+// Move this function outside of TaskModal, before the TaskModal component definition
+const mergeTemplateWithAssignmentWeights = (templateWeights, assignmentWeights) => {
+  // Create maps for fast lookups
+  const templateMap = new Map();
+  templateWeights.forEach(w => {
+    const key = w.id || w.name;
+    if (key) templateMap.set(key, { ...w, percentage: 0 });
+  });
+  
+  const assignmentMap = new Map();
+  if (Array.isArray(assignmentWeights)) {
+    assignmentWeights.forEach(w => {
+      // Try to match by id first, then by title/name
+      const key = w.id || w.title;
+      if (key) assignmentMap.set(key, w);
+    });
+  }
+  
+  // First add all template weights (with assignment percentages where available)
+  const result = [];
+  templateMap.forEach((templateWeight, key) => {
+    if (assignmentMap.has(key)) {
+      // This template weight exists in assignment weights - use assignment percentage
+      const assignmentWeight = assignmentMap.get(key);
+      result.push({
+        id: templateWeight.id,
+        title: templateWeight.name || assignmentWeight.title,
+        description: templateWeight.description || assignmentWeight.description || '',
+        percentage: assignmentWeight.percentage || 0
+      });
+      // Remove from assignment map so we don't add it twice
+      assignmentMap.delete(key);
+    } else {
+      // This is a new template weight not in assignment - add with 0%
+      result.push({
+        id: templateWeight.id,
+        title: templateWeight.name,
+        description: templateWeight.description || '',
+        percentage: 0
+      });
+    }
+  });
+  
+  // Then add any remaining assignment weights that weren't in templates
+  assignmentMap.forEach(weight => {
+    result.push({
+      id: weight.id,
+      title: weight.title || weight.name || '',
+      description: weight.description || '',
+      percentage: weight.percentage || 0
+    });
+  });
+  
+  return result;
+};
 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
 const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false, isLoading = false, employees = [] }) => {
+  // Add this new state for the weight modal
+  const [isAddWeightModalOpen, setIsAddWeightModalOpen] = useState(false);
+  
+  // Add this new state for database weights
+  const [dbWeights, setDbWeights] = useState([]);
+  const [isLoadingWeights, setIsLoadingWeights] = useState(false);
+
+  // Existing formData state - keep as is but update the initialization
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -43,17 +108,83 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     department: "",
     category: "",
     priority: "medium",
-    creatorRole: "", // New field for creator role
-    weights: [ // New weights field with predefined criteria - set to empty percentages
-      { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
-      { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
-      { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
-      { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
-      { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
-      { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
-    ],
+    creatorRole: "",
+    weights: [], // Start with empty array, will be populated from database
     ...initialData,
   });
+
+  // Add this useEffect to fetch weights from database
+  useEffect(() => {
+    const fetchWeights = async () => {
+      setIsLoadingWeights(true);
+      try {
+        // Always fetch template weights
+        const templateWeights = await PMSService.getKpiWeights();
+        const mappedTemplateWeights = Array.isArray(templateWeights) ? templateWeights.map(w => ({
+          id: w.id ?? null,
+          name: w.name ?? '',
+          description: w.description ?? '',
+          percentage: 0
+        })) : [];
+        
+        setDbWeights(mappedTemplateWeights);
+
+        // For edit mode with existing weights, merge template weights with assignment weights
+        if (isEdit && initialData?.weights) {
+          const mergedWeights = mergeTemplateWithAssignmentWeights(
+            mappedTemplateWeights,
+            initialData.weights
+          );
+          
+          setFormData(prev => ({
+            ...prev,
+            weights: mergedWeights
+          }));
+        } 
+        // For create mode, just use template weights if no weights set
+        else if (!isEdit) {
+          const hasWeights = Array.isArray(formData.weights) && formData.weights.length > 0;
+          if (!hasWeights) {
+            setFormData(prev => ({
+              ...prev,
+              weights: mappedTemplateWeights.map(w => ({
+                id: w.id,
+                title: w.name,  // Use title for consistency
+                name: w.name,   // Keep name as backup
+                description: w.description,
+                percentage: 0
+              }))
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching KPI weights:', error);
+        // Fallback to hardcoded weights if database fetch fails
+        const fallbackWeights = [
+          { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
+          { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty.", percentage: 0 },
+          { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries.", percentage: 0 },
+          { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
+          { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
+          { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
+        ];
+        setDbWeights(fallbackWeights);
+        setFormData(prev => {
+          const hasWeights = Array.isArray(prev.weights) && prev.weights.length > 0;
+          if (!isEdit && !hasWeights) {
+            return { ...prev, weights: fallbackWeights };
+          }
+          return prev;
+        });
+      } finally {
+        setIsLoadingWeights(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchWeights();
+    }
+  }, [isOpen, isEdit, initialData?.weights]);
 
   const [showWeights, setShowWeights] = useState(false); // State for weights dropdown
   const [empSearch, setEmpSearch] = useState("");
@@ -204,30 +335,86 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   }, []);
 
   // Reset form when modal opens with new data
+  const prevIsOpen = useRef(false);
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    setFormData({
-      name: initialData.name || "",
-      description: initialData.description || "",
-      startDate: initialData.startDate || "",
-      endDate: initialData.endDate || "",
-      assignees: initialData.assignees ? [...initialData.assignees] : [],
-      company: initialData.company || "",
-      department: initialData.departmentId || initialData.department || "",
-      category: initialData.category || "",
-      priority: initialData.priority || "medium",
-      creatorRole: initialData.creatorRole || "",
-      weights: initialData.weights || [
-        { title: "Consistent follow-up with customers for payments", description: "", percentage: 0 },
-        { title: "Tax Compliance", description: "Preparation of monthly schedules and returns for VAT, SSCL, APIT, AIT, and Stamp Duty. Also responsible for attending to tax matters as needed.", percentage: 0 },
-        { title: "Accounting Entries and Provisions", description: "Recording salary entries and other provisions, reviewing General Ledger (GL) entries, and following up on necessary corrections.", percentage: 0 },
-        { title: "Management Reporting", description: "Completing monthly and ad hoc management reports efficiently and accurately.", percentage: 0 },
-        { title: "Commitment to Quality", description: "Maintaining a high standard of accuracy and precision in all tasks.", percentage: 0 },
-        { title: "Teamwork and Discipline", description: "Upholding strong teamwork and maintaining discipline in all professional activities.", percentage: 0 }
-      ],
-    });
-    setEmpSearch("");
-    setShowWeights(false); // Reset weights visibility
-  }, [initialData, isOpen]);
+    // Only reset form data when modal is actually opening for the first time
+    // OR when switching between different records in edit mode
+    if (isOpen && !prevIsOpen.current) {
+      // Modal is opening - initialize form
+      if (isEdit && initialData && Object.keys(initialData).length > 0) {
+        // Edit mode: populate with initial data
+        setFormData({
+          name: initialData.name || "",
+          description: initialData.description || "",
+          startDate: initialData.startDate || "",
+          endDate: initialData.endDate || "",
+          assignees: initialData.assignees ? [...initialData.assignees] : [],
+          company: initialData.company || "",
+          department: initialData.departmentId || initialData.department || "",
+          category: initialData.category || "",
+          priority: initialData.priority || "medium",
+          creatorRole: initialData.creatorRole || "",
+          weights: initialData.weights || dbWeights, // Use dbWeights as fallback
+        });
+      } else if (!isEdit) {
+        // Add mode: use database weights
+        const hasExistingData = formData.name || formData.description || formData.assignees?.length > 0;
+        if (!hasExistingData) {
+          setFormData({
+            name: "",
+            description: "",
+            startDate: "",
+            endDate: "",
+            assignees: [],
+            company: "",
+            department: "",
+            category: "",
+            priority: "medium",
+            creatorRole: "",
+            weights: dbWeights, // Use database weights
+          });
+        }
+      }
+      hasInitialized.current = true;
+    } else if (!isOpen && prevIsOpen.current) {
+      // Modal is closing - reset the initialization flag
+      hasInitialized.current = false;
+    }
+    
+    prevIsOpen.current = isOpen;
+  }, [isOpen, isEdit, dbWeights]);
+
+  // Add a separate useEffect to handle initialData changes only when necessary
+  useEffect(() => {
+    // Only update form data with initialData if:
+    // 1. Modal is open
+    // 2. We're in edit mode  
+    // 3. initialData has meaningful content
+    // 4. Current form is empty (to avoid overriding user input)
+    if (isOpen && isEdit && initialData && Object.keys(initialData).length > 0) {
+      const currentFormHasData = formData.name || formData.description || formData.assignees?.length > 0;
+      
+      // Only populate if form is currently empty (first load) or if the ID changed (different record)
+      if (!currentFormHasData || (initialData.id && initialData.id !== formData.id)) {
+        setFormData({
+          id: initialData.id, // Track the record ID
+          name: initialData.name || "",
+          description: initialData.description || "",
+          startDate: initialData.startDate || "",
+          endDate: initialData.endDate || "",
+          assignees: initialData.assignees ? [...initialData.assignees] : [],
+          company: initialData.company || "",
+          department: initialData.departmentId || initialData.department || "",
+          category: initialData.category || "",
+          priority: initialData.priority || "medium",
+          creatorRole: initialData.creatorRole || "",
+          weights: initialData.weights || dbWeights, // Use dbWeights as fallback
+        });
+      }
+    }
+  }, [initialData?.id, isOpen, isEdit, dbWeights]);
 
   // Ensure numeric IDs for company/department/creatorRole
   const handleChange = (e) => {
@@ -376,13 +563,32 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     );
   };
   
+  // handle single weight input change with total <= 100% validation
   const handleWeightChange = (index, value) => {
-    const updatedWeights = [...formData.weights];
-    updatedWeights[index].percentage = parseInt(value, 10) || 0;
-    setFormData(prev => ({
-      ...prev,
-      weights: updatedWeights
-    }));
+    const newVal = Number(value) || 0;
+    setFormData(prev => {
+      const currentWeights = Array.isArray(prev.weights) ? [...prev.weights] : [];
+      // ensure an entry exists for this index
+      while (currentWeights.length <= index) {
+        currentWeights.push({ title: "", description: "", percentage: 0 });
+      }
+      // simulate new total
+      const simulated = currentWeights.map((w, i) => i === index ? ({ ...w, percentage: newVal }) : w);
+      const total = simulated.reduce((s, w) => s + (Number(w.percentage) || 0), 0);
+      if (total > 100) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Weights exceed 100%',
+          html: `The total of all criteria would be <strong>${total}%</strong>. Please adjust to make the total <= 100%.`,
+          confirmButtonColor: '#F59E0B'
+        });
+        // reject the change by returning previous state unchanged
+        return prev;
+      }
+      // commit the change
+      currentWeights[index] = { ...(currentWeights[index] || {}), percentage: newVal };
+      return { ...prev, weights: currentWeights };
+    });
   };
 
   // Add: select-all handler to fetch employees from backend and populate assignees
@@ -642,15 +848,28 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 <ChevronDown className={`w-4 h-4 transition-transform ${showWeights ? 'rotate-180' : ''}`} />
               </button>
               
+              {/* Add the new button with flex container */}
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-gray-500">Configure custom weight criteria</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddWeightModalOpen(true)}
+                  className="inline-flex items-center px-2 py-1 text-xs bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Manage Weights
+                </button>
+              </div>
+              
               {showWeights && (
                 <div className="mt-3 space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                   {formData.weights.map((weight, index) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="flex-1">
                         <p className="text-sm text-gray-700">
-                          <strong>{weight.title}</strong>
+                          <strong>{weight.title || weight.name}</strong>
                           {weight.description && (
-                            <span className="text-xs text-gray-500 ml-1">{weight.description}</span>
+                            <span className="text-xs text-gray-500 ml-1"> - {weight.description}</span>
                           )}
                         </p>
                       </div>
@@ -948,6 +1167,63 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
             </button>
           </div>
         </form>
+
+        {/* Add Weight Modal */}
+        <AddKpiWeightModal
+          isOpen={isAddWeightModalOpen}
+          onClose={() => setIsAddWeightModalOpen(false)}
+          onCreated={async (newWeight) => {
+            // refresh authoritative list and include the new weight
+            try {
+              const weights = await PMSService.getKpiWeights();
+              const mappedWeights = Array.isArray(weights) ? weights.map(w => ({
+                id: w.id ?? null, // Include the ID for proper mapping
+                title: w.name,
+                description: w.description || '',
+                percentage: 0
+              })) : [];
+              
+              setDbWeights(mappedWeights);
+              
+              // Always update the form data weights to include the new weight
+              setFormData(prev => {
+                // If we're in edit mode and have existing weights, merge them properly
+                if (isEdit && prev.weights && prev.weights.length > 0) {
+                  const mergedWeights = mergeTemplateWithAssignmentWeights(mappedWeights, prev.weights);
+                  return {
+                    ...prev,
+                    weights: mergedWeights
+                  };
+                } else {
+                  // For create mode or empty weights, use the full template list
+                  return {
+                    ...prev,
+                    weights: mappedWeights
+                  };
+                }
+              });
+              
+              // Show success feedback
+              await Swal.fire({
+                icon: "success",
+                title: "Weight Added",
+                text: `"${newWeight.name}" has been added to the criteria list.`,
+                timer: 1500,
+                showConfirmButton: false,
+              });
+              
+            } catch (error) {
+              console.error('Error fetching KPI weights after creation:', error);
+              await Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "Failed to refresh weight list. Please close and reopen the modal.",
+              });
+            } finally {
+              setIsAddWeightModalOpen(false);
+            }
+          }}
+        />
       </div>
     </div>
   );
@@ -959,7 +1235,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, kpiName, isLoadin
   
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-2xl shadow-xl w/full max-w-md mx-4">
         <div className="p-6 text-center">
           <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
             <AlertCircle className="h-8 w-8 text-red-600" />
@@ -1362,12 +1638,15 @@ const KPIs = (/* props */) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await PMSService.getKpiTaskAssignments(); // Fetch from backend
+      const data = await PMSService.getKpiTaskAssignments();
       setKpis(Array.isArray(data) ? data : []);
+      
+      // Also refresh KPI stats when tasks are fetched
+      await fetchKpiStats(filterStartDate, filterEndDate);
     } catch (e) {
       setError("Failed to fetch KPI task assignments");
       console.error(e);
-      setKpis([]); // Fallback to empty array
+      setKpis([]);
     } finally {
       setIsLoading(false);
     }
@@ -1505,22 +1784,47 @@ const KPIs = (/* props */) => {
       await Swal.fire({
         icon: "success",
         title: "Success",
-        text: "KPI task assignment created successfully.",
-        timer: 1500,
+        text: `KPI task assignment created successfully. ${result.total_created || result.length || 1} assignment(s) created.`,
+        timer: 2000,
         showConfirmButton: false,
       });
+      
+      // Only close modal and refresh data after successful creation
       setIsAddModalOpen(false);
-      
-      // Refresh the KPI list to get the latest data from server
-      await fetchKpis();
-      
+      await fetchKpis(); // This now includes stats refresh
+
     } catch (e) {
       console.error(e);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to create KPI task assignment. Please try again.",
-      });
+      
+      // Handle duplicate error specifically
+      if (e.response?.status === 422 && e.response?.data?.duplicates) {
+        const duplicates = e.response.data.duplicates;
+        let duplicateList = duplicates.map(dup => 
+          `• ${dup.employee} (${dup.attendance_no})\n  Existing: ${dup.existing_start} to ${dup.existing_end}\n  New: ${dup.new_start} to ${dup.new_end}`
+        ).join('\n\n');
+
+        await Swal.fire({
+          icon: "warning",
+          title: "Duplicate Assignments Detected",
+          text: `The following employees already have this KPI task assigned with overlapping dates:\n\n${duplicateList}\n\nPlease choose different date ranges that don't overlap with existing assignments.`,
+          confirmButtonColor: "#F59E0B",
+          customClass: {
+            popup: 'text-left'
+          }
+        });
+        // IMPORTANT: Don't close modal or reset any state here
+        // Let the user fix the validation issues
+      } else {
+        // Handle other errors
+        const errorMessage = e.response?.data?.message || e.response?.data?.error || "Failed to create KPI task assignment. Please try again.";
+        
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: errorMessage,
+        });
+        // IMPORTANT: Don't close modal or reset any state here either
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1552,9 +1856,9 @@ const KPIs = (/* props */) => {
       });
       setIsEditModalOpen(false);
       
-      // FIX: Ensure we refresh the list after update
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1580,9 +1884,9 @@ const KPIs = (/* props */) => {
       });
       setIsDeleteModalOpen(false);
       
-      // FIX: Ensure we refresh the list after deletion
-      await fetchKpis();
-      
+      // Refresh the KPI list AND stats
+      await fetchKpis(); // This now includes stats refresh
+    
     } catch (e) {
       console.error(e);
       Swal.fire({
@@ -1596,9 +1900,117 @@ const KPIs = (/* props */) => {
   };
 
   // Modal handlers
-  const openEditModal = (kpi) => {
-    setCurrentKpi(kpi);
-    setIsEditModalOpen(true);
+  const openEditModal = async (kpi) => {
+    try {
+      // Fetch current template weights from database
+      const templateWeights = await PMSService.getKpiWeights();
+      const mappedTemplateWeights = Array.isArray(templateWeights) 
+        ? templateWeights.map(w => ({
+            id: w.id ?? null,
+            title: w.name ?? '',
+            description: w.description ?? '',
+            percentage: 0
+          })) 
+        : [];
+      
+      // Get template weight IDs for filtering
+      const templateWeightIds = new Set(mappedTemplateWeights.map(w => w.id).filter(id => id !== null));
+      
+      // Filter existing assignment weights to only include:
+      // 1. Weights that exist in current templates, OR
+      // 2. Weights that have assigned percentage > 0 (to preserve user's work)
+      const existingWeights = Array.isArray(kpi.weights) ? kpi.weights : [];
+      const filteredExistingWeights = existingWeights.filter(weight => {
+        const hasId = weight.id !== null && weight.id !== undefined;
+        const existsInTemplate = hasId && templateWeightIds.has(weight.id);
+        const hasAssignedPercentage = weight.percentage && weight.percentage > 0;
+        
+        // Keep weight if it exists in current templates OR has assigned percentage
+        return existsInTemplate || hasAssignedPercentage;
+      });
+      
+      // Merge filtered existing weights with template weights
+      const mergedWeights = mergeTemplateWithAssignmentWeights(mappedTemplateWeights, filteredExistingWeights);
+      
+      // Helper function to format date consistently
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        try {
+          // Handle various date formats that might come from the API
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return '';
+          
+          // Format as YYYY-MM-DD for HTML date input
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          
+          return `${year}-${month}-${day}`;
+        } catch (error) {
+          console.error('Error formatting date:', dateString, error);
+          return '';
+        }
+      };
+      
+      // Set currentKpi with cleaned weights and properly formatted dates
+      setCurrentKpi({
+        ...kpi,
+        // Ensure dates are in the correct format for HTML date inputs
+        startDate: formatDateForInput(kpi.startDate),
+        endDate: formatDateForInput(kpi.endDate),
+        // Preserve other fields with fallbacks
+        name: kpi.name || '',
+        description: kpi.description || '',
+        company: kpi.company || kpi.company_id || '',
+        department: kpi.department || kpi.departmentId || kpi.department_id || '',
+        departmentId: kpi.departmentId || kpi.department_id || '',
+        companyName: kpi.companyName || '',
+        departmentName: kpi.departmentName || '',
+        assignees: Array.isArray(kpi.assignees) ? [...kpi.assignees] : [],
+        creatorRole: kpi.creatorRole || kpi.creator?.role || '',
+        priority: kpi.priority || 'medium',
+        status: kpi.status || 'active',
+        weights: mergedWeights,
+        // Add any other fields that might be needed
+        id: kpi.id,
+        created_at: kpi.created_at || kpi.createdAt,
+        updated_at: kpi.updated_at || kpi.updatedAt,
+        last_updated: kpi.last_updated || kpi.lastUpdated
+      });
+      
+      // Open edit modal
+      setIsEditModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching template weights for edit:", error);
+      
+      // Fall back to just opening the modal with existing weights but still fix dates
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        try {
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return '';
+          
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          
+          return `${year}-${month}-${day}`;
+        } catch (error) {
+          console.error('Error formatting date:', dateString, error);
+          return '';
+        }
+      };
+      
+      setCurrentKpi({
+        ...kpi,
+        startDate: formatDateForInput(kpi.startDate),
+        endDate: formatDateForInput(kpi.endDate),
+        departmentId: kpi.departmentId || kpi.department_id || '',
+        creatorRole: kpi.creatorRole || kpi.creator?.role || '',
+        assignees: Array.isArray(kpi.assignees) ? [...kpi.assignees] : []
+      });
+      setIsEditModalOpen(true);
+    }
   };
 
   const openDeleteModal = (kpi) => {
@@ -1632,6 +2044,7 @@ const KPIs = (/* props */) => {
   };
 
   // Update getUniqueValues to include company
+
   const getUniqueValues = (key) => {
     return [...new Set(kpis.map((kpi) => kpi[key]))];
   };
@@ -1644,7 +2057,7 @@ const KPIs = (/* props */) => {
     if (!kpi.assignees || kpi.assignees.length === 0) {
       return kpi.progress || 0;
     }
-    
+
     kpi.assignees.forEach(idStr => {
       const empId = parseInt(idStr);
       const assigneeUpdates = kpi.assigneeUpdates?.find(au => au.employeeId === empId);
@@ -1772,6 +2185,7 @@ const KPIs = (/* props */) => {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSubmit={handleEditKpi}
+
         initialData={currentKpi ? {
           name: currentKpi.name,
           description: currentKpi.description,
@@ -2029,9 +2443,15 @@ const KPIs = (/* props */) => {
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              getLatestProgress(kpi) < 30 ? "bg-red-500" : getLatestProgress(kpi) < 70 ? "bg-yellow-500" : "bg-green-500"
+                              kpi.current >= kpi.target
+                                ? "bg-green-500"
+                                : kpi.current >= kpi.target * 0.8
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
                             }`}
-                            style={{ width: `${getLatestProgress(kpi)}%` }}
+                            style={{
+                              width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%`,
+                            }}
                           />
                         </div>
                       </div>

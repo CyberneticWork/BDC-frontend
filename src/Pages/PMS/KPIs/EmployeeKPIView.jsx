@@ -311,6 +311,61 @@ const EmployeeKPIView = () => {
     }
   };
 
+  // compute documents submitted count (only count submissions that have a document)
+  const documentsSubmittedCount = Object.values(progressSubmissions).reduce(
+    (total, subs) => {
+      if (!Array.isArray(subs)) return total;
+      const withDoc = subs.filter(s =>
+        Boolean(
+          s.document_name ||
+          s.documentName ||
+          s.document_path ||
+          s.documentPath ||
+          s.document ||
+          s.file
+        )
+      ).length;
+      return total + withDoc;
+    },
+    0
+  );
+
+  // --- NEW: compute Completed and Need-Attention counts from real data ---
+  const completedCount = myTasks.reduce((count, task) => {
+    const latest = getLatestSubmission(task.id);
+    const completionStatus = (task.completionStatus || task.completion_status || '').toString().toLowerCase();
+
+    // Task is completed if:
+    // 1. Completion status is explicitly 'completed', OR
+    // 2. Latest submission progress is >= 100%, OR  
+    // 3. Has at least one submission (any progress counts as completed task)
+    if (completionStatus === 'completed') return count + 1;
+    
+    if (latest) {
+      const latestProgress = parseInt(latest.progress_percentage ?? latest.progress ?? 0, 10) || 0;
+      if (latestProgress >= 100) return count + 1;
+      // If task has any submission, count as completed (one submission = one completed task)
+      return count + 1;
+    }
+
+    return count;
+  }, 0);
+
+  const needAttentionCount = myTasks.reduce((count, task) => {
+    const completionStatus = (task.completionStatus || task.completion_status || '').toString().toLowerCase();
+    const subs = Array.isArray(progressSubmissions[task.id]) ? progressSubmissions[task.id] : [];
+    const latest = getLatestSubmission(task.id);
+
+    // Need attention if:
+    // 1. Not explicitly completed AND
+    // 2. No submissions at all (hasn't started)
+    if (completionStatus !== 'completed' && subs.length === 0 && !latest) {
+      return count + 1;
+    }
+
+    return count;
+  }, 0);
+
   // Helper functions (unchanged)
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -331,27 +386,35 @@ const EmployeeKPIView = () => {
     return statusConfig[status] || statusConfig["not-started"];
   };
 
-  const getDaysRemaining = (endDate) => {
-    const today = new Date();
-    const due = new Date(endDate);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
   const getPriorityBadge = (priority) => {
     const priorityConfig = {
-      high: "bg-red-100 text-red-800",
-      medium: "bg-yellow-100 text-yellow-800",
-      low: "bg-blue-100 text-blue-800",
+      low: "bg-gray-100 text-gray-700",
+      medium: "bg-blue-100 text-blue-700", 
+      high: "bg-red-100 text-red-700",
     };
-    return priorityConfig[priority] || "bg-gray-100 text-gray-800";
+    return priorityConfig[priority] || priorityConfig.medium;
   };
 
-  const getTimelinePercentage = (startDate, endDate) => {
+  // Update the getTimelinePercentage function to handle different date property names
+  const getTimelinePercentage = (task) => {
+    // Try different possible date property names
+    const startDate = task.startDate || task.start_date || task.startedAt || task.created_at;
+    const endDate = task.endDate || task.end_date || task.dueDate || task.due_date;
+    
+    if (!startDate || !endDate) {
+      console.warn('Missing dates for task:', task.id, { startDate, endDate });
+      return { percentage: 0, status: 'no-dates' };
+    }
+    
     const start = new Date(startDate);
     const end = new Date(endDate);
     const today = new Date();
+    
+    // Validate dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      console.warn('Invalid dates for task:', task.id, { startDate, endDate });
+      return { percentage: 0, status: 'invalid-dates' };
+    }
     
     const totalDuration = end - start;
     const elapsedDuration = today - start;
@@ -363,6 +426,36 @@ const EmployeeKPIView = () => {
       percentage: Math.round((elapsedDuration / totalDuration) * 100), 
       status: 'on-track' 
     };
+  };
+
+  // Update getDaysRemaining function
+  const getDaysRemaining = (task) => {
+    const endDate = task.endDate || task.end_date || task.dueDate || task.due_date;
+    
+    if (!endDate) return 'No due date';
+    
+    const today = new Date();
+    const due = new Date(endDate);
+    
+    if (isNaN(due.getTime())) return 'Invalid date';
+    
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // Add a helper function to format dates safely
+  const formatDate = (dateValue) => {
+    if (!dateValue) return 'Not set';
+    
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   if (isLoading) {
@@ -446,9 +539,7 @@ const EmployeeKPIView = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-green-600">
-                {myTasks.filter((k) => k.completionStatus === "completed").length}
-              </p>
+              <p className="text-2xl font-bold text-green-600">{completedCount}</p>
             </div>
             <div className="p-3 bg-green-100 rounded-xl">
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -459,9 +550,7 @@ const EmployeeKPIView = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Need Attention</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {myTasks.filter((k) => k.status === "attention").length}
-              </p>
+              <p className="text-2xl font-bold text-yellow-600">{needAttentionCount}</p>
             </div>
             <div className="p-3 bg-yellow-100 rounded-xl">
               <AlertCircle className="w-6 h-6 text-yellow-600" />
@@ -473,7 +562,7 @@ const EmployeeKPIView = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Documents Submitted</p>
               <p className="text-2xl font-bold text-indigo-600">
-                {Object.values(progressSubmissions).reduce((total, submissions) => total + submissions.length, 0)}
+                {documentsSubmittedCount}
               </p>
             </div>
             <div className="p-3 bg-indigo-100 rounded-xl">
@@ -562,26 +651,38 @@ const EmployeeKPIView = () => {
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
                               Timeline ({(() => {
-                                const timeline = getTimelinePercentage(task.startDate, task.endDate);
-                                return timeline.status === 'overdue' ? 'Overdue' : `${timeline.percentage}% elapsed`;
+                                const timeline = getTimelinePercentage(task);
+                                if (timeline.status === 'no-dates') return 'No dates set';
+                                if (timeline.status === 'invalid-dates') return 'Invalid dates';
+                                if (timeline.status === 'overdue') return 'Overdue';
+                                return `${timeline.percentage}% elapsed`;
                               })()})
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
-                              {getDaysRemaining(task.endDate)} days remaining
+                              {(() => {
+                                const remaining = getDaysRemaining(task);
+                                if (typeof remaining === 'number') {
+                                  if (remaining < 0) return `${Math.abs(remaining)} days overdue`;
+                                  if (remaining === 0) return 'Due today';
+                                  return `${remaining} days remaining`;
+                                }
+                                return remaining; // 'No due date' or 'Invalid date'
+                              })()}
                             </span>
                           </div>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           {(() => {
-                            const timeline = getTimelinePercentage(task.startDate, task.endDate);
+                            const timeline = getTimelinePercentage(task);
                             return (
                               <div
                                 className={`h-2 rounded-full ${
                                   timeline.status === 'not-started' ? 'bg-gray-400' :
                                   timeline.status === 'overdue' ? 'bg-red-500' :
+                                  timeline.status === 'no-dates' || timeline.status === 'invalid-dates' ? 'bg-gray-300' :
                                   'bg-blue-500'
                                 }`}
                                 style={{
@@ -597,7 +698,7 @@ const EmployeeKPIView = () => {
                         <div className="flex items-center gap-2">
                           <CalendarDays className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
+                            {formatDate(task.startDate || task.start_date)} - {formatDate(task.endDate || task.end_date)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -609,7 +710,7 @@ const EmployeeKPIView = () => {
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            Last updated: {latestSubmission ? new Date(latestSubmission.created_at).toLocaleDateString() : 'Never'}
+                            Last updated: {latestSubmission ? formatDate(latestSubmission.created_at) : 'Never'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
