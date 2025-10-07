@@ -86,7 +86,7 @@ function LoginPage({ onSuccess }) {
             className="mb-8"
           >
             <img
-              src="./public/logo.png"
+              src="./logo.png"
               alt="HRM System Logo"
               className="h-16 w-auto"
             />
