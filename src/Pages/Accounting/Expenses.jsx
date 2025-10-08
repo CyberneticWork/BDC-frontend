@@ -409,7 +409,7 @@ const Expenses = () => {
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t flex justify-end space-x-3">
+            <div className="px-6 py-4 flex justify-end space-x-3">
               <button
                 onClick={() => setShowAddModal(false)}
                 className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"

@@ -413,6 +413,7 @@ const Sidebar = ({
           </div>
         </div>
 
+
         {/* Navigation Menu */}
         <nav className="flex-1 overflow-y-auto">
           <div className="p-4">
