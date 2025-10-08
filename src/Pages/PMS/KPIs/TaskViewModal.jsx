@@ -125,14 +125,14 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
     return statusConfig[status] || statusConfig.inactive;
   };
 
-  const getPriorityBadge = (priority) => {
-    const priorityConfig = {
-      high: "bg-red-100 text-red-800",
-      medium: "bg-yellow-100 text-yellow-800",
-      low: "bg-blue-100 text-blue-800",
-    };
-    return priorityConfig[priority] || "bg-gray-100 text-gray-800";
-  };
+  // const getPriorityBadge = (priority) => {
+  //   const priorityConfig = {
+  //     high: "bg-red-100 text-red-800",
+  //     medium: "bg-yellow-100 text-yellow-800",
+  //     low: "bg-blue-100 text-blue-800",
+  //   };
+  //   return priorityConfig[priority] || "bg-gray-100 text-gray-800";
+  // };
 
   const getCompletionStatusBadge = (status) => {
     const statusConfig = {
@@ -160,13 +160,13 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
                 {kpi.status === "attention" && <AlertCircle className="w-3 h-3 mr-1" />}
                 {kpi.status.charAt(0).toUpperCase() + kpi.status.slice(1)}
               </span>
-              <span
+              {/* <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
                   kpi.priority
                 )}`}
               >
                 {kpi.priority.charAt(0).toUpperCase() + kpi.priority.slice(1)} Priority
-              </span>
+              </span> */}
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
                   kpi.completionStatus
