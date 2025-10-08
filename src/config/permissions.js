@@ -77,6 +77,7 @@ export const permissions = {
     expenses: { view: true, edit: true },
     financeReports: { view: true },
     accountingReports: { view: true },
+    
     accountingSettings: { view: true, edit: true },
     usersAndRoles: { view: true, edit: true },
   },
