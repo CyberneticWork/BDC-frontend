@@ -15,6 +15,7 @@ import {
 import { Line, Bar } from 'react-chartjs-2';
 import feather from 'feather-icons';
 import { getDashboardCharts } from '../../services/AccountingService';
+import { getResponsive } from '../../utils/ResponsiveUtils';
 
 // Register ChartJS components
 ChartJS.register(
@@ -29,34 +30,7 @@ ChartJS.register(
   Filler
 );
 
-// Responsive hook
-const useResponsive = () => {
-  const [windowSize, setWindowSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
-    height: typeof window !== 'undefined' ? window.innerHeight : 800,
-  });
 
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
-
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return {
-    isMobile: windowSize.width < 768,
-    isTablet: windowSize.width >= 768 && windowSize.width < 1024,
-    isDesktop: windowSize.width >= 1024,
-    windowSize
-  };
-};
 
 // Responsive container component
 const ResponsiveContainer = ({ children, className = '', maxWidth = 'max-w-7xl', padding = 'px-4 sm:px-6 lg:px-8' }) => {
@@ -139,7 +113,7 @@ const StatCard = ({ title, value, change, icon, color }) => {
 
 const FinancialChart = ({ type }) => {
   const chartData = getDashboardCharts();
-  const responsive = useResponsive();
+  const responsive = getResponsive();
   
   const options = {
     responsive: true,
@@ -351,7 +325,7 @@ const FinancialSummary = () => {
 
 // New Accounting Sections Component
 const AccountingSections = ({ onNavigate }) => {
-  const responsive = useResponsive();
+  const responsive = getResponsive();
   
   const sections = [
     {
@@ -445,7 +419,7 @@ const AccountingSections = ({ onNavigate }) => {
 };
 
 const Dashboard = ({ setActiveItem }) => {
-  const responsive = useResponsive();
+  const responsive = getResponsive();
   
   useEffect(() => {
     // Replace feather icons after component mounts

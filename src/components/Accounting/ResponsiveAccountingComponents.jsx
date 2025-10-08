@@ -1,5 +1,5 @@
 import React from 'react';
-import { useResponsive } from '../../hooks/useResponsive';
+import { getResponsive } from '../../utils/ResponsiveUtils';
 
 /**
  * ResponsivePageWrapper - Consistent page wrapper for all Accounting pages
@@ -11,7 +11,7 @@ export const ResponsivePageWrapper = ({
   actions,
   className = '' 
 }) => {
-  const responsive = useResponsive();
+  const responsive = getResponsive();
 
   return (
     <div className="min-h-screen bg-gray-50">

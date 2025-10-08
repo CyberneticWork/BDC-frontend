@@ -23,7 +23,7 @@ import {
   getCashFlowData,
   getPreviousCashFlowData
 } from '../../services/AccountingService';
-import { useResponsive } from '../../hooks/useResponsive';
+import { getResponsive } from '../../utils/ResponsiveUtils';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -38,7 +38,7 @@ import {
 } from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const CashFlowStatement = () => {
-  const responsive = useResponsive();
+  const responsive = getResponsive();
   const [selectedPeriod, setSelectedPeriod] = useState("current-month");
   const [expandedSections, setExpandedSections] = useState({
     operating: true,

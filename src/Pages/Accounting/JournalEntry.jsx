@@ -5,7 +5,7 @@ import {
   addJournalEntry, 
   getAccountList 
 } from '../../services/AccountingService';
-import { useResponsive } from '../../hooks/useResponsive';
+import { getResponsive } from '../../utils/ResponsiveUtils';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -28,7 +28,7 @@ import {
 } from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const JournalEntry = () => {
-  const responsive = useResponsive();
+  const responsive = getResponsive();
   const [journalEntries, setJournalEntries] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [showForm, setShowForm] = useState(false);

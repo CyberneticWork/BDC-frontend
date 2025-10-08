@@ -19,7 +19,7 @@ import {
   getBalanceSheetData,
   getPreviousBalanceSheetData
 } from '../../services/AccountingService';
-import { useResponsive } from '../../hooks/useResponsive';
+import { getResponsive } from '../../utils/ResponsiveUtils';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -34,7 +34,7 @@ import {
 } from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const BalanceSheet = () => {
-  const responsive = useResponsive();
+  const responsive = getResponsive();
   const [selectedDate, setSelectedDate] = useState("2024-01-31");
   const [expandedSections, setExpandedSections] = useState({
     currentAssets: true,

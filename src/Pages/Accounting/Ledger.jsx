@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getLedger, getChartOfAccounts } from "../../services/AccountingService";
-import { useResponsive } from "../../hooks/useResponsive";
+import { getResponsive } from "../../utils/ResponsiveUtils";
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -70,7 +70,7 @@ const Ledger = () => {
     );
   }
 
-  const responsive = useResponsive();
+  const responsive = getResponsive();
 
   const actions = (
     <>
