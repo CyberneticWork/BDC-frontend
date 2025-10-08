@@ -302,33 +302,117 @@ const TimeCard = () => {
 
   // Handle edit open
   const handleEdit = (record, index) => {
+    console.log('Editing record:', record); // Debug log
+    
     setEditRecord({ ...record, index });
-    setEditDate(record.date);
+    
+    // Set date - ensure proper format for date input (YYYY-MM-DD)
+    const formattedDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+    setEditDate(formattedDate);
+    
+    // Set entry based on record data
     setEditEntry(record.entry || '');
-    setEditStatus(record.status || '');
-    setEditInTime(record.inOut === 'IN' ? record.time : '');
-    setEditOutTime(record.inOut === 'OUT' ? record.time : '');
+    
+    // Set status - handle both string and numeric entry values
+    let statusValue = record.status || '';
+    if (!statusValue) {
+      // Derive status from entry if status is missing
+      if (record.entry === '1' || record.entry === 1) {
+        statusValue = 'IN';
+      } else if (record.entry === '2' || record.entry === 2) {
+        statusValue = 'OUT';
+      }
+    }
+    setEditStatus(statusValue);
+    
+    // Set time based on status and inOut field
+    const timeValue = record.time || '';
+    if (record.inOut === 'IN' || statusValue === 'IN') {
+      setEditInTime(timeValue);
+      setEditOutTime(''); // Clear out time for IN records
+    } else if (record.inOut === 'OUT' || statusValue === 'OUT') {
+      setEditOutTime(timeValue);
+      setEditInTime(''); // Clear in time for OUT records
+    } else {
+      // For other statuses, set both to the same time
+      setEditInTime(timeValue);
+      setEditOutTime(timeValue);
+    }
+    
     setShowEditModal(true);
   };
 
   // Handle edit save
   const handleEditSave = async () => {
     try {
+      // Validate required fields
+      if (!editDate) {
+        alert('Date is required');
+        return;
+      }
+      if (!editStatus) {
+        alert('Status is required');
+        return;
+      }
+      
+      // Determine the time to send based on status
+      let timeToSend = '';
+      if (editStatus === 'IN') {
+        timeToSend = editInTime;
+      } else if (editStatus === 'OUT' || editStatus === 'Leave') {
+        timeToSend = editOutTime;
+      } else if (editStatus === 'Absent') {
+        timeToSend = '00:00:00'; // Default time for absent records
+      }
+      
+      // Validate time for non-absent records
+      if (editStatus !== 'Absent' && !timeToSend) {
+        alert('Time is required for this status');
+        return;
+      }
+      
+      // Ensure time is in HH:MM:SS format
+      if (timeToSend && !timeToSend.includes(':')) {
+        alert('Please enter a valid time');
+        return;
+      }
+      
       const payload = {
         date: editDate,
-        time: editStatus === 'IN' ? editInTime : editOutTime,
+        time: formatTimeForBackend(timeToSend),
         entry: editEntry,
         status: editStatus,
       };
+      
+      console.log('Saving payload:', payload); // Debug log
+      
       await timeCardService.updateTimeCard(editRecord.id, payload);
+      
+      // Refresh data
       const updated = await fetchTimeCards();
       setAttendanceData(updated);
       setFilteredData(updated);
+      
+      // Close modal
       setShowEditModal(false);
-      setEditRecord(null);
-      Swal.fire({ icon: 'success', title: 'Updated!', timer: 1200, showConfirmButton: false });
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Attendance record updated successfully.',
+        timer: 1500,
+        showConfirmButton: false,
+      });
     } catch (e) {
-      Swal.fire({ icon: 'error', title: 'Update failed', text: e.message });
+      console.error('Error updating record:', e);
+      const errorMessage = e.response?.data?.message || e.message || 'Failed to update attendance record';
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: errorMessage,
+      });
     }
   };
 
@@ -755,6 +839,30 @@ const TimeCard = () => {
     }
   };
 
+  // Add this helper function to validate time format
+  const validateTimeFormat = (timeStr) => {
+    if (!timeStr) return false;
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
+    return timeRegex.test(timeStr);
+  };
+
+  // Add this helper function to format time consistently
+  const formatTimeForBackend = (timeStr) => {
+    if (!timeStr) return '';
+    
+    // If already in HH:MM:SS format, return as is
+    if (timeStr.split(':').length === 3) {
+      return timeStr;
+    }
+    
+    // If in HH:MM format, add seconds
+    if (timeStr.split(':').length === 2) {
+      return timeStr + ':00';
+    }
+    
+    return timeStr;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8">
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
@@ -1061,7 +1169,7 @@ const TimeCard = () => {
                                 {record.status === 'Present' ? record.inOut : record.status}
                               </span>
                             </td>
-                            {/* <td className="py-4 px-3 sm:px-6 flex gap-2">
+                            <td className="py-4 px-3 sm:px-6 flex gap-2">
                               <button
                                 className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-150 text-xs sm:text-sm font-semibold shadow-sm"
                                 onClick={() => handleEdit(record, index)}
@@ -1082,7 +1190,7 @@ const TimeCard = () => {
                                 </svg>
                                 Delete
                               </button>
-                            </td> */}
+                            </td>
                           </tr>
                         ))
                       ) : (
@@ -1134,15 +1242,18 @@ const TimeCard = () => {
               </svg>
               Edit Attendance Record
             </h2>
+            
+            {/* Employee Information - Read Only */}
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Employee EPF Number</label>
-              <input
-                type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
-                value={editRecord.empNo}
-                readOnly
-              />
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Employee Details</label>
+              <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-sm">
+                <div className="font-medium">{editRecord.name || 'Unknown Employee'}</div>
+                <div className="text-gray-600">EMP: {editRecord.empNo || 'N/A'}</div>
+                <div className="text-gray-600">Dept: {editRecord.department || 'N/A'}</div>
+              </div>
             </div>
+            
+            {/* Date Field */}
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-1">Date</label>
               <input
@@ -1152,6 +1263,8 @@ const TimeCard = () => {
                 onChange={e => setEditDate(e.target.value)}
               />
             </div>
+            
+            {/* Status Field */}
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-1">Status</label>
               <select
@@ -1160,9 +1273,17 @@ const TimeCard = () => {
                 onChange={e => {
                   const status = e.target.value;
                   let entry = '';
-                  if (status === 'IN') entry = '1';
-                  else if (status === 'OUT') entry = '2';
-                  else if (status === 'Absent') entry = '0';
+                  if (status === 'IN') {
+                    entry = '1';
+                    setEditOutTime(''); // Clear out time when switching to IN
+                  } else if (status === 'OUT') {
+                    entry = '2';
+                    setEditInTime(''); // Clear in time when switching to OUT
+                  // } else if (status === 'Absent') {
+                  //   entry = '0';
+                  } else if (status === 'Leave') {
+                    entry = '0'; // Leave typically uses OUT entry
+                  }
                   setEditStatus(status);
                   setEditEntry(entry);
                 }}
@@ -1170,12 +1291,14 @@ const TimeCard = () => {
                 <option value="">Select Status</option>
                 <option value="IN">IN</option>
                 <option value="OUT">OUT</option>
-                <option value="Absent">Absent</option>
-                <option value="Leave">Leave</option>
+                {/* <option value="Absent">Absent</option>
+                <option value="Leave">Leave</option> */}
               </select>
             </div>
+            
+            {/* Entry Code - Auto-filled based on status */}
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Entry</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Entry Code</label>
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
@@ -1184,19 +1307,41 @@ const TimeCard = () => {
                 placeholder="Auto-filled from Status"
               />
             </div>
+            
+            {/* Time Field - Conditional based on status */}
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Time</label>
-              <input
-                type="time"
-                className="w-full border border-blue-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                value={editStatus === 'IN' ? editInTime : editStatus === 'OUT' ? editOutTime : ''}
-                onChange={e => {
-                  if (editStatus === 'IN') setEditInTime(e.target.value);
-                  else if (editStatus === 'OUT') setEditOutTime(e.target.value);
-                }}
-                placeholder="e.g. 08:45 AM"
-              />
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                Time {editStatus === 'IN' ? '(Clock In)' : editStatus === 'OUT' ? '(Clock Out)' : ''}
+              </label>
+              {editStatus === 'Absent' ? (
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100"
+                  value="N/A (Absent)"
+                  readOnly
+                />
+              ) : (
+                <input
+                  type="time"
+                  className="w-full border border-blue-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  value={editStatus === 'IN' ? editInTime : editStatus === 'OUT' ? editOutTime : (editInTime || editOutTime)}
+                  onChange={e => {
+                    if (editStatus === 'IN') {
+                      setEditInTime(e.target.value);
+                    } else if (editStatus === 'OUT') {
+                      setEditOutTime(e.target.value);
+                    } else {
+                      // For other statuses, update both
+                      setEditInTime(e.target.value);
+                      setEditOutTime(e.target.value);
+                    }
+                  }}
+                  placeholder="e.g. 08:45"
+                />
+              )}
             </div>
+            
+            {/* Action Buttons */}
             <div className="flex justify-end gap-3 mt-8">
               <button
                 className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
@@ -1207,15 +1352,8 @@ const TimeCard = () => {
               <button
                 className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-semibold shadow"
                 onClick={handleEditSave}
-                disabled={
-                  !editDate ||
-                  !editEntry ||
-                  !editStatus ||
-                  (editStatus === 'IN' && !editInTime) ||
-                  (editStatus === 'OUT' && !editOutTime)
-                }
               >
-                Save
+                Save Changes
               </button>
             </div>
           </div>
@@ -1380,7 +1518,7 @@ const TimeCard = () => {
                     <option value="">Select Status</option>
                     <option value="IN">IN</option>
                     <option value="OUT">OUT</option>
-                    <option value="Leave">Leave</option>
+                    {/* <option value="Leave">Leave</option> */}
                   </select>
                   {addErrors.status && <div className="text-red-500 text-xs mt-1">{addErrors.status}</div>}
                 </div>
@@ -1478,6 +1616,7 @@ const TimeCard = () => {
                       <td colSpan="3" className="py-8 text-center text-slate-500">No absentees found</td>
                     </tr>
                   )}
+               
                 </tbody>
               </table>
               {/* Improved Pagination Controls */}
