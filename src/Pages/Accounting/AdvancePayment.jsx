@@ -5,7 +5,7 @@ import {
   getSuppliers, 
   getAccountList 
 } from '../../services/AccountingService';
-import { getResponsive } from '../../utils/ResponsiveUtils';
+import { useResponsive } from '../../hooks/useResponsive';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -26,7 +26,7 @@ import {
 } from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const AdvancePayment = () => {
-  const responsive = getResponsive();
+  const responsive = useResponsive();
   const [advancePayments, setAdvancePayments] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);

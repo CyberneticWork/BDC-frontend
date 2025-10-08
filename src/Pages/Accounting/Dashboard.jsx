@@ -13,39 +13,8 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
-import { 
-  DollarSign, 
-  ShoppingBag, 
-  CreditCard, 
-  Plus, 
-  FileText, 
-  Upload, 
-  Bell, 
-  BarChart2, 
-  TrendingDown, 
-  TrendingUp, 
-  Repeat, 
-  Users, 
-  Home, 
-  List, 
-  Zap, 
-  CheckCircle, 
-  BookOpen, 
-  PiggyBank, 
-  FileMinus, 
-  RefreshCw, 
-  Truck, 
-  RotateCcw, 
-  ArrowLeftCircle, 
-  ShoppingCart, 
-  CheckSquare, 
-  PieChart as PieChartIcon, 
-  Book, 
-  Settings, 
-  Receipt 
-} from 'lucide-react';
+import feather from 'feather-icons';
 import { getDashboardCharts } from '../../services/AccountingService';
-import { getResponsive } from '../../utils/ResponsiveUtils';
 
 // Register ChartJS components
 ChartJS.register(
@@ -60,7 +29,34 @@ ChartJS.register(
   Filler
 );
 
+// Responsive hook
+const useResponsive = () => {
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  });
 
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return {
+    isMobile: windowSize.width < 768,
+    isTablet: windowSize.width >= 768 && windowSize.width < 1024,
+    isDesktop: windowSize.width >= 1024,
+    windowSize
+  };
+};
 
 // Responsive container component
 const ResponsiveContainer = ({ children, className = '', maxWidth = 'max-w-7xl', padding = 'px-4 sm:px-6 lg:px-8' }) => {
@@ -123,16 +119,6 @@ const StatCard = ({ title, value, change, icon, color }) => {
     purple: { border: 'border-purple-500', bg: 'bg-purple-100', text: 'text-purple-600' }
   };
 
-  // Map Feather icon names to Lucide React components
-  const iconMap = {
-    'dollar-sign': DollarSign,
-    'trending-down': TrendingDown,
-    'bar-chart-2': BarChart2,
-    'repeat': Repeat
-  };
-
-  const IconComponent = iconMap[icon];
-
   return (
     <ResponsiveCard className={`border-l-4 ${colorClasses[color]?.border}`}>
       <div className="flex justify-between items-start">
@@ -144,7 +130,7 @@ const StatCard = ({ title, value, change, icon, color }) => {
           </p>
         </div>
         <div className={`p-2 sm:p-3 rounded-full ml-4 flex-shrink-0 ${colorClasses[color]?.bg}`}>
-          {IconComponent && <IconComponent className={`w-4 h-4 sm:w-5 sm:h-5 ${colorClasses[color]?.text}`} />}
+          <i data-feather={icon} className={`w-4 h-4 sm:w-5 sm:h-5 ${colorClasses[color]?.text}`}></i>
         </div>
       </div>
     </ResponsiveCard>
@@ -153,7 +139,7 @@ const StatCard = ({ title, value, change, icon, color }) => {
 
 const FinancialChart = ({ type }) => {
   const chartData = getDashboardCharts();
-  const responsive = getResponsive();
+  const responsive = useResponsive();
   
   const options = {
     responsive: true,
@@ -227,11 +213,10 @@ const RecentTransactions = () => {
           <div key={transaction.id} className="flex justify-between items-start sm:items-center pb-3 sm:pb-4 border-b border-gray-100 last:border-0 last:pb-0">
             <div className="flex items-start min-w-0 flex-1">
               <div className={`p-2 rounded-full mr-3 mt-1 flex-shrink-0 ${transaction.category === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
-                {transaction.category === 'income' ? (
-                  <DollarSign className={`w-3 h-3 sm:w-4 sm:h-4 ${transaction.category === 'income' ? 'text-green-600' : 'text-red-600'}`} />
-                ) : (
-                  <ShoppingBag className={`w-3 h-3 sm:w-4 sm:h-4 ${transaction.category === 'income' ? 'text-green-600' : 'text-red-600'}`} />
-                )}
+                <i 
+                  data-feather={transaction.category === 'income' ? 'dollar-sign' : 'shopping-bag'} 
+                  className={`w-3 h-3 sm:w-4 sm:h-4 ${transaction.category === 'income' ? 'text-green-600' : 'text-red-600'}`}
+                ></i>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm sm:text-base truncate">{transaction.name}</p>
@@ -274,11 +259,10 @@ const AccountBalances = () => {
           <div key={index} className="flex justify-between items-start sm:items-center pb-3 sm:pb-4 border-b border-gray-100 last:border-0 last:pb-0">
             <div className="flex items-start min-w-0 flex-1">
               <div className={`p-2 rounded-full mr-3 mt-1 flex-shrink-0 ${colorClasses[account.color]?.bg}`}>
-                {account.color === 'red' ? (
-                  <CreditCard className={`w-3 h-3 sm:w-4 sm:h-4 ${colorClasses[account.color]?.text}`} />
-                ) : (
-                  <DollarSign className={`w-3 h-3 sm:w-4 sm:h-4 ${colorClasses[account.color]?.text}`} />
-                )}
+                <i 
+                  data-feather={account.color === 'red' ? 'credit-card' : 'dollar-sign'} 
+                  className={`w-3 h-3 sm:w-4 sm:h-4 ${colorClasses[account.color]?.text}`}
+                ></i>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm sm:text-base truncate">{account.name}</p>
@@ -310,33 +294,22 @@ const QuickActions = ({ onNavigate }) => {
     purple: { bg: 'bg-purple-50', hover: 'hover:bg-purple-100', iconBg: 'bg-purple-100', text: 'text-purple-600' }
   };
 
-  // Map Feather icon names to Lucide React components
-  const iconMap = {
-    'plus': Plus,
-    'file-text': FileText,
-    'dollar-sign': DollarSign,
-    'upload': Upload
-  };
-
   return (
     <ResponsiveCard>
       <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        {actions.map((action, index) => {
-          const IconComponent = iconMap[action.icon];
-          return (
-            <button 
-              key={index} 
-              onClick={() => onNavigate && onNavigate(action.action)}
-              className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-lg ${colorClasses[action.color]?.bg} ${colorClasses[action.color]?.hover} transition-colors`}
-            >
-              <div className={`p-2 sm:p-3 rounded-full mb-2 ${colorClasses[action.color]?.iconBg}`}>
-                {IconComponent && <IconComponent className={`w-4 h-4 sm:w-5 sm:h-5 ${colorClasses[action.color]?.text}`} />}
-              </div>
-              <span className="text-xs sm:text-sm font-medium text-center leading-tight">{action.title}</span>
-            </button>
-          );
-        })}
+        {actions.map((action, index) => (
+          <button 
+            key={index} 
+            onClick={() => onNavigate && onNavigate(action.action)}
+            className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-lg ${colorClasses[action.color]?.bg} ${colorClasses[action.color]?.hover} transition-colors`}
+          >
+            <div className={`p-2 sm:p-3 rounded-full mb-2 ${colorClasses[action.color]?.iconBg}`}>
+              <i data-feather={action.icon} className={`w-4 h-4 sm:w-5 sm:h-5 ${colorClasses[action.color]?.text}`}></i>
+            </div>
+            <span className="text-xs sm:text-sm font-medium text-center leading-tight">{action.title}</span>
+          </button>
+        ))}
       </div>
     </ResponsiveCard>
   );
@@ -378,7 +351,7 @@ const FinancialSummary = () => {
 
 // New Accounting Sections Component
 const AccountingSections = ({ onNavigate }) => {
-  const responsive = getResponsive();
+  const responsive = useResponsive();
   
   const sections = [
     {
@@ -438,35 +411,6 @@ const AccountingSections = ({ onNavigate }) => {
     }
   ];
 
-  // Map Feather icon names to Lucide React components
-  const iconMap = {
-    'users': Users,
-    'home': Home,
-    'list': List,
-    'file-text': FileText,
-    'dollar-sign': DollarSign,
-    'credit-card': CreditCard,
-    'trending-up': TrendingUp,
-    'receipt': Receipt,
-    'zap': Zap,
-    'check-circle': CheckCircle,
-    'book-open': BookOpen,
-    'piggy-bank': PiggyBank,
-    'file-minus': FileMinus,
-    'refresh-cw': RefreshCw,
-    'truck': Truck,
-    'rotate-ccw': RotateCcw,
-    'arrow-left-circle': ArrowLeftCircle,
-    'shopping-cart': ShoppingCart,
-    'shopping-bag': ShoppingBag,
-    'check-square': CheckSquare,
-    'bar-chart-2': BarChart2,
-    'pie-chart': PieChartIcon,
-    'book': Book,
-    'settings': Settings,
-    'file': FileText
-  };
-
   return (
     <div className="space-y-6 sm:space-y-8">
       {sections.map((section, sectionIndex) => (
@@ -476,26 +420,23 @@ const AccountingSections = ({ onNavigate }) => {
             cols={responsive.isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} 
             gap="gap-3 sm:gap-4"
           >
-            {section.items.map((item, itemIndex) => {
-              const IconComponent = iconMap[item.icon];
-              return (
-                <button
-                  key={itemIndex}
-                  onClick={() => onNavigate && onNavigate(item.action)}
-                  className="flex items-start p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-blue-50 hover:shadow-md transition-all duration-200 group text-left w-full"
-                >
-                  <div className="flex-shrink-0 mr-3">
-                    <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                      {IconComponent && <IconComponent className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5" />}
-                    </div>
+            {section.items.map((item, itemIndex) => (
+              <button
+                key={itemIndex}
+                onClick={() => onNavigate && onNavigate(item.action)}
+                className="flex items-start p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-blue-50 hover:shadow-md transition-all duration-200 group text-left w-full"
+              >
+                <div className="flex-shrink-0 mr-3">
+                  <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                    <i data-feather={item.icon} className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5"></i>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm sm:text-base text-gray-900 group-hover:text-blue-900 truncate">{item.name}</h4>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1">{item.description}</p>
-                  </div>
-                </button>
-              );
-            })}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-sm sm:text-base text-gray-900 group-hover:text-blue-900 truncate">{item.name}</h4>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">{item.description}</p>
+                </div>
+              </button>
+            ))}
           </ResponsiveGrid>
         </ResponsiveCard>
       ))}
@@ -504,8 +445,13 @@ const AccountingSections = ({ onNavigate }) => {
 };
 
 const Dashboard = ({ setActiveItem }) => {
-  const responsive = getResponsive();
+  const responsive = useResponsive();
   
+  useEffect(() => {
+    // Replace feather icons after component mounts
+    feather.replace();
+  }, []);
+
   const handleNavigate = (action) => {
     if (setActiveItem) {
       setActiveItem(action);
@@ -524,7 +470,7 @@ const Dashboard = ({ setActiveItem }) => {
             </div>
             <div className="flex items-center space-x-3 sm:space-x-4">
               <button className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                <i data-feather="bell" className="w-4 h-4 sm:w-5 sm:h-5"></i>
               </button>
               <div className="flex items-center">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium mr-2 flex-shrink-0">
@@ -548,7 +494,7 @@ const Dashboard = ({ setActiveItem }) => {
                 <p className="text-blue-100 text-sm sm:text-base">Manage your financial operations efficiently with our comprehensive accounting tools</p>
               </div>
               <div className="hidden sm:block flex-shrink-0">
-                <BarChart2 className="w-12 h-12 sm:w-16 sm:h-16 text-blue-200" />
+                <i data-feather="bar-chart-2" className="w-12 h-12 sm:w-16 sm:h-16 text-blue-200"></i>
               </div>
             </div>
           </ResponsiveCard>

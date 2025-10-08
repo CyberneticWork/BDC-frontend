@@ -14,7 +14,7 @@ import {
   XCircle,
   AlertCircle,
 } from "lucide-react";
-import { getResponsive } from '../../utils/ResponsiveUtils';
+import { useResponsive } from '../../hooks/useResponsive';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -35,7 +35,7 @@ import {
 } from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const BankReconciliation = () => {
-  const responsive = getResponsive();
+  const responsive = useResponsive();
   const [reconciliations, setReconciliations] = useState([]);
   const [filteredReconciliations, setFilteredReconciliations] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");

@@ -6,7 +6,7 @@ import {
   updateEnhancedExpense,
   deleteEnhancedExpense
 } from "../../services/AccountingService";
-import { getResponsive } from "../../utils/ResponsiveUtils";
+import { useResponsive } from "../../hooks/useResponsive";
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -27,7 +27,7 @@ import {
 } from "../../components/Accounting/ResponsiveAccountingComponents";
 
 const Expenses = () => {
-  const responsive = getResponsive();
+  const responsive = useResponsive();
   const [expenses, setExpenses] = useState([]);
   const [filteredExpenses, setFilteredExpenses] = useState([]);
   const [loading, setLoading] = useState(true);

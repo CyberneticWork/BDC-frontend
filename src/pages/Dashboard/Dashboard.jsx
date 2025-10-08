@@ -59,6 +59,9 @@ import UserStats from "../LMS/UserStats";
 // Import Accounting components
 import AccountingDashboard from "../Accounting/Dashboard";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
+import AccountList from "../Accounting/AccountList";
+import Customer from "../Accounting/Customer";
+import Center from "../Accounting/Center";
 import Transactions from "../Accounting/Transactions";
 import Ledger from "../Accounting/Ledger";
 import TrialBalance from "../Accounting/TrialBalance";
@@ -66,9 +69,28 @@ import IncomeStatement from "../Accounting/IncomeStatement";
 import BalanceSheet from "../Accounting/BalanceSheet";
 import CashFlowStatement from "../Accounting/CashFlowStatement";
 import Invoices from "../Accounting/Invoices";
+import SalesOrder from "../Accounting/SalesOrder";
+import SalesReturn from "../Accounting/SalesReturn";
+import GRN from "../Accounting/GRN";
+import PurchaseReturn from "../Accounting/PurchaseReturn";
+import PurchaseOrder from "../Accounting/PurchaseOrder";
+import StockTransfer from "../Accounting/StockTransfer";
+import StockVerification from "../Accounting/StockVerification";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
+// Import new accounting pages
+import SupplierEnterBill from "../Accounting/SupplierEnterBill";
+import Payment from "../Accounting/Payment";
+import AdvancePayment from "../Accounting/AdvancePayment";
+import MakeDeposit from "../Accounting/MakeDeposit";
+import Receipt from "../Accounting/Receipt";
+import UtilityBill from "../Accounting/UtilityBill";
+import UtilityBillPayment from "../Accounting/UtilityBillPayment";
+import JournalEntry from "../Accounting/JournalEntry";
+import PettyCash from "../Accounting/PettyCash";
+import Cheque from "../Accounting/Cheque";
+import BankReconciliation from "../Accounting/BankReconciliation";
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -761,16 +783,32 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="lmsUserStats" action="view">
                 <UserStats />
               </ProtectedComponent>
-            ) : activeItem === "accountingDashboard" ? (
+           ) : activeItem === "accountingDashboard" ? (
               <ProtectedComponent module="accountingDashboard" action="view">
-                <AccountingDashboard />
+                <AccountingDashboard setActiveItem={setActiveItem} />
+              </ProtectedComponent>
+            ) : activeItem === "customer" ? (
+              <ProtectedComponent module="customer" action="view">
+                <Customer />
+              </ProtectedComponent>
+            ) : activeItem === "center" ? (
+              <ProtectedComponent module="center" action="view">
+                <Center />
               </ProtectedComponent>
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">
                 <ChartOfAccounts />
               </ProtectedComponent>
+            ) : activeItem === "accountList" ? (
+              <ProtectedComponent module="accountList" action="view">
+                <AccountList />
+              </ProtectedComponent>
             ) : activeItem === "transactions" ? (
               <ProtectedComponent module="transactions" action="view">
+                <Transactions />
+              </ProtectedComponent>
+            ) : activeItem === "transactionsList" ? (
+              <ProtectedComponent module="transactionsList" action="view">
                 <Transactions />
               </ProtectedComponent>
             ) : activeItem === "ledger" ? (
@@ -797,6 +835,34 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="invoices" action="view">
                 <Invoices />
               </ProtectedComponent>
+            ) : activeItem === "salesOrder" ? (
+              <ProtectedComponent module="salesOrder" action="view">
+                <SalesOrder />
+              </ProtectedComponent>
+            ) : activeItem === "salesReturn" ? (
+              <ProtectedComponent module="salesReturn" action="view">
+                <SalesReturn />
+              </ProtectedComponent>
+            ) : activeItem === "grn" ? (
+              <ProtectedComponent module="grn" action="view">
+                <GRN />
+              </ProtectedComponent>
+            ) : activeItem === "purchaseReturn" ? (
+              <ProtectedComponent module="purchaseReturn" action="view">
+                <PurchaseReturn />
+              </ProtectedComponent>
+            ) : activeItem === "purchaseOrder" ? (
+              <ProtectedComponent module="purchaseOrder" action="view">
+                <PurchaseOrder />
+              </ProtectedComponent>
+            ) : activeItem === "stockTransfer" ? (
+              <ProtectedComponent module="stockTransfer" action="view">
+                <StockTransfer />
+              </ProtectedComponent>
+            ) : activeItem === "stockVerification" ? (
+              <ProtectedComponent module="stockVerification" action="view">
+                <StockVerification />
+              </ProtectedComponent>
             ) : activeItem === "expenses" ? (
               <ProtectedComponent module="expenses" action="view">
                 <Expenses />
@@ -808,6 +874,50 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "accountingSettings" ? (
               <ProtectedComponent module="accountingSettings" action="view">
                 <AccountingSettings />
+              </ProtectedComponent>
+            ) : activeItem === "supplierEnterBill" ? (
+              <ProtectedComponent module="supplierEnterBill" action="view">
+                <SupplierEnterBill />
+              </ProtectedComponent>
+            ) : activeItem === "payment" ? (
+              <ProtectedComponent module="payment" action="view">
+                <Payment />
+              </ProtectedComponent>
+            ) : activeItem === "advancePayment" ? (
+              <ProtectedComponent module="advancePayment" action="view">
+                <AdvancePayment />
+              </ProtectedComponent>
+            ) : activeItem === "makeDeposit" ? (
+              <ProtectedComponent module="makeDeposit" action="view">
+                <MakeDeposit />
+              </ProtectedComponent>
+            ) : activeItem === "receipt" ? (
+              <ProtectedComponent module="receipt" action="view">
+                <Receipt />
+              </ProtectedComponent>
+            ) : activeItem === "createUtilityBill" ? (
+              <ProtectedComponent module="createUtilityBill" action="view">
+                <UtilityBill />
+              </ProtectedComponent>
+            ) : activeItem === "utilityBillPayment" ? (
+              <ProtectedComponent module="utilityBillPayment" action="view">
+                <UtilityBillPayment />
+              </ProtectedComponent>
+            ) : activeItem === "journalEntry" ? (
+              <ProtectedComponent module="journalEntry" action="view">
+                <JournalEntry />
+              </ProtectedComponent>
+            ) : activeItem === "pettyCash" ? (
+              <ProtectedComponent module="pettyCash" action="view">
+                <PettyCash />
+              </ProtectedComponent>
+            ) : activeItem === "cheque" ? (
+              <ProtectedComponent module="cheque" action="view">
+                <Cheque />
+              </ProtectedComponent>
+            ) : activeItem === "bankReconciliation" ? (
+              <ProtectedComponent module="bankReconciliation" action="view">
+                <BankReconciliation />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">
