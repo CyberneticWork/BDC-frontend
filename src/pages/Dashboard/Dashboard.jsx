@@ -516,10 +516,10 @@ const Dashboard = ({ user, onLogout }) => {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
       />
-      <div className="flex-1 flex flex-col min-h-screen">
-        <nav className="bg-white shadow-lg border-b border-gray-200">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
+      <div className="flex-1 flex flex-col h-screen lg:ml-0">
+        <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
+          <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
+            <div className="flex justify-between h-14 sm:h-16">
               <div className="flex items-center lg:hidden">
                 <button
                   onClick={() => setIsOpen(true)}
@@ -576,8 +576,8 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </div>
         </nav>
-        <div className="py-6 sm:px-6 lg:px-8 flex-1">
-          <div className="px-4 py-6 sm:px-0 h-full">
+        <div className="flex-1 overflow-y-auto">
+          <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8">
             {activeItem === "employeeMaster" ? (
               <ProtectedComponent module="employeeMaster" action="view">
                 <EmployeeMaster />

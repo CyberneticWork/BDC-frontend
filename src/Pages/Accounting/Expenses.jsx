@@ -1,6 +1,154 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import {
+  getEnhancedExpenses,
+  getExpenseCategories,
+  addEnhancedExpense,
+  updateEnhancedExpense,
+  deleteEnhancedExpense
+} from "../../services/AccountingService";
+import { useResponsive } from "../../hooks/useResponsive";
+import {
+  ResponsivePageWrapper,
+  ResponsiveCard,
+  ResponsiveGrid,
+  ResponsiveTable,
+  ResponsiveTableHeader,
+  ResponsiveTableHeaderCell,
+  ResponsiveTableBody,
+  ResponsiveTableRow,
+  ResponsiveTableCell,
+  ResponsiveButton,
+  ResponsiveFormGroup,
+  ResponsiveSelect,
+  ResponsiveInput,
+  ResponsiveModal,
+  ResponsiveLoadingSpinner,
+  ResponsiveBadge
+} from "../../components/Accounting/ResponsiveAccountingComponents";
 
 const Expenses = () => {
+  const responsive = useResponsive();
+  const [expenses, setExpenses] = useState([]);
+  const [filteredExpenses, setFilteredExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newExpense, setNewExpense] = useState({
+    description: "",
+    amount: "",
+    category: "",
+    date: new Date().toISOString().split('T')[0],
+    vendor: "",
+    reference: ""
+  });
+
+  // Expense categories
+  const expenseCategories = getExpenseCategories();
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  useEffect(() => {
+    filterExpenses();
+  }, [expenses, searchTerm, categoryFilter, dateRange]);
+
+  const fetchExpenses = () => {
+    try {
+      const expenseData = getEnhancedExpenses();
+      setExpenses(expenseData);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching expenses:", error);
+      setLoading(false);
+    }
+  };
+
+  const filterExpenses = () => {
+    let filtered = expenses;
+
+    if (searchTerm) {
+      filtered = filtered.filter(expense =>
+        expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        expense.vendor.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (categoryFilter) {
+      filtered = filtered.filter(expense => expense.category === categoryFilter);
+    }
+
+    if (dateRange.start) {
+      filtered = filtered.filter(expense => expense.date >= dateRange.start);
+    }
+
+    if (dateRange.end) {
+      filtered = filtered.filter(expense => expense.date <= dateRange.end);
+    }
+
+    setFilteredExpenses(filtered);
+  };
+
+  const handleAddExpense = () => {
+    if (newExpense.description && newExpense.amount && newExpense.category) {
+      const expense = {
+        id: Date.now(),
+        ...newExpense,
+        amount: parseFloat(newExpense.amount),
+        status: "Pending"
+      };
+      setExpenses([expense, ...expenses]);
+      setNewExpense({
+        description: "",
+        amount: "",
+        category: "",
+        date: new Date().toISOString().split('T')[0],
+        vendor: "",
+        reference: ""
+      });
+      setShowAddModal(false);
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  const getTotalExpenses = () => {
+    return filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  };
+
+  const getExpensesByCategory = () => {
+    const categoryTotals = {};
+    filteredExpenses.forEach(expense => {
+      categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+    });
+    return categoryTotals;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <ResponsiveLoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  const actions = (
+    <ResponsiveButton 
+      variant="primary" 
+      size="md" 
+      onClick={() => setShowAddModal(true)}
+    >
+      Add New Expense
+    </ResponsiveButton>
+  );
+
   return (
     <ResponsivePageWrapper 
       title="Expense Management" 
