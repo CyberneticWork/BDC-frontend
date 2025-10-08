@@ -6,7 +6,7 @@ import {
   updateCenter,
   deleteCenter
 } from '../../services/AccountingService';
-import { useResponsive } from '../../hooks/useResponsive';
+import { getResponsive } from '../../utils/ResponsiveUtils';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -27,7 +27,7 @@ import {
 } from '../../components/Accounting/ResponsiveAccountingComponents';
 
 const Center = () => {
-  const responsive = useResponsive();
+  const responsive = getResponsive();
   const [centers, setCenters] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');

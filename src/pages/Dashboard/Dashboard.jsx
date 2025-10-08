@@ -23,7 +23,7 @@ import {
   LineElement,
 } from "chart.js";
 
-import Sidebar from "@dashboard/Sidebar";
+import Sidebar from "./Sidebar";
 import EmployeeMaster from "@dashboard/AddEmployeeMaster/EmployeeMaster";
 import EmployeeAdd from "@dashboard/EmployeeAdd";
 import ShowEmployee from "@dashboard/ShowEmployee";
@@ -76,6 +76,8 @@ import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
 
 import { useLocation, useNavigate } from "react-router-dom";
+import { sidebarUtils, toggleSidebar, closeSidebar, openSidebar, isOutsideClick, handleBreakpointChange } from "../../utils/SidebarUtils";
+import { getResponsive } from '../../utils/ResponsiveUtils';
 
 ChartJS.register(
   CategoryScale,
@@ -472,7 +474,49 @@ const QuickActions = ({ setActiveItem }) => {
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeItem, setActiveItem] = useState("dashboard");
-  const [isOpen, setIsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const responsive = getResponsive();
+
+  // Handle sidebar state changes
+  useEffect(() => {
+    const unsubscribe = sidebarUtils.subscribe((isOpen) => {
+      setIsSidebarOpen(isOpen);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  // Handle breakpoint changes
+  useEffect(() => {
+    handleBreakpointChange(responsive.isDesktop);
+  }, [responsive.isDesktop]);
+
+  // Handle outside clicks for sidebar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if ((responsive.isMobile || responsive.isTablet) && isSidebarOpen) {
+        if (isOutsideClick(event)) {
+          closeSidebar();
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isSidebarOpen, responsive.isMobile, responsive.isTablet]);
+
+  const toggle = () => {
+    toggleSidebar();
+  };
+
+  const close = () => {
+    closeSidebar();
+  };
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -513,8 +557,8 @@ const Dashboard = ({ user, onLogout }) => {
         onLogout={onLogout}
         activeItem={activeItem}
         setActiveItem={handleSetActiveItem}
-        isOpen={isOpen}
-        setIsOpen={setIsOpen}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
       />
       <div className="flex-1 flex flex-col h-screen lg:ml-0">
         <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
@@ -522,7 +566,8 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex justify-between h-14 sm:h-16">
               <div className="flex items-center lg:hidden">
                 <button
-                  onClick={() => setIsOpen(true)}
+                  data-hamburger
+                  onClick={toggle}
                   className="text-gray-500 hover:text-gray-700 focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
                 >
                   <svg
