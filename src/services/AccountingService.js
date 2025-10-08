@@ -5,7 +5,37 @@ const staticData = {
     totalAssets: 100000,
     totalLiabilities: 50000,
     netIncome: 10000,
-    charts: [], // Placeholder for chart data
+    charts: {
+      incomeData: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+        datasets: [{
+          label: 'Income',
+          data: [12000, 19000, 15000, 18000, 14000, 21000, 22000],
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      revenueExpensesData: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+        datasets: [
+          {
+            label: 'Revenue',
+            data: [12000, 19000, 15000, 18000, 14000, 21000, 22000],
+            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+            borderRadius: 4
+          },
+          {
+            label: 'Expenses',
+            data: [8000, 12000, 10000, 11000, 9000, 14000, 13000],
+            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+            borderRadius: 4
+          }
+        ]
+      }
+    }
   },
   chartOfAccounts: [
     { id: 1, name: "Cash", type: "Asset", balance: 20000 },
@@ -1530,6 +1560,22 @@ export const getExpenses = () => staticData.expenses;
 export const getReports = () => staticData.reports;
 export const getSettings = () => staticData.settings;
 export const getUsersAndRoles = () => staticData.usersAndRoles;
+
+// New exports for added data
+export const getCustomers = () => staticData.customers;
+export const getCustomerCategories = () => staticData.customerCategories;
+export const getCustomerTypes = () => staticData.customerTypes;
+export const getCenters = () => staticData.centers;
+export const getIncomeStatementData = () => staticData.incomeStatementData;
+export const getBalanceSheetData = () => staticData.balanceSheetData;
+export const getPreviousBalanceSheetData = () => staticData.previousBalanceSheetData;
+export const getCashFlowData = () => staticData.cashFlowData;
+export const getPreviousCashFlowData = () => staticData.previousCashFlowData;
+export const getTrialBalanceAccounts = () => staticData.trialBalanceAccounts;
+export const getInvoiceData = () => staticData.invoiceData;
+export const getEnhancedExpenses = () => staticData.enhancedExpenses;
+export const getExpenseCategories = () => staticData.expenseCategories;
+export const getDashboardCharts = () => staticData.dashboard.charts;
 
 // Placeholder functions for future API calls
 export const addTransaction = (transaction) => {
