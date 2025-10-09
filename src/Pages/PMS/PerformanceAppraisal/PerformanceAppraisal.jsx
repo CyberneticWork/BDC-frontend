@@ -71,6 +71,12 @@ const PerformanceAppraisal = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
+  // Pagination (server + client fallback)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [serverPaginated, setServerPaginated] = useState(false);
 
   // Add state for validation errors
   const [validationErrors, setValidationErrors] = useState({
@@ -84,10 +90,6 @@ const PerformanceAppraisal = () => {
   // Search loading + debounce ref
   const [searchLoading, setSearchLoading] = useState(false);
   const searchDebounceRef = useRef(null);
-
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
 
   // Fetch employees on mount (initial list)
   useEffect(() => {
@@ -129,23 +131,12 @@ const PerformanceAppraisal = () => {
 
   // Debounced search handler - now filters client-side only
   const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-
-    // Clear previous timeout
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-
-    // Set loading state for search
-    if (value.trim()) {
-      setSearchLoading(true);
-      searchDebounceRef.current = setTimeout(() => {
-        setSearchLoading(false);
-      }, 300);
-    } else {
-      setSearchLoading(false);
-    }
+    const val = e.target.value || "";
+    setSearchTerm(val);
+    // Clear selection when user types (same behavior as EmployeeEvaluation)
+    setSelectedEmployee("");
+    setSelectedEmployeeName("");
+    setSearchLoading(false); // no backend call here, so disable loading
   };
 
   // Filter employees client-side as a fallback: match name, id or attendance no
@@ -175,6 +166,53 @@ const PerformanceAppraisal = () => {
     return { grade: "C", label: "Poor Performance" };
   };
   
+  // Fetch a page of appraisal results (server-side pagination if available)
+  const fetchAppraisalsPage = async (page = 1) => {
+    setIsLoading(true);
+    try {
+      const requestData = {
+        start_date: dateRange.startDate,
+        end_date: dateRange.endDate,
+        employee_id: selectedEmployee || undefined,
+        page,
+        per_page: itemsPerPage
+      };
+      
+      const response = await PMSService.calculatePerformanceAppraisal(requestData);
+      
+      // Backend paginated response (common Laravel structure)
+      if (response?.data && (response.data.data || response.data.meta || response.data.current_page)) {
+        const pageData = response.data.data ?? response.data;
+        setAppraisalResults(Array.isArray(pageData) ? pageData : []);
+        const lastPage = response.data.last_page ?? response.data.meta?.last_page ?? Math.max(1, Math.ceil((response.data.total ?? pageData.length) / itemsPerPage));
+        const total = response.data.total ?? (Array.isArray(response.data) ? response.data.length : pageData.length);
+        setTotalPages(lastPage);
+        setTotalItems(total);
+        setCurrentPage(Number(page));
+        setServerPaginated(true);
+      } else if (Array.isArray(response.data)) {
+        // Fallback: server returned all results, use client-side pagination
+        setAppraisalResults(response.data);
+        setServerPaginated(false);
+        setTotalItems(response.data.length);
+        setTotalPages(Math.max(1, Math.ceil(response.data.length / itemsPerPage)));
+        setCurrentPage(1);
+      } else {
+        // No data
+        setAppraisalResults([]);
+        setTotalItems(0);
+        setTotalPages(1);
+        setCurrentPage(1);
+        setServerPaginated(false);
+      }
+    } catch (error) {
+      console.error("Error fetching appraisal page:", error);
+      // keep UI stable
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle evaluate button click
   const handleEvaluate = async () => {
     setHasAttempted(true); // Mark that user has attempted to evaluate
@@ -208,39 +246,11 @@ const PerformanceAppraisal = () => {
     setIsLoading(true);
     
     try {
-      // Prepare request data
-      const requestData = {
-        start_date: dateRange.startDate,
-        end_date: dateRange.endDate,
-        employee_id: selectedEmployee || undefined // Only include if selected
-      };
-      
-      const response = await PMSService.calculatePerformanceAppraisal(requestData);
-      
-      if (!response.data) {
-        // Enhanced info toast
-        await Swal.fire({
-          icon: 'info',
-          title: 'No Data Found',
-          text: `No completed tasks found for the selected ${selectedEmployee ? 'employee' : 'date range'}. Please try different criteria.`,
-          confirmButtonColor: '#3B82F6',
-          customClass: {
-            popup: 'rounded-xl shadow-2xl',
-            title: 'text-lg font-bold text-blue-600',
-            confirmButton: 'px-4 py-2 rounded-lg font-semibold'
-          }
-        });
-        setAppraisalResults([]);
-        return;
-      }
-      
-      // Handle both single employee and multiple employees response
-      const results = Array.isArray(response.data) ? response.data : [response.data];
-      setAppraisalResults(results);
-      setCurrentPage(1); // Reset to first page
+      // Use fetchAppraisalsPage to support page-wise retrieval
+      await fetchAppraisalsPage(1);
       
       // Enhanced success notification
-      if (results.length > 0) {
+      if ((appraisalResults && appraisalResults.length > 0) || totalItems > 0) {
         await Swal.fire({
           icon: 'success',
           title: 'Appraisal Calculated!',
@@ -248,11 +258,11 @@ const PerformanceAppraisal = () => {
             <div class="text-left space-y-2">
               <div class="flex items-center gap-2">
                 <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span><strong>${results.length}</strong> employee(s) appraised</span>
+                <span><strong>${appraisalResults.length}</strong> employee(s) appraised</span>
               </div>
               <div class="flex items-center gap-2">
                 <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span><strong>${results.reduce((sum, r) => sum + (r.task_count || 0), 0)}</strong> tasks analyzed</span>
+                <span><strong>${(appraisalResults.reduce ? appraisalResults.reduce((sum, r) => sum + (r.task_count || 0), 0) : totalItems)}</strong> tasks analyzed</span>
               </div>
               <div class="mt-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600">
                 Date Range: ${dateRange.startDate} → ${dateRange.endDate}
@@ -306,7 +316,7 @@ const PerformanceAppraisal = () => {
         }
       });
     } finally {
-      setIsLoading(false);
+      // no-op: fetchAppraisalsPage handles loading state
     }
   };
 
@@ -461,14 +471,19 @@ const PerformanceAppraisal = () => {
     }));
   };
 
-  // Pagination logic
-  const totalPages = Math.ceil(appraisalResults.length / itemsPerPage);
+  // Pagination logic (client fallback if serverPaginated is false)
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedResults = appraisalResults.slice(startIndex, endIndex);
+  const clientPaginatedResults = appraisalResults.slice(startIndex, endIndex);
+  const paginatedResults = serverPaginated ? appraisalResults : clientPaginatedResults;
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
+  const handlePageChange = async (page) => {
+    if (page < 1) return;
+    if (serverPaginated) {
+      await fetchAppraisalsPage(page);
+    } else {
+      setCurrentPage(page);
+    }
   };
 
   // Update the date input handlers to clear validation errors
@@ -576,67 +591,98 @@ const PerformanceAppraisal = () => {
             </div>
           </div>
 
-          {/* Employee Selection */}
+          {/* Employee Selection (matching EmployeeEvaluation UI) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Employee (Optional)
+              Employee (Optional)
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <User className="h-4 w-4 text-gray-400" />
               </div>
-              <select
-                value={selectedEmployee}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectedEmployee(value);
-                  const emp = employees.find(emp => emp.id.toString() === value);
-                  setSelectedEmployeeName(emp ? emp.full_name : "");
-                }}
-                className="block w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors bg-white"
-              >
-                <option value="">All Employees</option>
-                {filteredEmployees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.full_name} ({emp.attendance_employee_no})
-                    {employeesWithTasks[emp.id] ? ' ✓' : ' ⚠️'}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </div>
+              <input
+                type="text"
+                placeholder="Search by name, ID or attendance no"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              {selectedEmployee && (
+                <button
+                  onClick={() => {
+                    setSelectedEmployee("");
+                    setSelectedEmployeeName("");
+                    setSearchTerm("");
+                  }}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
             </div>
+            
+            {searchTerm && !selectedEmployee && (
+              <div className="mt-2 max-h-60 overflow-auto border border-gray-100 rounded-lg bg-white shadow-sm absolute z-10 w-full md:max-w-[300px]">
+                {searchLoading ? (
+                  <div className="p-3 text-center text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                    Searching...
+                  </div>
+                ) : filteredEmployees.length > 0 ? (
+                  <>
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 text-xs text-gray-500">
+                      {employeesWithTasks && Object.keys(employeesWithTasks).length > 0 ? 
+                        "Employees with tasks are highlighted" : 
+                        "Showing all employees matching search"}
+                    </div>
+                    {filteredEmployees.map(emp => {
+                      const hasAssignedTasks = (employeesWithTasks[emp.id] || employeesWithTasks[emp.attendance_employee_no] || 0) > 0;
+                      const taskCount = employeesWithTasks[emp.id] || employeesWithTasks[emp.attendance_employee_no] || 0;
+                      
+                      return (
+                        <div 
+                          key={emp.id} 
+                          className={`flex items-center justify-between px-3 py-2 hover:bg-gray-50 cursor-pointer ${
+                            hasAssignedTasks ? 'bg-green-50' : ''
+                          }`}
+                          onClick={() => {
+                            setSelectedEmployee(emp.id);
+                            setSelectedEmployeeName(emp.full_name || emp.name);
+                            setSearchTerm(emp.full_name || emp.name);
+                          }}
+                        >
+                          <div>
+                            <div className="text-sm font-medium flex items-center">
+                              {emp.full_name || emp.name}
+                              {hasAssignedTasks && (
+                                <span className="ml-2 px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full flex items-center">
+                                  <ClipboardCheck className="w-3 h-3 mr-1" />
+                                  {taskCount}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              ID: {emp.id} • {emp.attendance_employee_no || emp.attendanceNo || ""}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <div className="p-3 text-center text-sm text-gray-500">No employees found matching your search</div>
+                )}
+              </div>
+            )}
+            
             {selectedEmployee && (
-              <p className="mt-1 text-xs text-gray-500">
-                Selected: {selectedEmployeeName}
-              </p>
-            )}
-          </div>
-        </div>
-        
-        {/* Employee Search */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Search Employees
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              placeholder="Search by name, ID, or attendance number..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-            />
-            {searchLoading && (
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+              <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <div className="text-sm font-medium text-indigo-900">Selected: {selectedEmployeeName}</div>
+                <div className="text-xs text-indigo-600">ID: {selectedEmployee}</div>
               </div>
             )}
           </div>
+
         </div>
         
         {/* Action Buttons */}
@@ -922,51 +968,51 @@ const PerformanceAppraisal = () => {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-3 py-2 text-sm font-medium rounded-md ${
+          { (serverPaginated ? totalPages > 1 : Math.ceil((appraisalResults.length || 0) / itemsPerPage) > 1) && (
+             <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+               <div className="flex items-center gap-2">
+                 <button
+                   onClick={() => handlePageChange(currentPage - 1)}
+                   disabled={currentPage === 1}
+                   className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                 >
+                   <ChevronLeft className="h-4 w-4" />
+                   Previous
+                 </button>
+                 
+                 <div className="flex items-center gap-1">
+                  {Array.from({ length: serverPaginated ? totalPages : Math.max(1, Math.ceil((appraisalResults.length || 0) / itemsPerPage)) }, (_, i) => i + 1).map((page) => (
+                     <button
+                       key={page}
+                       onClick={() => handlePageChange(page)}
+                       className={`px-3 py-2 text-sm font-medium rounded-md ${
                         currentPage === page
                           ? 'bg-purple-600 text-white'
                           : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-              
+                       }`}
+                     >
+                       {page}
+                     </button>
+                   ))}
+                 </div>
+                 
+                 <button
+                   onClick={() => handlePageChange(currentPage + 1)}
+                   disabled={currentPage === (serverPaginated ? totalPages : Math.max(1, Math.ceil((appraisalResults.length || 0) / itemsPerPage)))}
+                   className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                 >
+                   Next
+                   <ChevronRight className="h-4 w-4" />
+                 </button>
+               </div>
+               
               <div className="text-sm text-gray-500">
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of {serverPaginated ? totalPages : Math.max(1, Math.ceil((appraisalResults.length || 0) / itemsPerPage))}
               </div>
-            </div>
-          )}
-        </div>
-      )}
+             </div>
+           )}
+         </div>
+       )}
 
       {/* Performance Scale Reference */}
       {appraisalResults.length > 0 && (
