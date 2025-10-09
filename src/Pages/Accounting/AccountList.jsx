@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, DollarSign, Tag, Users } from "lucide-react";
-import { 
-  getAccountList, 
-  addAccount, 
-  updateAccount, 
-  deleteAccount, 
-  addAccountCategory, 
+import {
+  addAccount,
+  getAccountList,
+  updateAccount,
+  deleteAccount,
   addAccountGroup,
-  getAccountCategories,
-  getAccountGroups 
-} from "../../services/AccountingService";
+  getAccountGroups
+} from "../../services/Account/AccountService";
 
 // Shared utilities for account types and sub-categories
 const accountTypes = [
   "EQUITY",
-  "EXPENSES", 
+  "EXPENSES",
   "LIABILITIES",
   "INCOME",
   "ASSETS"
@@ -25,7 +23,7 @@ const getAccountSubCategories = (accountType) => {
     case "ASSETS":
       return [
         "Bank Accounts",
-        "Cash On Hand", 
+        "Cash On Hand",
         "Accounts Receivables",
         "Fixed Assets",
         "Inventory"
@@ -75,14 +73,11 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
     accountGroup: "",
     openingBalance: ""
   });
-
   const [accountGroups, setAccountGroups] = useState([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false); // Added loading state
 
   useEffect(() => {
-    // Load account groups from service
-    const groups = getAccountGroups();
-    setAccountGroups(groups.map(group => group.accountGroupName));
-
+    // Reset form data when modal opens or editAccount changes
     if (editAccount) {
       setFormData({
         accountNumber: editAccount.accountNumber || "",
@@ -102,6 +97,23 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
         openingBalance: ""
       });
     }
+
+    // Fetch account groups when modal is open
+    if (isOpen) {
+      const fetchAccountGroups = async () => {
+        try {
+          setIsLoadingGroups(true);
+          const groups = await getAccountGroups();
+          setAccountGroups(groups); // Expecting groups as [{ id: 1, accountGroup: "Group Name" }, ...]
+        } catch (error) {
+          console.error("Failed to fetch account groups:", error);
+          alert("Failed to load account groups");
+        } finally {
+          setIsLoadingGroups(false);
+        }
+      };
+      fetchAccountGroups();
+    }
   }, [editAccount, isOpen]);
 
   const handleAccountTypeChange = (accountType) => {
@@ -114,7 +126,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.accountName && formData.accountType && formData.accountSubCategory && formData.accountGroup) {
+    if (formData.accountName && formData.accountType && formData.accountSubCategory) {
       onSave({
         ...formData,
         id: editAccount ? editAccount.id : Date.now(),
@@ -134,7 +146,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
             <h3 className="text-lg md:text-xl font-semibold text-gray-900">
               {editAccount ? "Edit Chart of Account" : "Create Chart of Account"}
             </h3>
-            <button 
+            <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 p-1"
             >
@@ -142,22 +154,8 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
             </button>
           </div>
         </div>
-        
-        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4">
-          {/* <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Account Number
-            </label>
-            <input
-              type="text"
-              value={formData.accountNumber}
-              onChange={(e) => setFormData({...formData, accountNumber: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
-              placeholder="Enter account number"
-              required
-            />
-          </div> */}
 
+        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Chart of Account Name
@@ -165,7 +163,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
             <input
               type="text"
               value={formData.accountName}
-              onChange={(e) => setFormData({...formData, accountName: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
               placeholder="Enter account name"
               required
@@ -198,7 +196,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
               </label>
               <select
                 value={formData.accountSubCategory}
-                onChange={(e) => setFormData({...formData, accountSubCategory: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, accountSubCategory: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
                 required
               >
@@ -237,19 +235,19 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
             </label>
             <select
               value={formData.accountGroup}
-              onChange={(e) => setFormData({...formData, accountGroup: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, accountGroup: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
-              required
+              disabled={isLoadingGroups}
             >
-              <option value="">Select Account Group</option>
+              <option value="">{isLoadingGroups ? "Loading..." : "Select Account Group"}</option>
               {accountGroups.map((group) => (
-                <option key={group} value={group}>
-                  {group}
+                <option key={group.id} value={group.id}>
+                  {group.accountGroup}
                 </option>
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Opening Balance
@@ -258,12 +256,12 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
               type="number"
               step="0.01"
               value={formData.openingBalance}
-              onChange={(e) => setFormData({...formData, openingBalance: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
               placeholder="Enter opening balance"
             />
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="button"
@@ -330,7 +328,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
             <h3 className="text-lg md:text-xl font-semibold text-gray-900">
               Create Account Category
             </h3>
-            <button 
+            <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 p-1"
             >
@@ -338,7 +336,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
             </button>
           </div>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -358,7 +356,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
               ))}
             </select>
           </div>
-          
+
           {formData.accountType && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -366,7 +364,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
               </label>
               <select
                 value={formData.accountSubCategory}
-                onChange={(e) => setFormData({...formData, accountSubCategory: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, accountSubCategory: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
                 required
               >
@@ -398,7 +396,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
               </select>
             </div>
           )}
-          
+
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="button"
@@ -445,6 +443,20 @@ const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
     }
   };
 
+  const handleAccountGroupSubmit = (e) => {
+    e.preventDefault();
+    // console.log(formData.accountGroupName)
+    try {
+      addAccountGroup(formData.accountGroupName.trim())
+      alert("Group create Successfull")
+      onClose();
+    }catch(e) {
+      console.log(e)
+    }
+    
+
+  }
+
   if (!isOpen) return null;
 
   return (
@@ -455,7 +467,7 @@ const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
             <h3 className="text-lg md:text-xl font-semibold text-gray-900">
               Create Account Group
             </h3>
-            <button 
+            <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 p-1"
             >
@@ -463,8 +475,8 @@ const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
             </button>
           </div>
         </div>
-        
-        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4">
+
+        <form className="p-4 md:p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Account Group Name
@@ -472,13 +484,13 @@ const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
             <input
               type="text"
               value={formData.accountGroupName}
-              onChange={(e) => setFormData({...formData, accountGroupName: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, accountGroupName: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
               placeholder="Enter group name"
               required
             />
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="button"
@@ -488,7 +500,7 @@ const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
               Cancel
             </button>
             <button
-              type="submit"
+              onClick={handleAccountGroupSubmit}
               className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm md:text-base"
             >
               Create
@@ -508,40 +520,67 @@ const AccountList = () => {
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadAccounts();
-    
+
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
+
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const loadAccounts = () => {
-    const accountList = getAccountList();
-    setAccounts(accountList);
+  const loadAccounts = async () => {
+    try {
+      setLoading(true);
+      const accountList = await getAccountList();
+      setAccounts(accountList);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+      alert('Failed to load accounts');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCreateAccount = (accountData) => {
-    addAccount(accountData);
-    loadAccounts();
+  const handleCreateAccount = async (accountData) => {
+    try {
+      await addAccount(accountData);
+      await loadAccounts();
+      alert('Account created successfully!');
+    } catch (error) {
+      console.error('Error creating account:', error);
+      alert('Failed to create account');
+    }
   };
 
-  const handleUpdateAccount = (accountData) => {
-    updateAccount(accountData.id, accountData);
-    loadAccounts();
-    setEditingAccount(null);
+  const handleUpdateAccount = async (accountData) => {
+    try {
+      await updateAccount(accountData.id, accountData);
+      await loadAccounts();
+      setEditingAccount(null);
+      alert('Account updated successfully!');
+    } catch (error) {
+      console.error('Error updating account:', error);
+      alert('Failed to update account');
+    }
   };
 
-  const handleDeleteAccount = (accountId) => {
+  const handleDeleteAccount = async (accountId) => {
     if (window.confirm("Are you sure you want to delete this account?")) {
-      deleteAccount(accountId);
-      loadAccounts();
+      try {
+        await deleteAccount(accountId);
+        await loadAccounts();
+        alert('Account deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        alert('Failed to delete account');
+      }
     }
   };
 
@@ -629,7 +668,7 @@ const AccountList = () => {
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Tag className="h-3 w-3 text-blue-500" />
@@ -637,14 +676,14 @@ const AccountList = () => {
                         {account.accountSubCategory}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <Users className="h-3 w-3 text-green-500" />
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                         {account.accountGroup}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <DollarSign className="h-3 w-3 text-gray-400" />
                       <span>${account.openingBalance?.toLocaleString() || "0.00"}</span>
@@ -659,6 +698,9 @@ const AccountList = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Account Number
+                  </th>
                   <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Account Name
                   </th>
@@ -690,6 +732,11 @@ const AccountList = () => {
                 ) : (
                   accounts.map((account) => (
                     <tr key={account.id} className="hover:bg-gray-50">
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {account.accountNumber}
+                        </div>
+                      </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           {account.accountName}
@@ -749,13 +796,13 @@ const AccountList = () => {
         onSave={editingAccount ? handleUpdateAccount : handleCreateAccount}
         editAccount={editingAccount}
       />
-      
+
       <AccountCategoryModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
         onSave={handleCreateCategory}
       />
-      
+
       <AccountGroupModal
         isOpen={isGroupModalOpen}
         onClose={() => setIsGroupModalOpen(false)}
