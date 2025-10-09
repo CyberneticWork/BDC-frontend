@@ -634,6 +634,9 @@ const EmployeeKPIView = () => {
                       >
                         {task.completionStatus?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Not Started"}
                       </span>
+
+                      {/* Priority display commented out per request */}
+                      {/*
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
                           task.priority
@@ -641,6 +644,7 @@ const EmployeeKPIView = () => {
                       >
                         {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
                       </span>
+                      */}
                     </div>
                     <p className="text-gray-600 mb-3">{task.description}</p>
                     
