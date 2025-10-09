@@ -891,7 +891,7 @@ const EmployeePerformanceEvaluation = () => {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 mt-2">
-                        Formula: (Average / 60) * 100
+                        Formula: Total Score (capped at 100%)
                       </div>
                     </div>
                     
@@ -960,15 +960,15 @@ const EmployeePerformanceEvaluation = () => {
                             ))}
                             <tr className="bg-gray-50">
                               <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                                Average = Sum of Scores / Number of Tasks:
+                                Total Score = Sum of All Task Scores:
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
-                                {(evaluationResult.tasks.reduce((sum, task) => sum + task.task_score, 0) / evaluationResult.task_count).toFixed(2)}
+                                {evaluationResult.tasks.reduce((sum, task) => sum + task.task_score, 0).toFixed(2)}
                               </td>
                             </tr>
                             <tr className="bg-gray-50">
                               <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                                Final Percentage = (Average / 60) × 100:
+                                Final Percentage = Total Score (capped at 100%):
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
                                 {evaluationResult.percentage}%
@@ -1081,7 +1081,7 @@ const EmployeePerformanceEvaluation = () => {
               </table>
             </div>
             <p className="mt-3 text-xs text-gray-500 italic">
-              Formula: Final Percentage = (Average / 60) * 100
+              Formula: Final Percentage = Sum of (Task Weight × Supervisor Progress ÷ 100), capped at 100%
             </p>
           </div>
         </div>
