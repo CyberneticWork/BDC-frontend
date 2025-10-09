@@ -79,6 +79,15 @@ const CourseDetail = ({ courseId, onBack, onTakeExam }) => {
   const displayName = user?.name || user?.fullName || "Participant";
   const handleModuleComplete = async (moduleId) => {
     try {
+      if (!courseProgress) {
+        Swal.fire({
+          icon: "info",
+          title: "Enrollment Required",
+          html: "You are currently not enrolled in this course, so progress cannot be recorded.<br/><br/>",
+          confirmButtonColor: "#3B82F6",
+        });
+        return;
+      }
       // Call the API to update module progress
       await LMSService.updateModuleProgress(courseId, moduleId, true);
 
@@ -147,11 +156,42 @@ const CourseDetail = ({ courseId, onBack, onTakeExam }) => {
       }
     } catch (error) {
       console.error("Failed to mark module as complete:", error);
-      // Show error message to user
+
+      const status = error?.response?.status;
+      const serverMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message;
+
+      let friendly = "Failed to update module progress.";
+      if (status === 404) {
+        friendly =
+          "Your enrollment or the requested resource was not found. If you're viewing as an admin and are not enrolled, you cannot mark modules as complete.";
+      } else if (status === 403) {
+        friendly =
+          "You do not have permission to update progress for this course.";
+      } else if (status === 401) {
+        friendly =
+          "You are not authenticated or your session expired. Please sign in again.";
+      } else if (serverMsg) {
+        friendly = serverMsg;
+      }
+
+      const details = [
+        status ? `Status: ${status}` : null,
+        serverMsg && serverMsg !== friendly ? `Server: ${serverMsg}` : null,
+      ]
+        .filter(Boolean)
+        .join("<br/>");
+
       Swal.fire({
         icon: "error",
-        title: "Update Failed",
-        text: "Failed to update module progress. Please try again.",
+        title: "Cannot Mark as Complete",
+        html: `${friendly}${
+          details
+            ? `<br/><br/><small class="text-gray-500">${details}</small>`
+            : ""
+        }`,
         confirmButtonColor: "#EF4444",
       });
     }

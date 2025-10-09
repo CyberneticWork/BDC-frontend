@@ -36,16 +36,24 @@ const CreateNewDeduction = () => {
 
   const today = new Date().toISOString().split("T")[0];
 
+  const getToday = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0"); // months start at 0
+    const dd = String(today.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const [formData, setFormData] = useState({
     company_id: "",
     department_id: "",
     deduction_code: "",
     deduction_name: "",
     description: "",
-    amount: "",
+    // amount: "",
     status: "active",
     deduction_type: "fixed",
-    startDate: "",
+    startDate: getToday(),
     endDate: "",
   });
 
@@ -61,6 +69,7 @@ const CreateNewDeduction = () => {
 
   // Fetch deductions and companies
   useEffect(() => {
+    getToday();
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
@@ -237,12 +246,12 @@ const CreateNewDeduction = () => {
       errors.deduction_code = "Deduction code is required";
     if (!formData.deduction_name)
       errors.deduction_name = "Deduction name is required";
-    if (
-      formData.amount === "" ||
-      isNaN(formData.amount) ||
-      Number(formData.amount) < 0
-    )
-      errors.amount = "Amount must be a number and >= 0";
+    // if (
+    //   formData.amount === "" ||
+    //   isNaN(formData.amount) ||
+    //   Number(formData.amount) < 0
+    // )
+      // errors.amount = "Amount must be a number and >= 0";
     if (!["active", "inactive"].includes(formData.status))
       errors.status = "Status must be active or inactive";
     if (!["fixed", "variable"].includes(formData.deduction_type))
@@ -294,7 +303,7 @@ const CreateNewDeduction = () => {
         deduction_code: formData.deduction_code,
         deduction_name: formData.deduction_name,
         description: formData.description,
-        amount: parseFloat(formData.amount),
+        // amount: parseFloat(formData.amount),
         status: formData.status,
         category: "Other", // Add a default category
         deduction_type: formData.deduction_type,
@@ -428,10 +437,10 @@ const CreateNewDeduction = () => {
       deduction_code: "",
       deduction_name: "",
       description: "",
-      amount: "",
+      // amount: "",
       status: "active",
       deduction_type: "fixed",
-      startDate: "",
+      startDate: getToday(),
       endDate: "",
     });
     setDateError("");
@@ -524,7 +533,7 @@ const CreateNewDeduction = () => {
           : null,
         deduction_name: formData.deduction_name,
         description: formData.description,
-        amount: parseFloat(formData.amount),
+        // amount: parseFloat(formData.amount),
         status: formData.status,
         category: formData.category || "Other", // Add this line to keep category
         deduction_type: formData.deduction_type,
@@ -602,7 +611,6 @@ const CreateNewDeduction = () => {
           </h2>
         </div>
         <div className="flex gap-3">
-          
           {/* Add New Button */}
           <button
             onClick={() => {
@@ -635,7 +643,6 @@ const CreateNewDeduction = () => {
             <Download className="w-4 h-4" />
             <span>Export Deductions Template</span>
           </button>
-
         </div>
       </div>
 
@@ -734,7 +741,7 @@ const CreateNewDeduction = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {deduction.department?.name || "-"}
                       </td>
-                  
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {deduction.company.name || "-"}
                       </td>
@@ -999,7 +1006,7 @@ const CreateNewDeduction = () => {
                     </div>
                   )}
                 </div>
-
+{/* 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
                     Amount <span className="text-red-500">*</span>
@@ -1020,7 +1027,7 @@ const CreateNewDeduction = () => {
                       {validationErrors.amount}
                     </div>
                   )}
-                </div>
+                </div> */}
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">

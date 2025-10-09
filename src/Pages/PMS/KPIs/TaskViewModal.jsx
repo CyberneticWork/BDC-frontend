@@ -27,14 +27,52 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
     }));
   };
 
+  // Helper function to safely format dates
+  const formatDate = (dateValue) => {
+    if (!dateValue) return 'Not set';
+    
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Helper function to get start date from different possible property names
+  const getStartDate = () => {
+    return kpi.startDate || kpi.start_date || kpi.created_at;
+  };
+
+  // Helper function to get end date from different possible property names
+  const getEndDate = () => {
+    return kpi.endDate || kpi.end_date || kpi.dueDate || kpi.due_date;
+  };
+
   // Calculate progress from startDate to endDate
   const getTimelinePercentage = () => {
-    const startDate = new Date(kpi.startDate);
-    const endDate = new Date(kpi.endDate);
+    const startDate = getStartDate();
+    const endDate = getEndDate();
+    
+    if (!startDate || !endDate) {
+      console.warn('Missing dates for KPI:', kpi.id, { startDate, endDate });
+      return 0;
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
     const today = new Date();
     
-    const totalDuration = endDate - startDate;
-    const elapsedDuration = today - startDate;
+    // Validate dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      console.warn('Invalid dates for KPI:', kpi.id, { startDate, endDate });
+      return 0;
+    }
+    
+    const totalDuration = end - start;
+    const elapsedDuration = today - start;
     
     if (elapsedDuration <= 0) return 0;
     if (elapsedDuration >= totalDuration) return 100;
@@ -43,11 +81,39 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
   };
 
   const getDaysRemaining = () => {
+    const endDate = getEndDate();
+    
+    if (!endDate) return 'No due date';
+    
     const today = new Date();
-    const due = new Date(kpi.endDate);
+    const due = new Date(endDate);
+    
+    if (isNaN(due.getTime())) return 'Invalid date';
+    
     const diffTime = due - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    
+    if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`;
+    if (diffDays === 0) return 'Due today';
+    return `${diffDays} days remaining`;
+  };
+
+  // Helper function to get timeline status message
+  const getTimelineStatus = () => {
+    const startDate = getStartDate();
+    const endDate = getEndDate();
+    
+    if (!startDate || !endDate) return 'No dates set';
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'Invalid dates';
+    
+    const percentage = getTimelinePercentage();
+    if (percentage >= 100) return 'Timeline complete';
+    if (percentage <= 0) return 'Not started';
+    return `${percentage}% elapsed`;
   };
 
   const getStatusBadge = (status) => {
@@ -59,14 +125,14 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
     return statusConfig[status] || statusConfig.inactive;
   };
 
-  const getPriorityBadge = (priority) => {
-    const priorityConfig = {
-      high: "bg-red-100 text-red-800",
-      medium: "bg-yellow-100 text-yellow-800",
-      low: "bg-blue-100 text-blue-800",
-    };
-    return priorityConfig[priority] || "bg-gray-100 text-gray-800";
-  };
+  // const getPriorityBadge = (priority) => {
+  //   const priorityConfig = {
+  //     high: "bg-red-100 text-red-800",
+  //     medium: "bg-yellow-100 text-yellow-800",
+  //     low: "bg-blue-100 text-blue-800",
+  //   };
+  //   return priorityConfig[priority] || "bg-gray-100 text-gray-800";
+  // };
 
   const getCompletionStatusBadge = (status) => {
     const statusConfig = {
@@ -94,13 +160,13 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
                 {kpi.status === "attention" && <AlertCircle className="w-3 h-3 mr-1" />}
                 {kpi.status.charAt(0).toUpperCase() + kpi.status.slice(1)}
               </span>
-              <span
+              {/* <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
                   kpi.priority
                 )}`}
               >
                 {kpi.priority.charAt(0).toUpperCase() + kpi.priority.slice(1)} Priority
-              </span>
+              </span> */}
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
                   kpi.completionStatus
@@ -154,13 +220,13 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-500" />
                       <span className="text-sm font-medium">
-                        {new Date(kpi.startDate).toLocaleDateString()} — {new Date(kpi.endDate).toLocaleDateString()}
+                        {formatDate(getStartDate())} — {formatDate(getEndDate())}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-gray-500" />
                       <span className="text-sm font-medium">
-                        Timeline: {getTimelinePercentage()}% elapsed
+                        Timeline: {getTimelineStatus()}
                       </span>
                     </div>
                   </div>
@@ -168,13 +234,17 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
                   <div className="col-span-full">
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div 
-                        className="h-2.5 rounded-full bg-indigo-500"
-                        style={{ width: `${getTimelinePercentage()}%` }}
+                        className={`h-2.5 rounded-full ${
+                          getTimelinePercentage() >= 100 ? 'bg-red-500' : 
+                          getTimelinePercentage() <= 0 ? 'bg-gray-400' : 
+                          'bg-indigo-500'
+                        }`}
+                        style={{ width: `${Math.min(getTimelinePercentage(), 100)}%` }}
                       ></div>
                     </div>
                     <div className="flex justify-end mt-2">
                       <span className="text-sm text-gray-600">
-                        {getDaysRemaining()} days remaining
+                        {getDaysRemaining()}
                       </span>
                     </div>
                   </div>
@@ -218,8 +288,16 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
               {/* Additional information */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                 <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Start Date</h3>
+                  <p className="text-gray-800">{formatDate(getStartDate())}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">End Date</h3>
+                  <p className="text-gray-800">{formatDate(getEndDate())}</p>
+                </div>
+                <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Department</h3>
-                  <p className="text-gray-800">{kpi.department}</p>
+                  <p className="text-gray-800">{kpi.department || 'Not specified'}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Total Submissions</h3>
@@ -227,7 +305,10 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Last Updated</h3>
-                  <p className="text-gray-800">{new Date(kpi.lastUpdated).toLocaleString()}</p>
+                  <p className="text-gray-800">
+                    {kpi.lastUpdated ? formatDate(kpi.lastUpdated) : 
+                     kpi.updated_at ? formatDate(kpi.updated_at) : 'Not available'}
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Current Progress</h3>

@@ -109,7 +109,11 @@ const TakeExam = ({ examId, onBack }) => {
     try {
       console.log("Submitting exam...");
       setIsSubmitted(true);
-      const results = await LMSService.submitExam(examId, userAnswers);
+      // Replace null answers with -1 to indicate unanswered
+      const processedAnswers = userAnswers.map((answer) =>
+        answer === null ? -1 : answer
+      );
+      const results = await LMSService.submitExam(examId, processedAnswers);
       console.log("Exam results:", results);
       setExamResults(results);
       setShowResults(true);
@@ -491,6 +495,7 @@ const TakeExam = ({ examId, onBack }) => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Question Review
           </h3>
+         
           <div className="space-y-4">
             {examResults.results.map((result, index) => {
               const question = exam.questions[index];
@@ -516,34 +521,23 @@ const TakeExam = ({ examId, onBack }) => {
                     </div>
                   </div>
 
-                  <div className="space-y-2 mb-3">
-                    {question.options.map((option, optionIndex) => (
-                      <div
-                        key={optionIndex}
-                        className={`p-2 rounded ${
-                          optionIndex === result.correct_answer
-                            ? "bg-green-100 text-green-800"
-                            : optionIndex === result.user_answer &&
-                              !result.isCorrect
-                            ? "bg-red-100 text-red-800"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {option}
-                        {optionIndex === result.correct_answer && (
-                          <span className="ml-2 text-green-600 font-medium">
-                            (Correct)
-                          </span>
-                        )}
-                        {optionIndex === result.user_answer &&
-                          !result.isCorrect && (
-                            <span className="ml-2 text-red-600 font-medium">
-                              (Your Answer)
-                            </span>
-                          )}
-                      </div>
-                    ))}
-                  </div>
+                  {question.options.map((option, optionIndex) => (
+                    <div
+                      key={optionIndex}
+                      className={`p-2 rounded ${
+                        optionIndex === result.user_answer && !result.is_correct
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {option}
+                      {optionIndex === result.user_answer && !result.is_correct && (
+                        <span className="ml-2 text-red-600 font-medium">
+                          (Your Answer)
+                        </span>
+                      )}
+                    </div>
+                  ))}
 
                   {question.explanation && (
                     <div className="bg-blue-50 p-3 rounded-lg">
