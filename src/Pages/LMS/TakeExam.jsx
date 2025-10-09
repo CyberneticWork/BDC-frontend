@@ -113,6 +113,9 @@ const TakeExam = ({ examId, onBack }) => {
       const processedAnswers = userAnswers.map((answer) =>
         answer === null ? -1 : answer
       );
+      console.log("Processed answers:", processedAnswers);
+      console.log("Exam questions length:", exam.questions.length);
+      console.log("Answers array length:", processedAnswers.length);
       const results = await LMSService.submitExam(examId, processedAnswers);
       console.log("Exam results:", results);
       setExamResults(results);
@@ -121,6 +124,10 @@ const TakeExam = ({ examId, onBack }) => {
       setError("Failed to submit exam");
       setIsSubmitted(false); // Allow retry on error
       console.error("Error submitting exam:", err);
+      if (err.response) {
+        console.error("Response status:", err.response.status);
+        console.error("Response data:", err.response.data);
+      }
     }
   };
 
