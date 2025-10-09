@@ -113,12 +113,34 @@ export const TaskProgressUpdateModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Enhanced validation
+    // Enhanced validation - Add minimum length check
     if (!progressNote.trim()) {
       await Swal.fire({
         icon: "warning",
         title: "Missing note",
         text: "Please add a note about your progress.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    // Add minimum length validation to match backend requirement
+    if (progressNote.trim().length < 5) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Note too short",
+        text: "Progress note must be at least 5 characters long.",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    // Add maximum length validation to match backend requirement
+    if (progressNote.trim().length > 1000) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Note too long",
+        text: "Progress note cannot exceed 1000 characters.",
         confirmButtonColor: "#3085d6",
       });
       return;
@@ -200,19 +222,51 @@ export const TaskProgressUpdateModal = ({
         timer: 1500,
         showConfirmButton: false,
       });
- 
+
+      // Only clear form and close modal on successful submission
       setProgressNote("");
       setSelectedFile(null);
       setCurrentMetricValue(0);
       onClose();
     } catch (error) {
       console.error("Error updating progress:", error);
-      await Swal.fire({
-        icon: "error",
-        title: "Update failed",
-        text: "Failed to update progress. Please try again.",
-        confirmButtonColor: "#EF4444",
-      });
+      
+      // Enhanced error handling - keep modal open with data intact
+      if (error.response?.status === 422) {
+        // Handle validation errors from backend
+        const errors = error.response?.data?.errors;
+        if (errors) {
+          console.error("Validation errors:", errors);
+          
+          // Get first validation error message
+          const firstError = Object.values(errors)[0];
+          const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+          
+          await Swal.fire({
+            icon: "error",
+            title: "Validation Error",
+            text: errorMessage || "Please check your input and try again.",
+            confirmButtonColor: "#EF4444",
+          });
+        } else {
+          await Swal.fire({
+            icon: "error",
+            title: "Validation Failed",
+            text: error.response?.data?.message || "Please check your input and try again.",
+            confirmButtonColor: "#EF4444",
+          });
+        }
+      } else {
+        // Handle other types of errors
+        await Swal.fire({
+          icon: "error",
+          title: "Update failed",
+          text: error.response?.data?.message || "Failed to update progress. Please try again.",
+          confirmButtonColor: "#EF4444",
+        });
+      }
+      
+      // Don't clear form data or close modal on error - keep user's input intact
     } finally {
       setIsSubmitting(false);
     }
@@ -351,15 +405,42 @@ export const TaskProgressUpdateModal = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Progress Notes <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 font-normal ml-2">
+                  (Minimum 5 characters, Maximum 1000 characters)
+                </span>
               </label>
               <textarea
                 value={progressNote}
                 onChange={(e) => setProgressNote(e.target.value)}
-                placeholder="Describe your progress, challenges, or achievements..."
+                placeholder="Describe your progress, challenges, or achievements... (minimum 5 characters)"
                 rows="4"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                  progressNote.trim().length > 0 && progressNote.trim().length < 5 
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                    : progressNote.trim().length > 1000 
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                    : 'border-gray-300'
+                }`}
                 required
               ></textarea>
+              <div className="flex justify-between items-center mt-1">
+                <div className="text-xs text-gray-500">
+                  {progressNote.trim().length < 5 && progressNote.trim().length > 0 && (
+                    <span className="text-red-500">Need {5 - progressNote.trim().length} more characters</span>
+                  )}
+                  {progressNote.trim().length >= 5 && progressNote.trim().length <= 1000 && (
+                    <span className="text-green-600">✓ Valid length</span>
+                  )}
+                  {progressNote.trim().length > 1000 && (
+                    <span className="text-red-500">Too long by {progressNote.trim().length - 1000} characters</span>
+                  )}
+                </div>
+                <span className={`text-xs ${
+                  progressNote.trim().length > 1000 ? 'text-red-500' : 'text-gray-400'
+                }`}>
+                  {progressNote.trim().length}/1000
+                </span>
+              </div>
             </div>
 
             {/* Performance Category Section - Always show regardless of task name */}
