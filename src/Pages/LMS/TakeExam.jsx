@@ -491,7 +491,7 @@ const TakeExam = ({ examId, onBack }) => {
         )} */}
 
         {/* Detailed Results */}
-        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+        {/* <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Question Review
           </h3>
@@ -550,7 +550,7 @@ const TakeExam = ({ examId, onBack }) => {
               );
             })}
           </div>
-        </div>
+        </div> */}
       </div>
     );
   }
