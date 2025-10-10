@@ -80,6 +80,7 @@ export const permissions = {
     accountingReports: { view: true },
     accountingSettings: { view: true, edit: true },
     usersAndRoles: { view: true, edit: true },
+    PerformanceAppraisal: { view: true, edit: true },
   },
   hr: {
     dashboard: { view: true, edit: true },
@@ -146,6 +147,7 @@ export const permissions = {
     accountingReports: { view: true },
     accountingSettings: { view: true, edit: true },
     usersAndRoles: { view: true, edit: true },
+    PerformanceAppraisal: { view: true, edit: true },
   },
   supervisor: {
     dashboard: { view: true },
