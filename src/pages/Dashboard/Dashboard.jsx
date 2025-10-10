@@ -583,7 +583,7 @@ const Dashboard = ({ user, onLogout }) => {
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
       />
-      <div className="flex-1 flex flex-col h-screen lg:ml-0">
+      <div className="flex-1 flex flex-col lg:ml-0">
         <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
           <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
             <div className="flex justify-between h-14 sm:h-16">
@@ -644,7 +644,7 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </div>
         </nav>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1">
           <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8">
             {activeItem === "employeeMaster" ? (
               <ProtectedComponent module="employeeMaster" action="view">
