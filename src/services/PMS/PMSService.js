@@ -603,6 +603,40 @@ class PMSService {
       throw error;
     }
   }
+
+  // Calculate performance appraisal
+  async calculatePerformanceAppraisal(data) {
+    try {
+      const response = await axios.post('/pms/performance-appraisal/calculate', data);
+      return response.data;
+    } catch (error) {
+      console.error("Error calculating performance appraisal:", error);
+      throw error;
+    }
+  }
+
+  // Save performance appraisal
+  async savePerformanceAppraisal(data) {
+    try {
+      const response = await axios.post('/pms/performance-appraisal/save', data);
+      return response.data;
+    } catch (error) {
+      console.error("Error saving performance appraisal:", error);
+      throw error;
+    }
+  }
+
+  // Get performance appraisals
+  async getPerformanceAppraisals(employeeId = null) {
+    try {
+      const params = employeeId ? { employee_id: employeeId } : {};
+      const response = await axios.get('/pms/performance-appraisals', { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching performance appraisals:", error);
+      throw error;
+    }
+  }
 }
 
 export default new PMSService();
