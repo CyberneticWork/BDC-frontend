@@ -81,6 +81,7 @@ export const permissions = {
     accountingSettings: { view: true, edit: true },
     usersAndRoles: { view: true, edit: true },
     PerformanceAppraisal: { view: true, edit: true },
+    inventory: { view: true, edit: true },
   },
   hr: {
     dashboard: { view: true, edit: true },
@@ -148,6 +149,7 @@ export const permissions = {
     accountingSettings: { view: true, edit: true },
     usersAndRoles: { view: true, edit: true },
     PerformanceAppraisal: { view: true, edit: true },
+    inventory: { view: true, edit: true },
   },
   supervisor: {
     dashboard: { view: true },
@@ -207,6 +209,7 @@ export const permissions = {
     invoices: { view: true },
     expenses: { view: true },
     accountingReports: { view: true },
+    inventory: { view: true, edit: true },
   },
   user: {
     dashboard: { view: true },
@@ -226,6 +229,7 @@ export const permissions = {
     pmsDashboard: { view: true },
     performanceReviews: { view: true, edit: true },
     myKPIs: { view: true },
+    inventory: { view: true },
   },
   employee: {
     dashboard: { view: true },
@@ -245,5 +249,6 @@ export const permissions = {
     pmsDashboard: { view: true },
     performanceReviews: { view: true, edit: true },
     myKPIs: { view: true },
+    inventory: { view: true },
   },
 };
