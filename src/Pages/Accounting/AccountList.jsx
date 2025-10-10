@@ -229,7 +229,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
             </div>
           )}
 
-          <div>
+         {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Account Group
             </label>
@@ -246,7 +246,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
                 </option>
               ))}
             </select>
-          </div>
+          </div>*/}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -418,9 +418,9 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
     </div>
   );
 };
-
+{}
 // Account Group Modal Component (unchanged)
-const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
+ const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     accountGroupName: ""
   });
@@ -454,7 +454,7 @@ const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
     }catch(e) {
       console.log(e)
     }
-    
+   
 
   }
 
@@ -624,6 +624,7 @@ const AccountList = () => {
           Create Account Category
         </button>
         */}
+        {/* 
         <button
           onClick={() => setIsGroupModalOpen(true)}
           className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm md:text-base"
@@ -631,6 +632,7 @@ const AccountList = () => {
           <Plus className="h-4 w-4" />
           Create Account Group
         </button>
+        */}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -711,9 +713,9 @@ const AccountList = () => {
                   <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Sub Category
                   </th>
-                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                 {/* <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Account Group
-                  </th>
+                  </th>*/}
                   <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Opening Balance
                   </th>
@@ -753,11 +755,11 @@ const AccountList = () => {
                           {account.accountSubCategory}
                         </span>
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                      {/*<td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           {account.accountGroup}
                         </span>
-                      </td>
+                      </td>*/}
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${account.openingBalance?.toLocaleString() || "0.00"}
                       </td>
@@ -804,11 +806,13 @@ const AccountList = () => {
         onSave={handleCreateCategory}
       />
 
+      {/* 
       <AccountGroupModal
         isOpen={isGroupModalOpen}
         onClose={() => setIsGroupModalOpen(false)}
         onSave={handleCreateGroup}
       />
+      */}
     </div>
   );
 };
