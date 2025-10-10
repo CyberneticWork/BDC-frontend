@@ -259,6 +259,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
               onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
               placeholder="Enter opening balance"
+              disabled={!!editAccount}
             />
           </div>
 
