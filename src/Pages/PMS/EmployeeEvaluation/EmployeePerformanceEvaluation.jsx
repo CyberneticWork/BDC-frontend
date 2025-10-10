@@ -69,6 +69,15 @@ const EmployeePerformanceEvaluation = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
 
+  // Add state for validation errors
+  const [validationErrors, setValidationErrors] = useState({
+    startDate: false,
+    endDate: false
+  });
+
+  // Add state to track if user has attempted to submit/interact
+  const [hasAttempted, setHasAttempted] = useState(false);
+
   // Search loading + debounce ref
   const [searchLoading, setSearchLoading] = useState(false);
   const searchDebounceRef = useRef(null);
@@ -219,28 +228,37 @@ const EmployeePerformanceEvaluation = () => {
   
   // Handle evaluate button click
   const handleEvaluate = async () => {
+    setHasAttempted(true); // Mark that user has attempted to evaluate
+    
+    // Validate inputs
+    const errors = {
+      startDate: !dateRange.startDate,
+      endDate: !dateRange.endDate
+    };
+    
+    setValidationErrors(errors);
+    
+    if (!dateRange.startDate || !dateRange.endDate) {
+      // Enhanced warning toast with better styling
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Missing Information',
+        text: 'Please select both start and end dates to calculate performance.',
+        confirmButtonColor: '#F59E0B',
+        confirmButtonText: 'Got it',
+        customClass: {
+          popup: 'rounded-xl shadow-2xl',
+          title: 'text-lg font-bold text-orange-600',
+          confirmButton: 'px-4 py-2 rounded-lg font-semibold'
+        }
+      });
+      setIsLoading(false);
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      // Validate inputs
-      if (!dateRange.startDate || !dateRange.endDate) {
-        // Enhanced warning toast with better styling
-        await Swal.fire({
-          icon: 'warning',
-          title: 'Missing Information',
-          text: 'Please select both start and end dates to calculate performance.',
-          confirmButtonColor: '#F59E0B',
-          confirmButtonText: 'Got it',
-          customClass: {
-            popup: 'rounded-xl shadow-2xl',
-            title: 'text-lg font-bold text-orange-600',
-            confirmButton: 'px-4 py-2 rounded-lg font-semibold'
-          }
-        });
-        setIsLoading(false);
-        return;
-      }
-      
       // Prepare request data
       const requestData = {
         start_date: dateRange.startDate,
@@ -538,7 +556,28 @@ const EmployeePerformanceEvaluation = () => {
     setCurrentPage(page);
   };
 
-  // Handle clear filters
+  // Update the date input handlers to clear validation errors
+  const handleStartDateChange = (e) => {
+    const value = e.target.value;
+    setDateRange({...dateRange, startDate: value});
+    
+    // Clear validation error when user provides input
+    if (value && validationErrors.startDate) {
+      setValidationErrors(prev => ({...prev, startDate: false}));
+    }
+  };
+
+  const handleEndDateChange = (e) => {
+    const value = e.target.value;
+    setDateRange({...dateRange, endDate: value});
+    
+    // Clear validation error when user provides input
+    if (value && validationErrors.endDate) {
+      setValidationErrors(prev => ({...prev, endDate: false}));
+    }
+  };
+
+  // Update the handleClearFilters function
   const handleClearFilters = () => {
     setDateRange({
       startDate: "",
@@ -550,6 +589,11 @@ const EmployeePerformanceEvaluation = () => {
     setEvaluationResults([]);
     setCurrentPage(1);
     setViewDetails({});
+    setHasAttempted(false); // Reset validation state
+    setValidationErrors({
+      startDate: false,
+      endDate: false
+    });
   };
 
   return (
@@ -582,15 +626,18 @@ const EmployeePerformanceEvaluation = () => {
               <input
                 type="date"
                 value={dateRange.startDate}
-                onChange={(e) => setDateRange({...dateRange, startDate: e.target.value})}
+                onChange={handleStartDateChange}
                 className={`w-full pl-10 pr-4 py-2 border ${
-                  !dateRange.startDate ? "border-red-300" : "border-gray-300"
-                } rounded-lg focus:ring-2 focus:ring-indigo-500`}
+                  hasAttempted && validationErrors.startDate ? "border-red-300 bg-red-50" : "border-gray-300"
+                } rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500`}
                 required
               />
             </div>
-            {!dateRange.startDate && (
-              <p className="mt-1 text-xs text-red-600">Start date is required</p>
+            {hasAttempted && validationErrors.startDate && (
+              <p className="mt-1 text-xs text-red-600 flex items-center">
+                <span className="inline-block w-1 h-1 bg-red-500 rounded-full mr-1"></span>
+                Start date is required
+              </p>
             )}
           </div>
           
@@ -605,16 +652,19 @@ const EmployeePerformanceEvaluation = () => {
               <input
                 type="date"
                 value={dateRange.endDate}
-                onChange={(e) => setDateRange({...dateRange, endDate: e.target.value})}
+                onChange={handleEndDateChange}
                 className={`w-full pl-10 pr-4 py-2 border ${
-                  !dateRange.endDate ? "border-red-300" : "border-gray-300"
-                } rounded-lg focus:ring-2 focus:ring-indigo-500`}
+                  hasAttempted && validationErrors.endDate ? "border-red-300 bg-red-50" : "border-gray-300"
+                } rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500`}
                 min={dateRange.startDate}
                 required
               />
             </div>
-            {!dateRange.endDate && (
-              <p className="mt-1 text-xs text-red-600">End date is required</p>
+            {hasAttempted && validationErrors.endDate && (
+              <p className="mt-1 text-xs text-red-600 flex items-center">
+                <span className="inline-block w-1 h-1 bg-red-500 rounded-full mr-1"></span>
+                End date is required
+              </p>
             )}
           </div>
           
@@ -841,7 +891,7 @@ const EmployeePerformanceEvaluation = () => {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 mt-2">
-                        Formula: (Average / 60) * 100
+                        Formula: Total Score (capped at 100%)
                       </div>
                     </div>
                     
@@ -910,15 +960,15 @@ const EmployeePerformanceEvaluation = () => {
                             ))}
                             <tr className="bg-gray-50">
                               <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                                Average = Sum of Scores / Number of Tasks:
+                                Total Score = Sum of All Task Scores:
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
-                                {(evaluationResult.tasks.reduce((sum, task) => sum + task.task_score, 0) / evaluationResult.task_count).toFixed(2)}
+                                {evaluationResult.tasks.reduce((sum, task) => sum + task.task_score, 0).toFixed(2)}
                               </td>
                             </tr>
                             <tr className="bg-gray-50">
                               <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                                Final Percentage = (Average / 60) × 100:
+                                Final Percentage = Total Score (capped at 100%):
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
                                 {evaluationResult.percentage}%
@@ -1031,7 +1081,7 @@ const EmployeePerformanceEvaluation = () => {
               </table>
             </div>
             <p className="mt-3 text-xs text-gray-500 italic">
-              Formula: Final Percentage = (Average / 60) * 100
+              Formula: Final Percentage = Sum of (Task Weight × Supervisor Progress ÷ 100), capped at 100%
             </p>
           </div>
         </div>

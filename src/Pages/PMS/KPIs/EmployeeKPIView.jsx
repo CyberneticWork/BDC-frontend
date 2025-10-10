@@ -458,6 +458,23 @@ const EmployeeKPIView = () => {
     });
   };
 
+  // Add this helper function near your other helper functions (around line 380)
+  const isTaskPastDue = (task) => {
+    const endDate = task.endDate || task.end_date || task.dueDate || task.due_date;
+    
+    if (!endDate) return false; // If no end date, allow submission
+    
+    const today = new Date();
+    const due = new Date(endDate);
+    
+    if (isNaN(due.getTime())) return false; // If invalid date, allow submission
+    
+    // Set time to end of day for due date to allow submissions until end of due date
+    due.setHours(23, 59, 59, 999);
+    
+    return today > due; // Returns true if current time is past the end date
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -570,6 +587,20 @@ const EmployeeKPIView = () => {
             </div>
           </div>
         </div>
+        {/* New Stats Card: Overdue Tasks */}
+        {/* <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Overdue Tasks</p>
+              <p className="text-2xl font-bold text-red-600">
+                {myTasks.filter(task => isTaskPastDue(task)).length}
+              </p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-xl">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </div> */}
       </div>
 
       {/* Filters */}
@@ -627,6 +658,15 @@ const EmployeeKPIView = () => {
                         )}
                         {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                       </span>
+                      
+                      {/* Add past due indicator */}
+                      {isTaskPastDue(task) && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Past Due
+                        </span>
+                      )}
+                      
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionStatusBadge(
                           task.completionStatus
@@ -634,6 +674,9 @@ const EmployeeKPIView = () => {
                       >
                         {task.completionStatus?.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Not Started"}
                       </span>
+
+                      {/* Priority display commented out per request */}
+                      {/*
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityBadge(
                           task.priority
@@ -641,6 +684,7 @@ const EmployeeKPIView = () => {
                       >
                         {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
                       </span>
+                      */}
                     </div>
                     <p className="text-gray-600 mb-3">{task.description}</p>
                     
@@ -783,12 +827,19 @@ const EmployeeKPIView = () => {
                       <Eye className="h-4 w-4" />
                       <span>View Details</span>
                     </button>
+                    {/* Update the Submit Work button */}
                     <button
                       onClick={() => handleOpenProgressModal(task)}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                      disabled={isTaskPastDue(task)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                        isTaskPastDue(task)
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-indigo-600 text-white hover:bg-indigo-700"
+                      }`}
+                      title={isTaskPastDue(task) ? "Cannot submit work after task end date" : "Submit your work progress"}
                     >
                       <Upload className="h-4 w-4" />
-                      <span>Submit Work</span>
+                      <span>{isTaskPastDue(task) ? "Past Due" : "Submit Work"}</span>
                     </button>
                   </div>
                 </div>

@@ -23,6 +23,7 @@ import {
   Download,
   Target,
   Building2,
+  RefreshCw,
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
 import Swal from "sweetalert2";
@@ -175,7 +176,23 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [], employee
                     {kpi.frequency || "Monthly"}
                   </span>
                 </div>
+
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Last Updated:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatDateTime(kpi.last_updated || kpi.lastUpdated || kpi.updated_at || 'Not recorded')}
+                  </span>
+                </div>
               </div>
+
+              {kpi.approval_status === 'pending' && kpi.last_updated && (
+                <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                  <div className="flex items-center text-sm text-blue-700">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <span>This task has been updated and requires re-approval</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Creator Information */}
@@ -730,6 +747,26 @@ const TaskApproval = () => {
     return statusConfig[status] || "bg-gray-100 text-gray-800";
   };
 
+  // Add helper utilities near the top of the file or inside TaskApproval component
+  const formatTimeSince = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h`;
+    return `${Math.floor(s / 86400)}d`;
+  };
+
+  const isAssignmentUpdated = (task) => {
+    if (!task?.last_updated) return false;
+    const last = new Date(task.last_updated).getTime();
+    const created = task?.created_at ? new Date(task.created_at).getTime() : 0;
+    // treat new records as not-updated: require > 60s difference
+    return last - created > 60 * 1000;
+  };
+
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -798,7 +835,8 @@ const TaskApproval = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Pending Card */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -811,6 +849,7 @@ const TaskApproval = () => {
           </div>
         </div>
 
+        {/* Approved Card */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -823,6 +862,7 @@ const TaskApproval = () => {
           </div>
         </div>
 
+        {/* Rejected Card */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -833,6 +873,22 @@ const TaskApproval = () => {
               <XCircle className="w-6 h-6 text-red-600" />
             </div>
           </div>
+        </div>
+
+        {/* Updated card */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Updated</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {Array.isArray(tasks) ? tasks.filter(isAssignmentUpdated).length : 0}
+              </p>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <RefreshCw className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Tasks modified after creation</p>
         </div>
       </div>
 
@@ -925,6 +981,9 @@ const TaskApproval = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Update Status
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -984,16 +1043,49 @@ const TaskApproval = () => {
                     
                     {/* Status */}
                     <td className="px-6 py-4">
-                      <span 
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          getStatusBadge(task.approval_status)
-                        }`}
-                      >
-                        {task.approval_status === "approved" && <CheckCircle className="w-3 h-3 mr-1" />}
-                        {task.approval_status === "rejected" && <XCircle className="w-3 h-3 mr-1" />}
-                        {task.approval_status === "pending" && <Clock className="w-3 h-3 mr-1" />}
-                        {task.approval_status.charAt(0).toUpperCase() + task.approval_status.slice(1)}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span 
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            getStatusBadge(task.approval_status)
+                          }`}
+                        >
+                          {task.approval_status === "approved" && <CheckCircle className="w-3 h-3 mr-1" />}
+                          {task.approval_status === "rejected" && <XCircle className="w-3 h-3 mr-1" />}
+                          {task.approval_status === "pending" && <Clock className="w-3 h-3 mr-1" />}
+                          {task.approval_status.charAt(0).toUpperCase() + task.approval_status.slice(1)}
+                        </span>
+                        
+                        {/* Show "Updated" tag if the task has been modified */}
+                        {task.approval_status === "pending" && task.last_updated && task.created_at && (
+                          // Only show "Updated" if last_updated is significantly different from created_at
+                          new Date(task.last_updated).getTime() > new Date(task.created_at).getTime() + 60000 // 1 minute buffer
+                        ) && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Updated
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    
+                    {/* Update Status */}
+                    <td className="px-6 py-4">
+                      {isAssignmentUpdated(task) ? (
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-100"
+                            title={`Updated: ${task.last_updated ? new Date(task.last_updated).toLocaleString() : 'Unknown'}`}
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Updated
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {task.last_updated ? `${formatTimeSince(task.last_updated)} ago` : ""}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">No updates</span>
+                      )}
                     </td>
                     
                     {/* Actions */}
@@ -1056,7 +1148,7 @@ const TaskApproval = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-10 text-center">
+                  <td colSpan="7" className="px-6 py-10 text-center">
                     <div className="flex flex-col items-center">
                       <PieChart className="h-12 w-12 text-gray-400 mb-4" />
                       <p className="text-lg font-medium mb-1">No KPI tasks found</p>

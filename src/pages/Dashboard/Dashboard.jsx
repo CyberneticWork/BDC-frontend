@@ -51,6 +51,7 @@ import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
 import EmployeePerformanceEvaluation from "../PMS/EmployeeEvaluation";
 import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
 import TaskApproval from "../../Pages/PMS/TaskApproval/TaskApproval";
+import PerformanceAppraisal from "../PMS/PerformanceAppraisal/PerformanceAppraisal";
 
 // Import LMS components
 import LMS from "../LMS/LMS";
@@ -751,6 +752,10 @@ const Dashboard = ({ user, onLogout }) => {
               </ProtectedComponent>
             ) : activeItem === "employeeEvaluation" ? (
               <EmployeePerformanceEvaluation />
+            ) : activeItem === "PerformanceAppraisal" ? (
+              <ProtectedComponent module="PerformanceAppraisal" action="view">
+                <PerformanceAppraisal />
+              </ProtectedComponent>
             ) : activeItem === "taskApproval" ? (
               <ProtectedComponent module="taskApproval" action="view">
                 <TaskApproval />

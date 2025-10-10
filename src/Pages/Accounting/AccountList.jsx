@@ -288,14 +288,14 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
 const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     accountType: "",
-    accountSubCategory: ""
+    accountCategoryName: ""
   });
 
   useEffect(() => {
     if (!isOpen) {
       setFormData({
         accountType: "",
-        accountSubCategory: ""
+        accountCategoryName: ""
       });
     }
   }, [isOpen]);
@@ -310,7 +310,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.accountType && formData.accountSubCategory) {
+    if (formData.accountType && formData.accountCategoryName) {
       onSave({
         ...formData,
         id: Date.now()
