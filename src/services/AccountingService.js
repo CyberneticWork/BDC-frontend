@@ -2063,3 +2063,4 @@ export const updateCheque = (id, updatedCheque) => {
   }
   return null;
 };
+

@@ -63,16 +63,16 @@ export const addAccountCategory = async (data) => {
   }
 };
 
-export const addAccountGroup = async (data) => {
-  try {
-    // You'll need to create this endpoint in your backend
-    const response = await axios.post('/account-groups', {accountGroup :data});
-    return response.data;
-  } catch (error) {
-    console.error("Error creating account group:", error);
-    throw error;
-  }
-};
+// export const addAccountGroup = async (data) => {
+//   try {
+//     // You'll need to create this endpoint in your backend
+//     const response = await axios.post('/account-groups', {accountGroup :data});
+//     return response.data;
+//   } catch (error) {
+//     console.error("Error creating account group:", error);
+//     throw error;
+//   }
+// };
 
 export const getAccountCategories = () => {
   // For now, return empty array or implement if you have backend endpoint
@@ -80,12 +80,12 @@ export const getAccountCategories = () => {
 };
 
 // services/AccountingService.js
-export const getAccountGroups = async () => {
-  try {
-    const response = await axios.get("/account-groups");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching account groups:", error);
-    throw error;
-  }
-};
+// export const getAccountGroups = async () => {
+//   try {
+//     const response = await axios.get("/account-groups");
+//     return response.data;
+//   } catch (error) {
+//     console.error("Error fetching account groups:", error);
+//     throw error;
+//   }
+// };
