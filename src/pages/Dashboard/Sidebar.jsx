@@ -24,6 +24,7 @@ import {
   BookOpen, // Add for LMS
   Calculator, // Add for Accounting
   Shield,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -53,6 +54,7 @@ const Sidebar = ({
 
   const menuItems = [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
+    { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
     // { id: "user", name: "Users", icon: User2, badge: null },
     {
@@ -129,7 +131,11 @@ const Sidebar = ({
         { id: "taskApproval", name: "Task Approval", icon: Shield }, // Add this line
         { id: "myKPIs", name: "My KPI Tasks", icon: User },
         { id: "employeeEvaluation", name: "Employee Evaluation", icon: Award },
-        { id: "PerformanceAppraisal", name: "Performance Appraisal", icon: Award },
+        {
+          id: "PerformanceAppraisal",
+          name: "Performance Appraisal",
+          icon: Award,
+        },
         // { id: "goals", name: "Goals & OKRs", icon: Target },
         // { id: "360feedback", name: "360 Feedback", icon: Users },
         // { id: "appraisals", name: "Appraisals", icon: Award },
@@ -208,7 +214,6 @@ const Sidebar = ({
         // { id: "ledger", name: "Ledger" },
         // { id: "expenses", name: "Expenses" },
         { id: "accountingSettings", name: "Settings" },
-       
       ],
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
@@ -414,7 +419,6 @@ const Sidebar = ({
             </div>
           </div>
         </div>
-
 
         {/* Navigation Menu */}
         <nav className="flex-1 overflow-y-auto">

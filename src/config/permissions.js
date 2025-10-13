@@ -1,6 +1,7 @@
 // src/config/permissions.js
 export const permissions = {
   admin: {
+    chatbot: { view: true },
     dashboard: { view: true, edit: true },
     hrMaster: { view: true },
     show: { view: true, edit: true },
@@ -83,6 +84,7 @@ export const permissions = {
     PerformanceAppraisal: { view: true, edit: true },
   },
   hr: {
+    chatbot: { view: true },
     dashboard: { view: true, edit: true },
     hrMaster: { view: true },
     show: { view: true, edit: true },
@@ -150,6 +152,7 @@ export const permissions = {
     PerformanceAppraisal: { view: true, edit: true },
   },
   supervisor: {
+    chatbot: { view: true },
     dashboard: { view: true },
     hrMaster: { view: true },
     show: { view: true },
@@ -209,6 +212,7 @@ export const permissions = {
     accountingReports: { view: true },
   },
   user: {
+    chatbot: { view: true },
     dashboard: { view: true },
     hrMaster: { view: true },
     show: { view: true },
@@ -228,6 +232,7 @@ export const permissions = {
     myKPIs: { view: true },
   },
   employee: {
+    chatbot: { view: true },
     dashboard: { view: true },
     hrMaster: { view: true },
     show: { view: true },
