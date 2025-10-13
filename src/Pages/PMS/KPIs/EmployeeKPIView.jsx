@@ -659,6 +659,13 @@ const EmployeeKPIView = () => {
                         {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                       </span>
                       
+                      {/* KPI Type Badge */}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        task.kpi_type ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {task.kpi_type ? 'Performance Appraisal' : 'Regular KPI'}
+                      </span>
+                      
                       {/* Add past due indicator */}
                       {isTaskPastDue(task) && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
