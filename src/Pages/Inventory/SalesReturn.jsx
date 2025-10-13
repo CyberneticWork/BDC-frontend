@@ -14,10 +14,10 @@ import {
   DollarSign,
   MoreVertical
 } from "lucide-react";
-import { getPurchaseReturns, addPurchaseReturn } from "../../services/AccountingService";
+import { getSalesReturns, addSalesReturn } from "../../services/Inventory/inventoryService";
 
-const PurchaseReturn = () => {
-  const [purchaseReturns, setPurchaseReturns] = useState([]);
+const SalesReturn = () => {
+  const [salesReturns, setSalesReturns] = useState([]);
   const [filteredReturns, setFilteredReturns] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -38,20 +38,20 @@ const PurchaseReturn = () => {
   }, []);
 
   useEffect(() => {
-    const returns = getPurchaseReturns();
-    setPurchaseReturns(returns);
+    const returns = getSalesReturns();
+    setSalesReturns(returns);
     setFilteredReturns(returns);
   }, []);
 
   useEffect(() => {
-    let filtered = purchaseReturns;
+    let filtered = salesReturns;
 
     if (searchTerm) {
       filtered = filtered.filter(
         (returnItem) =>
           returnItem.returnNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          returnItem.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          returnItem.originalGRN.toLowerCase().includes(searchTerm.toLowerCase())
+          returnItem.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          returnItem.originalInvoice.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -60,7 +60,7 @@ const PurchaseReturn = () => {
     }
 
     setFilteredReturns(filtered);
-  }, [searchTerm, statusFilter, purchaseReturns]);
+  }, [searchTerm, statusFilter, salesReturns]);
 
   const getStatusIcon = (status) => {
     switch (status.toLowerCase()) {
@@ -103,29 +103,37 @@ const PurchaseReturn = () => {
   };
 
   const handleAddNewReturn = (newReturnData) => {
-    const addedReturn = addPurchaseReturn(newReturnData);
-    const updatedReturns = getPurchaseReturns();
-    setPurchaseReturns(updatedReturns);
+    const addedReturn = addSalesReturn(newReturnData);
+    const updatedReturns = getSalesReturns();
+    setSalesReturns(updatedReturns);
     setFilteredReturns(updatedReturns);
     setShowNewReturnModal(false);
   };
 
-  const NewPurchaseReturnModal = ({ onClose, onSave }) => {
+  const NewSalesReturnModal = ({ onClose, onSave }) => {
     const [formData, setFormData] = useState({
-      supplier: '',
-      originalGRN: '',
+      customer: '',
+      originalInvoice: '',
       date: new Date().toISOString().split('T')[0],
       reason: '',
       status: 'Pending',
       items: [{ productName: '', quantity: 1, unitPrice: 0, total: 0 }]
     });
 
+    const [subtotal, setSubtotal] = useState(0);
+    const [taxRate] = useState(0.1); // 10% tax rate
+    const [tax, setTax] = useState(0);
     const [totalAmount, setTotalAmount] = useState(0);
 
     useEffect(() => {
-      const newTotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+      const newSubtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+      const newTax = newSubtotal * taxRate;
+      const newTotal = newSubtotal + newTax;
+      
+      setSubtotal(newSubtotal);
+      setTax(newTax);
       setTotalAmount(newTotal);
-    }, [formData.items]);
+    }, [formData.items, taxRate]);
 
     const handleInputChange = (field, value) => {
       setFormData(prev => ({ ...prev, [field]: value }));
@@ -161,7 +169,7 @@ const PurchaseReturn = () => {
       e.preventDefault();
       
       // Validate form
-      if (!formData.supplier || !formData.originalGRN || !formData.reason) {
+      if (!formData.customer || !formData.originalInvoice || !formData.reason) {
         alert('Please fill in all required fields');
         return;
       }
@@ -173,6 +181,8 @@ const PurchaseReturn = () => {
 
       const returnData = {
         ...formData,
+        subtotal,
+        tax,
         totalAmount
       };
       
@@ -183,7 +193,7 @@ const PurchaseReturn = () => {
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-4 border-b border-gray-200 sticky top-0 bg-white">
-            <h3 className="text-lg md:text-xl font-semibold">Create New Purchase Return</h3>
+            <h3 className="text-lg md:text-xl font-semibold">Create New Sales Return</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
@@ -193,21 +203,21 @@ const PurchaseReturn = () => {
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Supplier *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
                 <input
                   type="text"
-                  value={formData.supplier}
-                  onChange={(e) => handleInputChange('supplier', e.target.value)}
+                  value={formData.customer}
+                  onChange={(e) => handleInputChange('customer', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Original GRN *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Original Invoice *</label>
                 <input
                   type="text"
-                  value={formData.originalGRN}
-                  onChange={(e) => handleInputChange('originalGRN', e.target.value)}
+                  value={formData.originalInvoice}
+                  onChange={(e) => handleInputChange('originalInvoice', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                   required
                 />
@@ -322,6 +332,16 @@ const PurchaseReturn = () => {
                     ))}
                   </tbody>
                   <tfoot>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Subtotal:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${subtotal.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2"></td>
+                    </tr>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Tax (10%):</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${tax.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2"></td>
+                    </tr>
                     <tr className="bg-gray-100 font-bold">
                       <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Amount:</td>
                       <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${totalAmount.toFixed(2)}</td>
@@ -345,7 +365,7 @@ const PurchaseReturn = () => {
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm md:text-base order-1 sm:order-2"
               >
-                Create Purchase Return
+                Create Sales Return
               </button>
             </div>
           </form>
@@ -361,7 +381,7 @@ const PurchaseReturn = () => {
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-4 border-b border-gray-200 sticky top-0 bg-white">
-            <h3 className="text-lg md:text-xl font-semibold">Purchase Return - {returnItem.returnNumber}</h3>
+            <h3 className="text-lg md:text-xl font-semibold">Sales Return - {returnItem.returnNumber}</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
@@ -373,7 +393,7 @@ const PurchaseReturn = () => {
                 <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Return Information</h4>
                 <div className="space-y-2 text-sm">
                   <p><strong>Return Number:</strong> {returnItem.returnNumber}</p>
-                  <p><strong>Original GRN:</strong> {returnItem.originalGRN}</p>
+                  <p><strong>Original Invoice:</strong> {returnItem.originalInvoice}</p>
                   <p><strong>Date:</strong> {new Date(returnItem.date).toLocaleDateString()}</p>
                   <p><strong>Reason:</strong> {returnItem.reason}</p>
                   <div className="flex items-center gap-2">
@@ -386,9 +406,9 @@ const PurchaseReturn = () => {
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Supplier Information</h4>
+                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Customer Information</h4>
                 <div className="space-y-2 text-sm">
-                  <p><strong>Supplier:</strong> {returnItem.supplier}</p>
+                  <p><strong>Customer:</strong> {returnItem.customer}</p>
                   <p><strong>Total Amount:</strong> ${returnItem.totalAmount.toFixed(2)}</p>
                 </div>
               </div>
@@ -409,14 +429,22 @@ const PurchaseReturn = () => {
                   <tbody>
                     {returnItem.items.map((item, index) => (
                       <tr key={index}>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-sm">{item.productName}</td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-center text-sm">{item.quantity}</td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${item.unitPrice.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${item.total.toFixed(2)}</td>
+                        <td className="border border-gray-300 px-2 md:px-4 py-2">{item.productName}</td>
+                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-center">{item.quantity}</td>
+                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right">${item.unitPrice.toFixed(2)}</td>
+                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right">${item.total.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Subtotal:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${returnItem.subtotal.toFixed(2)}</td>
+                    </tr>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Tax:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${returnItem.tax.toFixed(2)}</td>
+                    </tr>
                     <tr className="bg-gray-100 font-bold">
                       <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Amount:</td>
                       <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${returnItem.totalAmount.toFixed(2)}</td>
@@ -479,12 +507,12 @@ const PurchaseReturn = () => {
       
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-600">Supplier:</span>
-          <span className="font-medium">{returnItem.supplier}</span>
+          <span className="text-gray-600">Customer:</span>
+          <span className="font-medium">{returnItem.customer}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">GRN Number:</span>
-          <span className="text-xs font-mono">{returnItem.originalGRN}</span>
+          <span className="text-gray-600">Invoice:</span>
+          <span className="text-xs font-mono">{returnItem.originalInvoice}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Date:</span>
@@ -518,15 +546,15 @@ const PurchaseReturn = () => {
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-4 md:mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Purchase Returns</h1>
-              <p className="text-gray-600 mt-1 text-sm md:text-base">Manage returns to suppliers</p>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Sales Returns</h1>
+              <p className="text-gray-600 mt-1 text-sm md:text-base">Manage and track customer returns</p>
             </div>
             <button 
               onClick={() => setShowNewReturnModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm md:text-base w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 md:h-5 md:w-5" />
-              New Purchase Return
+              New Sales Return
             </button>
           </div>
         </div>
@@ -578,7 +606,7 @@ const PurchaseReturn = () => {
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search purchase returns..."
+                placeholder="Search sales returns..."
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -606,7 +634,7 @@ const PurchaseReturn = () => {
                 </button>
               </div>
               
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-sm md:text-base hidden sm:flex">
+              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hidden sm:flex sm:items-center sm:justify-center gap-2 text-sm md:text-base">
                 <Filter className="h-4 w-4" />
                 More Filters
               </button>
@@ -636,14 +664,14 @@ const PurchaseReturn = () => {
           </div>
         </div>
 
-        {/* Purchase Returns Table/Cards */}
+        {/* Sales Returns Table/Cards */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {isMobile ? (
             // Mobile Card View
             <div className="p-4">
               {filteredReturns.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No purchase returns found
+                  No sales returns found
                 </div>
               ) : (
                 filteredReturns.map((returnItem) => (
@@ -658,8 +686,8 @@ const PurchaseReturn = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Number</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original GRN</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original Invoice</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
@@ -677,10 +705,10 @@ const PurchaseReturn = () => {
                         </div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{returnItem.supplier}</div>
+                        <div className="text-sm font-medium text-gray-900">{returnItem.customer}</div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {returnItem.originalGRN}
+                        {returnItem.originalInvoice}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(returnItem.date).toLocaleDateString()}
@@ -738,7 +766,7 @@ const PurchaseReturn = () => {
         )}
         
         {showNewReturnModal && (
-          <NewPurchaseReturnModal
+          <NewSalesReturnModal
             onClose={() => setShowNewReturnModal(false)}
             onSave={handleAddNewReturn}
           />
@@ -748,4 +776,4 @@ const PurchaseReturn = () => {
   );
 };
 
-export default PurchaseReturn;
+export default SalesReturn;

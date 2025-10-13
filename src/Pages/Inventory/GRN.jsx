@@ -14,7 +14,7 @@ import {
   Package,
   MoreVertical
 } from "lucide-react";
-import { getGRN, addGRN } from "../../services/AccountingService";
+import { getGRN, addGRN } from "../../services/Inventory/inventoryService";
 
 const GRN = () => {
   const [grnRecords, setGrnRecords] = useState([]);
@@ -624,7 +624,7 @@ const GRN = () => {
                 </button>
               </div>
               
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-sm md:text-base hidden sm:flex">
+              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hidden sm:flex sm:items-center sm:justify-center gap-2 text-sm md:text-base">
                 <Filter className="h-4 w-4" />
                 More Filters
               </button>

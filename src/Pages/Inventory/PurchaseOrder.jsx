@@ -6,25 +6,25 @@ import {
   Eye,
   Edit,
   Trash2,
-  ArrowRightLeft,
+  ShoppingCart,
   CheckCircle,
   Clock,
-  Truck,
+  AlertCircle,
   X,
-  MapPin,
-  User,
+  DollarSign,
+  Package,
   MoreVertical
 } from "lucide-react";
-import { getStockTransfers, addStockTransfer, updateStockTransfer } from "../../services/AccountingService";
+import { getPurchaseOrders, addPurchaseOrder, updatePurchaseOrder } from "../../services/Inventory/inventoryService";
 
-const StockTransfer = () => {
-  const [stockTransfers, setStockTransfers] = useState([]);
-  const [filteredTransfers, setFilteredTransfers] = useState([]);
+const PurchaseOrder = () => {
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showNewTransferModal, setShowNewTransferModal] = useState(false);
-  const [selectedTransfer, setSelectedTransfer] = useState(null);
+  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState({});
@@ -39,96 +39,104 @@ const StockTransfer = () => {
   }, []);
 
   useEffect(() => {
-    const transfers = getStockTransfers();
-    setStockTransfers(transfers);
-    setFilteredTransfers(transfers);
+    const orders = getPurchaseOrders();
+    setPurchaseOrders(orders);
+    setFilteredOrders(orders);
   }, []);
 
   useEffect(() => {
-    let filtered = stockTransfers;
+    let filtered = purchaseOrders;
 
     if (searchTerm) {
       filtered = filtered.filter(
-        (transfer) =>
-          transfer.transferNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          transfer.fromLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          transfer.toLocation.toLowerCase().includes(searchTerm.toLowerCase())
+        (order) =>
+          order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.supplier.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((transfer) => transfer.status.toLowerCase() === statusFilter);
+      filtered = filtered.filter((order) => order.status.toLowerCase() === statusFilter);
     }
 
-    setFilteredTransfers(filtered);
-  }, [searchTerm, statusFilter, stockTransfers]);
+    setFilteredOrders(filtered);
+  }, [searchTerm, statusFilter, purchaseOrders]);
 
   const getStatusIcon = (status) => {
     switch (status.toLowerCase()) {
-      case "completed":
+      case "received":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "in transit":
-        return <Truck className="h-4 w-4 text-blue-500" />;
-      case "pending":
+      case "partial":
         return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "pending":
+        return <AlertCircle className="h-4 w-4 text-blue-500" />;
+      case "cancelled":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
-        return <ArrowRightLeft className="h-4 w-4 text-gray-500" />;
+        return <ShoppingCart className="h-4 w-4 text-gray-500" />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case "completed":
+      case "received":
         return "bg-green-100 text-green-800";
-      case "in transit":
-        return "bg-blue-100 text-blue-800";
-      case "pending":
+      case "partial":
         return "bg-yellow-100 text-yellow-800";
+      case "pending":
+        return "bg-blue-100 text-blue-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  const toggleMobileActions = (transferId) => {
+  const toggleMobileActions = (orderId) => {
     setShowMobileActions(prev => ({
       ...prev,
-      [transferId]: !prev[transferId]
+      [orderId]: !prev[orderId]
     }));
   };
 
   const summary = {
-    total: filteredTransfers.reduce((sum, transfer) => sum + transfer.totalValue, 0),
-    completed: filteredTransfers.filter(transfer => transfer.status.toLowerCase() === 'completed').reduce((sum, transfer) => sum + transfer.totalValue, 0),
-    inTransit: filteredTransfers.filter(transfer => transfer.status.toLowerCase() === 'in transit').reduce((sum, transfer) => sum + transfer.totalValue, 0),
-    count: filteredTransfers.length
+    total: filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0),
+    received: filteredOrders.filter(order => order.status.toLowerCase() === 'received').reduce((sum, order) => sum + order.totalAmount, 0),
+    pending: filteredOrders.filter(order => order.status.toLowerCase() === 'pending').reduce((sum, order) => sum + order.totalAmount, 0),
+    count: filteredOrders.length
   };
 
-  const handleAddNewTransfer = (newTransferData) => {
-    const addedTransfer = addStockTransfer(newTransferData);
-    const updatedTransfers = getStockTransfers();
-    setStockTransfers(updatedTransfers);
-    setFilteredTransfers(updatedTransfers);
-    setShowNewTransferModal(false);
+  const handleAddNewOrder = (newOrderData) => {
+    const addedOrder = addPurchaseOrder(newOrderData);
+    const updatedOrders = getPurchaseOrders();
+    setPurchaseOrders(updatedOrders);
+    setFilteredOrders(updatedOrders);
+    setShowNewOrderModal(false);
   };
 
-  const NewStockTransferModal = ({ onClose, onSave }) => {
+  const NewPurchaseOrderModal = ({ onClose, onSave }) => {
     const [formData, setFormData] = useState({
-      fromLocation: '',
-      toLocation: '',
+      supplier: '',
       date: new Date().toISOString().split('T')[0],
+      expectedDate: '',
       status: 'Pending',
-      transferredBy: '',
-      receivedBy: '',
-      remarks: '',
       items: [{ productName: '', quantity: 1, unitPrice: 0, total: 0 }]
     });
 
-    const [totalValue, setTotalValue] = useState(0);
+    const [subtotal, setSubtotal] = useState(0);
+    const [taxRate] = useState(0.1); // 10% tax rate
+    const [tax, setTax] = useState(0);
+    const [totalAmount, setTotalAmount] = useState(0);
 
     useEffect(() => {
-      const newTotal = formData.items.reduce((sum, item) => sum + item.total, 0);
-      setTotalValue(newTotal);
-    }, [formData.items]);
+      const newSubtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+      const newTax = newSubtotal * taxRate;
+      const newTotal = newSubtotal + newTax;
+      
+      setSubtotal(newSubtotal);
+      setTax(newTax);
+      setTotalAmount(newTotal);
+    }, [formData.items, taxRate]);
 
     const handleInputChange = (field, value) => {
       setFormData(prev => ({ ...prev, [field]: value }));
@@ -164,7 +172,7 @@ const StockTransfer = () => {
       e.preventDefault();
       
       // Validate form
-      if (!formData.fromLocation || !formData.toLocation || !formData.transferredBy) {
+      if (!formData.supplier || !formData.expectedDate) {
         alert('Please fill in all required fields');
         return;
       }
@@ -174,19 +182,21 @@ const StockTransfer = () => {
         return;
       }
 
-      const transferData = {
+      const orderData = {
         ...formData,
-        totalValue
+        subtotal,
+        tax,
+        totalAmount
       };
       
-      onSave(transferData);
+      onSave(orderData);
     };
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-4 border-b border-gray-200 sticky top-0 bg-white">
-            <h3 className="text-lg md:text-xl font-semibold">Create New Stock Transfer</h3>
+            <h3 className="text-lg md:text-xl font-semibold">Create New Purchase Order</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
@@ -196,32 +206,32 @@ const StockTransfer = () => {
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">From Location *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Supplier *</label>
                 <input
                   type="text"
-                  value={formData.fromLocation}
-                  onChange={(e) => handleInputChange('fromLocation', e.target.value)}
+                  value={formData.supplier}
+                  onChange={(e) => handleInputChange('supplier', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">To Location *</label>
-                <input
-                  type="text"
-                  value={formData.toLocation}
-                  onChange={(e) => handleInputChange('toLocation', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Transfer Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Order Date</label>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => handleInputChange('date', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Expected Date *</label>
+                <input
+                  type="date"
+                  value={formData.expectedDate}
+                  onChange={(e) => handleInputChange('expectedDate', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
+                  required
                 />
               </div>
               <div>
@@ -232,46 +242,17 @@ const StockTransfer = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                 >
                   <option value="Pending">Pending</option>
-                  <option value="In Transit">In Transit</option>
-                  <option value="Completed">Completed</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Received">Received</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Transferred By *</label>
-                <input
-                  type="text"
-                  value={formData.transferredBy}
-                  onChange={(e) => handleInputChange('transferredBy', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Received By</label>
-                <input
-                  type="text"
-                  value={formData.receivedBy}
-                  onChange={(e) => handleInputChange('receivedBy', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
-                  placeholder="Leave empty if not yet received"
-                />
-              </div>
-              <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                <textarea
-                  value={formData.remarks}
-                  onChange={(e) => handleInputChange('remarks', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
-                  rows="3"
-                  placeholder="Enter any remarks"
-                />
               </div>
             </div>
 
             {/* Items Section */}
             <div className="mb-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-                <h4 className="text-base md:text-lg font-medium text-gray-700">Transfer Items</h4>
+                <h4 className="text-base md:text-lg font-medium text-gray-700">Order Items</h4>
                 <button
                   type="button"
                   onClick={addItem}
@@ -344,9 +325,19 @@ const StockTransfer = () => {
                     ))}
                   </tbody>
                   <tfoot>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Subtotal:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${subtotal.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2"></td>
+                    </tr>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Tax (10%):</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${tax.toFixed(2)}</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2"></td>
+                    </tr>
                     <tr className="bg-gray-100 font-bold">
-                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Value:</td>
-                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${totalValue.toFixed(2)}</td>
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Amount:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${totalAmount.toFixed(2)}</td>
                       <td className="border border-gray-300 px-2 md:px-4 py-2"></td>
                     </tr>
                   </tfoot>
@@ -367,7 +358,7 @@ const StockTransfer = () => {
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm md:text-base order-1 sm:order-2"
               >
-                Create Stock Transfer
+                Create Purchase Order
               </button>
             </div>
           </form>
@@ -376,14 +367,14 @@ const StockTransfer = () => {
     );
   };
 
-  const TransferViewModal = ({ transfer, onClose }) => {
-    if (!transfer) return null;
+  const OrderViewModal = ({ order, onClose }) => {
+    if (!order) return null;
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-4 border-b border-gray-200 sticky top-0 bg-white">
-            <h3 className="text-lg md:text-xl font-semibold">Stock Transfer - {transfer.transferNumber}</h3>
+            <h3 className="text-lg md:text-xl font-semibold">Purchase Order - {order.orderNumber}</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
@@ -392,34 +383,31 @@ const StockTransfer = () => {
           <div className="p-4 md:p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
               <div>
-                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Transfer Information</h4>
+                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Order Information</h4>
                 <div className="space-y-2 text-sm">
-                  <p><strong>Transfer Number:</strong> {transfer.transferNumber}</p>
-                  <p><strong>Date:</strong> {new Date(transfer.date).toLocaleDateString()}</p>
+                  <p><strong>Order Number:</strong> {order.orderNumber}</p>
+                  <p><strong>Date:</strong> {new Date(order.date).toLocaleDateString()}</p>
+                  <p><strong>Expected Date:</strong> {new Date(order.expectedDate).toLocaleDateString()}</p>
                   <div className="flex items-center gap-2">
                     <strong>Status:</strong>
-                    {getStatusIcon(transfer.status)}
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(transfer.status)}`}>
-                      {transfer.status}
+                    {getStatusIcon(order.status)}
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
+                      {order.status}
                     </span>
                   </div>
-                  <p><strong>Total Value:</strong> ${transfer.totalValue.toFixed(2)}</p>
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Location & Personnel</h4>
+                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Supplier Information</h4>
                 <div className="space-y-2 text-sm">
-                  <p><strong>From:</strong> {transfer.fromLocation}</p>
-                  <p><strong>To:</strong> {transfer.toLocation}</p>
-                  <p><strong>Transferred By:</strong> {transfer.transferredBy}</p>
-                  <p><strong>Received By:</strong> {transfer.receivedBy}</p>
-                  {transfer.remarks && <p><strong>Remarks:</strong> {transfer.remarks}</p>}
+                  <p><strong>Supplier:</strong> {order.supplier}</p>
+                  <p><strong>Total Amount:</strong> ${order.totalAmount.toFixed(2)}</p>
                 </div>
               </div>
             </div>
 
             <div className="mb-6">
-              <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Transfer Items</h4>
+              <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Order Items</h4>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300 text-sm">
                   <thead>
@@ -431,7 +419,7 @@ const StockTransfer = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {transfer.items.map((item, index) => (
+                    {order.items.map((item, index) => (
                       <tr key={index}>
                         <td className="border border-gray-300 px-2 md:px-4 py-2 text-sm">{item.productName}</td>
                         <td className="border border-gray-300 px-2 md:px-4 py-2 text-center text-sm">{item.quantity}</td>
@@ -441,9 +429,17 @@ const StockTransfer = () => {
                     ))}
                   </tbody>
                   <tfoot>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Subtotal:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${order.subtotal.toFixed(2)}</td>
+                    </tr>
+                    <tr className="bg-gray-50">
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">Tax:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-semibold text-sm">${order.tax.toFixed(2)}</td>
+                    </tr>
                     <tr className="bg-gray-100 font-bold">
-                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Value:</td>
-                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${transfer.totalValue.toFixed(2)}</td>
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Amount:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${order.totalAmount.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -461,25 +457,25 @@ const StockTransfer = () => {
     );
   };
 
-  const MobileTransferCard = ({ transfer }) => (
+  const MobileOrderCard = ({ order }) => (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3">
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
-          <ArrowRightLeft className="h-4 w-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-900">{transfer.transferNumber}</span>
+          <ShoppingCart className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-900">{order.orderNumber}</span>
         </div>
         <div className="relative">
           <button 
-            onClick={() => toggleMobileActions(transfer.id)}
+            onClick={() => toggleMobileActions(order.id)}
             className="text-gray-400 hover:text-gray-600 p-1"
           >
             <MoreVertical className="h-4 w-4" />
           </button>
-          {showMobileActions[transfer.id] && (
+          {showMobileActions[order.id] && (
             <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-32">
               <button
                 onClick={() => {
-                  setSelectedTransfer(transfer);
+                  setSelectedOrder(order);
                   setShowViewModal(true);
                   setShowMobileActions({});
                 }}
@@ -503,43 +499,27 @@ const StockTransfer = () => {
       
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-600">From:</span>
-          <span className="font-medium">{transfer.fromLocation}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">To:</span>
-          <span className="font-medium">{transfer.toLocation}</span>
+          <span className="text-gray-600">Supplier:</span>
+          <span className="font-medium">{order.supplier}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Date:</span>
-          <span>{new Date(transfer.date).toLocaleDateString()}</span>
+          <span>{new Date(order.date).toLocaleDateString()}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Value:</span>
-          <span className="font-medium">${transfer.totalValue.toFixed(2)}</span>
+          <span className="text-gray-600">Expected Date:</span>
+          <span>{new Date(order.expectedDate).toLocaleDateString()}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Transferred By:</span>
-          <span>{transfer.transferredBy}</span>
+          <span className="text-gray-600">Amount:</span>
+          <span className="font-medium">${order.totalAmount.toFixed(2)}</span>
         </div>
-        {transfer.receivedBy && (
-          <div className="flex justify-between">
-            <span className="text-gray-600">Received By:</span>
-            <span>{transfer.receivedBy}</span>
-          </div>
-        )}
-        {transfer.remarks && (
-          <div className="flex justify-between items-start">
-            <span className="text-gray-600">Remarks:</span>
-            <span className="text-right text-xs flex-1 ml-2">{transfer.remarks}</span>
-          </div>
-        )}
         <div className="flex justify-between items-center">
           <span className="text-gray-600">Status:</span>
           <div className="flex items-center gap-2">
-            {getStatusIcon(transfer.status)}
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(transfer.status)}`}>
-              {transfer.status}
+            {getStatusIcon(order.status)}
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
+              {order.status}
             </span>
           </div>
         </div>
@@ -554,15 +534,15 @@ const StockTransfer = () => {
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-4 md:mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Stock Transfers</h1>
-              <p className="text-gray-600 mt-1 text-sm md:text-base">Manage inter-location stock movements</p>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Purchase Orders</h1>
+              <p className="text-gray-600 mt-1 text-sm md:text-base">Manage and track your purchase orders</p>
             </div>
             <button 
-              onClick={() => setShowNewTransferModal(true)}
+              onClick={() => setShowNewOrderModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm md:text-base w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 md:h-5 md:w-5" />
-              New Stock Transfer
+              New Purchase Order
             </button>
           </div>
         </div>
@@ -572,10 +552,10 @@ const StockTransfer = () => {
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Total Transfers</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Total Orders</p>
                 <p className="text-lg md:text-2xl font-bold text-gray-900">{summary.count}</p>
               </div>
-              <ArrowRightLeft className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+              <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
           </div>
           <div className="bg-white rounded-lg shadow-sm p-4">
@@ -584,14 +564,14 @@ const StockTransfer = () => {
                 <p className="text-xs md:text-sm font-medium text-gray-600">Total Value</p>
                 <p className="text-lg md:text-2xl font-bold text-gray-900">${summary.total.toFixed(2)}</p>
               </div>
-              <MapPin className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+              <DollarSign className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
           </div>
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-lg md:text-2xl font-bold text-green-600">${summary.completed.toFixed(2)}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Received</p>
+                <p className="text-lg md:text-2xl font-bold text-green-600">${summary.received.toFixed(2)}</p>
               </div>
               <CheckCircle className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
             </div>
@@ -599,10 +579,10 @@ const StockTransfer = () => {
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">In Transit</p>
-                <p className="text-lg md:text-2xl font-bold text-blue-600">${summary.inTransit.toFixed(2)}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-lg md:text-2xl font-bold text-yellow-600">${summary.pending.toFixed(2)}</p>
               </div>
-              <Truck className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+              <Clock className="h-6 w-6 md:h-8 md:w-8 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -614,7 +594,7 @@ const StockTransfer = () => {
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search stock transfers..."
+                placeholder="Search purchase orders..."
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -630,8 +610,9 @@ const StockTransfer = () => {
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
-                  <option value="in transit">In Transit</option>
-                  <option value="completed">Completed</option>
+                  <option value="partial">Partial</option>
+                  <option value="received">Received</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
                 
                 <button 
@@ -642,7 +623,7 @@ const StockTransfer = () => {
                 </button>
               </div>
               
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-sm md:text-base hidden sm:flex">
+              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hidden sm:flex sm:items-center sm:justify-center gap-2 text-sm md:text-base">
                 <Filter className="h-4 w-4" />
                 More Filters
               </button>
@@ -660,9 +641,9 @@ const StockTransfer = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Value Range</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount Range</label>
                   <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option>Any Value</option>
+                    <option>Any Amount</option>
                     <option>Under $100</option>
                     <option>$100 - $500</option>
                   </select>
@@ -672,18 +653,18 @@ const StockTransfer = () => {
           </div>
         </div>
 
-        {/* Stock Transfers Table/Cards */}
+        {/* Purchase Orders Table/Cards */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {isMobile ? (
             // Mobile Card View
             <div className="p-4">
-              {filteredTransfers.length === 0 ? (
+              {filteredOrders.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No stock transfers found
+                  No purchase orders found
                 </div>
               ) : (
-                filteredTransfers.map((transfer) => (
-                  <MobileTransferCard key={transfer.id} transfer={transfer} />
+                filteredOrders.map((order) => (
+                  <MobileOrderCard key={order.id} order={order} />
                 ))
               )}
             </div>
@@ -693,45 +674,41 @@ const StockTransfer = () => {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer Number</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From Location</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To Location</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Number</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transferred By</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Date</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransfers.map((transfer) => (
-                    <tr key={transfer.id} className="hover:bg-gray-50">
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <ArrowRightLeft className="h-4 w-4 md:h-5 md:w-5 text-gray-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">{transfer.transferNumber}</span>
+                          <ShoppingCart className="h-4 w-4 md:h-5 md:w-5 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">{order.orderNumber}</span>
                         </div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{transfer.fromLocation}</div>
-                      </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{transfer.toLocation}</div>
+                        <div className="text-sm font-medium text-gray-900">{order.supplier}</div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(transfer.date).toLocaleDateString()}
+                        {new Date(order.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(order.expectedDate).toLocaleDateString()}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${transfer.totalValue.toFixed(2)}
-                      </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {transfer.transferredBy}
+                        ${order.totalAmount.toFixed(2)}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {getStatusIcon(transfer.status)}
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(transfer.status)}`}>
-                            {transfer.status}
+                          {getStatusIcon(order.status)}
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
+                            {order.status}
                           </span>
                         </div>
                       </td>
@@ -739,7 +716,7 @@ const StockTransfer = () => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => {
-                              setSelectedTransfer(transfer);
+                              setSelectedOrder(order);
                               setShowViewModal(true);
                             }}
                             className="text-blue-600 hover:text-blue-900"
@@ -764,19 +741,19 @@ const StockTransfer = () => {
 
         {/* Modals */}
         {showViewModal && (
-          <TransferViewModal
-            transfer={selectedTransfer}
+          <OrderViewModal
+            order={selectedOrder}
             onClose={() => {
               setShowViewModal(false);
-              setSelectedTransfer(null);
+              setSelectedOrder(null);
             }}
           />
         )}
         
-        {showNewTransferModal && (
-          <NewStockTransferModal
-            onClose={() => setShowNewTransferModal(false)}
-            onSave={handleAddNewTransfer}
+        {showNewOrderModal && (
+          <NewPurchaseOrderModal
+            onClose={() => setShowNewOrderModal(false)}
+            onSave={handleAddNewOrder}
           />
         )}
       </div>
@@ -784,4 +761,4 @@ const StockTransfer = () => {
   );
 };
 
-export default StockTransfer;
+export default PurchaseOrder;

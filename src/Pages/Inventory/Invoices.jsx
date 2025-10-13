@@ -22,7 +22,7 @@ import {
   addInvoice,
   updateInvoice,
   deleteInvoice
-} from '../../services/AccountingService';
+} from '../../services/Inventory/inventoryService';
 
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);

@@ -187,14 +187,6 @@ const Sidebar = ({
           name: "Transactions",
           subItems: [
             { id: "transactionsList", name: "Transaction List" },
-            { id: "invoices", name: "Invoices" },
-            { id: "salesOrder", name: "Sales Order" },
-            { id: "salesReturn", name: "Sales Return" },
-            { id: "grn", name: "GRN" },
-            { id: "purchaseReturn", name: "Purchase Return" },
-            { id: "purchaseOrder", name: "Purchase Order" },
-            { id: "stockTransfer", name: "Stock Transfer" },
-            { id: "stockVerification", name: "Stock Verification" },
           ],
         },
         {
@@ -281,17 +273,7 @@ const Sidebar = ({
       transactions:
         path.includes("transactions") ||
         activeItem === "transactions" ||
-        [
-          "transactionsList",
-          "invoices",
-          "salesOrder",
-          "salesReturn",
-          "grn",
-          "purchaseReturn",
-          "purchaseOrder",
-          "stockTransfer",
-          "stockVerification",
-        ].includes(activeItem),
+        ["transactionsList"].includes(activeItem),
       financeReports:
         path.includes("financeReports") ||
         activeItem === "financeReports" ||

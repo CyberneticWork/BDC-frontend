@@ -6,26 +6,24 @@ import {
   Eye,
   Edit,
   Trash2,
-  ClipboardCheck,
+  RotateCcw,
   CheckCircle,
   Clock,
-  AlertTriangle,
+  AlertCircle,
   X,
-  Package,
-  User,
-  MapPin,
+  DollarSign,
   MoreVertical
 } from "lucide-react";
-import { getStockVerifications, addStockVerification, updateStockVerification } from "../../services/AccountingService";
+import { getPurchaseReturns, addPurchaseReturn } from "../../services/Inventory/inventoryService";
 
-const StockVerification = () => {
-  const [stockVerifications, setStockVerifications] = useState([]);
-  const [filteredVerifications, setFilteredVerifications] = useState([]);
+const PurchaseReturn = () => {
+  const [purchaseReturns, setPurchaseReturns] = useState([]);
+  const [filteredReturns, setFilteredReturns] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showNewVerificationModal, setShowNewVerificationModal] = useState(false);
-  const [selectedVerification, setSelectedVerification] = useState(null);
+  const [showNewReturnModal, setShowNewReturnModal] = useState(false);
+  const [selectedReturn, setSelectedReturn] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState({});
@@ -40,99 +38,93 @@ const StockVerification = () => {
   }, []);
 
   useEffect(() => {
-    const verifications = getStockVerifications();
-    setStockVerifications(verifications);
-    setFilteredVerifications(verifications);
+    const returns = getPurchaseReturns();
+    setPurchaseReturns(returns);
+    setFilteredReturns(returns);
   }, []);
 
   useEffect(() => {
-    let filtered = stockVerifications;
+    let filtered = purchaseReturns;
 
     if (searchTerm) {
       filtered = filtered.filter(
-        (verification) =>
-          verification.verificationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          verification.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          verification.verifiedBy.toLowerCase().includes(searchTerm.toLowerCase())
+        (returnItem) =>
+          returnItem.returnNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          returnItem.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          returnItem.originalGRN.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((verification) => verification.status.toLowerCase() === statusFilter);
+      filtered = filtered.filter((returnItem) => returnItem.status.toLowerCase() === statusFilter);
     }
 
-    setFilteredVerifications(filtered);
-  }, [searchTerm, statusFilter, stockVerifications]);
+    setFilteredReturns(filtered);
+  }, [searchTerm, statusFilter, purchaseReturns]);
 
   const getStatusIcon = (status) => {
     switch (status.toLowerCase()) {
-      case "completed":
+      case "approved":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "in progress":
-        return <Clock className="h-4 w-4 text-blue-500" />;
       case "pending":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "rejected":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
-        return <ClipboardCheck className="h-4 w-4 text-gray-500" />;
+        return <RotateCcw className="h-4 w-4 text-gray-500" />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case "completed":
+      case "approved":
         return "bg-green-100 text-green-800";
-      case "in progress":
-        return "bg-blue-100 text-blue-800";
       case "pending":
         return "bg-yellow-100 text-yellow-800";
+      case "rejected":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getVarianceColor = (variance) => {
-    if (variance > 0) return "text-green-600";
-    if (variance < 0) return "text-red-600";
-    return "text-gray-600";
-  };
-
-  const toggleMobileActions = (verificationId) => {
+  const toggleMobileActions = (returnId) => {
     setShowMobileActions(prev => ({
       ...prev,
-      [verificationId]: !prev[verificationId]
+      [returnId]: !prev[returnId]
     }));
   };
 
   const summary = {
-    totalVariance: filteredVerifications.reduce((sum, verification) => sum + (verification.totalVarianceValue || 0), 0),
-    completed: filteredVerifications.filter(verification => verification.status.toLowerCase() === 'completed').length,
-    inProgress: filteredVerifications.filter(verification => verification.status.toLowerCase() === 'in progress').length,
-    count: filteredVerifications.length
+    total: filteredReturns.reduce((sum, returnItem) => sum + returnItem.totalAmount, 0),
+    approved: filteredReturns.filter(returnItem => returnItem.status.toLowerCase() === 'approved').reduce((sum, returnItem) => sum + returnItem.totalAmount, 0),
+    pending: filteredReturns.filter(returnItem => returnItem.status.toLowerCase() === 'pending').reduce((sum, returnItem) => sum + returnItem.totalAmount, 0),
+    count: filteredReturns.length
   };
 
-  const handleAddNewVerification = (newVerificationData) => {
-    const addedVerification = addStockVerification(newVerificationData);
-    const updatedVerifications = getStockVerifications();
-    setStockVerifications(updatedVerifications);
-    setFilteredVerifications(updatedVerifications);
-    setShowNewVerificationModal(false);
+  const handleAddNewReturn = (newReturnData) => {
+    const addedReturn = addPurchaseReturn(newReturnData);
+    const updatedReturns = getPurchaseReturns();
+    setPurchaseReturns(updatedReturns);
+    setFilteredReturns(updatedReturns);
+    setShowNewReturnModal(false);
   };
 
-  const NewStockVerificationModal = ({ onClose, onSave }) => {
+  const NewPurchaseReturnModal = ({ onClose, onSave }) => {
     const [formData, setFormData] = useState({
-      location: '',
+      supplier: '',
+      originalGRN: '',
       date: new Date().toISOString().split('T')[0],
+      reason: '',
       status: 'Pending',
-      verifiedBy: '',
-      remarks: '',
-      items: [{ productName: '', systemQty: 0, physicalQty: 0, variance: 0, unitPrice: 0, varianceValue: 0 }]
+      items: [{ productName: '', quantity: 1, unitPrice: 0, total: 0 }]
     });
 
-    const [totalVarianceValue, setTotalVarianceValue] = useState(0);
+    const [totalAmount, setTotalAmount] = useState(0);
 
     useEffect(() => {
-      const newTotal = formData.items.reduce((sum, item) => sum + (item.varianceValue || 0), 0);
-      setTotalVarianceValue(newTotal);
+      const newTotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+      setTotalAmount(newTotal);
     }, [formData.items]);
 
     const handleInputChange = (field, value) => {
@@ -143,14 +135,9 @@ const StockVerification = () => {
       const updatedItems = [...formData.items];
       updatedItems[index][field] = value;
       
-      // Recalculate variance and variance value for this item
-      if (field === 'systemQty' || field === 'physicalQty' || field === 'unitPrice') {
-        const systemQty = field === 'systemQty' ? value : updatedItems[index].systemQty;
-        const physicalQty = field === 'physicalQty' ? value : updatedItems[index].physicalQty;
-        const unitPrice = field === 'unitPrice' ? value : updatedItems[index].unitPrice;
-        
-        updatedItems[index].variance = physicalQty - systemQty;
-        updatedItems[index].varianceValue = updatedItems[index].variance * unitPrice;
+      // Recalculate total for this item
+      if (field === 'quantity' || field === 'unitPrice') {
+        updatedItems[index].total = updatedItems[index].quantity * updatedItems[index].unitPrice;
       }
       
       setFormData(prev => ({ ...prev, items: updatedItems }));
@@ -159,7 +146,7 @@ const StockVerification = () => {
     const addItem = () => {
       setFormData(prev => ({
         ...prev,
-        items: [...prev.items, { productName: '', systemQty: 0, physicalQty: 0, variance: 0, unitPrice: 0, varianceValue: 0 }]
+        items: [...prev.items, { productName: '', quantity: 1, unitPrice: 0, total: 0 }]
       }));
     };
 
@@ -174,29 +161,29 @@ const StockVerification = () => {
       e.preventDefault();
       
       // Validate form
-      if (!formData.location || !formData.verifiedBy) {
+      if (!formData.supplier || !formData.originalGRN || !formData.reason) {
         alert('Please fill in all required fields');
         return;
       }
       
-      if (formData.items.some(item => !item.productName || item.systemQty < 0 || item.physicalQty < 0 || item.unitPrice <= 0)) {
+      if (formData.items.some(item => !item.productName || item.quantity <= 0 || item.unitPrice <= 0)) {
         alert('Please fill in all item details correctly');
         return;
       }
 
-      const verificationData = {
+      const returnData = {
         ...formData,
-        totalVarianceValue
+        totalAmount
       };
       
-      onSave(verificationData);
+      onSave(returnData);
     };
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-4 border-b border-gray-200 sticky top-0 bg-white">
-            <h3 className="text-lg md:text-xl font-semibold">Create New Stock Verification</h3>
+            <h3 className="text-lg md:text-xl font-semibold">Create New Purchase Return</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
@@ -206,32 +193,32 @@ const StockVerification = () => {
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Supplier *</label>
                 <input
                   type="text"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  value={formData.supplier}
+                  onChange={(e) => handleInputChange('supplier', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Verification Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Original GRN *</label>
+                <input
+                  type="text"
+                  value={formData.originalGRN}
+                  onChange={(e) => handleInputChange('originalGRN', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Return Date</label>
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => handleInputChange('date', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Verified By *</label>
-                <input
-                  type="text"
-                  value={formData.verifiedBy}
-                  onChange={(e) => handleInputChange('verifiedBy', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
-                  required
                 />
               </div>
               <div>
@@ -242,18 +229,19 @@ const StockVerification = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                 >
                   <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
                 </select>
               </div>
               <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Reason *</label>
                 <textarea
-                  value={formData.remarks}
-                  onChange={(e) => handleInputChange('remarks', e.target.value)}
+                  value={formData.reason}
+                  onChange={(e) => handleInputChange('reason', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                   rows="3"
-                  placeholder="Enter any remarks"
+                  placeholder="Enter reason for return"
+                  required
                 />
               </div>
             </div>
@@ -261,7 +249,7 @@ const StockVerification = () => {
             {/* Items Section */}
             <div className="mb-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-                <h4 className="text-base md:text-lg font-medium text-gray-700">Verification Items</h4>
+                <h4 className="text-base md:text-lg font-medium text-gray-700">Return Items</h4>
                 <button
                   type="button"
                   onClick={addItem}
@@ -276,18 +264,16 @@ const StockVerification = () => {
                 <table className="w-full border-collapse border border-gray-300 text-sm">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-left">Product *</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">System</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">Physical</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">Var</th>
+                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-left">Product Name *</th>
+                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">Qty *</th>
                       <th className="border border-gray-300 px-2 md:px-4 py-2 text-right">Price *</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-right">Value</th>
+                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-right">Total</th>
                       <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {formData.items.map((item, index) => (
-                      <tr key={index} className={item.variance !== 0 ? 'bg-yellow-50' : ''}>
+                      <tr key={index}>
                         <td className="border border-gray-300 px-2 md:px-4 py-2">
                           <input
                             type="text"
@@ -301,30 +287,12 @@ const StockVerification = () => {
                         <td className="border border-gray-300 px-2 md:px-4 py-2">
                           <input
                             type="number"
-                            value={item.systemQty}
-                            onChange={(e) => handleItemChange(index, 'systemQty', parseInt(e.target.value) || 0)}
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
                             className="w-full border-0 focus:ring-0 focus:outline-none text-center text-sm"
-                            min="0"
+                            min="1"
                             required
                           />
-                        </td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2">
-                          <input
-                            type="number"
-                            value={item.physicalQty}
-                            onChange={(e) => handleItemChange(index, 'physicalQty', parseInt(e.target.value) || 0)}
-                            className="w-full border-0 focus:ring-0 focus:outline-none text-center text-sm"
-                            min="0"
-                            required
-                          />
-                        </td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-center">
-                          <span className={`font-semibold text-sm ${
-                            item.variance > 0 ? 'text-green-600' : 
-                            item.variance < 0 ? 'text-red-600' : 'text-gray-600'
-                          }`}>
-                            {item.variance > 0 ? '+' : ''}{item.variance}
-                          </span>
                         </td>
                         <td className="border border-gray-300 px-2 md:px-4 py-2">
                           <input
@@ -337,13 +305,8 @@ const StockVerification = () => {
                             required
                           />
                         </td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right">
-                          <span className={`font-semibold text-sm ${
-                            item.varianceValue > 0 ? 'text-green-600' : 
-                            item.varianceValue < 0 ? 'text-red-600' : 'text-gray-600'
-                          }`}>
-                            ${item.varianceValue > 0 ? '+' : ''}{item.varianceValue.toFixed(2)}
-                          </span>
+                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right font-medium text-sm">
+                          ${item.total.toFixed(2)}
                         </td>
                         <td className="border border-gray-300 px-2 md:px-4 py-2 text-center">
                           <button
@@ -360,15 +323,8 @@ const StockVerification = () => {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-100 font-bold">
-                      <td colSpan="5" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Variance Value:</td>
-                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">
-                        <span className={`${
-                          totalVarianceValue > 0 ? 'text-green-600' : 
-                          totalVarianceValue < 0 ? 'text-red-600' : 'text-gray-600'
-                        }`}>
-                          ${totalVarianceValue > 0 ? '+' : ''}{totalVarianceValue.toFixed(2)}
-                        </span>
-                      </td>
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Amount:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${totalAmount.toFixed(2)}</td>
                       <td className="border border-gray-300 px-2 md:px-4 py-2"></td>
                     </tr>
                   </tfoot>
@@ -389,7 +345,7 @@ const StockVerification = () => {
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm md:text-base order-1 sm:order-2"
               >
-                Create Stock Verification
+                Create Purchase Return
               </button>
             </div>
           </form>
@@ -398,14 +354,14 @@ const StockVerification = () => {
     );
   };
 
-  const VerificationViewModal = ({ verification, onClose }) => {
-    if (!verification) return null;
+  const ReturnViewModal = ({ returnItem, onClose }) => {
+    if (!returnItem) return null;
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-4 border-b border-gray-200 sticky top-0 bg-white">
-            <h3 className="text-lg md:text-xl font-semibold">Stock Verification - {verification.verificationNumber}</h3>
+            <h3 className="text-lg md:text-xl font-semibold">Purchase Return - {returnItem.returnNumber}</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
@@ -414,84 +370,56 @@ const StockVerification = () => {
           <div className="p-4 md:p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
               <div>
-                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Verification Information</h4>
+                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Return Information</h4>
                 <div className="space-y-2 text-sm">
-                  <p><strong>Verification Number:</strong> {verification.verificationNumber}</p>
-                  <p><strong>Location:</strong> {verification.location}</p>
-                  <p><strong>Date:</strong> {new Date(verification.date).toLocaleDateString()}</p>
-                  <p><strong>Verified By:</strong> {verification.verifiedBy}</p>
+                  <p><strong>Return Number:</strong> {returnItem.returnNumber}</p>
+                  <p><strong>Original GRN:</strong> {returnItem.originalGRN}</p>
+                  <p><strong>Date:</strong> {new Date(returnItem.date).toLocaleDateString()}</p>
+                  <p><strong>Reason:</strong> {returnItem.reason}</p>
                   <div className="flex items-center gap-2">
                     <strong>Status:</strong>
-                    {getStatusIcon(verification.status)}
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(verification.status)}`}>
-                      {verification.status}
+                    {getStatusIcon(returnItem.status)}
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(returnItem.status)}`}>
+                      {returnItem.status}
                     </span>
                   </div>
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Variance Summary</h4>
+                <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Supplier Information</h4>
                 <div className="space-y-2 text-sm">
-                  <p><strong>Total Variance Value:</strong> 
-                    <span className={`ml-2 font-semibold ${getVarianceColor(verification.totalVarianceValue)}`}>
-                      ${verification.totalVarianceValue ? verification.totalVarianceValue.toFixed(2) : '0.00'}
-                    </span>
-                  </p>
-                  {verification.remarks && <p><strong>Remarks:</strong> {verification.remarks}</p>}
+                  <p><strong>Supplier:</strong> {returnItem.supplier}</p>
+                  <p><strong>Total Amount:</strong> ${returnItem.totalAmount.toFixed(2)}</p>
                 </div>
               </div>
             </div>
 
             <div className="mb-6">
-              <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Verification Items</h4>
+              <h4 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Return Items</h4>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300 text-sm">
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="border border-gray-300 px-2 md:px-4 py-2 text-left">Product</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">System</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">Physical</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">Var</th>
+                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-center">Qty</th>
                       <th className="border border-gray-300 px-2 md:px-4 py-2 text-right">Price</th>
-                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-right">Value</th>
+                      <th className="border border-gray-300 px-2 md:px-4 py-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {verification.items.map((item, index) => (
-                      <tr key={index} className={item.variance !== 0 ? 'bg-yellow-50' : ''}>
+                    {returnItem.items.map((item, index) => (
+                      <tr key={index}>
                         <td className="border border-gray-300 px-2 md:px-4 py-2 text-sm">{item.productName}</td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-center text-sm">{item.systemQty}</td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-center text-sm">
-                          {item.physicalQty !== null ? item.physicalQty : 'Pending'}
-                        </td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-center text-sm">
-                          {item.variance !== null ? (
-                            <span className={`font-semibold ${getVarianceColor(item.variance)}`}>
-                              {item.variance > 0 ? '+' : ''}{item.variance}
-                            </span>
-                          ) : 'Pending'}
-                        </td>
+                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-center text-sm">{item.quantity}</td>
                         <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${item.unitPrice.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">
-                          {item.varianceValue !== null ? (
-                            <span className={`font-semibold ${getVarianceColor(item.varianceValue)}`}>
-                              ${item.varianceValue > 0 ? '+' : ''}{item.varianceValue.toFixed(2)}
-                            </span>
-                          ) : 'Pending'}
-                        </td>
+                        <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${item.total.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-100 font-bold">
-                      <td colSpan="5" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Variance Value:</td>
-                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">
-                        <span className={`${getVarianceColor(verification.totalVarianceValue)}`}>
-                          ${verification.totalVarianceValue ? 
-                            (verification.totalVarianceValue > 0 ? '+' : '') + verification.totalVarianceValue.toFixed(2) : 
-                            '0.00'}
-                        </span>
-                      </td>
+                      <td colSpan="3" className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">Total Amount:</td>
+                      <td className="border border-gray-300 px-2 md:px-4 py-2 text-right text-sm">${returnItem.totalAmount.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -509,25 +437,25 @@ const StockVerification = () => {
     );
   };
 
-  const MobileVerificationCard = ({ verification }) => (
+  const MobileReturnCard = ({ returnItem }) => (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3">
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
-          <ClipboardCheck className="h-4 w-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-900">{verification.verificationNumber}</span>
+          <RotateCcw className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-900">{returnItem.returnNumber}</span>
         </div>
         <div className="relative">
           <button 
-            onClick={() => toggleMobileActions(verification.id)}
+            onClick={() => toggleMobileActions(returnItem.id)}
             className="text-gray-400 hover:text-gray-600 p-1"
           >
             <MoreVertical className="h-4 w-4" />
           </button>
-          {showMobileActions[verification.id] && (
+          {showMobileActions[returnItem.id] && (
             <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-32">
               <button
                 onClick={() => {
-                  setSelectedVerification(verification);
+                  setSelectedReturn(returnItem);
                   setShowViewModal(true);
                   setShowMobileActions({});
                 }}
@@ -551,37 +479,31 @@ const StockVerification = () => {
       
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-600">Location:</span>
-          <span className="font-medium">{verification.location}</span>
+          <span className="text-gray-600">Supplier:</span>
+          <span className="font-medium">{returnItem.supplier}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">GRN Number:</span>
+          <span className="text-xs font-mono">{returnItem.originalGRN}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Date:</span>
-          <span>{new Date(verification.date).toLocaleDateString()}</span>
+          <span>{new Date(returnItem.date).toLocaleDateString()}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Verified By:</span>
-          <span>{verification.verifiedBy}</span>
+          <span className="text-gray-600">Amount:</span>
+          <span className="font-medium">${returnItem.totalAmount.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Variance Value:</span>
-          <span className={`font-semibold ${getVarianceColor(verification.totalVarianceValue)}`}>
-            ${verification.totalVarianceValue ? 
-              (verification.totalVarianceValue > 0 ? '+' : '') + verification.totalVarianceValue.toFixed(2) : 
-              '0.00'}
-          </span>
+        <div className="flex justify-between items-start">
+          <span className="text-gray-600">Reason:</span>
+          <span className="text-right text-xs flex-1 ml-2">{returnItem.reason}</span>
         </div>
-        {verification.remarks && (
-          <div className="flex justify-between items-start">
-            <span className="text-gray-600">Remarks:</span>
-            <span className="text-right text-xs flex-1 ml-2">{verification.remarks}</span>
-          </div>
-        )}
         <div className="flex justify-between items-center">
           <span className="text-gray-600">Status:</span>
           <div className="flex items-center gap-2">
-            {getStatusIcon(verification.status)}
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(verification.status)}`}>
-              {verification.status}
+            {getStatusIcon(returnItem.status)}
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(returnItem.status)}`}>
+              {returnItem.status}
             </span>
           </div>
         </div>
@@ -596,15 +518,15 @@ const StockVerification = () => {
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-4 md:mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Stock Verification</h1>
-              <p className="text-gray-600 mt-1 text-sm md:text-base">Verify physical stock against system records</p>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Purchase Returns</h1>
+              <p className="text-gray-600 mt-1 text-sm md:text-base">Manage returns to suppliers</p>
             </div>
             <button 
-              onClick={() => setShowNewVerificationModal(true)}
+              onClick={() => setShowNewReturnModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm md:text-base w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 md:h-5 md:w-5" />
-              New Stock Verification
+              New Purchase Return
             </button>
           </div>
         </div>
@@ -614,28 +536,26 @@ const StockVerification = () => {
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Total Verifications</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Total Returns</p>
                 <p className="text-lg md:text-2xl font-bold text-gray-900">{summary.count}</p>
               </div>
-              <ClipboardCheck className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+              <RotateCcw className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
           </div>
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Total Variance</p>
-                <p className={`text-lg md:text-2xl font-bold ${getVarianceColor(summary.totalVariance)}`}>
-                  ${summary.totalVariance > 0 ? '+' : ''}{summary.totalVariance.toFixed(2)}
-                </p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Total Value</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900">${summary.total.toFixed(2)}</p>
               </div>
-              <Package className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+              <DollarSign className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
           </div>
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-lg md:text-2xl font-bold text-green-600">{summary.completed}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Approved</p>
+                <p className="text-lg md:text-2xl font-bold text-green-600">${summary.approved.toFixed(2)}</p>
               </div>
               <CheckCircle className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
             </div>
@@ -643,10 +563,10 @@ const StockVerification = () => {
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-lg md:text-2xl font-bold text-blue-600">{summary.inProgress}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-lg md:text-2xl font-bold text-yellow-600">${summary.pending.toFixed(2)}</p>
               </div>
-              <Clock className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+              <Clock className="h-6 w-6 md:h-8 md:w-8 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -658,7 +578,7 @@ const StockVerification = () => {
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search stock verifications..."
+                placeholder="Search purchase returns..."
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -674,8 +594,8 @@ const StockVerification = () => {
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
-                  <option value="in progress">In Progress</option>
-                  <option value="completed">Completed</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
                 </select>
                 
                 <button 
@@ -686,7 +606,7 @@ const StockVerification = () => {
                 </button>
               </div>
               
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-sm md:text-base hidden sm:flex">
+              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 hidden sm:flex sm:items-center sm:justify-center gap-2 text-sm md:text-base">
                 <Filter className="h-4 w-4" />
                 More Filters
               </button>
@@ -704,12 +624,11 @@ const StockVerification = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Variance Range</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount Range</label>
                   <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option>Any Variance</option>
-                    <option>Positive Only</option>
-                    <option>Negative Only</option>
-                    <option>No Variance</option>
+                    <option>Any Amount</option>
+                    <option>Under $100</option>
+                    <option>$100 - $500</option>
                   </select>
                 </div>
               </div>
@@ -717,18 +636,18 @@ const StockVerification = () => {
           </div>
         </div>
 
-        {/* Stock Verifications Table/Cards */}
+        {/* Purchase Returns Table/Cards */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {isMobile ? (
             // Mobile Card View
             <div className="p-4">
-              {filteredVerifications.length === 0 ? (
+              {filteredReturns.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No stock verifications found
+                  No purchase returns found
                 </div>
               ) : (
-                filteredVerifications.map((verification) => (
-                  <MobileVerificationCard key={verification.id} verification={verification} />
+                filteredReturns.map((returnItem) => (
+                  <MobileReturnCard key={returnItem.id} returnItem={returnItem} />
                 ))
               )}
             </div>
@@ -738,51 +657,45 @@ const StockVerification = () => {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verification Number</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Number</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original GRN</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verified By</th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variance Value</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredVerifications.map((verification) => (
-                    <tr key={verification.id} className="hover:bg-gray-50">
+                  {filteredReturns.map((returnItem) => (
+                    <tr key={returnItem.id} className="hover:bg-gray-50">
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <ClipboardCheck className="h-4 w-4 md:h-5 md:w-5 text-gray-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">{verification.verificationNumber}</span>
+                          <RotateCcw className="h-4 w-4 md:h-5 md:w-5 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">{returnItem.returnNumber}</span>
                         </div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <MapPin className="h-4 w-4 text-gray-400 mr-1" />
-                          <span className="text-sm font-medium text-gray-900">{verification.location}</span>
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{returnItem.supplier}</div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(verification.date).toLocaleDateString()}
+                        {returnItem.originalGRN}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 text-gray-400 mr-1" />
-                          <span className="text-sm text-gray-500">{verification.verifiedBy}</span>
-                        </div>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(returnItem.date).toLocaleDateString()}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <span className={`${getVarianceColor(verification.totalVarianceValue)}`}>
-                          ${verification.totalVarianceValue ? 
-                            (verification.totalVarianceValue > 0 ? '+' : '') + verification.totalVarianceValue.toFixed(2) : 
-                            '0.00'}
-                        </span>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        ${returnItem.totalAmount.toFixed(2)}
+                      </td>
+                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">
+                        {returnItem.reason}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {getStatusIcon(verification.status)}
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(verification.status)}`}>
-                            {verification.status}
+                          {getStatusIcon(returnItem.status)}
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(returnItem.status)}`}>
+                            {returnItem.status}
                           </span>
                         </div>
                       </td>
@@ -790,7 +703,7 @@ const StockVerification = () => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => {
-                              setSelectedVerification(verification);
+                              setSelectedReturn(returnItem);
                               setShowViewModal(true);
                             }}
                             className="text-blue-600 hover:text-blue-900"
@@ -815,19 +728,19 @@ const StockVerification = () => {
 
         {/* Modals */}
         {showViewModal && (
-          <VerificationViewModal
-            verification={selectedVerification}
+          <ReturnViewModal
+            returnItem={selectedReturn}
             onClose={() => {
               setShowViewModal(false);
-              setSelectedVerification(null);
+              setSelectedReturn(null);
             }}
           />
         )}
         
-        {showNewVerificationModal && (
-          <NewStockVerificationModal
-            onClose={() => setShowNewVerificationModal(false)}
-            onSave={handleAddNewVerification}
+        {showNewReturnModal && (
+          <NewPurchaseReturnModal
+            onClose={() => setShowNewReturnModal(false)}
+            onSave={handleAddNewReturn}
           />
         )}
       </div>
@@ -835,4 +748,4 @@ const StockVerification = () => {
   );
 };
 
-export default StockVerification;
+export default PurchaseReturn;
