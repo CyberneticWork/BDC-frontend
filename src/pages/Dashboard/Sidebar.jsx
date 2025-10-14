@@ -167,6 +167,7 @@ const Sidebar = ({
           name: "Chart of Accounts",
           subItems: [
             { id: "accountList", name: "Account List" },
+             { id: "journalEntry", name: "Journal Entry" },
             {id: "doubleEntry", name: "Double Entry"},
             { id: "supplierEnterBill", name: "Supplier Enter Bill" },
             { id: "payment", name: "Payment" },
@@ -175,7 +176,7 @@ const Sidebar = ({
             { id: "receipt", name: "Receipt" },
             { id: "createUtilityBill", name: "Create Utility Bill" },
             { id: "utilityBillPayment", name: "Utility Bill Payment" },
-            { id: "journalEntry", name: "Journal Entry" },
+           
             { id: "pettyCash", name: "Petty Cash" },
             { id: "cheque", name: "Cheque" },
             { id: "bankReconciliation", name: "Bank Reconciliation" },
