@@ -15,7 +15,7 @@ import {
   Package,
   MoreVertical
 } from "lucide-react";
-import { getPurchaseOrders, addPurchaseOrder, updatePurchaseOrder } from "../../services/Inventory/inventoryService";
+import { getPurchaseOrders } from "../../services/Inventory/inventoryService";
 
 const PurchaseOrder = () => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -106,8 +106,7 @@ const PurchaseOrder = () => {
     count: filteredOrders.length
   };
 
-  const handleAddNewOrder = (newOrderData) => {
-    const addedOrder = addPurchaseOrder(newOrderData);
+  const handleAddNewOrder = () => {
     const updatedOrders = getPurchaseOrders();
     setPurchaseOrders(updatedOrders);
     setFilteredOrders(updatedOrders);

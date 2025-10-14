@@ -14,7 +14,7 @@ import {
   Package,
   MoreVertical
 } from "lucide-react";
-import { getGRN, addGRN } from "../../services/Inventory/inventoryService";
+import { getGRN } from "../../services/Inventory/inventoryService";
 
 const GRN = () => {
   const [grnRecords, setGrnRecords] = useState([]);
@@ -102,8 +102,7 @@ const GRN = () => {
     count: filteredGRN.length
   };
 
-  const handleAddNewGRN = (newGRNData) => {
-    const addedGRN = addGRN(newGRNData);
+  const handleAddNewGRN = () => {
     const updatedGRN = getGRN();
     setGrnRecords(updatedGRN);
     setFilteredGRN(updatedGRN);

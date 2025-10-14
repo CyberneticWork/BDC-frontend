@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {Plus,Trash2} from "lucide-react";
 import {getInvoiceData,addInvoice} from '../../services/Inventory/inventoryService';
+import Payment from '../../components/Inventory/Payment';
 
 const Invoices = () => {
 
@@ -55,6 +56,8 @@ const Invoices = () => {
     });
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingInvoice, setPendingInvoice] = useState(null);
 
     // Sync generated invoice id from parent into form
     useEffect(() => {
@@ -161,35 +164,41 @@ const Invoices = () => {
 
     const handleSubmit = async (e) => {
       e.preventDefault();
-      
+
       if (!validateForm()) {
         return;
       }
-      
+
+      // Prepare invoice payload up to this point (without payment)
+      const firstItem = items[0];
+      const computedAmount = items.reduce((acc, it) => {
+        const qty = Number(it.quantity) || 0;
+        const unit = Number(it.unitPrice) || 0;
+        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0; // per unit discount when enabled
+        const lineTotal = unit * qty;
+        const lineDiscount = disc * qty;
+        return acc + (lineTotal - lineDiscount);
+      }, 0);
+
+      const invoiceData = {
+        ...formData,
+        amount: computedAmount || formData.amount,
+        items,
+        // keep backward-compatible fields for displays using single product
+        productName: firstItem ? firstItem.name : formData.productName,
+        quantity: firstItem ? firstItem.quantity : formData.quantity,
+      };
+
+      // Open Payment popup; finalize after payment is set
+      setPendingInvoice(invoiceData);
+      setShowPaymentModal(true);
+    };
+
+    const finalizeInvoiceWithPayment = async (paymentData) => {
+      if (!pendingInvoice) return;
       setIsSubmitting(true);
-      
       try {
-        // Prepare invoice payload
-        const firstItem = items[0];
-        // Compute amount consistent with table total (include discounts)
-        const computedAmount = items.reduce((acc, it) => {
-          const qty = Number(it.quantity) || 0;
-          const unit = Number(it.unitPrice) || 0;
-          const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0; // per unit discount when enabled
-          const lineTotal = unit * qty;
-          const lineDiscount = disc * qty;
-          return acc + (lineTotal - lineDiscount);
-        }, 0);
-        const invoiceData = {
-          ...formData,
-          amount: computedAmount || formData.amount,
-          items,
-          // keep backward-compatible fields for displays using single product
-          productName: firstItem ? firstItem.name : formData.productName,
-          quantity: firstItem ? firstItem.quantity : formData.quantity,
-        };
-        
-        const newInvoice = addInvoice(invoiceData);
+        const newInvoice = addInvoice({ ...pendingInvoice, payment: paymentData });
         setInvoices(prev => [...prev, newInvoice]);
         // Reset form for next entry
         setErrors({});
@@ -204,9 +213,10 @@ const Invoices = () => {
           amount: 0,
           productName: '',
           quantity: 0,
-          
         });
         setItems([]);
+        setPendingInvoice(null);
+        setShowPaymentModal(false);
       } catch (error) {
         console.error('Error creating invoice:', error);
       } finally {
@@ -511,6 +521,36 @@ const Invoices = () => {
             </div>
           </form>
         </div>
+
+        {/* Payment Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setShowPaymentModal(false)}
+              aria-hidden="true"
+            />
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-semibold">Set Payment</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="text-gray-500 hover:text-gray-700 rounded-md p-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Close payment modal"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="mb-3 text-sm text-gray-600">
+                  Total Payable: <span className="font-medium">{formatLKR(pendingInvoice?.amount || tableTotal)}</span>
+                </div>
+                <Payment onSetPayment={finalizeInvoiceWithPayment} />
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   };
@@ -533,6 +573,9 @@ const Invoices = () => {
 
         {/* Invoices list and details sections removed */}
       </div>
+
+      {/* Payment Modal (rendered at page level to avoid stacking context issues) */}
+      {/* Note: The InlineNewInvoiceForm owns its own modal state; move modal here if lifting state up in future */}
     </div>
   );
 };
