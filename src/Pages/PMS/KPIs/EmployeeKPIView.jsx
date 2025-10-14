@@ -231,7 +231,8 @@ const EmployeeKPIView = () => {
       console.log("Validation data:", {
         employeeDbId,
         progressPercentage: progressData.progressPercentage,
-        note: progressData.note
+        note: progressData.note,
+        rating: progressData.rating // Add rating to validation log
       });
 
       if (!employeeDbId || isNaN(employeeDbId)) {
@@ -240,16 +241,29 @@ const EmployeeKPIView = () => {
         return;
       }
 
-      if (!progressData.progressPercentage && progressData.progressPercentage !== 0) {
-        console.error("Missing progressPercentage:", progressData.progressPercentage);
-        alert("Progress percentage is missing. Please set a progress value.");
-        return;
-      }
+      // Check if this is a performance appraisal task
+      const isPerformanceAppraisal = task.kpi_type === 1 || task.kpi_type === true || task.kpi_type === 'performance_appraisal';
 
-      if (isNaN(parseInt(progressData.progressPercentage))) {
-        console.error("Invalid progressPercentage:", progressData.progressPercentage);
-        alert("Invalid progress percentage. Please ensure you've set a progress value.");
-        return;
+      if (isPerformanceAppraisal) {
+        // For Performance Appraisal: validate rating
+        if (!progressData.rating || progressData.rating < 1 || progressData.rating > 5) {
+          console.error("Invalid rating for performance appraisal:", progressData.rating);
+          alert("Rating is required for performance appraisal tasks (1-5).");
+          return;
+        }
+      } else {
+        // For Regular tasks: validate progress percentage
+        if (!progressData.progressPercentage && progressData.progressPercentage !== 0) {
+          console.error("Missing progressPercentage:", progressData.progressPercentage);
+          alert("Progress percentage is missing. Please set a progress value.");
+          return;
+        }
+
+        if (isNaN(parseInt(progressData.progressPercentage))) {
+          console.error("Invalid progressPercentage:", progressData.progressPercentage);
+          alert("Invalid progress percentage. Please ensure you've set a progress value.");
+          return;
+        }
       }
 
       if (!progressData.note || progressData.note.trim() === '') {
@@ -265,9 +279,21 @@ const EmployeeKPIView = () => {
       formData.append('kpi_assignment_id', parseInt(taskId));
       formData.append('employee_id', employeeDbId);
       formData.append('note', progressData.note.trim());
-      formData.append('progress_percentage', parseInt(progressData.progressPercentage));
+      
+      // Handle progress percentage and rating based on task type
+      if (isPerformanceAppraisal) {
+        // For performance appraisal: use rating * 20 as progress percentage
+        const calculatedProgress = progressData.rating * 20;
+        formData.append('progress_percentage', calculatedProgress);
+        formData.append('rating', progressData.rating);
+      } else {
+        // For regular tasks: use the progress percentage directly
+        formData.append('progress_percentage', parseInt(progressData.progressPercentage));
+        // Don't append rating for regular tasks (it will be null in database)
+      }
+      
       formData.append('performance_metrics', JSON.stringify(progressData.performanceMetrics || {
-        [task.name]: parseInt(progressData.progressPercentage)
+        [task.name]: isPerformanceAppraisal ? (progressData.rating * 20) : parseInt(progressData.progressPercentage)
       }));
       
       // Append document metadata only if file exists

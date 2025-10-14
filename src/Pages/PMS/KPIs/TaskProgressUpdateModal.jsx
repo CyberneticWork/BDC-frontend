@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { X, Loader2, Upload, File, AlertCircle, Clock, Calendar, BarChart, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Loader2, Upload, File, AlertCircle, Clock, Calendar, BarChart, Star } from "lucide-react";
 import Swal from "sweetalert2";
 
 export const TaskProgressUpdateModal = ({ 
@@ -16,8 +16,14 @@ export const TaskProgressUpdateModal = ({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Performance metrics state - now simplified to focus on just one metric matching the task name
+  // Performance metrics state
   const [currentMetricValue, setCurrentMetricValue] = useState(0);
+  
+  // Rating state for performance appraisal tasks
+  const [rating, setRating] = useState(0);
+
+  // Check if this is a performance appraisal task
+  const isPerformanceAppraisal = task?.kpi_type === 1 || task?.kpi_type === true || task?.kpi_type === 'performance_appraisal';
 
   // Map from task name to performance metric key
   const taskNameToMetricKey = {
@@ -42,7 +48,7 @@ export const TaskProgressUpdateModal = ({
       .replace(/^./, str => str.toUpperCase());
   };
 
-  // Get metric key from task name - Updated to be more flexible
+  // Get metric key from task name
   const getMetricKeyFromTask = () => {
     if (!task || !task.name) return null;
     
@@ -113,7 +119,7 @@ export const TaskProgressUpdateModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Enhanced validation - Add minimum length check
+    // Enhanced validation
     if (!progressNote.trim()) {
       await Swal.fire({
         icon: "warning",
@@ -124,7 +130,6 @@ export const TaskProgressUpdateModal = ({
       return;
     }
 
-    // Add minimum length validation to match backend requirement
     if (progressNote.trim().length < 5) {
       await Swal.fire({
         icon: "warning",
@@ -135,7 +140,6 @@ export const TaskProgressUpdateModal = ({
       return;
     }
 
-    // Add maximum length validation to match backend requirement
     if (progressNote.trim().length > 1000) {
       await Swal.fire({
         icon: "warning",
@@ -146,36 +150,51 @@ export const TaskProgressUpdateModal = ({
       return;
     }
 
-    if (currentMetricValue === undefined || currentMetricValue === null || isNaN(currentMetricValue)) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Invalid value",
-        text: "Please set a valid progress percentage.",
-        confirmButtonColor: "#3085d6",
-      });
-      return;
+    // Validation for Performance Appraisal vs Regular tasks
+    if (isPerformanceAppraisal) {
+      // For Performance Appraisal: require rating, progress is auto-calculated
+      if (rating === 0) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Rating required",
+          text: "Please provide a rating from 1-5 for this performance appraisal.",
+          confirmButtonColor: "#3085d6",
+        });
+        return;
+      }
+    } else {
+      // For Regular tasks: require progress percentage
+      if (currentMetricValue === undefined || currentMetricValue === null || isNaN(currentMetricValue)) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Invalid value",
+          text: "Please set a valid progress percentage.",
+          confirmButtonColor: "#3085d6",
+        });
+        return;
+      }
+
+      if (Number(currentMetricValue) <= 0) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Set your progress",
+          text: "Please move the progress bar to indicate your progress before submitting.",
+          confirmButtonColor: "#3085d6",
+        });
+        return;
+      }
+
+      if (currentMetricValue < 0 || currentMetricValue > 100) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Out of range",
+          text: "Progress percentage must be between 0 and 100.",
+          confirmButtonColor: "#3085d6",
+        });
+        return;
+      }
     }
 
-    // Require the user to fill the progress bar (must be > 0)
-    if (Number(currentMetricValue) <= 0) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Set your progress",
-        text: "Please move the progress bar to indicate your progress before submitting.",
-        confirmButtonColor: "#3085d6",
-      });
-      return;
-    }
-
-    if (currentMetricValue < 0 || currentMetricValue > 100) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Out of range",
-        text: "Progress percentage must be between 0 and 100.",
-        confirmButtonColor: "#3085d6",
-      });
-      return;
-    }
     setIsSubmitting(true);
     try {
       // Create current timestamp
@@ -185,8 +204,9 @@ export const TaskProgressUpdateModal = ({
       const metricKey = getMetricKeyFromTask();
       const performanceMetrics = {};
       
-      // Ensure currentMetricValue is a valid integer
-      const progressValue = parseInt(currentMetricValue);
+      // For Performance Appraisal: convert rating to percentage (rating * 20)
+      // For Regular tasks: use the progress bar value
+      const progressValue = isPerformanceAppraisal ? (rating * 20) : parseInt(currentMetricValue);
       
       // Set value only for the current metric, leave others at 0
       Object.keys(taskNameToMetricKey).forEach(taskName => {
@@ -200,7 +220,8 @@ export const TaskProgressUpdateModal = ({
       // Progress data structure expected by the API
       const progressData = {
         note: progressNote.trim(),
-        progressPercentage: progressValue, // Use validated integer
+        progressPercentage: progressValue,
+        rating: isPerformanceAppraisal ? rating : null, // Only send rating for performance appraisal
         performanceMetrics: performanceMetrics,
         date: now,
         author: employeeName || "Employee",
@@ -227,18 +248,17 @@ export const TaskProgressUpdateModal = ({
       setProgressNote("");
       setSelectedFile(null);
       setCurrentMetricValue(0);
+      setRating(0);
       onClose();
     } catch (error) {
       console.error("Error updating progress:", error);
       
-      // Enhanced error handling - keep modal open with data intact
+      // Enhanced error handling
       if (error.response?.status === 422) {
-        // Handle validation errors from backend
         const errors = error.response?.data?.errors;
         if (errors) {
           console.error("Validation errors:", errors);
           
-          // Get first validation error message
           const firstError = Object.values(errors)[0];
           const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
           
@@ -257,7 +277,6 @@ export const TaskProgressUpdateModal = ({
           });
         }
       } else {
-        // Handle other types of errors
         await Swal.fire({
           icon: "error",
           title: "Update failed",
@@ -265,8 +284,6 @@ export const TaskProgressUpdateModal = ({
           confirmButtonColor: "#EF4444",
         });
       }
-      
-      // Don't clear form data or close modal on error - keep user's input intact
     } finally {
       setIsSubmitting(false);
     }
@@ -292,13 +309,43 @@ export const TaskProgressUpdateModal = ({
   const timelinePercentage = getTimelinePercentage();
   const metricKey = getMetricKeyFromTask();
 
+  // Rating display helpers
+  const getRatingLabel = (ratingValue) => {
+    const labels = {
+      1: "Poor",
+      2: "Below Average", 
+      3: "Average",
+      4: "Good",
+      5: "Excellent"
+    };
+    return labels[ratingValue] || "";
+  };
+
+  const getRatingColor = (ratingValue) => {
+    const colors = {
+      1: "text-red-500",
+      2: "text-orange-500",
+      3: "text-yellow-500", 
+      4: "text-blue-500",
+      5: "text-green-500"
+    };
+    return colors[ratingValue] || "text-gray-400";
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Submit Task Progress</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              {isPerformanceAppraisal ? "Submit Performance Rating" : "Submit Task Progress"}
+            </h2>
             <p className="text-gray-600 text-sm mt-1">{task.name}</p>
+            {isPerformanceAppraisal && (
+              <span className="inline-block mt-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                Performance Appraisal
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -341,7 +388,7 @@ export const TaskProgressUpdateModal = ({
               </div>
             </div>
 
-            {/* Document upload - Now optional */}
+            {/* Document upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Document <span className="text-gray-500 text-xs">(Optional)</span>
@@ -404,7 +451,7 @@ export const TaskProgressUpdateModal = ({
             {/* Progress note */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Progress Notes <span className="text-red-500">*</span>
+                {isPerformanceAppraisal ? "Performance Notes" : "Progress Notes"} <span className="text-red-500">*</span>
                 <span className="text-xs text-gray-500 font-normal ml-2">
                   (Minimum 5 characters, Maximum 1000 characters)
                 </span>
@@ -412,7 +459,10 @@ export const TaskProgressUpdateModal = ({
               <textarea
                 value={progressNote}
                 onChange={(e) => setProgressNote(e.target.value)}
-                placeholder="Describe your progress, challenges, or achievements... (minimum 5 characters)"
+                placeholder={isPerformanceAppraisal ? 
+                  "Describe your performance, achievements, or areas for improvement... (minimum 5 characters)" :
+                  "Describe your progress, challenges, or achievements... (minimum 5 characters)"
+                }
                 rows="4"
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
                   progressNote.trim().length > 0 && progressNote.trim().length < 5 
@@ -443,58 +493,134 @@ export const TaskProgressUpdateModal = ({
               </div>
             </div>
 
-            {/* Performance Category Section - Always show regardless of task name */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <BarChart className="h-4 w-4 text-gray-500" />
-                  {getCurrentMetricDisplayName()} Progress
-                </label>
-                <div className="text-sm font-bold text-indigo-600">{currentMetricValue}%</div>
+            {/* Performance Rating or Progress Section */}
+            {isPerformanceAppraisal ? (
+              // Performance Appraisal Rating Section
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Star className="h-4 w-4 text-gray-500" />
+                    Performance Rating <span className="text-red-500">*</span>
+                  </label>
+                  {rating > 0 && (
+                    <div className="text-sm font-bold">
+                      <span className={getRatingColor(rating)}>{rating}/5</span>
+                      <span className="text-gray-500 ml-2">({getRatingLabel(rating)})</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-700">
+                      Rate your performance in <strong>{getCurrentMetricDisplayName()}</strong> from 1 to 5:
+                    </p>
+                    
+                    <div className="flex justify-center space-x-2">
+                      {[1, 2, 3, 4, 5].map((ratingValue) => (
+                        <button
+                          key={ratingValue}
+                          type="button"
+                          onClick={() => setRating(ratingValue)}
+                          className={`w-16 h-16 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                            rating === ratingValue
+                              ? 'border-purple-500 bg-purple-500 text-white shadow-lg'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                          }`}
+                        >
+                          <Star 
+                            className={`h-6 w-6 ${
+                              rating === ratingValue ? 'fill-white' : 'fill-gray-300'
+                            }`}
+                          />
+                          <span className="text-xs font-semibold mt-1">{ratingValue}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Poor</span>
+                      <span>Below Average</span>
+                      <span>Average</span>
+                      <span>Good</span>
+                      <span>Excellent</span>
+                    </div>
+
+                    {rating > 0 && (
+                      <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">
+                            Rating: {rating}/5 ({getRatingLabel(rating)})
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            Progress: {rating * 20}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                          <div 
+                            className="h-2 rounded-full bg-purple-500"
+                            style={{ width: `${rating * 20}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+            ) : (
+              // Regular Task Progress Section
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <BarChart className="h-4 w-4 text-gray-500" />
+                    {getCurrentMetricDisplayName()} Progress
+                  </label>
+                  <div className="text-sm font-bold text-indigo-600">{currentMetricValue}%</div>
+                </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Your Progress in this Task:</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                    <div 
-                      className={`h-2.5 rounded-full ${
-                        currentMetricValue < 30 ? 'bg-red-500' : 
-                        currentMetricValue < 70 ? 'bg-yellow-500' : 
-                        'bg-green-500'
-                      }`}
-                      style={{ width: `${currentMetricValue}%` }}
-                    ></div>
-                  </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Your Progress in this Task:</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                      <div 
+                        className={`h-2.5 rounded-full ${
+                          currentMetricValue < 30 ? 'bg-red-500' : 
+                          currentMetricValue < 70 ? 'bg-yellow-500' : 
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${currentMetricValue}%` }}
+                      ></div>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Rate your {getCurrentMetricDisplayName()} progress (0-100%):
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"  // Changed from "5" to "1" for 1% increments
-                      value={currentMetricValue}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value, 10);
-                        console.log("Range value changed:", value); // Debug log
-                        setCurrentMetricValue(value);
-                      }}
-                      className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500 mt-2">
-                      <span>Not started (0%)</span>
-                      <span>In progress (50%)</span>
-                      <span>Completed (100%)</span>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Rate your {getCurrentMetricDisplayName()} progress (0-100%):
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={currentMetricValue}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value, 10);
+                          console.log("Range value changed:", value);
+                          setCurrentMetricValue(value);
+                        }}
+                        className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-2">
+                        <span>Not started (0%)</span>
+                        <span>In progress (50%)</span>
+                        <span>Completed (100%)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Previous Updates */}
             {myPreviousUpdates.length > 0 && (
@@ -507,11 +633,18 @@ export const TaskProgressUpdateModal = ({
                         <span className="text-xs font-medium text-gray-600">
                           {new Date(update.date).toLocaleDateString()}
                         </span>
-                        {update.progressPercentage !== undefined && (
-                          <span className="text-xs font-bold text-indigo-600">
-                            {update.progressPercentage}%
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {update.rating && (
+                            <span className="text-xs font-bold text-purple-600">
+                              Rating: {update.rating}/5
+                            </span>
+                          )}
+                          {update.progressPercentage !== undefined && (
+                            <span className="text-xs font-bold text-indigo-600">
+                              {update.progressPercentage}%
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <p className="text-xs text-gray-700">{update.note}</p>
                     </div>
@@ -535,6 +668,8 @@ export const TaskProgressUpdateModal = ({
               className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
                 isSubmitting 
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
+                  : isPerformanceAppraisal
+                  ? "bg-purple-600 text-white hover:bg-purple-700"
                   : "bg-indigo-600 text-white hover:bg-indigo-700"
               }`}
             >
@@ -544,7 +679,7 @@ export const TaskProgressUpdateModal = ({
                   <span>Submitting...</span>
                 </>
               ) : (
-                <span>Submit Progress</span>
+                <span>{isPerformanceAppraisal ? "Submit Rating" : "Submit Progress"}</span>
               )}
             </button>
           </div>
