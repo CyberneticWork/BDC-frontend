@@ -4,10 +4,16 @@
 // Pages: GRN, PurchaseOrder, PurchaseReturn, SalesReturn, StockTransfer, StockVerification, Invoices (if inventory invoices)
 
 const inventoryData = {
+  centers: [
+    "Main Center",
+    "Branch A",
+    "Branch B",
+    "Warehouse 01",
+  ],
   invoices: [
     // Mirror structure used by Invoices page
     {
-      id: "INV-001",
+      id: "INV-0001",
       customer: "Acme Corporation",
       customerEmail: "billing@acme.com",
       amount: 5420.0,
@@ -20,7 +26,7 @@ const inventoryData = {
       ],
     },
     {
-      id: "INV-002",
+      id: "INV-0002",
       customer: "Tech Solutions Ltd",
       customerEmail: "accounts@techsolutions.com",
       amount: 8750.0,
@@ -33,7 +39,7 @@ const inventoryData = {
       ],
     },
     {
-      id: "INV-003",
+      id: "INV-0003",
       customer: "Global Enterprises",
       customerEmail: "finance@global.com",
       amount: 3200.0,
@@ -46,10 +52,11 @@ const inventoryData = {
   purchaseOrders: [
     {
       id: 1,
-      orderNumber: "PO001",
+      orderNumber: "PO-0001",
       supplier: "Tech Supplies Ltd",
+      center: "Main Center",
+      refNumber: "REF-PO-0001",
       date: "2024-01-10",
-      expectedDate: "2024-01-15",
       status: "Received",
       items: [
         { productName: "Laptop", quantity: 10, unitPrice: 1000, total: 10000 },
@@ -61,10 +68,11 @@ const inventoryData = {
     },
     {
       id: 2,
-      orderNumber: "PO002",
+      orderNumber: "PO-0002",
       supplier: "Office Equipment Co",
+      center: "Branch A",
+      refNumber: "REF-PO-0002",
       date: "2024-01-15",
-      expectedDate: "2024-01-20",
       status: "Partial",
       items: [
         { productName: "Desktop PC", quantity: 5, unitPrice: 750, total: 3750 },
@@ -80,7 +88,7 @@ const inventoryData = {
       id: 1,
       grnNumber: "GRN001",
       supplier: "Tech Supplies Ltd",
-      purchaseOrder: "PO001",
+      purchaseOrder: "PO-0001",
       receivedDate: "2024-01-12",
       status: "Received",
       items: [
@@ -94,7 +102,7 @@ const inventoryData = {
       id: 2,
       grnNumber: "GRN002",
       supplier: "Office Equipment Co",
-      purchaseOrder: "PO002",
+      purchaseOrder: "PO-0002",
       receivedDate: "2024-01-18",
       status: "Partial",
       items: [
@@ -123,7 +131,7 @@ const inventoryData = {
       id: 1,
       returnNumber: "SR001",
       customer: "ABC Company",
-      originalInvoice: "INV001",
+      originalInvoice: "INV-0001",
       date: "2024-01-25",
       reason: "Defective product",
       status: "Approved",
@@ -191,12 +199,13 @@ export const getPurchaseReturns = () => inventoryData.purchaseReturns;
 export const getSalesReturns = () => inventoryData.salesReturns;
 export const getStockTransfers = () => inventoryData.stockTransfers;
 export const getStockVerifications = () => inventoryData.stockVerifications;
+export const getCenters = () => inventoryData.centers;
 
 // Mutations: create/update/delete with simple in-memory logic
 export const addInvoice = (invoice) => {
   const newInvoice = {
     ...invoice,
-    id: `INV-${String(inventoryData.invoices.length + 1).padStart(3, "0")}`,
+    id: `INV-${String(inventoryData.invoices.length + 1).padStart(4, "0")}`,
   };
   inventoryData.invoices.push(newInvoice);
   return newInvoice;
@@ -223,7 +232,7 @@ export const addPurchaseOrder = (order) => {
   const newOrder = {
     ...order,
     id: Date.now(),
-    orderNumber: `PO${String(inventoryData.purchaseOrders.length + 1).padStart(3, "0")}`,
+    orderNumber: `PO-${String(inventoryData.purchaseOrders.length + 1).padStart(4, "0")}`,
   };
   inventoryData.purchaseOrders.push(newOrder);
   return newOrder;
@@ -315,6 +324,7 @@ export default {
   getSalesReturns,
   getStockTransfers,
   getStockVerifications,
+  getCenters,
   // mutations
   addInvoice,
   updateInvoice,

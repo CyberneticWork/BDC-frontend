@@ -15,7 +15,7 @@ import {
   User,
   MoreVertical
 } from "lucide-react";
-import { getStockTransfers, addStockTransfer, updateStockTransfer } from "../../services/Inventory/inventoryService";
+import { getStockTransfers, addStockTransfer } from "../../services/Inventory/inventoryService";
 
 const StockTransfer = () => {
   const [stockTransfers, setStockTransfers] = useState([]);
