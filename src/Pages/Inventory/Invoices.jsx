@@ -52,7 +52,6 @@ const Invoices = () => {
       amount: 0,
       productName: '',
       quantity: 0,
-      specialRequest: false,
     });
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
@@ -96,7 +95,7 @@ const Invoices = () => {
       return items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = Number(it.discount) || 0; // per unit discount
+        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0; // per unit discount when enabled
         const lineTotal = unit * qty;
         const lineDiscount = disc * qty;
         return acc + (lineTotal - lineDiscount);
@@ -113,6 +112,7 @@ const Invoices = () => {
       
       if (!formData.id) newErrors.id = 'Invoice number not generated';
       if (!formData.center.trim()) newErrors.center = 'Center is required';
+      if (!formData.date) newErrors.date = 'Date is required';
       if (!formData.customer.trim()) newErrors.customer = 'Customer name is required';
       if (!formData.customerEmail.trim()) newErrors.customerEmail = 'Customer email is required';
       if ((items?.length || 0) === 0) {
@@ -143,6 +143,7 @@ const Invoices = () => {
         quantity: qty,
         unitPrice: 0,
         discount: 0,
+        discountEnabled: false,
       };
       setItems(prev => [...prev, newItem]);
       // Clear entry fields for next add
@@ -174,7 +175,7 @@ const Invoices = () => {
         const computedAmount = items.reduce((acc, it) => {
           const qty = Number(it.quantity) || 0;
           const unit = Number(it.unitPrice) || 0;
-          const disc = Number(it.discount) || 0; // per unit discount
+          const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0; // per unit discount when enabled
           const lineTotal = unit * qty;
           const lineDiscount = disc * qty;
           return acc + (lineTotal - lineDiscount);
@@ -203,7 +204,7 @@ const Invoices = () => {
           amount: 0,
           productName: '',
           quantity: 0,
-          specialRequest: false,
+          
         });
         setItems([]);
       } catch (error) {
@@ -213,23 +214,6 @@ const Invoices = () => {
       }
     };
     
-    const resetForm = () => {
-      setErrors({});
-      setFormData({
-        id: '', // will be recomputed by effect
-        center: '',
-        customer: '',
-        customerEmail: '',
-        date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-        refNumber: '',
-        amount: 0,
-        productName: '',
-        quantity: 0,
-        specialRequest: false,
-      });
-      setItems([]);
-    };
 
     return (
       <>
@@ -263,8 +247,11 @@ const Invoices = () => {
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  aria-invalid={!!errors.date}
+                  aria-describedby={errors.date ? 'date-error' : undefined}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.date ? 'border-red-500' : 'border-gray-300'}`}
                 />
+                {errors.date && <p id="date-error" className="text-red-500 text-sm mt-1">{errors.date}</p>}
               </div>
               
 
@@ -300,13 +287,18 @@ const Invoices = () => {
                       setFormData(prev => ({ ...prev, customer: '', customerEmail: '' }));
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  aria-invalid={!!(errors.customer || errors.customerEmail)}
+                  aria-describedby={(errors.customer || errors.customerEmail) ? 'customer-error' : undefined}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${(errors.customer || errors.customerEmail) ? 'border-red-500' : 'border-gray-300'}`}
                 >
                   <option value="">Select customer </option>
                   {availableCustomers.map(c => (
                     <option key={c.email} value={c.email}>{`${c.name} (${c.email})`}</option>
                   ))}
                 </select>
+                {(errors.customer || errors.customerEmail) && (
+                  <p id="customer-error" className="text-red-500 text-sm mt-1">Customer details are required</p>
+                )}
               </div>
             </div>
 
@@ -366,38 +358,12 @@ const Invoices = () => {
                   {errors.quantity && <p className="text-red-500 text-sm mt-1">{errors.quantity}</p>}
                 </div>
 
-                {/* Special Request Toggle */}
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={formData.specialRequest}
-                    aria-disabled={formData.specialRequest}
-                    disabled={formData.specialRequest}
-                    title={formData.specialRequest ? 'Special Request is already enabled' : 'Enable Special Request to add a discount'}
-                    onClick={() => {
-                      // Toggle and clear discounts when turning off
-                      setFormData(prev => {
-                        const next = !prev.specialRequest;
-                        if (!next) {
-                          setItems(prevItems => prevItems.map(i => ({ ...i, discount: 0 })));
-                        }
-                        return { ...prev, specialRequest: next };
-                      });
-                    }}
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none
-                      ${formData.specialRequest ? 'bg-blue-600 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}>
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.specialRequest ? 'translate-x-6' : 'translate-x-1'}`}/>
-                    <span className="sr-only">Toggle Special Request</span>
-                  </button>
-                  <span className="ms-3 text-sm font-medium text-gray-900">Special Request</span>
-                </div>
+                {/* Removed global Special Request toggle; discount is now controlled per row */}
 
 
 
                 <div className="flex items-end">
-                  <button type="button" onClick={handleAddItem} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 -ml-18">
+                  <button type="button" onClick={handleAddItem} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 ">
                     <Plus className="h-4 w-4" />
                     Add to List
                   </button>
@@ -406,7 +372,7 @@ const Invoices = () => {
               </div>
 
 
-              {/*added table for product*/}
+          {/*/////////added table for product////////////*/}
               {items.length > 0 && (
                 <div className="mt-4 overflow-x-auto">
                   <div className="inline-block min-w-full align-middle">
@@ -418,12 +384,15 @@ const Invoices = () => {
                             <th scope="col" className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Product Name</th>
                             <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
                             <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
-                            <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Per unit discount (enabled via Special Request)">Discount</th>
+                            <th scope="col" className="px-3 sm:px-4 py-2 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
+                            <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Per unit discount when enabled">Discount</th>
                             <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
                             <th scope="col" className="px-2 sm:px-3 py-2 text-right"></th>
                           </tr>
                         </thead>
+
                         <tbody className="bg-white divide-y divide-gray-100">
+
                           {items.map((it, idx) => {
                             const Discount = (Number(it.discount) || 0) * (Number(it.quantity) || 0);
                             const Total = (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0);
@@ -454,6 +423,32 @@ const Invoices = () => {
                                     className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                   />
                                 </td>
+
+                                {/*toggle button for discount enable*/}
+                                <td className="px-3 sm:px-4 py-2 text-center whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={!!it.discountEnabled}
+                                    aria-disabled={it.discountEnabled}
+                                    disabled={it.discountEnabled}
+                                    onClick={() => {
+                                      if (it.discountEnabled) return; // one-time enable only
+                                      setItems(prev => prev.map(row => (
+                                        row.id === it.id
+                                          ? { ...row, discountEnabled: true }
+                                          : row
+                                      )));
+                                    }}
+                                    className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${it.discountEnabled ? 'bg-blue-600 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}
+                                    title={it.discountEnabled ? 'Discount enabled (locked)' : 'Enable discount for this row'}
+                                  >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${it.discountEnabled ? 'translate-x-5' : 'translate-x-1'}`}/>
+                                    <span className="sr-only">Toggle discount</span>
+                                  </button>
+                                </td>
+
+
                                 <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
                                   <input
                                     type="number"
@@ -461,13 +456,17 @@ const Invoices = () => {
                                     step="0.01"
                                     value={it.discount}
                                     onChange={(e) => updateItemField(it.id, 'discount', parseFloat(e.target.value) || 0)}
-                                    disabled={!formData.specialRequest}
+                                    disabled={!it.discountEnabled}
                                     aria-label={`Per-unit discount for ${it.name}`}
-                                    title={!formData.specialRequest ? 'Enable Special Request to add a discount' : undefined}
-                                    className={`w-24 px-2 py-1 border rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 ${!formData.specialRequest ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'border-gray-300'}`}
+                                    title={!it.discountEnabled ? 'Enable discount in this row to edit' : undefined}
+                                    className={`w-24 px-2 py-1 border rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 ${!it.discountEnabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'border-gray-300'}`}
                                   />
                                 </td>
-                                <td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
+
+                                 {/*total amount*/}
+                                <td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td> 
+
+
                                 <td className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">
                                   <button
                                     type="button"
@@ -490,20 +489,11 @@ const Invoices = () => {
             
             </div>
 
-            {/* Form Actions */}
-            <div className="flex flex-col sm:flex-row justify-end gap-3">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 order-2 sm:order-1"
-                disabled={isSubmitting}
-              >
-                Clear
-              </button>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full "
               >
                 {isSubmitting ? (
                   <>
