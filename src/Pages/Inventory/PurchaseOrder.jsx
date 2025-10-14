@@ -218,11 +218,11 @@ const PurchaseOrder = () => {
 						</div>
 
 						{/* Items entry section */}
-            
+
 						<div className="mb-4 sm:mb-6">
-							<h4 className="text-base sm:text-lg font-medium text-gray-900 mb-4">Items</h4>
+							<h4 className="text-base sm:text-lg font-medium text-gray-900 mb-4"> Add Items</h4>
 							<div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-								<div>
+								<div className="sm:col-span-3">
 									<label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
 									<input
 										type="text"
@@ -233,31 +233,7 @@ const PurchaseOrder = () => {
 									/>
 									{errors.productName && <p className="text-red-500 text-sm mt-1">{errors.productName}</p>}
 								</div>
-								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-2">Quantity *</label>
-									<input
-										type="number"
-										min="1"
-										value={entry.quantity}
-										onChange={(e) => setEntry((p) => ({ ...p, quantity: parseInt(e.target.value) || 0 }))}
-										className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.quantity ? "border-red-500" : "border-gray-300"}`}
-										placeholder="Enter quantity"
-									/>
-									{errors.quantity && <p className="text-red-500 text-sm mt-1">{errors.quantity}</p>}
-								</div>
-								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-2">Unit Price *</label>
-									<input
-										type="number"
-										min="0"
-										step="0.01"
-										value={entry.unitPrice}
-										onChange={(e) => setEntry((p) => ({ ...p, unitPrice: parseFloat(e.target.value) || 0 }))}
-										className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.unitPrice ? "border-red-500" : "border-gray-300"}`}
-										placeholder="Enter unit price"
-									/>
-									{errors.unitPrice && <p className="text-red-500 text-sm mt-1">{errors.unitPrice}</p>}
-								</div>
+								
 								<div className="flex items-end">
 									<button
 										type="button"
