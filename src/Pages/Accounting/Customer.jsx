@@ -12,8 +12,14 @@ import {
 const Customer = () => {
   const [customers, setCustomers] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showTypeModal, setShowTypeModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [customerCategories, setCustomerCategories] = useState([]);
+  const [customerTypes, setCustomerTypes] = useState([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [newType, setNewType] = useState('');
   const [formData, setFormData] = useState({
     customerCategory: '',
     customerType: '',
@@ -25,12 +31,11 @@ const Customer = () => {
     city: ''
   });
 
-  const customerCategories = getCustomerCategories();
-  const customerTypes = getCustomerTypes();
-
   useEffect(() => {
     // Load initial data from service
     setCustomers(getCustomers());
+    setCustomerCategories(getCustomerCategories());
+    setCustomerTypes(getCustomerTypes());
     
     // Check screen size
     const checkScreenSize = () => {
@@ -73,6 +78,30 @@ const Customer = () => {
     setCustomers(prev => prev.filter(customer => customer.id !== id));
   };
 
+  const handleAddCategory = (e) => {
+    e.preventDefault();
+    if (newCategory.trim() && !customerCategories.includes(newCategory.trim())) {
+      setCustomerCategories(prev => [...prev, newCategory.trim()]);
+      setNewCategory('');
+      setShowCategoryModal(false);
+      alert('Customer Category added successfully!');
+    } else if (customerCategories.includes(newCategory.trim())) {
+      alert('This category already exists!');
+    }
+  };
+
+  const handleAddType = (e) => {
+    e.preventDefault();
+    if (newType.trim() && !customerTypes.includes(newType.trim())) {
+      setCustomerTypes(prev => [...prev, newType.trim()]);
+      setNewType('');
+      setShowTypeModal(false);
+      alert('Customer Type added successfully!');
+    } else if (customerTypes.includes(newType.trim())) {
+      alert('This type already exists!');
+    }
+  };
+
   const filteredCustomers = customers.filter(customer =>
     customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -99,13 +128,29 @@ const Customer = () => {
             className="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
           />
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm md:text-base"
-        >
-          <Plus className="h-4 w-4" />
-          Create Customer
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm md:text-base"
+          >
+            <Plus className="h-4 w-4" />
+            Create Customer
+          </button>
+          <button
+            onClick={() => setShowCategoryModal(true)}
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm md:text-base"
+          >
+            <Plus className="h-4 w-4" />
+            Customer Category
+          </button>
+          <button
+            onClick={() => setShowTypeModal(true)}
+            className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm md:text-base"
+          >
+            <Plus className="h-4 w-4" />
+            Customer Type
+          </button>
+        </div>
       </div>
 
       {/* Customer List */}
@@ -409,6 +454,120 @@ const Customer = () => {
                   className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm md:text-base"
                 >
                   Create Customer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Category Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md">
+            <div className="bg-white border-b border-gray-200 p-4 md:p-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">Add Customer Category</h2>
+                <button
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setNewCategory('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <X className="h-5 w-5 md:h-6 md:w-6" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddCategory} className="p-4 md:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="Enter category name"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm md:text-base"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setNewCategory('');
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm md:text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm md:text-base"
+                >
+                  Add Category
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Type Modal */}
+      {showTypeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md">
+            <div className="bg-white border-b border-gray-200 p-4 md:p-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">Add Customer Type</h2>
+                <button
+                  onClick={() => {
+                    setShowTypeModal(false);
+                    setNewType('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <X className="h-5 w-5 md:h-6 md:w-6" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddType} className="p-4 md:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type Name *
+                </label>
+                <input
+                  type="text"
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value)}
+                  placeholder="Enter type name"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm md:text-base"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTypeModal(false);
+                    setNewType('');
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm md:text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm md:text-base"
+                >
+                  Add Type
                 </button>
               </div>
             </form>
