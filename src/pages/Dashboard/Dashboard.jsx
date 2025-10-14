@@ -58,7 +58,8 @@ import LMS from "../LMS/LMS";
 import UserStats from "../LMS/UserStats";
 
 // Import Accounting components
-import AccountingDashboard from "../Accounting/Dashboard";
+import AccountingDashboard from "@Accounting/Dashboard";
+import DoubleEntry from "../Accounting/DoubleEntry";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
 import AccountList from "../Accounting/AccountList";
 import Customer from "../Accounting/Customer";
@@ -919,6 +920,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "cheque" ? (
               <ProtectedComponent module="cheque" action="view">
                 <Cheque />
+              </ProtectedComponent>
+            ) : activeItem === "doubleEntry" ? (
+              <ProtectedComponent module="doubleEntry" action="view">
+                <DoubleEntry />
               </ProtectedComponent>
             ) : activeItem === "bankReconciliation" ? (
               <ProtectedComponent module="bankReconciliation" action="view">

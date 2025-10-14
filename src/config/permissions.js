@@ -81,6 +81,7 @@ export const permissions = {
     accountingSettings: { view: true, edit: true },
     usersAndRoles: { view: true, edit: true },
     PerformanceAppraisal: { view: true, edit: true },
+    doubleEntry: { view: true, edit: true },
   },
   hr: {
     dashboard: { view: true, edit: true },

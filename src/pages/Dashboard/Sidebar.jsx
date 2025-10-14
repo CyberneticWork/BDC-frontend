@@ -167,6 +167,7 @@ const Sidebar = ({
           name: "Chart of Accounts",
           subItems: [
             { id: "accountList", name: "Account List" },
+            {id: "doubleEntry", name: "Double Entry"},
             { id: "supplierEnterBill", name: "Supplier Enter Bill" },
             { id: "payment", name: "Payment" },
             { id: "advancePayment", name: "Advance Payment" },
