@@ -161,6 +161,7 @@ const Sidebar = ({
       subItems: [
         { id: "accountingDashboard", name: "Dashboard" },
         { id: "customer", name: "Customer" },
+        { id: "supplier", name: "Supplier" },
         { id: "center", name: "Center" },
         {
           id: "chartOfAccounts",

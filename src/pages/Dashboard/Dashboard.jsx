@@ -59,6 +59,7 @@ import UserStats from "../LMS/UserStats";
 
 // Import Accounting components
 import AccountingDashboard from "@Accounting/Dashboard";
+import Supplier from "../Accounting/Supplier";
 import DoubleEntry from "../Accounting/DoubleEntry";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
 import AccountList from "../Accounting/AccountList";
@@ -929,7 +930,12 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="bankReconciliation" action="view">
                 <BankReconciliation />
               </ProtectedComponent>
-            ) : (
+            ) : activeItem === "supplier" ? (
+              <ProtectedComponent module="supplier" action="view">
+                <Supplier />
+              </ProtectedComponent>
+            ) :
+            (
               <div className="space-y-8">
                 <div className="text-center mb-8">
                   <h1 className="text-4xl font-bold text-gray-900 mb-2">

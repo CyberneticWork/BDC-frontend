@@ -82,6 +82,7 @@ export const permissions = {
     usersAndRoles: { view: true, edit: true },
     PerformanceAppraisal: { view: true, edit: true },
     doubleEntry: { view: true, edit: true },
+    supplier: { view: true, edit: true },
   },
   hr: {
     dashboard: { view: true, edit: true },
