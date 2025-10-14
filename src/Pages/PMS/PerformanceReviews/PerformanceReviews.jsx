@@ -1244,6 +1244,14 @@ const PerformanceReviews = () => {
     return 'bg-red-100 text-red-800';
   };
 
+  // Add this helper function near your other helper functions (around line 1220, after getGradeBadgeClass)
+const getTaskTypeBadge = (taskType) => {
+  if (taskType === 'Performance Appraisal') {
+    return 'bg-purple-100 text-purple-800';
+  }
+  return 'bg-blue-100 text-blue-800';
+};
+
   // Handle filter changes
   const handleFilterChange = (filterType, value) => {
     setSelectedFilters(prev => {
@@ -2135,7 +2143,7 @@ const PerformanceReviews = () => {
         <div className="text-sm font-medium text-gray-700">Grades:</div>
         {['A+','A','B','C','C-'].map(g => (
           <div key={g} className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${getGradeBadgeClass(g)}`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${getGradeBadgeClass(g)}`}>
               {g}
             </span>
             <span className="text-xs text-gray-500">
@@ -2242,6 +2250,10 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+                {/* Add the new Task Type column header */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Task Type
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Self-Reported Progress
@@ -2249,27 +2261,8 @@ const PerformanceReviews = () => {
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex itemscenter gap-1">
+                  <div className="flex items-center gap-1">
                     Progress
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Status
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Grade
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                {/* Moved Weights Total here (after Grade) */}
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Weights Total
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
@@ -2282,7 +2275,7 @@ const PerformanceReviews = () => {
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
-                           </tr>
+              </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredReviews.length > 0 ? (
@@ -2292,33 +2285,33 @@ const PerformanceReviews = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-900">{review.employeeName}</div>
                         <div className="text-xs text-gray-500">{review.position}</div>
-                        <div className="text-xs text-gray-400">ID: {review.employeeId}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {review.department}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{review.department}</div>
+                    </td>
+                    {/* Add the new Task Type column data */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskTypeBadge(review.taskType)}`}>
+                        {review.taskType}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {typeof review.selfReportedProgress === 'number' ? (
-                        <div className="flex items-center">
-                          <div className="w-38 md:w-50 flex-shrink-0 mr-3">
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                              <div
-                                className={`h-1.5 rounded-full ${
-                                  review.selfReportedProgress < 30 ? 'bg-red-500' :
-                                 
-                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' : 
-                                  'bg-green-500'
-                                }`}
-                                style={{ width: `${review.selfReportedProgress}%` }}
-                              ></div>
-                            </div>
+                      <div className="flex items-center">
+                        <div className="w-38 md:w-50 flex-shrink-0 mr-4">
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                            <div 
+                              className={`h-1.5 rounded-full ${
+                                review.selfReportedProgress < 30 ? 'bg-red-500' : 
+                                review.selfReportedProgress < 70 ? 'bg-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${review.selfReportedProgress}%` }}
+                            ></div>
                           </div>
-                          <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
-                                               </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">—</span>
-                      )}
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -2335,41 +2328,6 @@ const PerformanceReviews = () => {
                           </div>
                         </div>
                         <span className="text-xs font-medium text-gray-700">{review.progress}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(review.status)}`}>
-                        {normalizeStatus(review.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {review.grade ? (
-                       
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getGradeBadgeClass(review.grade)}`}>
-                          {review.grade}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Not graded</span>
-                      )}
-                    </td>
-                    {/* Moved Weights Total cell here (after Grade) */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-center">
-                        <span className="text-sm font-bold text-indigo-600">
-                          {(() => {
-                           
-                            // try weights on review first
-                            if (review?.weights && review.weights.length > 0) {
-                              return review.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
-                            }
-                            // fallback: look up the linked task and use its weights
-                            if (review?.taskId) {
-                              // Remove dummy data lookup - weights should come from database
-                              return 0;
-                            }
-                            return 0;
-                          })()}%
-                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -2433,7 +2391,7 @@ const PerformanceReviews = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-10 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <Search className="h-10 w-10 text-gray-300 mb-2" />
                       <p className="text-lg font-medium text-gray-600">No reviews found</p>
