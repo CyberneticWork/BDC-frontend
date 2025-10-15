@@ -468,10 +468,13 @@ class PMSService {
   // NEW: Update Performance Review
   async updatePerformanceReview(assignmentId, reviewData) {
     try {
+      console.log('PMSService sending data:', reviewData); // Debug log
+      
       const response = await axios.put(`/pms/performance-reviews/${assignmentId}`, reviewData);
       return response.data;
     } catch (error) {
       console.error("Error updating performance review:", error);
+      console.error("Error response data:", error.response?.data); // More detailed logging
       throw error;
     }
   }
