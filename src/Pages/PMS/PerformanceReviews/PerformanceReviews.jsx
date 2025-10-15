@@ -490,6 +490,14 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                       <div className="text-xs text-gray-500">Employee Self-Report</div>
                     </div>
                   )}
+
+                  {/* Add Self Rating Display */}
+                  {review?.isPerformanceAppraisal && review?.selfRating && (
+                    <div className="text-center border-l border-gray-200 pl-4">
+                      <div className="text-lg font-medium text-purple-600">{review.selfRating}/5</div>
+                      <div className="text-xs text-gray-500">Self Rating</div>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -842,7 +850,9 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
         latestSubmissionNote: Array.isArray(details?.submissions) && details.submissions.length > 0 ? details.submissions[0].note : null,
         documentCount: Array.isArray(details?.submissions) ? details.submissions.filter(s => s.documentName).length : (review.documentCount || 0),
         performanceMetrics: review.performanceMetrics,
-        submissions: details?.submissions ?? []
+        submissions: details?.submissions ?? [],
+        selfRating: details?.selfRating ?? review.selfRating ?? null,
+        isPerformanceAppraisal: details?.isPerformanceAppraisal ?? review.isPerformanceAppraisal ?? false,
       };
       setReviewDetails(transformedDetails);
     } catch (error) {
@@ -1093,6 +1103,26 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
                     </div>
                     <span className="text-lg font-bold text-gray-900">{reviewDetails.overallRating}</span>
                     <span className="text-sm text-gray-500">out of 5</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Self Rating - new section */}
+              {reviewDetails.isPerformanceAppraisal && reviewDetails.selfRating && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Employee Self Rating</h3>
+                  <div className="bg-purple-50 rounded-xl p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                      <User className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Self Assessment</p>
+                      <p className="font-medium text-gray-900">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {reviewDetails.selfRating}/5
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1998,29 +2028,29 @@ const getTaskTypeBadge = (taskType) => {
     }
   };
   
-  const handleSaveProgressReview = async (updatedReview) => {
-    try {
-      setIsLoading(true);
-      const payload = {
-        progress: updatedReview.progress,
-        grade: updatedReview.grade,
-        supervisor_comments: updatedReview.supervisorComments,
-        status: updatedReview.status,
-        performance_metrics: updatedReview.performanceMetrics
-      };
-      // call backend (see [`PMSService.updatePerformanceReview`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js))
-      await PMSService.updatePerformanceReview(updatedReview.id, payload);
-      toast.success('Review updated');
-      // mark for refresh and close modal
-      setNeedsRefresh(true);
-      setIsProgressModalOpen(false);
-    } catch (e) {
-      console.error('Update failed', e);
-      toast.error(e?.response?.data?.message || 'Failed to update review');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const handleSaveProgressReview = async (updatedReview) => {
+  try {
+    setIsLoading(true);
+    const payload = {
+      progress: updatedReview.progress,
+      grade: updatedReview.grade,
+      supervisor_comments: updatedReview.supervisorComments,
+      status: updatedReview.status,
+      performance_metrics: updatedReview.performanceMetrics
+    };
+    // call backend (see [`PMSService.updatePerformanceReview`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js))
+    await PMSService.updatePerformanceReview(updatedReview.id, payload);
+    toast.success('Review updated');
+    // mark for refresh and close modal
+    setNeedsRefresh(true);
+    setIsProgressModalOpen(false);
+  } catch (e) {
+    console.error('Update failed', e);
+    toast.error(e?.response?.data?.message || 'Failed to update review');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleCreateReview = async (formData) => {
     try {
@@ -2115,7 +2145,7 @@ const getTaskTypeBadge = (taskType) => {
             <div>
               <div className="text-sm font-medium text-gray-500">Pending Approval</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => normalizeStatus(r.status) === 'Pending').length}
+                {reviewData.filter(r => r.status === 'Pending').length}
               </div>
             </div>
           </div>
@@ -2272,6 +2302,13 @@ const getTaskTypeBadge = (taskType) => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+                {/* Add this new column header for Self Rating */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Self Rating
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -2333,6 +2370,18 @@ const getTaskTypeBadge = (taskType) => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {new Date(review.dueDate).toLocaleDateString()}
                     </td>
+                    {/* Add this new cell for Self Rating */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {review.isPerformanceAppraisal && review.selfRating ? (
+                        <div className="flex items-center">
+                          <div className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                            {review.selfRating}/5
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         {/* Always show View Details for all roles with view permission */}
@@ -2391,7 +2440,7 @@ const getTaskTypeBadge = (taskType) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="px-6 py-10 text-center text-gray-500">
+                  <td colSpan="9" className="px-6 py-10 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <Search className="h-10 w-10 text-gray-300 mb-2" />
                       <p className="text-lg font-medium text-gray-600">No reviews found</p>
