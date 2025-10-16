@@ -57,7 +57,24 @@ const Supplier = () => {
   const loadData = async () => {
     try {
       const fetchedSuppliers = await SupplierService.list();
-      setSuppliers(fetchedSuppliers);
+
+      // Normalize backend snake_case to frontend camelCase for UI consistency
+      const mapped = (fetchedSuppliers || []).map((s) => ({
+        // keep id and timestamps if present
+        id: s.id,
+        supplierName: s.supplier_name ?? s.supplierName ?? '',
+        phoneNumber: s.phone_number ?? s.phoneNumber ?? '',
+        nic: s.nic ?? '',
+        email: s.email ?? '',
+        address1: s.address1 ?? '',
+        address2: s.address2 ?? '',
+        creditValue: s.credit_value != null ? Number(s.credit_value) : (s.creditValue != null ? Number(s.creditValue) : 0),
+        creditPeriod: s.credit_period != null ? Number(s.credit_period) : (s.creditPeriod != null ? Number(s.creditPeriod) : 0),
+        // keep raw object for any future needs
+        _raw: s,
+      }));
+
+      setSuppliers(mapped);
     } catch (error) {
       console.error("Error loading suppliers:", error);
       alert("Failed to load suppliers");
@@ -125,11 +142,23 @@ const Supplier = () => {
 
     (async () => {
       try {
+        // Map frontend camelCase fields to backend expected snake_case keys
+        const payload = {
+          supplier_name: supplierData.supplierName,
+          phone_number: supplierData.phoneNumber,
+          nic: supplierData.nic,
+          email: supplierData.email,
+          address1: supplierData.address1,
+          address2: supplierData.address2,
+          credit_value: supplierData.creditValue,
+          credit_period: supplierData.creditPeriod,
+        };
+
         if (editingSupplier) {
-          await SupplierService.update(editingSupplier.id, supplierData);
+          await SupplierService.update(editingSupplier.id, payload);
           await Swal.fire({ icon: 'success', title: 'Supplier updated', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
         } else {
-          await SupplierService.create(supplierData);
+          await SupplierService.create(payload);
           await Swal.fire({ icon: 'success', title: 'Supplier added', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
         }
         await loadData();
