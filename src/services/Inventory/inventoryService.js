@@ -49,6 +49,26 @@ const inventoryData = {
       currentstock: "15",
     },
   ],
+
+
+  customers: [
+    {
+      id: "SO-0001",
+      customer: "CNN Company",
+    },
+    {
+      id: "SO-0002",
+      customer: "Ratnasiri group",
+     
+    },
+    {
+      id: "SO-0003",
+      customer: "ACB Pvt",
+     
+    },
+  ],
+
+
   invoices: [
     // Mirror structure used by Invoices page
     {
@@ -240,6 +260,7 @@ export const getStockTransfers = () => inventoryData.stockTransfers;
 export const getStockVerifications = () => inventoryData.stockVerifications;
 export const getCenters = () => inventoryData.centers;
 export const getProducts = () => inventoryData.products;
+export const getCustomers = () => inventoryData.customers;
 
 // Mutations: create/update/delete with simple in-memory logic
 export const addInvoice = (invoice) => {
@@ -366,6 +387,7 @@ export default {
   getStockVerifications,
   getCenters,
   getProducts,
+  getCustomers,
   // mutations
   addInvoice,
   updateInvoice,
