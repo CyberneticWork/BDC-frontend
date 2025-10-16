@@ -2464,6 +2464,13 @@ const handleSaveProgressReview = async (updatedReview) => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+                {/* New Appraisal Rating column (supervisor 1-5 for appraisal tasks) */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Appraisal Rating
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -2536,6 +2543,27 @@ const handleSaveProgressReview = async (updatedReview) => {
                       ) : (
                         <span className="text-xs text-gray-400">—</span>
                       )}
+                    </td>
+                    {/* Appraisal Rating (supervisor 1-5) */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(() => {
+                        const val = review.appraisal_rating ?? 
+                                    review.appraisalRating ?? 
+                                    review.appraisal ?? 
+                                    null;
+                                    
+                        if (!val || !review.isPerformanceAppraisal) {
+                          return <span className="text-xs text-gray-400">—</span>;
+                        }
+                        
+                        return (
+                          <div className="flex items-center justify-center">
+                            <div className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                              {Number(val)}/5
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
