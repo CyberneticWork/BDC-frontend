@@ -1,49 +1,33 @@
-import axios from "../utils/axios";
+import axios from "@utils/axios";
 
-const unwrap = (res) => res?.data?.data ?? res?.data;
-
-const fromApi = (c) => ({
-  id: c.id,
-  customerName: c.name,
-  email: c.email,
-  phoneNumber: c.phone ?? '',
-  brNumberNic: c.br_number_nic ?? '',
-  address: c.address ?? '',
-  city: c.city ?? '',
-  customerCategory: c.customer_category_id ?? c.category?.id ?? null,
-  customerType: c.customer_type_id ?? c.type?.id ?? null,
-  customerCategoryName: c.category?.name ?? '',
-  customerTypeName: c.type?.name ?? '',
-});
-
-const toApi = (data) => ({
-  name: data.customerName,
-  email: data.email,
-  phone: data.phoneNumber || null,
-  br_number_nic: data.brNumberNic || null,
-  address: data.address || null,
-  city: data.city || null,
-  customer_category_id: data.customerCategory || null,
-  customer_type_id: data.customerType || null,
-});
+// Helper function to extract response data
+const unwrap = (response) => {
+  return response.data;
+};
 
 // Customers
 export const getCustomers = async () => {
   try {
     const response = await axios.get(`/customers`);
     const data = unwrap(response);
-    return Array.isArray(data) ? data.map(fromApi) : [];
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Error fetching customers:', error);
     throw error.response?.data?.errors || error.message;
   }
 };
 
-export const createCustomer = async (form) => {
+export const addCustomer = async (form) => {
+  const payload = {
+    name: form.customerName,
+    email: form.email,
+    phone: form.phoneNumber,
+    address: form.address,
+  }
   try {
-    const response = await axios.post(`/customers`, toApi(form));
+    const response = await axios.post(`/customers`, payload);
     const data = unwrap(response);
-    return fromApi(data);
+    return data;
   } catch (error) {
     console.error('Error creating customer:', error);
     throw error.response?.data?.errors || error.message;
@@ -52,9 +36,9 @@ export const createCustomer = async (form) => {
 
 export const updateCustomer = async (id, form) => {
   try {
-    const response = await axios.put(`/customers/${id}`, toApi(form));
+    const response = await axios.put(`/customers/${id}`, form);
     const data = unwrap(response);
-    return fromApi(data);
+    return data;
   } catch (error) {
     console.error('Error updating customer:', error);
     throw error.response?.data?.errors || error.message;
@@ -117,7 +101,7 @@ export const addCustomerType = async (name, description = null) => {
 
 export default {
   getCustomers,
-  createCustomer,
+  addCustomer,
   updateCustomer,
   deleteCustomer,
   getCustomerCategories,

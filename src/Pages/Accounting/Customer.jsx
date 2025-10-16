@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X, Menu, Phone, Mail, MapPin } from 'lucide-react';
 import {
   getCustomers,
-  getCustomerCategories,
+  addCustomerCategory,
   getCustomerTypes,
+  addCustomerType,
   addCustomer,
   updateCustomer,
-  deleteCustomer
-} from '../../services/AccountingService';
+  deleteCustomer,
+  getCustomerCategories
+} from '@services/Account/CustomerService';
 
 const Customer = () => {
   const [customers, setCustomers] = useState([]);
@@ -34,9 +36,9 @@ const Customer = () => {
 
   useEffect(() => {
     // Load initial data from service
-    setCustomers(getCustomers());
-    setCustomerCategories(getCustomerCategories());
-    setCustomerTypes(getCustomerTypes());
+    loadCustomers();
+    loadCustomerCategories();
+    loadCustomerTypes();
     
     // Check screen size
     const checkScreenSize = () => {
@@ -49,6 +51,36 @@ const Customer = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
+  const loadCustomers = async () => {
+    try {
+      const data = await getCustomers();
+      setCustomers(data);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+      alert('Error loading customers: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const loadCustomerCategories = async () => {
+    try {
+      const data = await getCustomerCategories();
+      setCustomerCategories(data);
+    } catch (error) {
+      console.error('Error loading customer categories:', error);
+      alert('Error loading customer categories: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const loadCustomerTypes = async () => {
+    try {
+      const data = await getCustomerTypes();
+      setCustomerTypes(data);
+    } catch (error) {
+      console.error('Error loading customer types:', error);
+      alert('Error loading customer types: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -57,81 +89,123 @@ const Customer = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingCustomer) {
-      // Update existing customer
-      const updatedCustomer = updateCustomer(editingCustomer.id, formData);
-      setCustomers(prev => prev.map(customer => 
-        customer.id === editingCustomer.id ? updatedCustomer : customer
-      ));
-      setEditingCustomer(null);
-    } else {
-      // Create new customer
-      const newCustomer = addCustomer(formData);
-      setCustomers(prev => [...prev, newCustomer]);
+    // console.log('Submitting form with data:', formData);
+    try {
+      if (editingCustomer) {
+        // Update existing customer
+        const updatedCustomer = await updateCustomer(editingCustomer.id, formData);
+        setCustomers(prev => prev.map(customer => 
+          customer.id === editingCustomer.id ? updatedCustomer : customer
+        ));
+        setEditingCustomer(null);
+        alert('Customer updated successfully!');
+      } else {
+        // Create new customer
+        const newCustomer = await addCustomer(formData);
+        setCustomers(prev => [...prev, newCustomer]);
+        alert('Customer created successfully!');
+      }
+      setFormData({
+        customerCategory: '',
+        customerType: '',
+        customerName: '',
+        phoneNumber: '',
+        brNumberNic: '',
+        email: '',
+        address: '',
+        city: ''
+      });
+      setShowCreateForm(false);
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      alert('Error saving customer: ' + (error.message || 'Unknown error'));
     }
-    setFormData({
-      customerCategory: '',
-      customerType: '',
-      customerName: '',
-      phoneNumber: '',
-      brNumberNic: '',
-      email: '',
-      address: '',
-      city: ''
-    });
-    setShowCreateForm(false);
   };
 
   const handleEdit = (customer) => {
     setEditingCustomer(customer);
     setFormData({
-      customerCategory: customer.customerCategory,
-      customerType: customer.customerType,
-      customerName: customer.customerName,
-      phoneNumber: customer.phoneNumber,
-      brNumberNic: customer.brNumberNic,
-      email: customer.email,
-      address: customer.address,
-      city: customer.city
+      customerCategory: customer.customerCategory || '',
+      customerType: customer.customerType || '',
+      customerName: customer.customerName || '',
+      phoneNumber: customer.phoneNumber || '',
+      brNumberNic: customer.brNumberNic || '',
+      email: customer.email || '',
+      address: customer.address || '',
+      city: customer.city || ''
     });
     setShowCreateForm(true);
   };
 
-  const handleDelete = (id) => {
-    deleteCustomer(id);
-    setCustomers(prev => prev.filter(customer => customer.id !== id));
-  };
-
-  const handleAddCategory = (e) => {
-    e.preventDefault();
-    if (newCategory.trim() && !customerCategories.includes(newCategory.trim())) {
-      setCustomerCategories(prev => [...prev, newCategory.trim()]);
-      setNewCategory('');
-      setShowCategoryModal(false);
-      alert('Customer Category added successfully!');
-    } else if (customerCategories.includes(newCategory.trim())) {
-      alert('This category already exists!');
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this customer?')) {
+      try {
+        await deleteCustomer(id);
+        setCustomers(prev => prev.filter(customer => customer.id !== id));
+        alert('Customer deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        alert('Error deleting customer: ' + (error.message || 'Unknown error'));
+      }
     }
   };
 
-  const handleAddType = (e) => {
+  const handleAddCategory = async (e) => {
     e.preventDefault();
-    if (newType.trim() && !customerTypes.includes(newType.trim())) {
-      setCustomerTypes(prev => [...prev, newType.trim()]);
-      setNewType('');
-      setShowTypeModal(false);
-      alert('Customer Type added successfully!');
-    } else if (customerTypes.includes(newType.trim())) {
-      alert('This type already exists!');
+    try {
+      if (newCategory.trim()) {
+        const categoryExists = customerCategories.some(cat => 
+          cat.name.toLowerCase() === newCategory.trim().toLowerCase()
+        );
+        
+        if (categoryExists) {
+          alert('This category already exists!');
+          return;
+        }
+
+        const newCat = await addCustomerCategory(newCategory.trim());
+        setCustomerCategories(prev => [...prev, newCat]);
+        setNewCategory('');
+        setShowCategoryModal(false);
+        alert('Customer Category added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+      alert('Error adding category: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleAddType = async (e) => {
+    e.preventDefault();
+    try {
+      if (newType.trim()) {
+        const typeExists = customerTypes.some(type => 
+          type.name.toLowerCase() === newType.trim().toLowerCase()
+        );
+        
+        if (typeExists) {
+          alert('This type already exists!');
+          return;
+        }
+
+        const newTypeData = await addCustomerType(newType.trim());
+        setCustomerTypes(prev => [...prev, newTypeData]);
+        setNewType('');
+        setShowTypeModal(false);
+        alert('Customer Type added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding type:', error);
+      alert('Error adding type: ' + (error.message || 'Unknown error'));
     }
   };
 
   const filteredCustomers = customers.filter(customer =>
-    customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phoneNumber.includes(searchTerm)
+    customer.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.phoneNumber?.includes(searchTerm)
   );
 
   return (
@@ -378,7 +452,7 @@ const Customer = () => {
                   >
                     <option value="">Select Category</option>
                     {customerCategories.map(category => (
-                      <option key={category} value={category}>{category}</option>
+                      <option key={category.id} value={category.name}>{category.name}</option>
                     ))}
                   </select>
                 </div>
@@ -396,7 +470,7 @@ const Customer = () => {
                   >
                     <option value="">Select Type</option>
                     {customerTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
+                      <option key={type.id} value={type.name}>{type.name}</option>
                     ))}
                   </select>
                 </div>
