@@ -48,7 +48,6 @@ const PurchaseOrder = () => {
 		});
 	const [items, setItems] = useState([]);
 	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
-	const [discountInput, setDiscountInput] = useState("");
 		const [errors, setErrors] = useState({});
 
 		// Typeahead state for products
@@ -88,10 +87,7 @@ const PurchaseOrder = () => {
 				: ["Tech Supplies Ltd", "Office Equipment Co", "Acme Traders", "Global Suppliers"];
 		}, [orders]);
 
-		const subtotal = useMemo(() => {
-			return items.reduce((acc, it) => acc + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
-		}, [items]);
-
+		// Helper to parse discount as amount or % against a base
 		const parseDiscount = (input, base) => {
 			const s = String(input || "").trim();
 			if (!s) return 0;
@@ -105,15 +101,27 @@ const PurchaseOrder = () => {
 			return Math.min(base, amt);
 		};
 
-		const discountAmount = useMemo(() => parseDiscount(discountInput, subtotal), [discountInput, subtotal]);
+		// Aggregate totals based on per-line discounts
+		const { subtotal, discountTotal } = useMemo(() => {
+			let sub = 0;
+			let disc = 0;
+			for (const it of items) {
+				const qty = Number(it.quantity) || 0;
+				const price = Number(it.unitPrice) || 0;
+				const gross = qty * price;
+				const dAmt = parseDiscount(it.discountInput, gross);
+				disc += dAmt;
+				sub += Math.max(0, gross - dAmt);
+			}
+			return { subtotal: sub, discountTotal: disc };
+		}, [items]);
 
 		const tax = useMemo(() => {
-			// Simple 10% tax demo on net
-			const net = Math.max(0, subtotal - discountAmount);
-			return net * 0.1;
-		}, [subtotal, discountAmount]);
+			// Simple 10% tax demo on net subtotal
+			return (subtotal || 0) * 0.1;
+		}, [subtotal]);
 
-		const totalAmount = useMemo(() => Math.max(0, subtotal - discountAmount) + tax, [subtotal, discountAmount, tax]);
+		const totalAmount = useMemo(() => Math.max(0, subtotal) + tax, [subtotal, tax]);
 
 		const validate = () => {
 			const e = {};
@@ -138,6 +146,9 @@ const PurchaseOrder = () => {
 			if (unitPrice < 0) e.unitPrice = "Unit price cannot be negative";
 			setErrors((prev) => ({ ...prev, ...e }));
 			if (Object.keys(e).length) return;
+			// Ensure unit price does not exceed MRP at the time of adding
+			const clampedUnitPrice = mrp > 0 ? Math.min(unitPrice, mrp) : Math.max(0, unitPrice);
+			const attemptedOverMrp = mrp > 0 && unitPrice > mrp;
 			setItems((prev) => [
 				...prev,
 				{
@@ -145,9 +156,11 @@ const PurchaseOrder = () => {
 					productId: selected ? selected.id : undefined,
 					productName: name,
 					quantity: qty,
-					unitPrice,
+					unitPrice: clampedUnitPrice,
 					currentStock,
 					mrp,
+					discountInput: "",
+					attemptedOverMrp,
 				},
 			]);
 			setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
@@ -157,9 +170,20 @@ const PurchaseOrder = () => {
 			setItems((prev) =>
 				prev.map((it) => {
 					if (it.id !== id) return it;
+					if (field === "discountInput") {
+						return { ...it, discountInput: String(rawValue || "") };
+					}
 					const num = typeof rawValue === "number" ? rawValue : Number(rawValue) || 0;
 					if (field === "quantity") return { ...it, quantity: Math.max(1, Math.floor(num)) };
-					if (field === "unitPrice") return { ...it, unitPrice: Math.max(0, num) };
+					// Prevent unit price from exceeding MRP and flag a visible message
+					if (field === "unitPrice") {
+						const mrp = Number(it.mrp) || 0;
+						const clamped = Math.max(0, num);
+						if (mrp > 0 && clamped > mrp) {
+							return { ...it, unitPrice: mrp, attemptedOverMrp: true };
+						}
+						return { ...it, unitPrice: clamped, attemptedOverMrp: false };
+					}
 					return it;
 				})
 			);
@@ -172,14 +196,25 @@ const PurchaseOrder = () => {
 			if (!validate()) return;
 			setIsSubmitting(true);
 			try {
-						const payload = {
+							const payload = {
 					...form,
-					items,
-							subtotal,
-							discount: discountInput,
-							discountAmount,
-							tax,
-							totalAmount,
+						items: items.map((it) => {
+							const qty = Number(it.quantity) || 0;
+							const price = Number(it.unitPrice) || 0;
+							const gross = qty * price;
+							const dAmt = parseDiscount(it.discountInput, gross);
+							return {
+								...it,
+								lineGross: gross,
+								lineDiscountInput: it.discountInput || "",
+								lineDiscountAmount: dAmt,
+								lineNet: Math.max(0, gross - dAmt),
+							};
+						}),
+						subtotal,
+						discountTotal,
+						tax,
+						totalAmount,
 				};
 				const created = addPurchaseOrder(payload);
 				setOrders((prev) => [...prev, created]);
@@ -187,7 +222,6 @@ const PurchaseOrder = () => {
 				setForm({ orderNumber: "", center: "", supplier: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
 				setItems([]);
 				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
-				setDiscountInput("");
 				setErrors({});
 			} finally {
 				setIsSubmitting(false);
@@ -261,23 +295,10 @@ const PurchaseOrder = () => {
 									placeholder="Enter reference number"
 									className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								/>
-								<div className="mt-4">
-									<label className="block text-sm font-medium text-gray-700 mb-2">Order Discount (amount or %)</label>
-									<input
-										type="text"
-										value={discountInput}
-										onChange={(e) => setDiscountInput(e.target.value)}
-										placeholder="e.g., 500 or 10%"
-										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-									/>
-									{discountAmount > 0 && (
-										<p className="text-xs text-gray-500 mt-1">Discount applied: {formatLKR(discountAmount)}</p>
-									)}
-								</div>
 							</div>
 							<div className="lg:place-self-end pr-65 text-center">
 								<p className="text-[18px]">Total Amount</p>
-								<p className="text-[35px] font-medium">{formatLKR(totalAmount)}</p>
+								<p className="text-[35px] font-medium">{formatLKR(subtotal)}</p>
 							</div>
 						</div>
 
@@ -384,26 +405,37 @@ const PurchaseOrder = () => {
 														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Stock</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">MRP</th>
+														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Discount</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
 														<th className="px-2 sm:px-3 py-2 text-right">Action</th>
 													</tr>
 												</thead>
 												<tbody className="bg-white divide-y divide-gray-100">
 													{items.map((it, idx) => {
-														const rowTotal = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0);
+														const rowQty = Number(it.quantity) || 0;
+														const rowPrice = Number(it.unitPrice) || 0;
+														const rowGross = rowQty * rowPrice;
+														const rowDiscount = parseDiscount(it.discountInput, rowGross);
+														const rowTotal = Math.max(0, rowGross - rowDiscount);
 														return (
 															<tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100/60">
 																<td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{idx + 1}</td>
 																<td className="px-3 sm:px-4 py-2 text-sm text-gray-900">{it.productName}</td>
 																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-																	<input
-																		type="number"
-																		min="0"
-																		step="0.01"
-																		value={it.unitPrice}
-																		onChange={(e) => updateItem(it.id, "unitPrice", e.target.value)}
-																		className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-																	/>
+																	{/*unit price cannot exceep MRP message */}
+																	<div className="flex flex-col items-end">
+																		<input
+																			type="number"
+																			min="0"
+																			step="0.01"
+																			value={it.unitPrice}
+																			onChange={(e) => updateItem(it.id, "unitPrice", e.target.value)}
+																			className={`w-28 px-2 py-1 border rounded-md text-right focus:outline-none focus:ring-2 ${it?.attemptedOverMrp ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"}`}
+																		/>
+																		{it?.attemptedOverMrp && (
+																			<p className="mt-1 text-xs text-red-600">Unit price cannot exceed MRP ({formatLKR(it.mrp || 0)})</p>
+																		)}
+																	</div>
 																</td>
 																<td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{it.currentStock}</td>
 																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
@@ -416,6 +448,15 @@ const PurchaseOrder = () => {
 																	/>
 																</td>
 																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(it.mrp || 0)}</td>
+																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
+																	<input
+																		type="text"
+																		value={it.discountInput || ""}
+																		onChange={(e) => updateItem(it.id, "discountInput", e.target.value)}
+																		placeholder="0 or 10%"
+																		className="w-24 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																	/>
+																</td>
 																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
 																<td className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">
 																	<button
@@ -429,6 +470,8 @@ const PurchaseOrder = () => {
 															</tr>
 														);
 													})}
+
+													{/* Summary rows intentionally removed as requested */}
 												</tbody>
 											</table>
 										</div>
