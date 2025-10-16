@@ -10,6 +10,45 @@ const inventoryData = {
     "Branch B",
     "Warehouse 01",
   ],
+  // Simple product catalog used by Purchase Orders and other inventory pages
+  products: [
+    {
+      id: "1",
+      name: "Laptop 15" ,
+      sku: "LAP-15",
+      unit: "pcs",
+      unitPrice: 1200,
+      mrp: 1400,
+      currentstock: "50"
+    },
+    {
+      id: "2",
+      name: "Wireless Mouse",
+      sku: "MOU-WLS",
+      unit: "pcs",
+      unitPrice: 25,
+      mrp: 35,
+      currentstock: "30"
+    },
+    {
+      id: "3",
+      name: "Mechanical Keyboard",
+      sku: "KEY-MECH",
+      unit: "pcs",
+      unitPrice: 50,
+      mrp: 70,
+      currentstock: "20"
+    },
+    {
+      id: "4",
+      name: "24\" Monitor",
+      sku: "MON-24FHD",
+      unit: "pcs",
+      unitPrice: 180,
+      mrp: 220,
+      currentstock: "15",
+    },
+  ],
   invoices: [
     // Mirror structure used by Invoices page
     {
@@ -200,6 +239,7 @@ export const getSalesReturns = () => inventoryData.salesReturns;
 export const getStockTransfers = () => inventoryData.stockTransfers;
 export const getStockVerifications = () => inventoryData.stockVerifications;
 export const getCenters = () => inventoryData.centers;
+export const getProducts = () => inventoryData.products;
 
 // Mutations: create/update/delete with simple in-memory logic
 export const addInvoice = (invoice) => {
@@ -325,6 +365,7 @@ export default {
   getStockTransfers,
   getStockVerifications,
   getCenters,
+  getProducts,
   // mutations
   addInvoice,
   updateInvoice,

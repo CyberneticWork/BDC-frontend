@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { addPurchaseOrder, getPurchaseOrders, getCenters } from "../../services/Inventory/inventoryService";
+import { addPurchaseOrder, getPurchaseOrders, getCenters, getProducts } from "../../services/Inventory/inventoryService";  //get from dummy data inventoryService.js
 
 const PurchaseOrder = () => {
 	const [orders, setOrders] = useState([]);
@@ -46,9 +46,15 @@ const PurchaseOrder = () => {
 			status: "Draft",
 			refNumber: "",
 		});
-		const [items, setItems] = useState([]);
-		const [entry, setEntry] = useState({ productName: "", quantity: 0, unitPrice: 0 });
+	const [items, setItems] = useState([]);
+	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+	const [discountInput, setDiscountInput] = useState("");
 		const [errors, setErrors] = useState({});
+
+		// Typeahead state for products
+		const [showSuggestions, setShowSuggestions] = useState(false);
+		const [activeIndex, setActiveIndex] = useState(-1);
+		const productInputRef = useRef(null);
 
 		useEffect(() => {
 			setForm((p) => ({ ...p, orderNumber: nextPONumber }));
@@ -57,6 +63,20 @@ const PurchaseOrder = () => {
 
 			// Centers from service
 			const centers = useMemo(() => getCenters() || [], []);
+
+			// Products for suggestions
+			const products = useMemo(() => getProducts() || [], []);
+
+			const filteredProducts = useMemo(() => {
+				const q = (entry.productName || "").toLowerCase().trim();
+				if (!q) return products.slice(0, 8);
+				return products
+					.filter((p) =>
+						(p.name || "").toLowerCase().includes(q) ||
+						(p.sku || "").toLowerCase().includes(q)
+					)
+					.slice(0, 8);
+			}, [entry.productName, products]);
 
 		// Build supplier options from existing orders with fallback defaults
 		const supplierOptions = useMemo(() => {
@@ -72,12 +92,28 @@ const PurchaseOrder = () => {
 			return items.reduce((acc, it) => acc + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
 		}, [items]);
 
-		const tax = useMemo(() => {
-			// Simple 10% tax demo
-			return subtotal * 0.1;
-		}, [subtotal]);
+		const parseDiscount = (input, base) => {
+			const s = String(input || "").trim();
+			if (!s) return 0;
+			if (s.endsWith("%")) {
+				const pct = parseFloat(s.slice(0, -1));
+				if (!isFinite(pct) || pct <= 0) return 0;
+				return Math.min(base, (base * pct) / 100);
+			}
+			const amt = parseFloat(s);
+			if (!isFinite(amt) || amt <= 0) return 0;
+			return Math.min(base, amt);
+		};
 
-		const totalAmount = useMemo(() => subtotal + tax, [subtotal, tax]);
+		const discountAmount = useMemo(() => parseDiscount(discountInput, subtotal), [discountInput, subtotal]);
+
+		const tax = useMemo(() => {
+			// Simple 10% tax demo on net
+			const net = Math.max(0, subtotal - discountAmount);
+			return net * 0.1;
+		}, [subtotal, discountAmount]);
+
+		const totalAmount = useMemo(() => Math.max(0, subtotal - discountAmount) + tax, [subtotal, discountAmount, tax]);
 
 		const validate = () => {
 			const e = {};
@@ -92,28 +128,40 @@ const PurchaseOrder = () => {
 
 		const addItem = () => {
 			const name = (entry.productName || "").trim();
-			const qty = Number(entry.quantity) || 0;
-			const price = Number(entry.unitPrice) || 0;
+			const selected = entry.productId ? products.find((p) => String(p.id) === String(entry.productId)) : products.find((p) => (p.name || "").toLowerCase() === name.toLowerCase());
+			const qty = Math.max(1, Number(entry.quantity) || 1);
+			const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
+			const currentStock = selected ? Number(selected.currentstock) || 0 : 0;
+			const mrp = selected ? Number(selected.mrp) || 0 : 0;
 			const e = {};
 			if (!name) e.productName = "Product name is required";
-			if (qty <= 0) e.quantity = "Quantity must be greater than 0";
-			if (price < 0) e.unitPrice = "Unit price cannot be negative";
+			if (unitPrice < 0) e.unitPrice = "Unit price cannot be negative";
 			setErrors((prev) => ({ ...prev, ...e }));
 			if (Object.keys(e).length) return;
 			setItems((prev) => [
 				...prev,
-				{ id: Date.now(), productName: name, quantity: qty, unitPrice: price, total: qty * price },
+				{
+					id: Date.now() + Math.floor(Math.random() * 1000),
+					productId: selected ? selected.id : undefined,
+					productName: name,
+					quantity: qty,
+					unitPrice,
+					currentStock,
+					mrp,
+				},
 			]);
-			setEntry({ productName: "", quantity: 0, unitPrice: 0 });
+			setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
 		};
 
-		const updateItem = (id, field, value) => {
+		const updateItem = (id, field, rawValue) => {
 			setItems((prev) =>
-				prev.map((it) =>
-					it.id === id
-						? { ...it, [field]: value, total: (field === "quantity" || field === "unitPrice") ? (Number(field === "quantity" ? value : it.quantity) || 0) * (Number(field === "unitPrice" ? value : it.unitPrice) || 0) : it.total }
-						: it
-				)
+				prev.map((it) => {
+					if (it.id !== id) return it;
+					const num = typeof rawValue === "number" ? rawValue : Number(rawValue) || 0;
+					if (field === "quantity") return { ...it, quantity: Math.max(1, Math.floor(num)) };
+					if (field === "unitPrice") return { ...it, unitPrice: Math.max(0, num) };
+					return it;
+				})
 			);
 		};
 
@@ -124,19 +172,22 @@ const PurchaseOrder = () => {
 			if (!validate()) return;
 			setIsSubmitting(true);
 			try {
-				const payload = {
+						const payload = {
 					...form,
 					items,
-					subtotal,
-					tax,
-					totalAmount,
+							subtotal,
+							discount: discountInput,
+							discountAmount,
+							tax,
+							totalAmount,
 				};
 				const created = addPurchaseOrder(payload);
 				setOrders((prev) => [...prev, created]);
 				// Reset
 				setForm({ orderNumber: "", center: "", supplier: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
 				setItems([]);
-				setEntry({ productName: "", quantity: 0, unitPrice: 0 });
+				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+				setDiscountInput("");
 				setErrors({});
 			} finally {
 				setIsSubmitting(false);
@@ -210,6 +261,19 @@ const PurchaseOrder = () => {
 									placeholder="Enter reference number"
 									className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								/>
+								<div className="mt-4">
+									<label className="block text-sm font-medium text-gray-700 mb-2">Order Discount (amount or %)</label>
+									<input
+										type="text"
+										value={discountInput}
+										onChange={(e) => setDiscountInput(e.target.value)}
+										placeholder="e.g., 500 or 10%"
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+									/>
+									{discountAmount > 0 && (
+										<p className="text-xs text-gray-500 mt-1">Discount applied: {formatLKR(discountAmount)}</p>
+									)}
+								</div>
 							</div>
 							<div className="lg:place-self-end pr-65 text-center">
 								<p className="text-[18px]">Total Amount</p>
@@ -224,41 +288,104 @@ const PurchaseOrder = () => {
 							<div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
 								<div className="sm:col-span-3">
 									<label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
-									<input
-										type="text"
-										value={entry.productName}
-										onChange={(e) => setEntry((p) => ({ ...p, productName: e.target.value }))}
-										className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.productName ? "border-red-500" : "border-gray-300"}`}
-										placeholder="Enter product name"
-									/>
+									<div className="relative" onKeyDown={(e) => {
+										if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+											setShowSuggestions(true);
+											return;
+										}
+										if (!showSuggestions) return;
+										if (e.key === "ArrowDown") {
+											e.preventDefault();
+											setActiveIndex((prev) => Math.min(prev + 1, filteredProducts.length - 1));
+										} else if (e.key === "ArrowUp") {
+											e.preventDefault();
+											setActiveIndex((prev) => Math.max(prev - 1, 0));
+										} else if (e.key === "Enter") {
+											e.preventDefault();
+											if (activeIndex >= 0 && filteredProducts[activeIndex]) {
+												const p = filteredProducts[activeIndex];
+												setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+												setShowSuggestions(false);
+												setActiveIndex(-1);
+											}
+										} else if (e.key === "Escape") {
+											setShowSuggestions(false);
+											setActiveIndex(-1);
+										}
+									}}>
+										<input
+											ref={productInputRef}
+											type="text"
+											value={entry.productName}
+											onFocus={() => setShowSuggestions(true)}
+											onChange={(e) => {
+												const val = e.target.value;
+												setEntry((p) => ({ ...p, productId: "", productName: val }));
+												setShowSuggestions(true);
+												setActiveIndex(-1);
+											}}
+											onBlur={() => {
+												// Delay hiding to allow click selection
+												setTimeout(() => setShowSuggestions(false), 150);
+											}}
+											className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.productName ? "border-red-500" : "border-gray-300"}`}
+											placeholder="Type to search product (name or SKU)"
+										/>
+										{showSuggestions && filteredProducts.length > 0 && (
+											<ul className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+												{filteredProducts.map((p, idx) => (
+													<li
+														key={p.id}
+														className={`px-3 py-2 cursor-pointer flex justify-between items-center ${idx === activeIndex ? "bg-blue-50" : "hover:bg-gray-50"}`}
+														onMouseEnter={() => setActiveIndex(idx)}
+														onMouseDown={(e) => e.preventDefault()}
+														onClick={() => {
+															setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+															setShowSuggestions(false);
+															setActiveIndex(-1);
+															productInputRef.current?.blur();
+														}}
+													>
+														<span className="text-sm text-gray-900">{p.name}</span>
+														<span className="ml-2 text-xs text-gray-500">{p.sku}</span>
+														<span className="ml-auto text-xs text-gray-600">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
+													</li>
+												))}
+											</ul>
+										)}
+									</div>
 									{errors.productName && <p className="text-red-500 text-sm mt-1">{errors.productName}</p>}
 								</div>
-								
+
+                                      {/* Add Item Button */}
 								<div className="flex items-end">
 									<button
 										type="button"
 										onClick={addItem}
-										className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-									>
+										className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
 										<Plus className="h-4 w-4" />
 										Add Item
 									</button>
 								</div>
 							</div>
+						</div>
 
-							{items.length > 0 && (
+
+						{items.length > 0 && (
 								<div className="mt-4 overflow-x-auto">
 									<div className="inline-block min-w-full align-middle">
 										<div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-											<table className="min-w-[760px] w-full divide-y divide-gray-200">
+											<table className="min-w-[880px] w-full divide-y divide-gray-200">
 												<thead className="bg-gray-50 sticky top-0 z-10">
 													<tr>
 														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">No</th>
 														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Product Name</th>
+														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
+														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Stock</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
-														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
+														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">MRP</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
-														<th className="px-2 sm:px-3 py-2 text-right"></th>
+														<th className="px-2 sm:px-3 py-2 text-right">Action</th>
 													</tr>
 												</thead>
 												<tbody className="bg-white divide-y divide-gray-100">
@@ -271,22 +398,24 @@ const PurchaseOrder = () => {
 																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
 																	<input
 																		type="number"
-																		min="1"
-																		value={it.quantity}
-																		onChange={(e) => updateItem(it.id, "quantity", parseInt(e.target.value) || 0)}
-																		className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-																	/>
-																</td>
-																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-																	<input
-																		type="number"
 																		min="0"
 																		step="0.01"
 																		value={it.unitPrice}
-																		onChange={(e) => updateItem(it.id, "unitPrice", parseFloat(e.target.value) || 0)}
+																		onChange={(e) => updateItem(it.id, "unitPrice", e.target.value)}
 																		className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 																	/>
 																</td>
+																<td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{it.currentStock}</td>
+																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
+																	<input
+																		type="number"
+																		min="1"
+																		value={it.quantity}
+																		onChange={(e) => updateItem(it.id, "quantity", e.target.value)}
+																		className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																	/>
+																</td>
+																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(it.mrp || 0)}</td>
 																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
 																<td className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">
 																	<button
@@ -306,7 +435,6 @@ const PurchaseOrder = () => {
 									</div>
 								</div>
 							)}
-						</div>
 
 						<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 							<button
