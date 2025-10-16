@@ -20,6 +20,7 @@ const Customer = () => {
   const [customerTypes, setCustomerTypes] = useState([]);
   const [newCategory, setNewCategory] = useState('');
   const [newType, setNewType] = useState('');
+  const [editingCustomer, setEditingCustomer] = useState(null);
   const [formData, setFormData] = useState({
     customerCategory: '',
     customerType: '',
@@ -58,8 +59,18 @@ const Customer = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newCustomer = addCustomer(formData);
-    setCustomers(prev => [...prev, newCustomer]);
+    if (editingCustomer) {
+      // Update existing customer
+      const updatedCustomer = updateCustomer(editingCustomer.id, formData);
+      setCustomers(prev => prev.map(customer => 
+        customer.id === editingCustomer.id ? updatedCustomer : customer
+      ));
+      setEditingCustomer(null);
+    } else {
+      // Create new customer
+      const newCustomer = addCustomer(formData);
+      setCustomers(prev => [...prev, newCustomer]);
+    }
     setFormData({
       customerCategory: '',
       customerType: '',
@@ -71,6 +82,21 @@ const Customer = () => {
       city: ''
     });
     setShowCreateForm(false);
+  };
+
+  const handleEdit = (customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      customerCategory: customer.customerCategory,
+      customerType: customer.customerType,
+      customerName: customer.customerName,
+      phoneNumber: customer.phoneNumber,
+      brNumberNic: customer.brNumberNic,
+      email: customer.email,
+      address: customer.address,
+      city: customer.city
+    });
+    setShowCreateForm(true);
   };
 
   const handleDelete = (id) => {
@@ -175,7 +201,10 @@ const Customer = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 ml-2">
-                      <button className="text-indigo-600 hover:text-indigo-900 p-1">
+                      <button 
+                        onClick={() => handleEdit(customer)}
+                        className="text-indigo-600 hover:text-indigo-900 p-1"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button 
@@ -280,7 +309,10 @@ const Customer = () => {
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
-                          <button className="text-indigo-600 hover:text-indigo-900">
+                          <button 
+                            onClick={() => handleEdit(customer)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button 
@@ -300,15 +332,30 @@ const Customer = () => {
         )}
       </div>
 
-      {/* Create Customer Modal */}
+      {/* Create/Edit Customer Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 md:p-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-lg md:text-xl font-bold text-gray-900">Create New Customer</h2>
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                  {editingCustomer ? 'Edit Customer' : 'Create New Customer'}
+                </h2>
                 <button
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setEditingCustomer(null);
+                    setFormData({
+                      customerCategory: '',
+                      customerType: '',
+                      customerName: '',
+                      phoneNumber: '',
+                      brNumberNic: '',
+                      email: '',
+                      address: '',
+                      city: ''
+                    });
+                  }}
                   className="text-gray-400 hover:text-gray-600 p-1"
                 >
                   <X className="h-5 w-5 md:h-6 md:w-6" />
@@ -444,7 +491,20 @@ const Customer = () => {
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setEditingCustomer(null);
+                    setFormData({
+                      customerCategory: '',
+                      customerType: '',
+                      customerName: '',
+                      phoneNumber: '',
+                      brNumberNic: '',
+                      email: '',
+                      address: '',
+                      city: ''
+                    });
+                  }}
                   className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm md:text-base"
                 >
                   Cancel
@@ -453,7 +513,7 @@ const Customer = () => {
                   type="submit"
                   className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm md:text-base"
                 >
-                  Create Customer
+                  {editingCustomer ? 'Update Customer' : 'Create Customer'}
                 </button>
               </div>
             </form>
