@@ -20,6 +20,7 @@ import {
 import PMSService from "@services/PMS/PMSService";
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import SavedEvaluationsModal from './SavedEvaluationsModal';
 
 const EmployeePerformanceEvaluation = () => {
   // Enhanced SweetAlert2 helpers with professional styling
@@ -68,6 +69,7 @@ const EmployeePerformanceEvaluation = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
+  const [showSavedEvaluationsModal, setShowSavedEvaluationsModal] = useState(false);
 
   // Add state for validation errors
   const [validationErrors, setValidationErrors] = useState({
@@ -431,6 +433,7 @@ const EmployeePerformanceEvaluation = () => {
 
       const saveData = {
         employee_id: parseInt(evaluationResult.employee_id),
+        evaluator_id: 1, // Get from auth context or current user
         start_date: dateRange.startDate,
         end_date: dateRange.endDate,
         percentage: parseInt(evaluationResult.percentage),
@@ -440,6 +443,8 @@ const EmployeePerformanceEvaluation = () => {
         task_count: parseInt(evaluationResult.task_count)
       };
       
+      // Use the new service method
+      const response = await PMSService.getSavedPerformanceEvaluations(); // Test connection first
       await PMSService.saveEmployeePerformance(saveData);
       
       // Enhanced success toast with animation
@@ -496,7 +501,7 @@ const EmployeePerformanceEvaluation = () => {
         html: `
           <div class="text-left">
             <p class="mb-3">${errorMessage}</p>
-            ${errorDetails ? `<div class="text-xs text-red-600 bg-red-50 p-3 rounded border border-red-200">${errorDetails}</div>` : ''}
+            ${errorDetails ? `<div class="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">${errorDetails}</div>` : ''}
           </div>
         `,
         confirmButtonColor: '#EF4444',
@@ -600,15 +605,26 @@ const EmployeePerformanceEvaluation = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2 bg-indigo-500 rounded-lg">
-            <Award className="w-6 h-6 text-white" />
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-indigo-500 rounded-lg">
+                <Award className="w-6 h-6 text-white" />
+              </div>
+              Employee Performance Evaluation
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Calculate and grade employee performance based on completed tasks
+            </p>
           </div>
-          Employee Performance Evaluation
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Calculate and grade employee performance based on completed tasks
-        </p>
+          <button
+            onClick={() => setShowSavedEvaluationsModal(true)}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <FileText className="h-4 w-4" />
+            View Saved Evaluations
+          </button>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -1108,6 +1124,12 @@ const EmployeePerformanceEvaluation = () => {
           </button>
         </div>
       )}
+
+      {/* Saved Evaluations Modal */}
+      <SavedEvaluationsModal
+        isOpen={showSavedEvaluationsModal}
+        onClose={() => setShowSavedEvaluationsModal(false)}
+      />
     </div>
   );
 };

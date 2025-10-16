@@ -479,7 +479,7 @@ class PMSService {
     }
   }
 
-  // Calculate employee performance evaluation
+  // Calculate employee performance
   async calculateEmployeePerformance(data) {
     try {
       const response = await axios.post('/pms/employee-performance/calculate', data);
@@ -490,10 +490,10 @@ class PMSService {
     }
   }
 
-  // Save employee performance evaluation
+  // Save employee performance evaluation (updated endpoint)
   async saveEmployeePerformance(data) {
     try {
-      const response = await axios.post('/pms/employee-performance/save', data);
+      const response = await axios.post('/performance-evaluations', data);
       return response.data;
     } catch (error) {
       console.error("Error saving employee performance:", error);
@@ -501,14 +501,38 @@ class PMSService {
     }
   }
 
-  // Get employee performance evaluations
+  // Get performance evaluations for a specific employee
   async getEmployeePerformanceEvaluations(employeeId = null) {
     try {
-      const params = employeeId ? { employee_id: employeeId } : {};
-      const response = await axios.get('/pms/employee-performance', { params });
+      const url = employeeId 
+        ? `/performance-evaluations/employee/${employeeId}` 
+        : '/performance-evaluations';
+      const response = await axios.get(url);
       return response.data;
     } catch (error) {
       console.error("Error fetching employee performance evaluations:", error);
+      throw error;
+    }
+  }
+
+  // Get performance evaluation statistics
+  async getPerformanceEvaluationStats() {
+    try {
+      const response = await axios.get('/performance-evaluations/stats/overview');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching performance evaluation stats:", error);
+      throw error;
+    }
+  }
+
+  // Restore a soft deleted evaluation
+  async restorePerformanceEvaluation(id) {
+    try {
+      const response = await axios.post(`/performance-evaluations/${id}/restore`);
+      return response.data;
+    } catch (error) {
+      console.error("Error restoring performance evaluation:", error);
       throw error;
     }
   }
@@ -637,6 +661,39 @@ class PMSService {
       return response.data;
     } catch (error) {
       console.error("Error fetching performance appraisals:", error);
+      throw error;
+    }
+  }
+
+  // Get saved performance evaluations with pagination and search
+  async getSavedPerformanceEvaluations(params = {}) {
+    try {
+      const response = await axios.get('/performance-evaluations', { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching saved performance evaluations:", error);
+      throw error;
+    }
+  }
+
+  // Get a single performance evaluation by ID
+  async getPerformanceEvaluationById(id) {
+    try {
+      const response = await axios.get(`/performance-evaluations/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching performance evaluation:", error);
+      throw error;
+    }
+  }
+
+  // Delete a performance evaluation (soft delete)
+  async deletePerformanceEvaluation(id) {
+    try {
+      const response = await axios.delete(`/performance-evaluations/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting performance evaluation:", error);
       throw error;
     }
   }
