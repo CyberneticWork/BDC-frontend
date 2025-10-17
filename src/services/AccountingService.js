@@ -124,18 +124,8 @@ const staticData = {
       createdDate: '2024-01-20'
     }
   ],
-  customerCategories: [
-    'Individual',
-    'Corporate',
-    'Government',
-    'NGO'
-  ],
-  customerTypes: [
-    'Regular',
-    'Premium',
-    'VIP',
-    'Wholesale'
-  ],
+  customerCategories: [],
+  customerTypes: [],
   centers: [
     {
       id: 1,
