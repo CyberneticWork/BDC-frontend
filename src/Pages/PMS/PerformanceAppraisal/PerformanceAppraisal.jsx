@@ -23,6 +23,7 @@ import {
 import PMSService from "@services/PMS/PMSService";
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import SavedAppraisalsModal from './SavedAppraisalsModal';
 
 const PerformanceAppraisal = () => {
   // Enhanced SweetAlert2 helpers with professional styling
@@ -71,6 +72,7 @@ const PerformanceAppraisal = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
+  const [showSavedAppraisalsModal, setShowSavedAppraisalsModal] = useState(false);
   // Pagination (server + client fallback)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -529,15 +531,28 @@ const PerformanceAppraisal = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2 bg-purple-500 rounded-lg">
-            <UserCheck className="w-6 h-6 text-white" />
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-purple-500 rounded-lg">
+                <UserCheck className="w-6 h-6 text-white" />
+              </div>
+              Performance Appraisal
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Calculate and grade employee performance appraisal using self-rating and supervisor rating
+            </p>
           </div>
-          Performance Appraisal
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Calculate and grade employee performance appraisal using self-rating and supervisor rating
-        </p>
+          
+          {/* Add this button */}
+          <button
+            onClick={() => setShowSavedAppraisalsModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Saved Appraisals</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -1097,6 +1112,12 @@ const PerformanceAppraisal = () => {
           </div>
         </div>
       )}
+
+      {/* Saved Appraisals Modal */}
+      <SavedAppraisalsModal
+        isOpen={showSavedAppraisalsModal}
+        onClose={() => setShowSavedAppraisalsModal(false)}
+      />
     </div>
   );
 };

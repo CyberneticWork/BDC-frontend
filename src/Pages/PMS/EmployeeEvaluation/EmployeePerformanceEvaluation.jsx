@@ -41,19 +41,18 @@ const EmployeePerformanceEvaluation = () => {
     }
   });
 
-  const swalSmallModal = (options) =>
-    Swal.fire({
-      width: 450,
-      showCloseButton: true,
-      customClass: {
-        popup: 'rounded-xl shadow-2xl border-0',
-        title: 'text-lg font-bold text-gray-800',
-        content: 'text-sm text-gray-600',
-        confirmButton: 'px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg',
-        cancelButton: 'px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-all duration-200'
-      },
-      ...options
-    });
+  const swalSmallModal = (options) => Swal.fire({
+    width: 450,
+    showCloseButton: true,
+    customClass: {
+      popup: 'rounded-xl shadow-2xl border-0',
+      title: 'text-lg font-bold text-gray-800',
+      content: 'text-sm text-gray-600',
+      confirmButton: 'px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg',
+      cancelButton: 'px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-all duration-200'
+    },
+    ...options
+  });
 
   // States for filtering and data
   const [dateRange, setDateRange] = useState({
@@ -70,6 +69,29 @@ const EmployeePerformanceEvaluation = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
   const [showSavedEvaluationsModal, setShowSavedEvaluationsModal] = useState(false);
+
+  // Saved evaluations count + loading for improved button UI
+  const [savedCount, setSavedCount] = useState(0);
+  const [isLoadingSavedCount, setIsLoadingSavedCount] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadSavedCount = async () => {
+      setIsLoadingSavedCount(true);
+      try {
+        const res = await PMSService.getSavedPerformanceEvaluations();
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (!mounted) return;
+        setSavedCount(list.length);
+      } catch (err) {
+        console.error("Failed to load saved evaluations count", err);
+      } finally {
+        if (mounted) setIsLoadingSavedCount(false);
+      }
+    };
+    loadSavedCount();
+    return () => { mounted = false; };
+  }, []);
 
   // Add state for validation errors
   const [validationErrors, setValidationErrors] = useState({
@@ -619,10 +641,22 @@ const EmployeePerformanceEvaluation = () => {
           </div>
           <button
             onClick={() => setShowSavedEvaluationsModal(true)}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm"
+            title="View saved performance evaluations"
+            aria-label="View saved performance evaluations"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-lg shadow-sm transition-colors"
           >
-            <FileText className="h-4 w-4" />
-            View Saved Evaluations
+            {isLoadingSavedCount ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline font-medium">Saved</span>
+            <span className="text-sm font-medium">Evaluations</span>
+            {savedCount > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-white text-indigo-700 text-xs font-semibold">
+                {savedCount}
+              </span>
+            )}
           </button>
         </div>
       </div>

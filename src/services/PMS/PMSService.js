@@ -697,6 +697,61 @@ class PMSService {
       throw error;
     }
   }
+
+  // Get saved performance appraisals with pagination and search
+  async getSavedPerformanceAppraisals(params = {}) {
+    try {
+      const response = await axios.get('/performance-appraisals', { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching saved performance appraisals:", error);
+      throw error;
+    }
+  }
+
+  // Get a single performance appraisal by ID
+  async getPerformanceAppraisalById(id) {
+    try {
+      const response = await axios.get(`/performance-appraisals/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching performance appraisal:", error);
+      throw error;
+    }
+  }
+
+  // Delete a performance appraisal (soft delete)
+  async deletePerformanceAppraisal(id) {
+    try {
+      const response = await axios.delete(`/performance-appraisals/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting performance appraisal:", error);
+      throw error;
+    }
+  }
+
+  // Restore a soft deleted appraisal
+  async restorePerformanceAppraisal(id) {
+    try {
+      const response = await axios.post(`/performance-appraisals/${id}/restore`);
+      return response.data;
+    } catch (error) {
+      console.error("Error restoring performance appraisal:", error);
+      throw error;
+    }
+  }
+
+  // Get performance appraisal statistics
+  async getPerformanceAppraisalStats() {
+    try {
+      const response = await axios.get('/performance-appraisals/stats/overview');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching performance appraisal stats:", error);
+      throw error;
+    }
+  }
 }
 
 export default new PMSService();
