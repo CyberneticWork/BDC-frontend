@@ -124,7 +124,7 @@ const DoubleEntry = () => {
       </div>
 
       {/* Form */}
-      <form
+      {/* <form
         onSubmit={handleSubmit}
         className="bg-white p-4 rounded-lg shadow mb-6"
       >
@@ -277,7 +277,7 @@ const DoubleEntry = () => {
             Cancel Edit
           </button>
         )}
-      </form>
+      </form> */}
 
       {/* Journal Entries Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
