@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {Plus,Trash2} from "lucide-react";
-import {getInvoiceData,addInvoice} from '../../services/Inventory/inventoryService';
+import {getInvoiceData,addInvoice, getSuppliers} from '../../services/Inventory/inventoryService';
 import Payment from '../../components/Inventory/Payment';
 
 const Invoices = () => {
 
   const [invoices, setInvoices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nextInvoiceId, setNextInvoiceId] = useState('');
+  const [nextGrnId, setNextGrnId] = useState('');
 
   useEffect(() => {
     // Load initial data from service
@@ -15,7 +15,7 @@ const Invoices = () => {
     setInvoices(initialInvoices);
   }, []);
 
-  // Compute next invoice id whenever invoices change
+  // Compute next GRN id whenever invoices change
   useEffect(() => {
     const nums = invoices
       .map(inv => {
@@ -24,7 +24,7 @@ const Invoices = () => {
       })
       .filter(n => n !== null);
     const next = (nums.length ? Math.max(...nums) + 1 : 1);
-    setNextInvoiceId(`GRN-${String(next).padStart(4, '0')}`);
+    setNextGrnId(`GRN-${String(next).padStart(4, '0')}`);
   }, [invoices]);
 
   // No filters or status display; only creation form remains
@@ -41,12 +41,11 @@ const Invoices = () => {
   };
 
 
-  const InlineNewInvoiceForm = ({ nextInvoiceId }) => {
+  const InlineNewInvoiceForm = ({ nextGrnId }) => {
     const [formData, setFormData] = useState({
       id: '',
       center: '',
-      customer: '',
-      customerEmail: '',
+      supplier: '',
       date: new Date().toISOString().split('T')[0],
       status: 'pending',
       refNumber: '',
@@ -59,10 +58,10 @@ const Invoices = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingInvoice, setPendingInvoice] = useState(null);
 
-    // Sync generated invoice id from parent into form
+    // Sync generated GRN id from parent into form
     useEffect(() => {
-      setFormData(prev => ({ ...prev, id: nextInvoiceId }));
-    }, [nextInvoiceId]);
+      setFormData(prev => ({ ...prev, id: nextGrnId }));
+    }, [nextGrnId]);
 
     // Demo center list (can be wired to service later)
     const centers = [
@@ -72,26 +71,8 @@ const Invoices = () => {
       'Warehouse 01'
     ];
 
-    // Build customer options from existing invoices as a convenience
-    const availableCustomers = (() => {
-      const map = new Map();
-      invoices.forEach(inv => {
-        const name = inv.customer;
-        const email = inv.customerEmail;
-        if (name && email && !map.has(email)) {
-          map.set(email, { name, email });
-        }
-      });
-      const list = Array.from(map.values());
-      if (list.length === 0) {
-        return [
-          { name: 'John Doe', email: 'john@example.com' },
-          { name: 'Jane Smith', email: 'jane@example.com' },
-          { name: 'Acme Corp', email: 'billing@acme.test' }
-        ];
-      }
-      return list;
-    })();
+    // Supplier options from service
+    const suppliers = getSuppliers();
 
     // Compute table total (includes discount per unit * quantity)
     const tableTotal = React.useMemo(() => {
@@ -116,8 +97,7 @@ const Invoices = () => {
       if (!formData.id) newErrors.id = 'Invoice number not generated';
       if (!formData.center.trim()) newErrors.center = 'Center is required';
       if (!formData.date) newErrors.date = 'Date is required';
-      if (!formData.customer.trim()) newErrors.customer = 'Customer name is required';
-      if (!formData.customerEmail.trim()) newErrors.customerEmail = 'Customer email is required';
+  if (!formData.supplier.trim()) newErrors.supplier = 'Supplier is required';
       if ((items?.length || 0) === 0) {
         // If there are no line items, require inline product fields
         if (!formData.productName.trim()) newErrors.productName = 'Product name is required';
@@ -205,8 +185,7 @@ const Invoices = () => {
         setFormData({
           id: '', // will be filled by effect
           center: '',
-          customer: '',
-          customerEmail: '',
+          supplier: '',
           date: new Date().toISOString().split('T')[0],
           status: 'pending',
           refNumber: '',
@@ -232,11 +211,11 @@ const Invoices = () => {
         <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">GRN</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900"> Goods Received Note (GRN)</h1>
               <div className="text-red-600 font-bold mt-1 text-md sm:text-base">
-                GRN Number : {nextInvoiceId}
+                GRN Number : {nextGrnId}
               </div>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage and track your Goods Received Notes</p>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage and track your GRNs</p>
             </div>
           </div>
         </div>
@@ -285,29 +264,22 @@ const Invoices = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Supplier Details*
+                  Supplier Name*
                 </label>
                 <select
-                  value={formData.customerEmail}
-                  onChange={(e) => {
-                    const selected = availableCustomers.find(c => c.email === e.target.value);
-                    if (selected) {
-                      setFormData(prev => ({ ...prev, customer: selected.name, customerEmail: selected.email }));
-                    } else {
-                      setFormData(prev => ({ ...prev, customer: '', customerEmail: '' }));
-                    }
-                  }}
-                  aria-invalid={!!(errors.customer || errors.customerEmail)}
-                  aria-describedby={(errors.customer || errors.customerEmail) ? 'customer-error' : undefined}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${(errors.customer || errors.customerEmail) ? 'border-red-500' : 'border-gray-300'}`}
+                  value={formData.supplier}
+                  onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                  aria-invalid={!!errors.supplier}
+                  aria-describedby={errors.supplier ? 'supplier-error' : undefined}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.supplier ? 'border-red-500' : 'border-gray-300'}`}
                 >
-                  <option value="">Select customer </option>
-                  {availableCustomers.map(c => (
-                    <option key={c.email} value={c.email}>{`${c.name} (${c.email})`}</option>
+                  <option value="">Select supplier</option>
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
                   ))}
                 </select>
-                {(errors.customer || errors.customerEmail) && (
-                  <p id="customer-error" className="text-red-500 text-sm mt-1">Customer details are required</p>
+                {errors.supplier && (
+                  <p id="supplier-error" className="text-red-500 text-sm mt-1">Supplier is required</p>
                 )}
               </div>
             </div>
@@ -564,7 +536,7 @@ const Invoices = () => {
 
         {/*  Create New Invoice */}
         <section aria-label="Create new invoice">
-          <InlineNewInvoiceForm nextInvoiceId={nextInvoiceId} />
+          <InlineNewInvoiceForm nextGrnId={nextGrnId} />
         </section>
 
 

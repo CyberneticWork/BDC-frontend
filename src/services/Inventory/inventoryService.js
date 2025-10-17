@@ -50,6 +50,14 @@ const inventoryData = {
     },
   ],
 
+  // Suppliers used by GRN and Purchase Orders
+  suppliers: [
+    { id: "SUP-0001", name: "Tech Supplies Ltd" },
+    { id: "SUP-0002", name: "Office Equipment Co" },
+    { id: "SUP-0003", name: "Global Components Pvt" },
+    { id: "SUP-0004", name: "Sri Lanka Trading Co" },
+  ],
+
 
   customers: [
     {
@@ -261,6 +269,7 @@ export const getStockVerifications = () => inventoryData.stockVerifications;
 export const getCenters = () => inventoryData.centers;
 export const getProducts = () => inventoryData.products;
 export const getCustomers = () => inventoryData.customers;
+export const getSuppliers = () => inventoryData.suppliers;
 
 // Mutations: create/update/delete with simple in-memory logic
 export const addInvoice = (invoice) => {
@@ -388,6 +397,7 @@ export default {
   getCenters,
   getProducts,
   getCustomers,
+  getSuppliers,
   // mutations
   addInvoice,
   updateInvoice,

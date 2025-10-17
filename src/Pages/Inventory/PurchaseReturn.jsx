@@ -14,7 +14,7 @@ import {
   DollarSign,
   MoreVertical
 } from "lucide-react";
-import { getPurchaseReturns, addPurchaseReturn } from "../../services/Inventory/inventoryService";
+import { getPurchaseReturns } from "../../services/Inventory/inventoryService";
 
 const PurchaseReturn = () => {
   const [purchaseReturns, setPurchaseReturns] = useState([]);
@@ -102,8 +102,7 @@ const PurchaseReturn = () => {
     count: filteredReturns.length
   };
 
-  const handleAddNewReturn = (newReturnData) => {
-    const addedReturn = addPurchaseReturn(newReturnData);
+  const handleAddNewReturn = () => {
     const updatedReturns = getPurchaseReturns();
     setPurchaseReturns(updatedReturns);
     setFilteredReturns(updatedReturns);

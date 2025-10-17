@@ -244,297 +244,299 @@ const SalesOrder = () => {
 		};
 
 		return (
-			<div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
-				<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-					<div>
-						<h1 className="text-xl sm:text-2xl font-bold text-gray-900">SALES ORDER</h1>
-						<div className="text-red-600 font-bold mt-1 text-md sm:text-base">Sales Order Number : {nextSONumber}</div>
-						<p className="text-gray-600 mt-1 text-sm sm:text-base">Create and manage sales orders</p>
+			<>
+				<div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+					<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+						<div>
+							<h1 className="text-xl sm:text-2xl font-bold text-gray-900">SALES ORDER</h1>
+							<div className="text-red-600 font-bold mt-1 text-md sm:text-base">Sales Order Number : {nextSONumber}</div>
+							<p className="text-gray-600 mt-1 text-sm sm:text-base">Create and manage sales orders</p>
+						</div>
 					</div>
 				</div>
-
 				{/* No inline message when using popup */}
+				<div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+					<form onSubmit={onSubmit}>
+						<div className="grid grid-cols-1 gap-4 mb-4 sm:mb-6">
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 sm:mb-6">
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+									<input
+										type="date"
+										value={form.date}
+										onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+										className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.date ? "border-red-500" : "border-gray-300"}`}
+									/>
+									{errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-2">Center *</label>
+									<select
+										value={form.center}
+										onChange={(e) => setForm((p) => ({ ...p, center: e.target.value }))}
+										className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.center ? "border-red-500" : "border-gray-300"}`}
+									>
+										<option value="">Select a center</option>
+										{centers.map((c) => (
+											<option key={c} value={c}>
+												{c}
+											</option>
+										))}
+									</select>
+									{errors.center && <p className="text-red-500 text-sm mt-1">{errors.center}</p>}
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-2">Customer Information *</label>
+									<select
+										value={form.customer}
+										onChange={(e) => setForm((p) => ({ ...p, customer: e.target.value }))}
+										className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.customer ? "border-red-500" : "border-gray-300"}`}
+									>
+										<option value="">Select customer</option>
+										{customerOptions.map((c) => (
+											<option key={c} value={c}>
+												{c}
+											</option>
+										))}
+									</select>
+									{errors.customer && <p className="text-red-500 text-sm mt-1">{errors.customer}</p>}
+								</div>
+							</div>
 
-				<form onSubmit={onSubmit}>
-					<div className="grid grid-cols-1 gap-4 mb-4 sm:mb-6">
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 sm:mb-6">
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
-								<input
-									type="date"
-									value={form.date}
-									onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-									className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.date ? "border-red-500" : "border-gray-300"}`}
-								/>
-								{errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
+							<div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-2">Ref Number</label>
+									<input
+										type="text"
+										value={form.refNumber}
+										onChange={(e) => setForm((p) => ({ ...p, refNumber: e.target.value }))}
+										placeholder="Enter reference number"
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+									/>
+								</div>
+								<div className="lg:place-self-end pr-65 text-center">
+									<p className="text-[18px]">Total Amount</p>
+									<p className="text-[35px] font-medium">{formatLKR(subtotal)}</p>
+								</div>
 							</div>
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">Center *</label>
-								<select
-									value={form.center}
-									onChange={(e) => setForm((p) => ({ ...p, center: e.target.value }))}
-									className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.center ? "border-red-500" : "border-gray-300"}`}
-								>
-									<option value="">Select a center</option>
-									{centers.map((c) => (
-										<option key={c} value={c}>
-											{c}
-										</option>
-									))}
-								</select>
-								{errors.center && <p className="text-red-500 text-sm mt-1">{errors.center}</p>}
-							</div>
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">Customer Information *</label>
-								<select
-									value={form.customer}
-									onChange={(e) => setForm((p) => ({ ...p, customer: e.target.value }))}
-									className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.customer ? "border-red-500" : "border-gray-300"}`}
-								>
-									<option value="">Select customer</option>
-									{customerOptions.map((c) => (
-										<option key={c} value={c}>
-											{c}
-										</option>
-									))}
-								</select>
-								{errors.customer && <p className="text-red-500 text-sm mt-1">{errors.customer}</p>}
-							</div>
-						</div>
 
-						<div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">Ref Number</label>
-								<input
-									type="text"
-									value={form.refNumber}
-									onChange={(e) => setForm((p) => ({ ...p, refNumber: e.target.value }))}
-									placeholder="Enter reference number"
-									className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-								/>
-							</div>
-							<div className="lg:place-self-end pr-65 text-center">
-								<p className="text-[18px]">Total Amount</p>
-								<p className="text-[35px] font-medium">{formatLKR(subtotal)}</p>
-							</div>
-						</div>
+							{/* Items entry section */}
 
-						{/* Items entry section */}
-
-						<div className="mb-4 sm:mb-6">
-							<h4 className="text-base sm:text-lg font-medium text-gray-900 mb-4"> Add Items</h4>
-							<div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-								<div className="sm:col-span-3">
-									<label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
-									<div className="relative" onKeyDown={(e) => {
-										if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-											setShowSuggestions(true);
-											return;
-										}
-										if (!showSuggestions) return;
-										if (e.key === "ArrowDown") {
-											e.preventDefault();
-											setActiveIndex((prev) => Math.min(prev + 1, filteredProducts.length - 1));
-										} else if (e.key === "ArrowUp") {
-											e.preventDefault();
-											setActiveIndex((prev) => Math.max(prev - 1, 0));
-										} else if (e.key === "Enter") {
-											e.preventDefault();
-											if (activeIndex >= 0 && filteredProducts[activeIndex]) {
-												const p = filteredProducts[activeIndex];
-												setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+							<div className="mb-4 sm:mb-6">
+								<h4 className="text-base sm:text-lg font-medium text-gray-900 mb-4"> Add Items</h4>
+								<div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+									<div className="sm:col-span-3">
+										<label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
+										<div className="relative" onKeyDown={(e) => {
+											if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+												setShowSuggestions(true);
+												return;
+											}
+											if (!showSuggestions) return;
+											if (e.key === "ArrowDown") {
+												e.preventDefault();
+												setActiveIndex((prev) => Math.min(prev + 1, filteredProducts.length - 1));
+											} else if (e.key === "ArrowUp") {
+												e.preventDefault();
+												setActiveIndex((prev) => Math.max(prev - 1, 0));
+											} else if (e.key === "Enter") {
+												e.preventDefault();
+												if (activeIndex >= 0 && filteredProducts[activeIndex]) {
+													const p = filteredProducts[activeIndex];
+													setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+													setShowSuggestions(false);
+													setActiveIndex(-1);
+												}
+											} else if (e.key === "Escape") {
 												setShowSuggestions(false);
 												setActiveIndex(-1);
 											}
-										} else if (e.key === "Escape") {
-											setShowSuggestions(false);
-											setActiveIndex(-1);
-										}
-									}}>
-										<input
-											ref={productInputRef}
-											type="text"
-											value={entry.productName}
-											onFocus={() => setShowSuggestions(true)}
-											onChange={(e) => {
-												const val = e.target.value;
-												setEntry((p) => ({ ...p, productId: "", productName: val }));
-												setShowSuggestions(true);
-												setActiveIndex(-1);
-											}}
-											onBlur={() => {
-												// Delay hiding to allow click selection
-												setTimeout(() => setShowSuggestions(false), 150);
-											}}
-											className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.productName ? "border-red-500" : "border-gray-300"}`}
-											placeholder="Type to search product (name or SKU)"
-										/>
-										{showSuggestions && filteredProducts.length > 0 && (
-											<ul className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
-												{filteredProducts.map((p, idx) => (
-													<li
-														key={p.id}
-														className={`px-3 py-2 cursor-pointer flex justify-between items-center ${idx === activeIndex ? "bg-blue-50" : "hover:bg-gray-50"}`}
-														onMouseEnter={() => setActiveIndex(idx)}
-														onMouseDown={(e) => e.preventDefault()}
-														onClick={() => {
-															setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
-															setShowSuggestions(false);
-															setActiveIndex(-1);
-															productInputRef.current?.blur();
-														}}
-													>
-														<span className="text-sm text-gray-900">{p.name}</span>
-														<span className="ml-2 text-xs text-gray-500">{p.sku}</span>
-														<span className="ml-auto text-xs text-gray-600">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
-													</li>
-												))}
-											</ul>
-										)}
+										}}>
+											<input
+												ref={productInputRef}
+												type="text"
+												value={entry.productName}
+												onFocus={() => setShowSuggestions(true)}
+												onChange={(e) => {
+													const val = e.target.value;
+													setEntry((p) => ({ ...p, productId: "", productName: val }));
+													setShowSuggestions(true);
+													setActiveIndex(-1);
+												}}
+												onBlur={() => {
+													// Delay hiding to allow click selection
+													setTimeout(() => setShowSuggestions(false), 150);
+												}}
+												className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.productName ? "border-red-500" : "border-gray-300"}`}
+												placeholder="Type to search product (name or SKU)"
+											/>
+											{showSuggestions && filteredProducts.length > 0 && (
+												<ul className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+													{filteredProducts.map((p, idx) => (
+														<li
+															key={p.id}
+															className={`px-3 py-2 cursor-pointer flex justify-between items-center ${idx === activeIndex ? "bg-blue-50" : "hover:bg-gray-50"}`}
+															onMouseEnter={() => setActiveIndex(idx)}
+															onMouseDown={(e) => e.preventDefault()}
+															onClick={() => {
+																setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+																setShowSuggestions(false);
+																setActiveIndex(-1);
+																productInputRef.current?.blur();
+															}}
+														>
+															<span className="text-sm text-gray-900">{p.name}</span>
+															<span className="ml-2 text-xs text-gray-500">{p.sku}</span>
+															<span className="ml-auto text-xs text-gray-600">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
+														</li>
+													))}
+												</ul>
+											)}
+										</div>
+										{errors.productName && <p className="text-red-500 text-sm mt-1">{errors.productName}</p>}
 									</div>
-									{errors.productName && <p className="text-red-500 text-sm mt-1">{errors.productName}</p>}
-								</div>
 
-                                      {/* Add Item Button */}
-								<div className="flex items-end">
-									<button
-										type="button"
-										onClick={addItem}
-										className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
-										<Plus className="h-4 w-4" />
-										Add Item
-									</button>
+									{/* Add Item Button */}
+									<div className="flex items-end">
+										<button
+											type="button"
+											onClick={addItem}
+											className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+											<Plus className="h-4 w-4" />
+											Add Item
+										</button>
+									</div>
 								</div>
 							</div>
-						</div>
 
 
-						{items.length > 0 && (
-								<div className="mt-4 overflow-x-auto">
-									<div className="inline-block min-w-full align-middle">
-										<div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-											<table className="min-w-[880px] w-full divide-y divide-gray-200">
-												<thead className="bg-gray-50 sticky top-0 z-10">
-													<tr>
-														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">No</th>
-														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Product Name</th>
-														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
-														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Stock</th>
-														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
-														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">MRP</th>
-														<th className="px-3 sm:px-4 py-2 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
-														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Discount</th>
-														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
-														<th className="px-2 sm:px-3 py-2 text-right">Action</th>
-													</tr>
-												</thead>
-												<tbody className="bg-white divide-y divide-gray-100">
-													{items.map((it, idx) => {
-														const rowQty = Number(it.quantity) || 0;
-														const rowPrice = Number(it.unitPrice) || 0;
-														const rowGross = rowQty * rowPrice;
-														const rowDiscount = it.discountEnabled ? parseDiscount(it.discountInput, rowGross) : 0;
-														const rowTotal = Math.max(0, rowGross - rowDiscount);
-														return (
-															<tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100/60">
-																<td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{idx + 1}</td>
-																<td className="px-3 sm:px-4 py-2 text-sm text-gray-900">{it.productName}</td>
-																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-																	<input
-																		type="number"
-																		min="0"
-																		step="0.01"
-																		value={it.unitPrice}
-																		onChange={(e) => updateItem(it.id, "unitPrice", e.target.value)}
-																		className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-																	/>
-																</td>
-																<td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{it.currentStock}</td>
-																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-																	<input
-																		type="number"
-																		min="1"
-																		value={it.quantity}
-																		onChange={(e) => updateItem(it.id, "quantity", e.target.value)}
-																		className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-																	/>
-																</td>
-																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(it.mrp || 0)}</td>
-																<td className="px-3 sm:px-4 py-2 text-center whitespace-nowrap">
-																	<button
-																		type="button"
-																		role="switch"
-																		aria-checked={!!it.discountEnabled}
-																		aria-disabled={it.discountEnabled}
-																		disabled={it.discountEnabled}
-																		onClick={() => {
-																			if (it.discountEnabled) return; // one-time enable only
-																			setItems((prev) => prev.map((row) => (
-																				row.id === it.id ? { ...row, discountEnabled: true } : row
-																			)));
-																		}}
-																		className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${it.discountEnabled ? 'bg-blue-600 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}
-																		title={it.discountEnabled ? 'Discount enabled (locked)' : 'Enable discount for this row'}
-																	>
-																		<span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${it.discountEnabled ? 'translate-x-5' : 'translate-x-1'}`}/>
-																		<span className="sr-only">Toggle discount</span>
-																	</button>
-																</td>
-																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-																	<input
-																		type="text"
-																		value={it.discountInput || ""}
-																		onChange={(e) => updateItem(it.id, "discountInput", e.target.value)}
-																		disabled={!it.discountEnabled}
-																		title={!it.discountEnabled ? 'Enable discount in this row to edit' : undefined}
-																		placeholder="0 or 10%"
-																		className={`w-24 px-2 py-1 border rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 ${!it.discountEnabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'border-gray-300'}`}
-																	/>
-																</td>
-																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
-																<td className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">
-																	<button
-																		type="button"
-																		onClick={() => removeItem(it.id)}
-																		className="inline-flex items-center justify-center rounded-md p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
-																	>
-																		<Trash2 className="h-4 w-4" />
-																	</button>
-																</td>
-															</tr>
-														);
-													})}
+							{items.length > 0 && (
+									<div className="mt-4 overflow-x-auto">
+										<div className="inline-block min-w-full align-middle">
+											<div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+												<table className="min-w-[880px] w-full divide-y divide-gray-200">
+													<thead className="bg-gray-50 sticky top-0 z-10">
+														<tr>
+															<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">No</th>
+															<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Product Name</th>
+															<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
+															<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Stock</th>
+															<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
+															<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">MRP</th>
+															<th className="px-3 sm:px-4 py-2 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
+															<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Discount</th>
+															<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+															<th className="px-2 sm:px-3 py-2 text-right">Action</th>
+														</tr>
+													</thead>
+													<tbody className="bg-white divide-y divide-gray-100">
+														{items.map((it, idx) => {
+															const rowQty = Number(it.quantity) || 0;
+															const rowPrice = Number(it.unitPrice) || 0;
+															const rowGross = rowQty * rowPrice;
+															const rowDiscount = it.discountEnabled ? parseDiscount(it.discountInput, rowGross) : 0;
+															const rowTotal = Math.max(0, rowGross - rowDiscount);
+															return (
+																<tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100/60">
+																	<td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{idx + 1}</td>
+																	<td className="px-3 sm:px-4 py-2 text-sm text-gray-900">{it.productName}</td>
+																	<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
+																		<input
+																			type="number"
+																			min="0"
+																			step="0.01"
+																			value={it.unitPrice}
+																			onChange={(e) => updateItem(it.id, "unitPrice", e.target.value)}
+																			className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																		/>
+																	</td>
+																	<td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{it.currentStock}</td>
+																	<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
+																		<input
+																			type="number"
+																			min="1"
+																			value={it.quantity}
+																			onChange={(e) => updateItem(it.id, "quantity", e.target.value)}
+																			className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																		/>
+																	</td>
+																	<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(it.mrp || 0)}</td>
+																	<td className="px-3 sm:px-4 py-2 text-center whitespace-nowrap">
+																		<button
+																			type="button"
+																			role="switch"
+																			aria-checked={!!it.discountEnabled}
+																			aria-disabled={it.discountEnabled}
+																			disabled={it.discountEnabled}
+																			onClick={() => {
+																				if (it.discountEnabled) return; // one-time enable only
+																				setItems((prev) => prev.map((row) => (
+																					row.id === it.id ? { ...row, discountEnabled: true } : row
+																				)));
+																			}}
+																			className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${it.discountEnabled ? 'bg-blue-600 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}
+																			title={it.discountEnabled ? 'Discount enabled (locked)' : 'Enable discount for this row'}
+																		>
+																			<span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${it.discountEnabled ? 'translate-x-5' : 'translate-x-1'}`}/>
+																			<span className="sr-only">Toggle discount</span>
+																		</button>
+																	</td>
+																	<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
+																		<input
+																			type="text"
+																			value={it.discountInput || ""}
+																			onChange={(e) => updateItem(it.id, "discountInput", e.target.value)}
+																			disabled={!it.discountEnabled}
+																			title={!it.discountEnabled ? 'Enable discount in this row to edit' : undefined}
+																			placeholder="0 or 10%"
+																			className={`w-24 px-2 py-1 border rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 ${!it.discountEnabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'border-gray-300'}`}
+																		/>
+																	</td>
+																	<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
+																	<td className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">
+																		<button
+																			type="button"
+																			onClick={() => removeItem(it.id)}
+																			className="inline-flex items-center justify-center rounded-md p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
+																		>
+																			<Trash2 className="h-4 w-4" />
+																		</button>
+																	</td>
+																</tr>
+															);
+														})}
 
-													{/* Summary rows intentionally removed as requested */}
-												</tbody>
-											</table>
+														{/* Summary rows intentionally removed as requested */}
+													</tbody>
+												</table>
+											</div>
 										</div>
 									</div>
-								</div>
-							)}
-
-						<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-							<button
-								type="submit"
-								disabled={isSubmitting}
-								className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full"
-							>
-								{isSubmitting ? (
-									<>
-										<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-										Creating...
-									</>
-								) : (
-									<>
-										<Plus className="h-4 w-4" />
-										Create Sales Order
-									</>
 								)}
-							</button>
+
+							<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+								<button
+									type="submit"
+									disabled={isSubmitting}
+									className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full"
+								>
+									{isSubmitting ? (
+										<>
+											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+											Creating...
+										</>
+									) : (
+										<>
+											<Plus className="h-4 w-4" />
+											Create Sales Order
+										</>
+									)}
+								</button>
+							</div>
 						</div>
-					</div>
-				</form>
-			</div>
+					</form>
+				</div>
+			</>
 		);
 	};
 
@@ -588,7 +590,9 @@ const SalesOrder = () => {
 				</div>
 			)}
 		</div>
+		
 	);
+
 };
 
 export default SalesOrder;
