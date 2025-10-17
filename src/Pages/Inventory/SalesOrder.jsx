@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 // Sales Orders come from AccountingService; centers/products from Inventory service
 import { addSalesOrder, getSalesOrders } from "../../services/AccountingService";
 import { getCenters, getProducts, getCustomers  } from "../../services/Inventory/inventoryService";  // dummy data inventoryService.js
@@ -8,6 +8,8 @@ const SalesOrder = () => {
 	const [orders, setOrders] = useState([]);
 	const [nextSONumber, setNextSONumber] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [showSuccess, setShowSuccess] = useState(false);
+	const [successText, setSuccessText] = useState("");
 
 	useEffect(() => {
 		const initial = getSalesOrders();
@@ -15,16 +17,23 @@ const SalesOrder = () => {
 	}, []);
 
 	useEffect(() => {
-		// Compute next SO number from existing orders using pattern SO-0001
+		// Compute next SO number from existing orders; accept with/without dash and preserve higher current state
 		const nums = orders
 			.map((o) => {
-				const m = String(o.orderNumber || "").match(/^SO-(\d{4})$/i);
+				const m = String(o.orderNumber || "").match(/^SO-?(\d+)$/i);
 				return m ? parseInt(m[1], 10) : null;
 			})
 			.filter((n) => n !== null);
-		const next = nums.length ? Math.max(...nums) + 1 : 1;
-		setNextSONumber(`SO-${String(next).padStart(4, "0")}`);
+		const fromOrders = nums.length ? Math.max(...nums) + 1 : 1;
+		setNextSONumber((prev) => {
+			const pm = String(prev || "").match(/^SO-?(\d+)$/i);
+			const prevNum = pm ? parseInt(pm[1], 10) : 0;
+			const finalNum = Math.max(fromOrders, prevNum || 0);
+			return `SO-${String(finalNum).padStart(4, "0")}`;
+		});
 	}, [orders]);
+
+    // Success modal stays until user dismisses; no auto-hide
 
 	// LKR formatter
 	const formatLKR = (value) => {
@@ -110,7 +119,7 @@ const SalesOrder = () => {
 				const qty = Number(it.quantity) || 0;
 				const price = Number(it.unitPrice) || 0;
 				const gross = qty * price;
-				const dAmt = parseDiscount(it.discountInput, gross);
+				const dAmt = it.discountEnabled ? parseDiscount(it.discountInput, gross) : 0;
 				disc += dAmt;
 				sub += Math.max(0, gross - dAmt);
 			}
@@ -161,6 +170,7 @@ const SalesOrder = () => {
 					unitPrice: Math.max(0, unitPrice),
 					currentStock,
 					mrp,
+					discountEnabled: false,
 					discountInput: "",
 				},
 			]);
@@ -197,7 +207,7 @@ const SalesOrder = () => {
 							const qty = Number(it.quantity) || 0;
 							const price = Number(it.unitPrice) || 0;
 							const gross = qty * price;
-							const dAmt = parseDiscount(it.discountInput, gross);
+								const dAmt = it.discountEnabled ? parseDiscount(it.discountInput, gross) : 0;
 							return {
 								...it,
 								lineGross: gross,
@@ -213,6 +223,16 @@ const SalesOrder = () => {
 				};
 				const created = addSalesOrder(payload);
 				setOrders((prev) => [...prev, created]);
+				// Show success toast
+				const createdNumber = created?.orderNumber || nextSONumber;
+				setSuccessText(`Sales order ${createdNumber} created successfully.`);
+				setShowSuccess(true);
+				// Immediately bump displayed next SO number
+				const m = String(createdNumber).match(/^SO-?(\d+)$/i);
+				if (m) {
+					const nextNum = Number(m[1]) + 1;
+					setNextSONumber(`SO-${String(nextNum).padStart(4, "0")}`);
+				}
 				// Reset
 				setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
 				setItems([]);
@@ -232,6 +252,8 @@ const SalesOrder = () => {
 						<p className="text-gray-600 mt-1 text-sm sm:text-base">Create and manage sales orders</p>
 					</div>
 				</div>
+
+				{/* No inline message when using popup */}
 
 				<form onSubmit={onSubmit}>
 					<div className="grid grid-cols-1 gap-4 mb-4 sm:mb-6">
@@ -400,6 +422,7 @@ const SalesOrder = () => {
 														<th className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Stock</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">MRP</th>
+														<th className="px-3 sm:px-4 py-2 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Discount</th>
 														<th className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
 														<th className="px-2 sm:px-3 py-2 text-right">Action</th>
@@ -410,7 +433,7 @@ const SalesOrder = () => {
 														const rowQty = Number(it.quantity) || 0;
 														const rowPrice = Number(it.unitPrice) || 0;
 														const rowGross = rowQty * rowPrice;
-														const rowDiscount = parseDiscount(it.discountInput, rowGross);
+														const rowDiscount = it.discountEnabled ? parseDiscount(it.discountInput, rowGross) : 0;
 														const rowTotal = Math.max(0, rowGross - rowDiscount);
 														return (
 															<tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100/60">
@@ -437,13 +460,35 @@ const SalesOrder = () => {
 																	/>
 																</td>
 																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(it.mrp || 0)}</td>
+																<td className="px-3 sm:px-4 py-2 text-center whitespace-nowrap">
+																	<button
+																		type="button"
+																		role="switch"
+																		aria-checked={!!it.discountEnabled}
+																		aria-disabled={it.discountEnabled}
+																		disabled={it.discountEnabled}
+																		onClick={() => {
+																			if (it.discountEnabled) return; // one-time enable only
+																			setItems((prev) => prev.map((row) => (
+																				row.id === it.id ? { ...row, discountEnabled: true } : row
+																			)));
+																		}}
+																		className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${it.discountEnabled ? 'bg-blue-600 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}
+																		title={it.discountEnabled ? 'Discount enabled (locked)' : 'Enable discount for this row'}
+																	>
+																		<span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${it.discountEnabled ? 'translate-x-5' : 'translate-x-1'}`}/>
+																		<span className="sr-only">Toggle discount</span>
+																	</button>
+																</td>
 																<td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
 																	<input
 																		type="text"
 																		value={it.discountInput || ""}
 																		onChange={(e) => updateItem(it.id, "discountInput", e.target.value)}
+																		disabled={!it.discountEnabled}
+																		title={!it.discountEnabled ? 'Enable discount in this row to edit' : undefined}
 																		placeholder="0 or 10%"
-																		className="w-24 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																		className={`w-24 px-2 py-1 border rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 ${!it.discountEnabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'border-gray-300'}`}
 																	/>
 																</td>
 																<td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
@@ -500,6 +545,48 @@ const SalesOrder = () => {
 					<InlinePOForm nextSONumber={nextSONumber} />
 				</section>
 			</div>
+
+			{/* Loading overlay */}
+			{isSubmitting && (
+				<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" role="status" aria-live="polite">
+					<div className="bg-white rounded-lg shadow px-4 py-3 flex items-center gap-3">
+						<div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+						<span className="text-gray-800">Creating sales order…</span>
+					</div>
+				</div>
+			)}
+
+			{/* Success modal popup (visible until dismissed) */}
+			{showSuccess && (
+				<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Sales order created">
+					<div className="bg-white rounded-lg shadow-xl p-5 sm:p-6 w-[90%] max-w-md">
+						<div className="flex items-start gap-3">
+							<CheckCircle className="h-6 w-6 text-green-600" />
+							<div className="flex-1">
+								<h3 className="text-lg font-semibold text-gray-900">Success</h3>
+								<p className="mt-1 text-sm text-gray-700">{successText || "Sales order created successfully."}</p>
+							</div>
+							<button
+								type="button"
+								onClick={() => setShowSuccess(false)}
+								className="ml-2 text-gray-500 hover:text-gray-700"
+								aria-label="Close"
+							>
+								<X className="h-4 w-4" />
+							</button>
+						</div>
+						<div className="mt-4 flex justify-end">
+							<button
+								type="button"
+								onClick={() => setShowSuccess(false)}
+								className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+							>
+								OK
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };
