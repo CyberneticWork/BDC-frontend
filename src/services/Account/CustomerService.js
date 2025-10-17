@@ -23,6 +23,9 @@ export const addCustomer = async (form) => {
     email: form.email,
     phone: form.phoneNumber,
     address: form.address,
+    city: form.city,
+    customer_type_id: form.customerType,
+    customer_category_id: form.customerCategory,
   }
   try {
     const response = await axios.post(`/customers`, payload);

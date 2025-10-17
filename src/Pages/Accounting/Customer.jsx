@@ -31,7 +31,7 @@ const Customer = () => {
     brNumberNic: '',
     email: '',
     address: '',
-    city: ''
+    city: '',
   });
 
   useEffect(() => {
@@ -91,7 +91,7 @@ const Customer = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // console.log('Submitting form with data:', formData);
+    console.log('Submitting form with data:', formData);
     try {
       if (editingCustomer) {
         // Update existing customer
@@ -101,10 +101,13 @@ const Customer = () => {
         ));
         setEditingCustomer(null);
         alert('Customer updated successfully!');
+        // refresh list from server to ensure canonical data
+        await loadCustomers();
       } else {
         // Create new customer
         const newCustomer = await addCustomer(formData);
-        setCustomers(prev => [...prev, newCustomer]);
+        // reload from server so related objects and server-generated fields are present
+        await loadCustomers();
         alert('Customer created successfully!');
       }
       setFormData({
@@ -143,7 +146,8 @@ const Customer = () => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
         await deleteCustomer(id);
-        setCustomers(prev => prev.filter(customer => customer.id !== id));
+        // reload from server to ensure consistent state
+        await loadCustomers();
         alert('Customer deleted successfully!');
       } catch (error) {
         console.error('Error deleting customer:', error);
@@ -166,7 +170,8 @@ const Customer = () => {
         }
 
         const newCat = await addCustomerCategory(newCategory.trim());
-        setCustomerCategories(prev => [...prev, newCat]);
+        // refresh categories from server so ids/shape match backend
+        await loadCustomerCategories();
         setNewCategory('');
         setShowCategoryModal(false);
         alert('Customer Category added successfully!');
@@ -191,7 +196,8 @@ const Customer = () => {
         }
 
         const newTypeData = await addCustomerType(newType.trim());
-        setCustomerTypes(prev => [...prev, newTypeData]);
+        // refresh types from server so ids/shape match backend
+        await loadCustomerTypes();
         setNewType('');
         setShowTypeModal(false);
         alert('Customer Type added successfully!');
@@ -268,10 +274,10 @@ const Customer = () => {
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold text-gray-900 truncate">
-                        {customer.customerName}
+                        {customer.customerName ?? customer.name ?? ''}
                       </h3>
                       <p className="text-xs text-gray-500 mt-1">
-                        {customer.brNumberNic}
+                        {customer.brNumberNic ?? customer.br_number_nic ?? ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 ml-2">
@@ -293,26 +299,26 @@ const Customer = () => {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <div className="bg-gray-100 px-2 py-1 rounded">
-                        {customer.customerCategory}
+                        {customer.customer_category?.name ?? customer.customerCategory?.name ?? ''}
                       </div>
                       <div className="bg-gray-100 px-2 py-1 rounded">
-                        {customer.customerType}
+                        {customer.customer_type?.name ?? customer.customerType?.name ?? ''}
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <Phone className="h-3 w-3" />
-                      <span>{customer.phoneNumber}</span>
+                      <span>{customer.phoneNumber ?? customer.phone ?? ''}</span>
                     </div>
                     
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <Mail className="h-3 w-3" />
-                      <span className="truncate">{customer.email}</span>
+                      <span className="truncate">{customer.email ?? ''}</span>
                     </div>
                     
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <MapPin className="h-3 w-3" />
-                      <span>{customer.city}</span>
+                      <span>{customer.city ?? ''}</span>
                     </div>
                   </div>
                 </div>
@@ -360,26 +366,26 @@ const Customer = () => {
                     <tr key={customer.id} className="hover:bg-gray-50">
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {customer.customerName}
+                          {customer.customerName ?? customer.name ?? ''}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {customer.brNumberNic}
+                          {customer.brNumberNic ?? customer.br_number_nic ?? ''}
                         </div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {customer.customerCategory}
+                        {customer.customer_category?.name ?? customer.customerCategory?.name ?? ''}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {customer.customerType}
+                        {customer.customer_type?.name ?? customer.customerType?.name ?? ''}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {customer.phoneNumber}
+                        {customer.phoneNumber ?? customer.phone ?? ''}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {customer.email}
+                        {customer.email ?? ''}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {customer.city}
+                        {customer.city ?? ''}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
@@ -452,7 +458,7 @@ const Customer = () => {
                   >
                     <option value="">Select Category</option>
                     {customerCategories.map(category => (
-                      <option key={category.id} value={category.name}>{category.name}</option>
+                      <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
                 </div>
@@ -470,7 +476,7 @@ const Customer = () => {
                   >
                     <option value="">Select Type</option>
                     {customerTypes.map(type => (
-                      <option key={type.id} value={type.name}>{type.name}</option>
+                      <option key={type.id} value={type.id}>{type.name}</option>
                     ))}
                   </select>
                 </div>
