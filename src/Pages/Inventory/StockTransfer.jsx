@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getInvoiceData, addInvoice, getSuppliers, getProducts } from "../../services/Inventory/inventoryService";
-import Payment from "../../components/Inventory/Payment";
+import { getInvoiceData, addInvoice, getProducts } from "../../services/Inventory/inventoryService";
+// Payment component removed
 
 const StockTransfer = () => {
   const [invoices, setInvoices] = useState([]);
@@ -37,7 +37,6 @@ const StockTransfer = () => {
     const [formData, setFormData] = useState({
       id: "",
       center: "",
-      supplier: "",
       date: new Date().toISOString().split("T")[0],
       status: "pending",
       refNumber: "",
@@ -48,8 +47,7 @@ const StockTransfer = () => {
     });
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [pendingInvoice, setPendingInvoice] = useState(null);
+    // Payment modal and pendingInvoice removed
 
     // Entry state and typeahead like SalesOrder page
     const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
@@ -62,7 +60,7 @@ const StockTransfer = () => {
     }, [nextStId]);
 
     const centers = ["Main Center", "Branch A", "Branch B", "Warehouse 01"];
-    const suppliers = getSuppliers();
+    // const suppliers = getSuppliers();
     const products = useMemo(() => getProducts?.() || [], []);
 
     const filteredProducts = useMemo(() => {
@@ -93,7 +91,6 @@ const StockTransfer = () => {
       if (!formData.id) e.id = "Invoice number not generated";
       if (!formData.center.trim()) e.center = "Center is required";
       if (!formData.date) e.date = "Date is required";
-      if (!formData.supplier.trim()) e.supplier = "Supplier is required";
       if ((items?.length || 0) === 0) e.items = "Add at least one item";
       setErrors(e);
       return Object.keys(e).length === 0;
@@ -155,21 +152,15 @@ const StockTransfer = () => {
         quantity: firstItem ? firstItem.quantity : 0,
       };
 
-      setPendingInvoice(invoiceData);
-      setShowPaymentModal(true);
-    };
-
-    const finalizeInvoiceWithPayment = async (paymentData) => {
-      if (!pendingInvoice) return;
+      // Directly add invoice, no payment modal
       setIsSubmitting(true);
       try {
-        const newInvoice = addInvoice({ ...pendingInvoice, payment: paymentData });
+        const newInvoice = addInvoice(invoiceData);
         setInvoices((prev) => [...prev, newInvoice]);
         setErrors({});
         setFormData({
           id: "",
           center: "",
-          supplier: "",
           date: new Date().toISOString().split("T")[0],
           status: "pending",
           refNumber: "",
@@ -178,12 +169,12 @@ const StockTransfer = () => {
           quantity: 0,
         });
         setItems([]);
-        setPendingInvoice(null);
-        setShowPaymentModal(false);
       } finally {
         setIsSubmitting(false);
       }
     };
+
+    // finalizeInvoiceWithPayment removed
 
     return (
       <>
@@ -201,7 +192,7 @@ const StockTransfer = () => {
           <h3 className="text-lg sm:text-xl font-semibold mb-4">Create New Stock Transfer</h3>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-4 mb-4 sm:mb-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 sm:mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
                   <input
@@ -228,23 +219,6 @@ const StockTransfer = () => {
                     ))}
                   </select>
                   {errors.center && <p className="text-red-500 text-sm mt-1">{errors.center}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Supplier Name*</label>
-                  <select
-                    value={formData.supplier}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, supplier: e.target.value }))}
-                    aria-invalid={!!errors.supplier}
-                    aria-describedby={errors.supplier ? "supplier-error" : undefined}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.supplier ? "border-red-500" : "border-gray-300"}`}
-                  >
-                    <option value="">Select supplier</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
-                    ))}
-                  </select>
-                  {errors.supplier && <p id="supplier-error" className="text-red-500 text-sm mt-1">Supplier is required</p>}
                 </div>
               </div>
 
@@ -356,109 +330,42 @@ const StockTransfer = () => {
                   <div className="mt-4 overflow-x-auto">
                     <div className="inline-block min-w-full align-middle">
                       <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-                        <table className="min-w-[900px] w-full divide-y divide-gray-200">
+                        <table className="min-w-[400px] w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50 sticky top-0 z-10">
                             <tr>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">No</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Product Name</th>
-                                                     <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Stock</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
-                              <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
-                              <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">MRP</th>
-                              <th scope="col" className="px-3 sm:px-4 py-2 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
-                              <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Per unit discount when enabled">Discount</th>
-                              <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
-                                                            <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
-                              <th scope="col" className="px-2 sm:px-3 py-2 text-right"></th>
+                              <th scope="col" className="px-2 sm:px-3 py-2 text-right">Action</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-100">
-                            {items.map((it, idx) => {
-                              const Discount = (Number(it.discount) || 0) * (Number(it.quantity) || 0);
-                              const Total = (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0);
-                              const rowTotal = Total - Discount;
-                              return (
-                                <tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100/60">
-                                  <td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{idx + 1}</td>
-                                  <td className="px-3 sm:px-4 py-2 text-sm text-gray-900">{it.name}</td>
-                                  <td className="px-3 sm:px-4 py-2 text-sm text-gray-900 text-right whitespace-nowrap">{it.currentStock}</td>
-                                  <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      value={it.quantity}
-                                      onChange={(e) => updateItemField(it.id, "quantity", parseInt(e.target.value) || 0)}
-                                      aria-label={`Quantity for ${it.name}`}
-                                      className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                  </td>
-                                  <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={it.unitPrice}
-                                      onChange={(e) => updateItemField(it.id, "unitPrice", parseFloat(e.target.value) || 0)}
-                                      aria-label={`Unit price for ${it.name}`}
-                                      className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                  </td>
-                                  <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={it.mrp}
-                                      onChange={(e) => updateItemField(it.id, "mrp", parseFloat(e.target.value) || 0)}
-                                      aria-label={`MRP for ${it.name}`}
-                                      className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                  </td>
-                                  <td className="px-3 sm:px-4 py-2 text-center whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      role="switch"
-                                      aria-checked={!!it.discountEnabled}
-                                      aria-disabled={it.discountEnabled}
-                                      disabled={it.discountEnabled}
-                                      onClick={() => {
-                                        if (it.discountEnabled) return;
-                                        setItems((prev) => prev.map((row) => (row.id === it.id ? { ...row, discountEnabled: true } : row)));
-                                      }}
-                                      className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${it.discountEnabled ? "bg-blue-600 opacity-60 cursor-not-allowed" : "bg-gray-300"}`}
-                                      title={it.discountEnabled ? "Discount enabled (locked)" : "Enable discount for this row"}
-                                    >
-                                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${it.discountEnabled ? "translate-x-5" : "translate-x-1"}`}/>
-                                      <span className="sr-only">Toggle discount</span>
-                                    </button>
-                                  </td>
-                                  <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={it.discount}
-                                      onChange={(e) => updateItemField(it.id, "discount", parseFloat(e.target.value) || 0)}
-                                      disabled={!it.discountEnabled}
-                                      aria-label={`Per-unit discount for ${it.name}`}
-                                      title={!it.discountEnabled ? "Enable discount in this row to edit" : undefined}
-                                      className={`w-24 px-2 py-1 border rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 ${!it.discountEnabled ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" : "border-gray-300"}`}
-                                    />
-                                  </td>
-                                  <td className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
-                                  <td className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteItem(it.id)}
-                                      className="inline-flex items-center justify-center rounded-md p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
-                                      aria-label={`Remove ${it.name} from list`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
+                            {items.map((it, idx) => (
+                              <tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100/60">
+                                <td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{idx + 1}</td>
+                                <td className="px-3 sm:px-4 py-2 text-sm text-gray-900">{it.name}</td>
+                                <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={it.quantity}
+                                    onChange={(e) => updateItemField(it.id, "quantity", parseInt(e.target.value) || 0)}
+                                    aria-label={`Quantity for ${it.name}`}
+                                    className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  />
+                                </td>
+                                <td className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteItem(it.id)}
+                                    className="inline-flex items-center justify-center rounded-md p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
+                                    aria-label={`Remove ${it.name} from list`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
@@ -490,30 +397,7 @@ const StockTransfer = () => {
           </form>
         </div>
 
-        {showPaymentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPaymentModal(false)} aria-hidden="true" />
-            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="text-lg font-semibold">Set Payment</h3>
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="text-gray-500 hover:text-gray-700 rounded-md p-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-label="Close payment modal"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="p-4">
-                <div className="mb-3 text-sm text-gray-600">
-                  Total Payable: <span className="font-medium">{formatLKR(pendingInvoice?.amount || tableTotal)}</span>
-                </div>
-                <Payment onSetPayment={finalizeInvoiceWithPayment} />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Payment modal removed */}
       </>
     );
   };
