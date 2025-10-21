@@ -117,6 +117,8 @@ const Invoices = () => {
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
         discountEnabled: false,
+        mrp: selected ? Number(selected.mrp) || 0 : 0,
+        currentStock: selected ? selected.currentstock || 0 : 0,
       };
       setItems((prev) => [...prev, newItem]);
       setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
@@ -354,16 +356,19 @@ const Invoices = () => {
                   <div className="mt-4 overflow-x-auto">
                     <div className="inline-block min-w-full align-middle">
                       <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-                        <table className="min-w-[760px] w-full divide-y divide-gray-200">
+                        <table className="min-w-[900px] w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50 sticky top-0 z-10">
                             <tr>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">No</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Product Name</th>
+                                                     <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Stock</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
+                              <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">MRP</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider" title="Per unit discount when enabled">Discount</th>
                               <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+                                                            <th scope="col" className="px-3 sm:px-4 py-2 text-right text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                               <th scope="col" className="px-2 sm:px-3 py-2 text-right"></th>
                             </tr>
                           </thead>
@@ -376,6 +381,7 @@ const Invoices = () => {
                                 <tr key={it.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100/60">
                                   <td className="px-3 sm:px-4 py-2 text-sm text-gray-700 whitespace-nowrap">{idx + 1}</td>
                                   <td className="px-3 sm:px-4 py-2 text-sm text-gray-900">{it.name}</td>
+                                  <td className="px-3 sm:px-4 py-2 text-sm text-gray-900 text-right whitespace-nowrap">{it.currentStock}</td>
                                   <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
                                     <input
                                       type="number"
@@ -394,6 +400,17 @@ const Invoices = () => {
                                       value={it.unitPrice}
                                       onChange={(e) => updateItemField(it.id, "unitPrice", parseFloat(e.target.value) || 0)}
                                       aria-label={`Unit price for ${it.name}`}
+                                      className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                  </td>
+                                  <td className="px-3 sm:px-4 py-2 text-right whitespace-nowrap">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={it.mrp}
+                                      onChange={(e) => updateItemField(it.id, "mrp", parseFloat(e.target.value) || 0)}
+                                      aria-label={`MRP for ${it.name}`}
                                       className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
                                   </td>
