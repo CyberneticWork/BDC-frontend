@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User } from "lucide-react";
+import { Send, Bot, User, Mic, MicOff } from "lucide-react";
 
 const Chatbot = () => {
   const [messages, setMessages] = useState([
@@ -11,6 +11,9 @@ const Chatbot = () => {
     },
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -21,62 +24,108 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
-    if (inputValue.trim() === "") return;
+  // 🎙️ Initialize voice recognition
+  useEffect(() => {
+    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = false;
 
-    // Add user message
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(transcript);
+        handleSend(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => setIsListening(false);
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  // 🧠 Handle sending message
+  const handleSend = async (textValue = null) => {
+    const messageText = textValue || inputValue;
+    if (messageText.trim() === "") return;
+
     const userMessage = {
       id: messages.length + 1,
-      text: inputValue,
+      text: messageText,
       sender: "user",
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
+    setIsLoading(true);
 
-    // Simulate bot response after a delay
-    setTimeout(() => {
+    try {
+      const response = await fetch("http://localhost:8000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: messageText }),
+      });
+
+      const data = await response.json();
+
       const botResponse = {
         id: messages.length + 2,
-        text: getBotResponse(inputValue),
+        text: data.response || "Sorry, I couldn’t get a reply from the server.",
         sender: "bot",
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, botResponse]);
-    }, 1000);
+
+      // 🗣️ Speak the bot response aloud
+      speakText(botResponse.text);
+    } catch (error) {
+      console.error("Error fetching response:", error);
+      const botError = {
+        id: messages.length + 2,
+        text: "⚠️ There was an issue connecting to the server.",
+        sender: "bot",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botError]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const getBotResponse = (userInput) => {
-    const lowerInput = userInput.toLowerCase();
+  // 🗣️ Text-to-speech function
+  const speakText = (text) => {
+    if ("speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.pitch = 1;
+      utterance.rate = 1;
+      utterance.volume = 1;
+      window.speechSynthesis.cancel(); // stop previous speech
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
-    if (lowerInput.includes("employee") || lowerInput.includes("staff")) {
-      return "You can manage employees through the HR Master section. Would you like me to navigate you there?";
-    } else if (
-      lowerInput.includes("payroll") ||
-      lowerInput.includes("salary")
-    ) {
-      return "For payroll and salary management, check the Salary Process section in HR Master.";
-    } else if (lowerInput.includes("leave") || lowerInput.includes("holiday")) {
-      return "Leave management is available under Time Attendance in HR Master. You can approve leaves or view the calendar there.";
-    } else if (
-      lowerInput.includes("performance") ||
-      lowerInput.includes("pms")
-    ) {
-      return "Performance Management System (PMS) features are in the PMS section of the dashboard.";
-    } else if (lowerInput.includes("learning") || lowerInput.includes("lms")) {
-      return "Learning Management System (LMS) is available in the Learning Management section.";
-    } else if (
-      lowerInput.includes("accounting") ||
-      lowerInput.includes("finance")
-    ) {
-      return "Accounting features are in the Accounting section. You can manage customers, transactions, and view financial reports there.";
-    } else if (lowerInput.includes("help")) {
-      return "I can help you navigate the HR System. Try asking about employees, payroll, leave management, performance reviews, or accounting features.";
-    } else if (lowerInput.includes("hello") || lowerInput.includes("hi")) {
-      return "Hello there! How can I assist you with the HR System today?";
+  // 🎤 Start/stop listening
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
     } else {
-      return "I'm here to help you navigate the HR System. For specific assistance, try asking about employees, payroll, leave management, or other features.";
+      recognitionRef.current.start();
+      setIsListening(true);
     }
   };
 
@@ -133,23 +182,55 @@ const Chatbot = () => {
               </div>
             </div>
           ))}
+
+          {isLoading && (
+            <div className="flex mb-4 justify-start">
+              <div className="max-w-xs rounded-lg p-3 bg-indigo-100 text-gray-800 rounded-tl-none">
+                <div className="flex items-center mb-1">
+                  <Bot className="h-4 w-4 mr-2" />
+                  <span className="font-semibold text-sm">
+                    System Assistant
+                  </span>
+                </div>
+                <p className="text-sm italic text-gray-500">Typing...</p>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
         <div className="p-4 border-t border-gray-200 bg-white">
-          <div className="flex">
+          <div className="flex items-center">
+            <button
+              onClick={toggleListening}
+              className={`p-2 rounded-l-lg ${
+                isListening
+                  ? "bg-red-500 text-white"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+              } transition-colors duration-200`}
+            >
+              {isListening ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </button>
+
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              className="flex-1 border border-gray-300 rounded-l-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Type or speak your message..."
+              className="flex-1 border border-gray-300 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
+
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               className="bg-indigo-600 text-white p-2 rounded-r-lg hover:bg-indigo-700 transition-colors duration-200"
+              disabled={isLoading}
             >
               <Send className="h-4 w-4" />
             </button>
