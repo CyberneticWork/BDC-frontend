@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Plus, X, Edit, Trash2, Calendar, FileText, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 import { 
   getJournalEntries, 
-  addJournalEntry, 
-  getAccountList 
+  addJournalEntry
 } from '../../services/AccountingService';
+import { getAccountList } from '../../services/Account/AccountService';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   ResponsivePageWrapper,
@@ -26,6 +26,7 @@ import {
   ResponsiveBadge,
   ResponsiveAlert
 } from '../../components/Accounting/ResponsiveAccountingComponents';
+import AccountList from './AccountList';
 
 const JournalEntry = () => {
   const responsive = useResponsive();
@@ -43,8 +44,8 @@ const JournalEntry = () => {
   });
 
   const [entryLines, setEntryLines] = useState([
-    { account: '', description: '', debit: '', credit: '' },
-    { account: '', description: '', debit: '', credit: '' }
+    { account: '', name: '', description: '', debit: '', credit: '' },
+    { account: '', name: '', description: '', debit: '', credit: '' }
   ]);
 
   useEffect(() => {
@@ -61,9 +62,14 @@ const JournalEntry = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const loadData = () => {
-    setJournalEntries(getJournalEntries());
-    setAccounts(getAccountList());
+  const loadData = async () => {
+    try {
+      const fetchedAccounts = await getAccountList();
+      setAccounts(fetchedAccounts);
+    } catch (error) {
+      console.error("Error loading accounts:", error);
+      alert("Failed to load accounts");
+    }
   };
 
   const handleInputChange = (e) => {
@@ -89,7 +95,7 @@ const JournalEntry = () => {
   };
 
   const addLine = () => {
-    setEntryLines(prev => [...prev, { account: '', description: '', debit: '', credit: '' }]);
+    setEntryLines(prev => [...prev, { account: '', name: '', description: '', debit: '', credit: '' }]);
   };
 
   const removeLine = (index) => {
@@ -145,8 +151,8 @@ const JournalEntry = () => {
       status: 'Draft'
     });
     setEntryLines([
-      { account: '', description: '', debit: '', credit: '' },
-      { account: '', description: '', debit: '', credit: '' }
+      { account: '', name: '', description: '', debit: '', credit: '' },
+      { account: '', name: '', description: '', debit: '', credit: '' }
     ]);
     setShowForm(false);
     setEditingEntry(null);
@@ -162,8 +168,8 @@ const JournalEntry = () => {
       status: entry.status
     });
     setEntryLines(entry.lines || [
-      { account: '', description: '', debit: '', credit: '' },
-      { account: '', description: '', debit: '', credit: '' }
+      { account: '', name: '', description: '', debit: '', credit: '' },
+      { account: '', name: '', description: '', debit: '', credit: '' }
     ]);
     setShowForm(true);
   };
@@ -294,9 +300,7 @@ const JournalEntry = () => {
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Amount
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
+                    
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
@@ -320,11 +324,7 @@ const JournalEntry = () => {
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${entry.totalAmount?.toFixed(2)}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(entry.status)}`}>
-                          {entry.status}
-                        </span>
-                      </td>
+                     
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
                           <button
@@ -333,9 +333,7 @@ const JournalEntry = () => {
                           >
                             Edit
                           </button>
-                          <button className="text-green-600 hover:text-green-900">
-                            Post
-                          </button>
+                      
                           <button className="text-red-600 hover:text-red-900">
                             Delete
                           </button>
@@ -413,26 +411,12 @@ const JournalEntry = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-                >
-                  <option value="Draft">Draft</option>
-                  <option value="Posted">Posted</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
+              
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description*
+                Memo
               </label>
               <textarea
                 name="description"
@@ -440,7 +424,7 @@ const JournalEntry = () => {
                 onChange={handleInputChange}
                 required
                 rows={3}
-                placeholder="Description of the journal entry..."
+                placeholder="Memo for the journal entry..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
               />
             </div>
@@ -499,6 +483,19 @@ const JournalEntry = () => {
                         
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={line.name}
+                            onChange={(e) => handleLineChange(index, 'name', e.target.value)}
+                            placeholder="Line name"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
                             Description
                           </label>
                           <input
@@ -552,6 +549,9 @@ const JournalEntry = () => {
                           Account
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
+                          Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                           Description
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
@@ -581,6 +581,15 @@ const JournalEntry = () => {
                                 </option>
                               ))}
                             </select>
+                          </td>
+                          <td className="px-4 py-3 border-r">
+                            <input
+                              type="text"
+                              value={line.name}
+                              onChange={(e) => handleLineChange(index, 'name', e.target.value)}
+                              placeholder="Line name"
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                            />
                           </td>
                           <td className="px-4 py-3 border-r">
                             <input

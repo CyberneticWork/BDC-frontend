@@ -5,8 +5,8 @@ import {
   getAccountList,
   updateAccount,
   deleteAccount,
-  addAccountGroup,
-  getAccountGroups
+  //addAccountGroup,
+  //getAccountGroups
 } from "../../services/Account/AccountService";
 
 // Shared utilities for account types and sub-categories
@@ -70,21 +70,16 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
     accountName: "",
     accountType: "",
     accountSubCategory: "",
-    accountGroup: "",
     openingBalance: ""
   });
-  const [accountGroups, setAccountGroups] = useState([]);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(false); // Added loading state
 
   useEffect(() => {
-    // Reset form data when modal opens or editAccount changes
     if (editAccount) {
       setFormData({
         accountNumber: editAccount.accountNumber || "",
         accountName: editAccount.accountName || "",
         accountType: editAccount.accountType || "",
         accountSubCategory: editAccount.accountSubCategory || "",
-        accountGroup: editAccount.accountGroup || "",
         openingBalance: editAccount.openingBalance || ""
       });
     } else {
@@ -93,26 +88,8 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
         accountName: "",
         accountType: "",
         accountSubCategory: "",
-        accountGroup: "",
         openingBalance: ""
       });
-    }
-
-    // Fetch account groups when modal is open
-    if (isOpen) {
-      const fetchAccountGroups = async () => {
-        try {
-          setIsLoadingGroups(true);
-          const groups = await getAccountGroups();
-          setAccountGroups(groups); // Expecting groups as [{ id: 1, accountGroup: "Group Name" }, ...]
-        } catch (error) {
-          console.error("Failed to fetch account groups:", error);
-          alert("Failed to load account groups");
-        } finally {
-          setIsLoadingGroups(false);
-        }
-      };
-      fetchAccountGroups();
     }
   }, [editAccount, isOpen]);
 
@@ -229,7 +206,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
             </div>
           )}
 
-          <div>
+         {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Account Group
             </label>
@@ -246,7 +223,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
                 </option>
               ))}
             </select>
-          </div>
+          </div>*/}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -259,6 +236,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
               onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
               placeholder="Enter opening balance"
+              disabled={!!editAccount}
             />
           </div>
 
@@ -417,100 +395,100 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
     </div>
   );
 };
-
+{}
 // Account Group Modal Component (unchanged)
-const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
-  const [formData, setFormData] = useState({
-    accountGroupName: ""
-  });
+//  const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
+//   const [formData, setFormData] = useState({
+//     accountGroupName: ""
+//   });
 
-  useEffect(() => {
-    if (!isOpen) {
-      setFormData({
-        accountGroupName: ""
-      });
-    }
-  }, [isOpen]);
+//   useEffect(() => {
+//     if (!isOpen) {
+//       setFormData({
+//         accountGroupName: ""
+//       });
+//     }
+//   }, [isOpen]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formData.accountGroupName) {
-      onSave({
-        ...formData,
-        id: Date.now()
-      });
-      onClose();
-    }
-  };
+//   const handleSubmit = (e) => {
+//     e.preventDefault();
+//     if (formData.accountGroupName) {
+//       onSave({
+//         ...formData,
+//         id: Date.now()
+//       });
+//       onClose();
+//     }
+//   };
 
-  const handleAccountGroupSubmit = (e) => {
-    e.preventDefault();
-    // console.log(formData.accountGroupName)
-    try {
-      addAccountGroup(formData.accountGroupName.trim())
-      alert("Group create Successfull")
-      onClose();
-    }catch(e) {
-      console.log(e)
-    }
-    
+//   // const handleAccountGroupSubmit = (e) => {
+//   //   e.preventDefault();
+//   //   // console.log(formData.accountGroupName)
+//   //   try {
+//   //     addAccountGroup(formData.accountGroupName.trim())
+//   //     alert("Group create Successfull")
+//   //     onClose();
+//   //   }catch(e) {
+//   //     console.log(e)
+//   //   }
+   
 
-  }
+//   }
 
-  if (!isOpen) return null;
+//   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 md:p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-900">
-              Create Account Group
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 p-1"
-            >
-              <X className="h-5 w-5 md:h-6 md:w-6" />
-            </button>
-          </div>
-        </div>
+//   return (
+//     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+//       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+//         <div className="sticky top-0 bg-white border-b border-gray-200 p-4 md:p-6">
+//           <div className="flex items-center justify-between">
+//             <h3 className="text-lg md:text-xl font-semibold text-gray-900">
+//               Create Account Group
+//             </h3>
+//             <button
+//               onClick={onClose}
+//               className="text-gray-400 hover:text-gray-600 p-1"
+//             >
+//               <X className="h-5 w-5 md:h-6 md:w-6" />
+//             </button>
+//           </div>
+//         </div>
 
-        <form className="p-4 md:p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Account Group Name
-            </label>
-            <input
-              type="text"
-              value={formData.accountGroupName}
-              onChange={(e) => setFormData({ ...formData, accountGroupName: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
-              placeholder="Enter group name"
-              required
-            />
-          </div>
+//         <form className="p-4 md:p-6 space-y-4">
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2">
+//               Account Group Name
+//             </label>
+//             <input
+//               type="text"
+//               value={formData.accountGroupName}
+//               onChange={(e) => setFormData({ ...formData, accountGroupName: e.target.value })}
+//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
+//               placeholder="Enter group name"
+//               required
+//             />
+//           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm md:text-base"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAccountGroupSubmit}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm md:text-base"
-            >
-              Create
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
+//           <div className="flex flex-col sm:flex-row gap-3 pt-4">
+//             <button
+//               type="button"
+//               onClick={onClose}
+//               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm md:text-base"
+//             >
+//               Cancel
+//             </button>
+//             <button
+//               onClick={handleAccountGroupSubmit}
+//               className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm md:text-base"
+//             >
+//               Create
+//             </button>
+//           </div>
+//         </form>
+//       </div>
+//     </div>
+//   );
+// };
 
 // Main Account List Component
 const AccountList = () => {
@@ -589,10 +567,10 @@ const AccountList = () => {
     alert("Account Category created successfully!");
   };
 
-  const handleCreateGroup = (groupData) => {
-    addAccountGroup(groupData);
-    alert("Account Group created successfully!");
-  };
+  // const handleCreateGroup = (groupData) => {
+  //   addAccountGroup(groupData);
+  //   alert("Account Group created successfully!");
+  // };
 
   const handleEditAccount = (account) => {
     setEditingAccount(account);
@@ -623,6 +601,7 @@ const AccountList = () => {
           Create Account Category
         </button>
         */}
+        {/* 
         <button
           onClick={() => setIsGroupModalOpen(true)}
           className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm md:text-base"
@@ -630,6 +609,7 @@ const AccountList = () => {
           <Plus className="h-4 w-4" />
           Create Account Group
         </button>
+        */}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -677,12 +657,12 @@ const AccountList = () => {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {/* <div className="flex items-center gap-2">
                       <Users className="h-3 w-3 text-green-500" />
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                         {account.accountGroup}
                       </span>
-                    </div>
+                    </div> */}
 
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <DollarSign className="h-3 w-3 text-gray-400" />
@@ -710,9 +690,9 @@ const AccountList = () => {
                   <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Sub Category
                   </th>
-                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                 {/* <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Account Group
-                  </th>
+                  </th>*/}
                   <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Opening Balance
                   </th>
@@ -752,11 +732,11 @@ const AccountList = () => {
                           {account.accountSubCategory}
                         </span>
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                      {/*<td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           {account.accountGroup}
                         </span>
-                      </td>
+                      </td>*/}
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${account.openingBalance?.toLocaleString() || "0.00"}
                       </td>
@@ -803,11 +783,13 @@ const AccountList = () => {
         onSave={handleCreateCategory}
       />
 
+      {/* 
       <AccountGroupModal
         isOpen={isGroupModalOpen}
         onClose={() => setIsGroupModalOpen(false)}
         onSave={handleCreateGroup}
       />
+      */}
     </div>
   );
 };

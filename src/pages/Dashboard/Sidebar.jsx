@@ -129,6 +129,7 @@ const Sidebar = ({
         { id: "taskApproval", name: "Task Approval", icon: Shield }, // Add this line
         { id: "myKPIs", name: "My KPI Tasks", icon: User },
         { id: "employeeEvaluation", name: "Employee Evaluation", icon: Award },
+        { id: "PerformanceAppraisal", name: "Performance Appraisal", icon: Award },
         // { id: "goals", name: "Goals & OKRs", icon: Target },
         // { id: "360feedback", name: "360 Feedback", icon: Users },
         // { id: "appraisals", name: "Appraisals", icon: Award },
@@ -160,12 +161,15 @@ const Sidebar = ({
       subItems: [
         { id: "accountingDashboard", name: "Dashboard" },
         { id: "customer", name: "Customer" },
+        { id: "supplier", name: "Supplier" },
         { id: "center", name: "Center" },
         {
           id: "chartOfAccounts",
           name: "Chart of Accounts",
           subItems: [
             { id: "accountList", name: "Account List" },
+             { id: "journalEntry", name: "Journal Entry" },
+            {id: "doubleEntry", name: "Double Entry"},
             { id: "supplierEnterBill", name: "Supplier Enter Bill" },
             { id: "payment", name: "Payment" },
             { id: "advancePayment", name: "Advance Payment" },
@@ -173,7 +177,7 @@ const Sidebar = ({
             { id: "receipt", name: "Receipt" },
             { id: "createUtilityBill", name: "Create Utility Bill" },
             { id: "utilityBillPayment", name: "Utility Bill Payment" },
-            { id: "journalEntry", name: "Journal Entry" },
+           
             { id: "pettyCash", name: "Petty Cash" },
             { id: "cheque", name: "Cheque" },
             { id: "bankReconciliation", name: "Bank Reconciliation" },

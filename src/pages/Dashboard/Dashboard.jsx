@@ -51,13 +51,16 @@ import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
 import EmployeePerformanceEvaluation from "../PMS/EmployeeEvaluation";
 import EmployeeKPIView from "../PMS/KPIs/EmployeeKPIView";
 import TaskApproval from "../../Pages/PMS/TaskApproval/TaskApproval";
+import PerformanceAppraisal from "../PMS/PerformanceAppraisal/PerformanceAppraisal";
 
 // Import LMS components
 import LMS from "../LMS/LMS";
 import UserStats from "../LMS/UserStats";
 
 // Import Accounting components
-import AccountingDashboard from "../Accounting/Dashboard";
+import AccountingDashboard from "@Accounting/Dashboard";
+import Supplier from "../Accounting/Supplier";
+import DoubleEntry from "../Accounting/DoubleEntry";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
 import AccountList from "../Accounting/AccountList";
 import Customer from "../Accounting/Customer";
@@ -582,7 +585,7 @@ const Dashboard = ({ user, onLogout }) => {
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
       />
-      <div className="flex-1 flex flex-col h-screen lg:ml-0">
+      <div className="flex-1 flex flex-col lg:ml-0">
         <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
           <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
             <div className="flex justify-between h-14 sm:h-16">
@@ -643,7 +646,7 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </div>
         </nav>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1">
           <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8">
             {activeItem === "employeeMaster" ? (
               <ProtectedComponent module="employeeMaster" action="view">
@@ -751,6 +754,10 @@ const Dashboard = ({ user, onLogout }) => {
               </ProtectedComponent>
             ) : activeItem === "employeeEvaluation" ? (
               <EmployeePerformanceEvaluation />
+            ) : activeItem === "PerformanceAppraisal" ? (
+              <ProtectedComponent module="PerformanceAppraisal" action="view">
+                <PerformanceAppraisal />
+              </ProtectedComponent>
             ) : activeItem === "taskApproval" ? (
               <ProtectedComponent module="taskApproval" action="view">
                 <TaskApproval />
@@ -915,11 +922,20 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="cheque" action="view">
                 <Cheque />
               </ProtectedComponent>
+            ) : activeItem === "doubleEntry" ? (
+              <ProtectedComponent module="doubleEntry" action="view">
+                <DoubleEntry />
+              </ProtectedComponent>
             ) : activeItem === "bankReconciliation" ? (
               <ProtectedComponent module="bankReconciliation" action="view">
                 <BankReconciliation />
               </ProtectedComponent>
-            ) : (
+            ) : activeItem === "supplier" ? (
+              <ProtectedComponent module="supplier" action="view">
+                <Supplier />
+              </ProtectedComponent>
+            ) :
+            (
               <div className="space-y-8">
                 <div className="text-center mb-8">
                   <h1 className="text-4xl font-bold text-gray-900 mb-2">
