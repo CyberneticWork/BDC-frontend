@@ -501,6 +501,25 @@ class PMSService {
     }
   }
 
+  // Alternative approach - use the existing PMS endpoint
+  async saveEmployeePerformanceBulk(evaluationsData) {
+    try {
+      const response = await axios.post('/performance-evaluations/bulk', {
+        evaluations: evaluationsData
+      });
+      
+      // Handle both successful and partial success responses
+      if (response.status === 201 || response.status === 207) {
+        return response;
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("Error saving employee performance in bulk:", error);
+      throw error;
+    }
+  }
+
   // Get performance evaluations for a specific employee
   async getEmployeePerformanceEvaluations(employeeId = null) {
     try {
