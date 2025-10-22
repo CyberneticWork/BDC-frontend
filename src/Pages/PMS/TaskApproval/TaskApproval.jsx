@@ -976,6 +976,9 @@ const TaskApproval = () => {
                   Creator Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  KPI Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Timeline
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1027,7 +1030,18 @@ const TaskApproval = () => {
                         </div>
                       </div>
                     </td>
-                    
+
+                    {/* KPI Type */}
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          task.kpi_type ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {task.kpi_type ? 'Performance Appraisal' : 'Regular KPI'}
+                        </span>
+                      </div>
+                    </td>
+                  
                     {/* Timeline */}
                     <td className="px-6 py-4">
                       <div className="text-sm">

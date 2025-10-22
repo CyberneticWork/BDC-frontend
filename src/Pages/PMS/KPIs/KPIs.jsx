@@ -31,6 +31,26 @@ import AddKpiTaskModal from "./AddKpiTaskModal";
 import AddCreatorRoleModal from "./AddCreatorRoleModal";
 import AddKpiWeightModal from "./AddKpiWeightModal";
 
+// Add this helper function at the top of the file, before the TaskModal component
+const getCurrentUserRole = () => {
+  try {
+    const authUser = localStorage.getItem('auth_user') || localStorage.getItem('user');
+    if (authUser) {
+      const user = JSON.parse(authUser);
+      return user.role || user.user?.role || '';
+    }
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+  }
+  return '';
+};
+
+// Also add this helper to check if user can see KPI type selection
+const canSelectKpiType = (userRole) => {
+  const allowedRoles = ['hr', 'admin', 'manager', 'human resources', 'hr manager'];
+  return allowedRoles.includes(userRole.toLowerCase());
+};
+
 // Move this function outside of TaskModal, before the TaskModal component definition
 const mergeTemplateWithAssignmentWeights = (templateWeights, assignmentWeights) => {
   // Create maps for fast lookups
@@ -109,7 +129,9 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     category: "",
     priority: "medium",
     creatorRole: "",
-    weights: [], // Start with empty array, will be populated from database
+    weights: [],
+    // Use numeric 0/1 to match backend boolean (0 = regular, 1 = performance appraisal)
+    kpi_type: 0,
     ...initialData,
   });
 
@@ -197,7 +219,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
   const [isLoadingCreatorRoles, setIsLoadingCreatorRoles] = useState(false);
 
   // Local state to open Add Creator Role modal
-  const [isAddCreatorRoleModalOpen, setIsAddCreatorRoleModalOpen] = useState(false); // Fix: rename from isAddCreatorRoleModal
+  const [isAddCreatorRoleModal, setIsAddCreatorRoleModal] = useState(false); // Fix: rename from isAddCreatorRoleModal
 
   // NEW: backend-driven state
   const [taskOptions, setTaskOptions] = useState([]);
@@ -340,11 +362,8 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   useEffect(() => {
     // Only reset form data when modal is actually opening for the first time
-    // OR when switching between different records in edit mode
     if (isOpen && !prevIsOpen.current) {
-      // Modal is opening - initialize form
       if (isEdit && initialData && Object.keys(initialData).length > 0) {
-        // Edit mode: populate with initial data
         setFormData({
           name: initialData.name || "",
           description: initialData.description || "",
@@ -357,6 +376,8 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
           priority: initialData.priority || "medium",
           creatorRole: initialData.creatorRole || "",
           weights: initialData.weights || dbWeights, // Use dbWeights as fallback
+          // Ensure numeric 0/1 to match backend boolean (0 = regular, 1 = performance appraisal)
+          kpi_type: initialData.kpi_type ? 1 : 0, // ensure numeric 0/1
         });
       } else if (!isEdit) {
         // Add mode: use database weights
@@ -374,29 +395,17 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
             priority: "medium",
             creatorRole: "",
             weights: dbWeights, // Use database weights
+            kpi_type: false, // Default to regular KPI (false)
           });
         }
       }
-      hasInitialized.current = true;
-    } else if (!isOpen && prevIsOpen.current) {
-      // Modal is closing - reset the initialization flag
-      hasInitialized.current = false;
     }
-    
-    prevIsOpen.current = isOpen;
   }, [isOpen, isEdit, dbWeights]);
-
+  
   // Add a separate useEffect to handle initialData changes only when necessary
   useEffect(() => {
-    // Only update form data with initialData if:
-    // 1. Modal is open
-    // 2. We're in edit mode  
-    // 3. initialData has meaningful content
-    // 4. Current form is empty (to avoid overriding user input)
     if (isOpen && isEdit && initialData && Object.keys(initialData).length > 0) {
       const currentFormHasData = formData.name || formData.description || formData.assignees?.length > 0;
-      
-      // Only populate if form is currently empty (first load) or if the ID changed (different record)
       if (!currentFormHasData || (initialData.id && initialData.id !== formData.id)) {
         setFormData({
           id: initialData.id, // Track the record ID
@@ -411,6 +420,8 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
           priority: initialData.priority || "medium",
           creatorRole: initialData.creatorRole || "",
           weights: initialData.weights || dbWeights, // Use dbWeights as fallback
+          // numeric 0/1
+          kpi_type: initialData.kpi_type ? 1 : 0, // numeric 0/1
         });
       }
     }
@@ -418,27 +429,24 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   // Ensure numeric IDs for company/department/creatorRole
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    // Only company and department should be cast to Number.
-    // creatorRole must remain a string (role name) so the UI can call .split on it safely.
-    const isNumericField = name === "company" || name === "department";
-    
-    setFormData(prev => {
-      const updates = {
-        [name]: isNumericField ? (value ? Number(value) : "") : value
-      };
+    const { name, value, type } = e.target;
+    let processedValue = value;
 
-      if (name === "company") {
-        // Clear department and assignees when company changes
-        updates.department = "";
-        updates.assignees = []; // Clear all assignees when company changes
-      }
+    // Handle KPI type conversion
+    if (name === 'kpi_type') {
+      // Convert select values '0'|'1' (strings) into numeric 0/1
+      processedValue = (value === '1' || value === 1 || value === true || value === 'true') ? 1 : 0;
+    }
 
-      return {
-        ...prev,
-        ...updates
-      };
-    });
+    // Convert string values to numbers for specific fields
+    if (['company', 'department'].includes(name) && value !== '') {
+      processedValue = parseInt(value, 10);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: processedValue
+    }));
   };
 
   // Filter employees based on selected company and department (now uses companyEmployees from backend)
@@ -681,6 +689,10 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
     }
   };
 
+  // Add this inside the TaskModal component, after the creator role section and before the weights section
+  const currentUserRole = getCurrentUserRole();
+  const showKpiTypeSelection = canSelectKpiType(currentUserRole);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w/full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
@@ -812,7 +824,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
                 <button
                   type="button"
-                  onClick={() => setIsAddCreatorRoleModalOpen(true)}
+                  onClick={() => setIsAddCreatorRoleModal(true)}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
                   title="Add new Creator Role"
                 >
@@ -827,8 +839,8 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               
               {/* Add Creator Role Modal */}
               <AddCreatorRoleModal
-                isOpen={isAddCreatorRoleModalOpen} // This should now work
-                onClose={() => setIsAddCreatorRoleModalOpen(false)}
+                isOpen={isAddCreatorRoleModal} // This should now work
+                onClose={() => setIsAddCreatorRoleModal(false)}
                 onCreated={async (newRole) => {
                   // refresh authoritative list and select created role
                   try {
@@ -840,11 +852,30 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                   } catch (err) {
                     console.error("Failed to refresh creator roles after create:", err);
                   } finally {
-                    setIsAddCreatorRoleModalOpen(false);
+                    setIsAddCreatorRoleModal(false);
                   }
                 }}
               />
             </div>
+
+            {/* KPI Type Selection - Only for HR and higher roles */}
+            {showKpiTypeSelection && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  KPI Type*
+                </label>
+                <select
+                  name="kpi_type"
+                  value={String(formData.kpi_type)} // '0' or '1'
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 appearance-none"
+                >
+                  <option value="0">Regular KPI</option>
+                  <option value="1">Performance Appraisal</option>
+                </select>
+              </div>
+            )}
 
             {/* Weights Section - Collapsible Dropdown */}
             <div>
@@ -1496,7 +1527,10 @@ const TaskViewModal = ({ isOpen, onClose, kpi = null, employees = [] }) => {
               <div className="space-y-3">
                 {(kpi.assignees || []).length === 0 && <div className="text-sm text-gray-500">No assignees</div>}
                 {(kpi.assignees || []).map((idStr) => {
+                  const empId = parseInt(idStr);
                   const emp = getEmployee(idStr);
+                  const entry = updatesFor(empId);
+                  
                   return (
                     <div key={idStr} className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -1683,8 +1717,29 @@ const KPIs = (/* props */) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await PMSService.getKpiTaskAssignments();
-      setKpis(Array.isArray(data) ? data : []);
+      // Use the service to get assignments (see [`PMSService.getKpiTaskAssignments`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js))
+      const raw = await PMSService.getKpiTaskAssignments();
+      const list = Array.isArray(raw) ? raw : (raw?.data || []);
+
+      // Normalize items: ensure kpi_type is numeric 0 or 1 and keep other fallbacks consistent
+      const normalized = list.map(item => {
+        // Accept many possible shapes from backend: boolean, number, or string
+        const rawType = item.kpi_type ?? item.kpiType ?? item.kpi_type_raw ?? null;
+        const kpi_type = (rawType === true || rawType === 1 || rawType === '1' || rawType === 'true') ? 1 : 0;
+
+        // Also normalize date keys sometimes named differently
+        const startDate = item.startDate ?? item.start_date ?? item.created_at ?? null;
+        const endDate = item.endDate ?? item.end_date ?? item.due_date ?? null;
+
+        return {
+          ...item,
+          kpi_type,
+          startDate,
+          endDate
+        };
+      });
+
+      setKpis(normalized);
       
       // Also refresh KPI stats when tasks are fetched
       await fetchKpiStats(filterStartDate, filterEndDate);
@@ -1745,6 +1800,7 @@ const KPIs = (/* props */) => {
         startDate: data.startDate ?? startDate,
         endDate: data.endDate ?? endDate
       });
+   
     } catch (err) {
       console.error('Failed to load KPI performance stats', err);
       setKpiStats(s => ({ ...s, onTarget: 0, needAttention: 0 }));
@@ -1821,6 +1877,7 @@ const KPIs = (/* props */) => {
         end_date: formData.endDate,
         weights: formData.weights,
         priority: formData.priority,
+        kpi_type: formData.kpi_type, // Include the KPI type
       };
       
       const result = await PMSService.createKpiTaskAssignment(data);
@@ -1889,6 +1946,7 @@ const KPIs = (/* props */) => {
         end_date: formData.endDate,
         weights: formData.weights,
         priority: formData.priority,
+        kpi_type: formData.kpi_type, // Include the KPI type
       };
       
       const result = await PMSService.updateKpiTaskAssignment(currentKpi.id, data);
@@ -2244,6 +2302,8 @@ const KPIs = (/* props */) => {
           priority: currentKpi.priority || "medium",
           creatorRole: currentKpi.creator?.role || "",
           weights: currentKpi.weights, // Add weights to initialData
+          // Ensure numeric 0/1 to match backend boolean (0 = regular, 1 = performance appraisal)
+          kpi_type: currentKpi.kpi_type ? 1 : 0, // ensure numeric 0/1
         } : {}}
         isEdit={true}
         isLoading={isSubmitting}
@@ -2428,6 +2488,9 @@ const KPIs = (/* props */) => {
                   KPI Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Assignees
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2473,6 +2536,19 @@ const KPIs = (/* props */) => {
                       <div className="text-sm text-gray-500">{kpi.description}</div>
                       <div className="text-xs text-gray-400">{kpi.departmentName || kpi.department}</div>
                     </div>
+                  </td>
+
+                  {/* KPI Type */}
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        kpi.kpi_type 
+                          ? "bg-purple-100 text-purple-800" 
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {kpi.kpi_type ? 'Performance Appraisal' : 'Regular KPI'}
+                    </span>
                   </td>
 
                   {/* Assignees */}

@@ -15,11 +15,16 @@ import {
   Award,
   ClipboardCheck,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Square,
+  CheckSquare,
+  Save,
+  Check
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import SavedEvaluationsModal from './SavedEvaluationsModal';
 
 const EmployeePerformanceEvaluation = () => {
   // Enhanced SweetAlert2 helpers with professional styling
@@ -40,19 +45,18 @@ const EmployeePerformanceEvaluation = () => {
     }
   });
 
-  const swalSmallModal = (options) =>
-    Swal.fire({
-      width: 450,
-      showCloseButton: true,
-      customClass: {
-        popup: 'rounded-xl shadow-2xl border-0',
-        title: 'text-lg font-bold text-gray-800',
-        content: 'text-sm text-gray-600',
-        confirmButton: 'px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg',
-        cancelButton: 'px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-all duration-200'
-      },
-      ...options
-    });
+  const swalSmallModal = (options) => Swal.fire({
+    width: 450,
+    showCloseButton: true,
+    customClass: {
+      popup: 'rounded-xl shadow-2xl border-0',
+      title: 'text-lg font-bold text-gray-800',
+      content: 'text-sm text-gray-600',
+      confirmButton: 'px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg',
+      cancelButton: 'px-4 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-all duration-200'
+    },
+    ...options
+  });
 
   // States for filtering and data
   const [dateRange, setDateRange] = useState({
@@ -68,6 +72,30 @@ const EmployeePerformanceEvaluation = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
+  const [showSavedEvaluationsModal, setShowSavedEvaluationsModal] = useState(false);
+
+  // Saved evaluations count + loading for improved button UI
+  const [savedCount, setSavedCount] = useState(0);
+  const [isLoadingSavedCount, setIsLoadingSavedCount] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadSavedCount = async () => {
+      setIsLoadingSavedCount(true);
+      try {
+        const res = await PMSService.getSavedPerformanceEvaluations();
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (!mounted) return;
+        setSavedCount(list.length);
+      } catch (err) {
+        console.error("Failed to load saved evaluations count", err);
+      } finally {
+        if (mounted) setIsLoadingSavedCount(false);
+      }
+    };
+    loadSavedCount();
+    return () => { mounted = false; };
+  }, []);
 
   // Add state for validation errors
   const [validationErrors, setValidationErrors] = useState({
@@ -431,6 +459,7 @@ const EmployeePerformanceEvaluation = () => {
 
       const saveData = {
         employee_id: parseInt(evaluationResult.employee_id),
+        evaluator_id: 1, // Get from auth context or current user
         start_date: dateRange.startDate,
         end_date: dateRange.endDate,
         percentage: parseInt(evaluationResult.percentage),
@@ -440,6 +469,8 @@ const EmployeePerformanceEvaluation = () => {
         task_count: parseInt(evaluationResult.task_count)
       };
       
+      // Use the new service method
+      const response = await PMSService.getSavedPerformanceEvaluations(); // Test connection first
       await PMSService.saveEmployeePerformance(saveData);
       
       // Enhanced success toast with animation
@@ -496,7 +527,7 @@ const EmployeePerformanceEvaluation = () => {
         html: `
           <div class="text-left">
             <p class="mb-3">${errorMessage}</p>
-            ${errorDetails ? `<div class="text-xs text-red-600 bg-red-50 p-3 rounded border border-red-200">${errorDetails}</div>` : ''}
+            ${errorDetails ? `<div class="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">${errorDetails}</div>` : ''}
           </div>
         `,
         confirmButtonColor: '#EF4444',
@@ -596,19 +627,303 @@ const EmployeePerformanceEvaluation = () => {
     });
   };
 
+  // Add new state for selection functionality
+  const [selectedEvaluations, setSelectedEvaluations] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
+
+  // Handle individual evaluation selection
+  const handleEvaluationSelect = (employeeId, isSelected) => {
+    const newSelected = new Set(selectedEvaluations);
+    if (isSelected) {
+      newSelected.add(employeeId);
+    } else {
+      newSelected.delete(employeeId);
+    }
+    setSelectedEvaluations(newSelected);
+    
+    // Update select all checkbox
+    setSelectAll(newSelected.size === evaluationResults.length && evaluationResults.length > 0);
+  };
+
+  // Handle select all toggle
+  const handleSelectAll = () => {
+    if (selectAll) {
+      // Deselect all
+      setSelectedEvaluations(new Set());
+    } else {
+      // Select all visible results
+      const allIds = new Set(evaluationResults.map(result => result.employee_id));
+      setSelectedEvaluations(allIds);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  // Handle bulk save of selected evaluations
+  const handleBulkSave = async () => {
+    if (selectedEvaluations.size === 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'No Selection',
+        text: 'Please select at least one evaluation to save.',
+        confirmButtonColor: '#F59E0B',
+        confirmButtonText: 'OK',
+        customClass: {
+          popup: 'swal2-rounded',
+          title: 'swal2-title-warning'
+        }
+      });
+      return;
+    }
+
+    // Get selected evaluation results
+    const selectedResults = evaluationResults.filter(result => 
+      selectedEvaluations.has(result.employee_id)
+    );
+
+    // Enhanced confirmation modal with proper HTML structure
+    const result = await Swal.fire({
+      title: 'Confirm Bulk Save',
+      html: `
+        <div style="text-align: left; padding: 16px 0;">
+          <div style="background: #dbeafe; padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid #3b82f6;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <svg style="width: 20px; height: 20px; color: #2563eb;" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6a1 1 0 10-2 0v5.586l-1.293-1.293z"/>
+                <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v4a1 1 0 11-2 0V4H7v4a1 1 0 11-2 0V4z"/>
+              </svg>
+              <span style="font-weight: 600; color: #1f2937;">Bulk Save Performance Evaluations</span>
+            </div>
+            <p style="color: #374151; margin: 0; font-size: 14px;">
+              You are about to save <strong>${selectedResults.length}</strong> performance evaluation(s) to the database.
+            </p>
+          </div>
+          
+          <div style="background: #f9fafb; padding: 12px; border-radius: 8px; max-height: 120px; overflow-y: auto; margin-bottom: 16px;">
+            <h4 style="font-size: 14px; font-weight: 500; color: #374151; margin: 0 0 8px 0;">Selected Employees:</h4>
+            <div style="font-size: 12px; color: #6b7280;">
+              ${selectedResults.map(result => `
+                <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #e5e7eb;">
+                  <span>${result.employee_name}</span>
+                  <span style="font-weight: 500;">${result.grade} (${result.percentage}%)</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          <div style="background: #fef3c7; padding: 8px; border-radius: 6px; border: 1px solid #f59e0b;">
+            <p style="font-size: 12px; color: #92400e; margin: 0;">
+              <strong>Note:</strong> This action will save all selected evaluations to the database and cannot be easily undone.
+            </p>
+          </div>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: `Yes, Save ${selectedResults.length} Evaluation${selectedResults.length > 1 ? 's' : ''}`,
+      cancelButtonText: 'Cancel',
+      width: 500,
+      customClass: {
+        popup: 'swal2-rounded',
+        htmlContainer: 'swal2-html-container-custom',
+        confirmButton: 'swal2-confirm-success',
+        cancelButton: 'swal2-cancel-gray'
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsBulkSaving(true);
+    
+    try {
+      // Prepare bulk save data
+      const evaluationsData = selectedResults.map(evaluationResult => ({
+        employee_id: parseInt(evaluationResult.employee_id),
+        evaluator_id: 1, // You might want to get this from auth context
+        start_date: dateRange.startDate,
+        end_date: dateRange.endDate,
+        percentage: parseInt(evaluationResult.percentage),
+        grade: evaluationResult.grade,
+        performance_label: evaluationResult.performance_label,
+        calculation_details: evaluationResult.tasks,
+        task_count: parseInt(evaluationResult.task_count)
+      }));
+
+      const response = await PMSService.saveEmployeePerformanceBulk(evaluationsData);
+      
+      // Handle response
+      const { saved_count, duplicates, errors, total_requested } = response.data;
+      
+      // Clear selections after successful save
+      setSelectedEvaluations(new Set());
+      setSelectAll(false);
+      
+      // Update saved count
+      setSavedCount(prev => prev + saved_count);
+
+      // Enhanced success modal with better formatting
+      await Swal.fire({
+        icon: 'success',
+        title: 'Bulk Save Completed!',
+        html: `
+          <div style="text-align: left; padding: 16px 0;">
+            <div style="background: #d1fae5; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <svg style="width: 20px; height: 20px; color: #059669;" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span style="font-weight: 600; color: #065f46;">Save Summary</span>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 14px;">
+                <div>
+                  <span style="color: #374151;">Total Requested:</span>
+                  <span style="font-weight: 500; margin-left: 8px;">${total_requested}</span>
+                </div>
+                <div>
+                  <span style="color: #374151;">Successfully Saved:</span>
+                  <span style="font-weight: 500; margin-left: 8px; color: #059669;">${saved_count}</span>
+                </div>
+                ${duplicates.length > 0 ? `
+                <div>
+                  <span style="color: #374151;">Duplicates Skipped:</span>
+                  <span style="font-weight: 500; margin-left: 8px; color: #d97706;">${duplicates.length}</span>
+                </div>
+                ` : ''}
+                ${errors.length > 0 ? `
+                <div>
+                  <span style="color: #374151;">Errors:</span>
+                  <span style="font-weight: 500; margin-left: 8px; color: #dc2626;">${errors.length}</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            ${(duplicates.length > 0 || errors.length > 0) ? `
+            <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; font-size: 12px; color: #6b7280;">
+              ${duplicates.length > 0 ? `
+                <p style="margin: 0 0 8px 0;"><strong>Duplicates:</strong> Some evaluations already exist for the selected date range or have overlapping periods.</p>
+                <div style="max-height: 100px; overflow-y: auto; background: white; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                  ${duplicates.map(dup => `
+                    <div style="margin-bottom: 4px;">
+                      • ${dup.employee_name || 'Unknown'} (${dup.start_date} to ${dup.end_date})
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+              ${errors.length > 0 ? `<p style="margin: 0;"><strong>Errors:</strong> Some evaluations could not be saved due to validation errors.</p>` : ''}
+            </div>
+            ` : ''}
+          </div>
+        `,
+        confirmButtonColor: '#10B981',
+        confirmButtonText: 'Great!',
+        timer: 8000,
+        timerProgressBar: true,
+        width: 600,
+        customClass: {
+          popup: 'swal2-rounded',
+          title: 'swal2-title-success',
+          htmlContainer: 'swal2-html-container-custom'
+        }
+      });
+
+    } catch (error) {
+      console.error("Error in bulk save:", error);
+      
+      // Enhanced error handling with better formatting
+      let errorTitle = 'Bulk Save Failed';
+      let errorMessage = 'An unexpected error occurred while saving evaluations.';
+      let errorDetails = '';
+      
+      if (error.response?.status === 422) {
+        errorTitle = 'Validation Error';
+        errorMessage = 'Some evaluation data did not pass validation.';
+        if (error.response.data?.errors) {
+          const errors = Object.values(error.response.data.errors).flat();
+          errorDetails = errors.join('<br>');
+        }
+      } else if (error.response?.status === 500) {
+        errorTitle = 'Server Error';
+        errorMessage = 'A server error occurred while saving the evaluations.';
+        errorDetails = 'Please try again later or contact the system administrator.';
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      await Swal.fire({
+        icon: 'error',
+        title: errorTitle,
+        html: `
+          <div style="text-align: left; padding: 16px 0;">
+            <p style="margin: 0 0 16px 0; color: #374151; font-size: 14px;">${errorMessage}</p>
+            ${errorDetails ? `
+            <div style="background: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #fca5a5;">
+              <div style="font-size: 12px; color: #dc2626; line-height: 1.5;">${errorDetails}</div>
+            </div>
+            ` : ''}
+          </div>
+        `,
+        confirmButtonColor: '#EF4444',
+        confirmButtonText: 'Try Again',
+        width: 450,
+        customClass: {
+          popup: 'swal2-rounded',
+          title: 'swal2-title-error',
+          htmlContainer: 'swal2-html-container-custom'
+        }
+      });
+    } finally {
+      setIsBulkSaving(false);
+    }
+  };
+
+  // Reset selections when evaluation results change
+  useEffect(() => {
+    setSelectedEvaluations(new Set());
+    setSelectAll(false);
+  }, [evaluationResults]);
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2 bg-indigo-500 rounded-lg">
-            <Award className="w-6 h-6 text-white" />
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-indigo-500 rounded-lg">
+                <Award className="w-6 h-6 text-white" />
+              </div>
+              Employee Performance Evaluation
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Calculate and grade employee performance based on completed tasks
+            </p>
           </div>
-          Employee Performance Evaluation
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Calculate and grade employee performance based on completed tasks
-        </p>
+          <button
+            onClick={() => setShowSavedEvaluationsModal(true)}
+            title="View saved performance evaluations"
+            aria-label="View saved performance evaluations"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-lg shadow-sm transition-colors"
+          >
+            {isLoadingSavedCount ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline font-medium">Saved</span>
+            <span className="text-sm font-medium">Evaluations</span>
+            {savedCount > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-white text-indigo-700 text-xs font-semibold">
+                {savedCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -803,7 +1118,7 @@ const EmployeePerformanceEvaluation = () => {
       {/* Results Section - Multiple Results */}
       {evaluationResults.length > 0 && (
         <div className="space-y-6">
-          {/* Summary Header */}
+          {/* Summary Header with Bulk Actions */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div className="flex justify-between items-center">
               <div>
@@ -812,176 +1127,268 @@ const EmployeePerformanceEvaluation = () => {
                   {dateRange.startDate} to {dateRange.endDate} • {evaluationResults.length} employee(s) • {evaluationResults.reduce((sum, result) => sum + result.task_count, 0)} tasks analyzed
                 </p>
               </div>
-              <button 
-                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 flex items-center gap-2 hover:bg-gray-50"
-                onClick={handleExport}
-              >
-                <Download className="w-4 h-4" />
-                Export All
-              </button>
-            </div>
-          </div>
-
-          {/* Individual Employee Results - Compact Cards */}
-          <div className="grid gap-4">
-            {paginatedResults.map((evaluationResult, index) => (
-              <div key={`${evaluationResult.employee_id}-${index}`} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-200">
-                {/* Employee Results Header - Compact */}
-                <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-gray-100">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-base font-bold text-gray-900">{evaluationResult.employee_name}</h3>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Attendance No: {evaluationResult.attendance_no} • {evaluationResult.task_count} tasks completed
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleSaveEvaluation(evaluationResult)}
-                        disabled={isSaving}
-                        className={`px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white border border-green-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:from-green-600 hover:to-green-700 hover:shadow-md disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 transform hover:scale-105`}
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="w-3 h-3" />
-                            Save Evaluation
-                          </>
-                        )}
-                      </button>
-                    </div>
+              <div className="flex items-center gap-3">
+                {/* Selection Summary */}
+                {selectedEvaluations.size > 0 && (
+                  <div className="text-sm text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+                    {selectedEvaluations.size} of {evaluationResults.length} selected
                   </div>
-                </div>
+                )}
                 
-                {/* Results Content - Compact */}
-                <div className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    {/* Grade Card - Compact */}
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-xs font-medium text-gray-600">Final Grade</h4>
-                        <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${getGradeBadgeClass(evaluationResult.grade)}`}>
-                          {evaluationResult.grade}
-                        </div>
-                      </div>
-                      <div className="text-lg font-bold text-gray-900 mb-1">{evaluationResult.performance_label}</div>
-                      <div className="text-xs text-gray-500">
-                        Based on supervisor ratings and task weights
-                      </div>
+                {/* Bulk Save Button */}
+                <button
+                  onClick={handleBulkSave}
+                  disabled={selectedEvaluations.size === 0 || isBulkSaving}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
+                    selectedEvaluations.size === 0 
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm'
+                  }`}
+                >
+                  {isBulkSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Selected ({selectedEvaluations.size})
+                    </>
+                  )}
+                </button>
+
+                <button 
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 flex items-center gap-2 hover:bg-gray-50"
+                  onClick={handleExport}
+                >
+                  <Download className="w-4 h-4" />
+                  Export All
+                </button>
+              </div>
+            </div>
+
+            {/* Bulk Selection Controls */}
+            {evaluationResults.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div
+                      onClick={handleSelectAll}
+                      className="flex items-center justify-center w-5 h-5 border-2 border-gray-300 rounded hover:border-indigo-500 transition-colors cursor-pointer"
+                    >
+                      {selectAll ? (
+                        <Check className="w-4 h-4 text-indigo-600" />
+                      ) : null}
                     </div>
-                    
-                    {/* Percentage Card - Compact */}
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                      <h4 className="text-xs font-medium text-gray-600 mb-2">Performance Score</h4>
-                      <div className="flex items-center gap-2">
-                        <div className="text-xl font-bold text-indigo-600">{evaluationResult.percentage}%</div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className={`h-1.5 rounded-full ${
-                              evaluationResult.percentage < 30 ? 'bg-red-500' : 
-                              evaluationResult.percentage < 60 ? 'bg-yellow-500' : 
-                              'bg-green-500'
-                            }`}
-                            style={{ width: `${evaluationResult.percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-2">
-                        Formula: Total Score (capped at 100%)
-                      </div>
-                    </div>
-                    
-                    {/* Task Summary Card - Compact */}
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                      <h4 className="text-xs font-medium text-gray-600 mb-2">Task Summary</h4>
-                      <div className="text-xl font-bold text-gray-900">{evaluationResult.task_count}</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Tasks completed within period
-                      </div>
-                      <button 
-                        onClick={() => toggleViewDetails(evaluationResult.employee_id)}
-                        className="mt-2 text-xs text-indigo-600 flex items-center gap-1 hover:text-indigo-800"
-                      >
-                        {viewDetails[evaluationResult.employee_id] ? 'Hide Details' : 'View Calculation Details'}
-                        <ChevronDown className={`h-3 w-3 transition-transform ${viewDetails[evaluationResult.employee_id] ? 'rotate-180' : ''}`} />
-                      </button>
-                    </div>
-                  </div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Select All ({evaluationResults.length})
+                    </span>
+                  </label>
                   
-                  {/* Calculation Details - Compact */}
-                  {viewDetails[evaluationResult.employee_id] && (
-                    <div className="mt-4 border-t border-gray-100 pt-4">
-                      <h4 className="font-medium text-gray-900 mb-3 text-sm">Calculation Details for {evaluationResult.employee_name}</h4>
-                      
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 text-xs">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Task
-                              </th>
-                              <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Supervisor Progress
-                              </th>
-                              <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Task Weight Total
-                              </th>
-                              <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Calculation
-                              </th>
-                              <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Score
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {evaluationResult.tasks.map((task, taskIndex) => (
-                              <tr key={taskIndex}>
-                                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
-                                  {task.task_name}
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
-                                  {task.supervisor_progress}%
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
-                                  {task.total_weight}%
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
-                                  {task.supervisor_progress}% × {task.total_weight}% ÷ 100
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
-                                  {task.task_score.toFixed(2)}
-                                </td>
-                              </tr>
-                            ))}
-                            <tr className="bg-gray-50">
-                              <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                                Total Score = Sum of All Task Scores:
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
-                                {evaluationResult.tasks.reduce((sum, task) => sum + task.task_score, 0).toFixed(2)}
-                              </td>
-                            </tr>
-                            <tr className="bg-gray-50">
-                              <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                                Final Percentage = Total Score (capped at 100%):
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
-                                {evaluationResult.percentage}%
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+                  {selectedEvaluations.size > 0 && (
+                    <button
+                      onClick={() => {
+                        setSelectedEvaluations(new Set());
+                        setSelectAll(false);
+                      }}
+                      className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      Clear Selection
+                    </button>
                   )}
                 </div>
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* Individual Employee Results - With Selection */}
+          <div className="grid gap-4">
+            {paginatedResults.map((evaluationResult, index) => {
+              const isSelected = selectedEvaluations.has(evaluationResult.employee_id);
+              
+              return (
+                <div 
+                  key={`${evaluationResult.employee_id}-${index}`} 
+                  className={`bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-all duration-200 ${
+                    isSelected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-100'
+                  }`}
+                >
+                  {/* Employee Results Header - With Selection Checkbox */}
+                  <div className={`p-4 border-b border-gray-100 ${
+                    isSelected ? 'bg-gradient-to-r from-indigo-100 to-blue-100' : 'bg-gradient-to-r from-indigo-50 to-blue-50'
+                  }`}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        {/* Selection Checkbox */}
+                        <label className="flex items-center cursor-pointer">
+                          <div
+                            onClick={() => handleEvaluationSelect(evaluationResult.employee_id, !isSelected)}
+                            className="flex items-center justify-center w-5 h-5 border-2 border-gray-300 rounded hover:border-indigo-500 transition-colors cursor-pointer"
+                          >
+                            {isSelected ? (
+                              <Check className="w-4 h-4 text-indigo-600" />
+                            ) : null}
+                          </div>
+                        </label>
+                        
+                        <div>
+                          <h3 className="text-base font-bold text-gray-900">{evaluationResult.employee_name}</h3>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Attendance No: {evaluationResult.attendance_no} • {evaluationResult.task_count} tasks completed
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {/* Individual Save Button */}
+                        <button 
+                          onClick={() => handleSaveEvaluation(evaluationResult)}
+                          disabled={isSaving}
+                          className={`px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white border border-blue-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:from-blue-600 hover:to-blue-700 hover:shadow-md disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 transform hover:scale-105`}
+                        >
+                          {isSaving ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-3 h-3" />
+                              Save Individual
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Results Content - Compact */}
+                  <div className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      {/* Grade Card - Compact */}
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="text-xs font-medium text-gray-600">Final Grade</h4>
+                          <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${getGradeBadgeClass(evaluationResult.grade)}`}>
+                            {evaluationResult.grade}
+                          </div>
+                        </div>
+                        <div className="text-lg font-bold text-gray-900 mb-1">{evaluationResult.performance_label}</div>
+                        <div className="text-xs text-gray-500">
+                          Based on supervisor ratings and task weights
+                        </div>
+                      </div>
+                      
+                      {/* Percentage Card - Compact */}
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <h4 className="text-xs font-medium text-gray-600 mb-2">Performance Score</h4>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xl font-bold text-indigo-600">{evaluationResult.percentage}%</div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className={`h-1.5 rounded-full ${
+                                evaluationResult.percentage < 30 ? 'bg-red-500' : 
+                                evaluationResult.percentage < 60 ? 'bg-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${evaluationResult.percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-2">
+                          Formula: Total Score (capped at 100%)
+                        </div>
+                      </div>
+                      
+                      {/* Task Summary Card - Compact */}
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <h4 className="text-xs font-medium text-gray-600 mb-2">Task Summary</h4>
+                        <div className="text-xl font-bold text-gray-900">{evaluationResult.task_count}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Tasks completed within period
+                        </div>
+                        <button 
+                          onClick={() => toggleViewDetails(evaluationResult.employee_id)}
+                          className="mt-2 text-xs text-indigo-600 flex items-center gap-1 hover:text-indigo-800"
+                        >
+                          {viewDetails[evaluationResult.employee_id] ? 'Hide Details' : 'View Calculation Details'}
+                          <ChevronDown className={`h-3 w-3 transition-transform ${viewDetails[evaluationResult.employee_id] ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Calculation Details - Compact */}
+                    {viewDetails[evaluationResult.employee_id] && (
+                      <div className="mt-4 border-t border-gray-100 pt-4">
+                        <h4 className="font-medium text-gray-900 mb-3 text-sm">Calculation Details for {evaluationResult.employee_name}</h4>
+                        
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200 text-xs">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Task
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Supervisor Progress
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Task Weight Total
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Calculation
+                                </th>
+                                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Score
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {evaluationResult.tasks.map((task, taskIndex) => (
+                                <tr key={taskIndex}>
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                                    {task.task_name}
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                    {task.supervisor_progress}%
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                    {task.total_weight}%
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                    {task.supervisor_progress}% × {task.total_weight}% ÷ 100
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
+                                    {task.task_score.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="bg-gray-50">
+                                <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
+                                  Total Score = Sum of All Task Scores:
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
+                                  {evaluationResult.tasks.reduce((sum, task) => sum + task.task_score, 0).toFixed(2)}
+                                </td>
+                              </tr>
+                              <tr className="bg-gray-50">
+                                <td colSpan="4" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
+                                  Final Percentage = Total Score (capped at 100%):
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
+                                  {evaluationResult.percentage}%
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Pagination Controls */}
@@ -1108,6 +1515,12 @@ const EmployeePerformanceEvaluation = () => {
           </button>
         </div>
       )}
+
+      {/* Saved Evaluations Modal */}
+      <SavedEvaluationsModal
+        isOpen={showSavedEvaluationsModal}
+        onClose={() => setShowSavedEvaluationsModal(false)}
+      />
     </div>
   );
 };

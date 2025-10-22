@@ -18,11 +18,14 @@ import {
   ChevronRight,
   UserCheck,
   TrendingUp,
-  Target
+  Target,
+  Check,
+  Square
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import SavedAppraisalsModal from './SavedAppraisalsModal';
 
 const PerformanceAppraisal = () => {
   // Enhanced SweetAlert2 helpers with professional styling
@@ -71,6 +74,12 @@ const PerformanceAppraisal = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
+  const [showSavedAppraisalsModal, setShowSavedAppraisalsModal] = useState(false);
+  
+  // NEW: Selection states for bulk save functionality
+  const [selectedAppraisals, setSelectedAppraisals] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  
   // Pagination (server + client fallback)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -128,6 +137,12 @@ const PerformanceAppraisal = () => {
       setEmployeesWithTasks({});
     }
   };
+
+  // NEW: Reset selection when results change
+  useEffect(() => {
+    setSelectedAppraisals(new Set());
+    setSelectAll(false);
+  }, [appraisalResults]);
 
   // Debounced search handler - now filters client-side only
   const handleSearchChange = (e) => {
@@ -320,7 +335,159 @@ const PerformanceAppraisal = () => {
     }
   };
 
-  // Handle save appraisal button click
+  // NEW: Handle individual checkbox selection
+  const handleSelectAppraisal = (appraisalId, isChecked) => {
+    const newSelected = new Set(selectedAppraisals);
+    if (isChecked) {
+      newSelected.add(appraisalId);
+    } else {
+      newSelected.delete(appraisalId);
+    }
+    setSelectedAppraisals(newSelected);
+    
+    // Update select all state
+    setSelectAll(newSelected.size === paginatedResults.length && paginatedResults.length > 0);
+  };
+
+  // NEW: Handle select all functionality
+  const handleSelectAll = (isChecked) => {
+    setSelectAll(isChecked);
+    if (isChecked) {
+      const allIds = new Set(paginatedResults.map(result => result.employee_id));
+      setSelectedAppraisals(allIds);
+    } else {
+      setSelectedAppraisals(new Set());
+    }
+  };
+
+  // NEW: Handle bulk save of selected appraisals
+  const handleBulkSave = async () => {
+    if (selectedAppraisals.size === 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'No Selection',
+        text: 'Please select at least one appraisal to save.',
+        confirmButtonColor: '#F59E0B',
+        customClass: {
+          popup: 'rounded-xl shadow-2xl',
+          title: 'text-lg font-bold text-orange-600'
+        }
+      });
+      return;
+    }
+
+    const selectedData = paginatedResults.filter(result =>
+      selectedAppraisals.has(result.employee_id)
+    );
+
+    const result = await Swal.fire({
+      icon: 'question',
+      title: 'Save Selected Appraisals',
+      html: `
+        <div class="text-left space-y-3">
+          <div class="p-3 bg-blue-50 rounded-lg">
+            <div class="font-semibold text-gray-800">Selected Appraisals: ${selectedData.length}</div>
+            <div class="text-sm text-gray-600 mt-1">
+              ${selectedData.map(item => item.employee_name).join(', ')}
+            </div>
+          </div>
+          <div class="text-sm text-gray-600 text-center">
+            Do you want to save all selected performance appraisals?
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: `Save ${selectedData.length} Appraisal${selectedData.length > 1 ? 's' : ''}`,
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#6B7280',
+      customClass: {
+        popup: 'rounded-xl shadow-2xl border-0',
+        title: 'text-lg font-bold text-gray-800',
+        htmlContainer: 'text-sm',
+        confirmButton: 'px-6 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-green-600',
+        cancelButton: 'px-6 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200'
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsSaving(true);
+    try {
+      const bulkData = selectedData.map(appraisalResult => ({
+        employee_id: parseInt(appraisalResult.employee_id, 10),
+        start_date: dateRange.startDate,
+        end_date: dateRange.endDate,
+        employee_self_rating: parseInt(appraisalResult.employee_self_rating, 10),
+        supervisor_rating: parseInt(appraisalResult.supervisor_rating, 10),
+        average_rating: parseFloat(appraisalResult.average_rating),
+        percentage: parseInt(appraisalResult.percentage, 10),
+        grade: appraisalResult.grade,
+        performance_label: appraisalResult.performance_label,
+        calculation_details: appraisalResult.tasks || [],
+        task_count: parseInt(appraisalResult.task_count, 10)
+      }));
+
+      // IMPORTANT: pass the array (PMSService will wrap into { appraisals: [...] } )
+      const response = await PMSService.savePerformanceAppraisalsBulk(bulkData);
+
+      // normalize response
+      const respData = response?.data ?? response;
+      setSelectedAppraisals(new Set());
+      setSelectAll(false);
+
+      await Swal.fire({
+        icon: 'success',
+        title: respData?.message ?? 'Saved',
+        html: respData?.message ? '' : `<div>${(respData?.saved_count ?? bulkData.length)} appraisal(s) saved.</div>`,
+        timer: 2200,
+        showConfirmButton: false,
+        customClass: { popup: 'rounded-xl shadow-2xl' }
+      });
+
+      // refresh current page results (recalculate or refetch)
+      await fetchAppraisalsPage(currentPage);
+
+    } catch (error) {
+      console.error("Error saving bulk appraisals:", error);
+
+      // Extract validation details if available
+      let title = 'Save Failed';
+      let html = '';
+      if (error.response) {
+        if (error.response.status === 422) {
+          title = 'Validation Error';
+          const errs = error.response.data?.errors ?? error.response.data;
+          if (errs && typeof errs === 'object') {
+            html = '<div class="text-left">';
+            Object.entries(errs).forEach(([k, v]) => {
+              const msg = Array.isArray(v) ? v.join(', ') : v;
+              html += `<div class="text-sm text-red-600 mb-1"><strong>${k}:</strong> ${msg}</div>`;
+            });
+            html += '</div>';
+          } else if (error.response.data?.message) {
+            html = `<div class="text-sm text-red-600">${error.response.data.message}</div>`;
+          }
+        } else if (error.response.data?.message) {
+          html = `<div class="text-sm text-red-600">${error.response.data.message}</div>`;
+        }
+      } else {
+        html = `<div class="text-sm text-red-600">${error.message}</div>`;
+      }
+
+      await Swal.fire({
+        icon: 'error',
+        title,
+        html,
+        confirmButtonColor: '#EF4444',
+        customClass: { popup: 'rounded-xl shadow-2xl' }
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle save appraisal button click (individual save - keep existing functionality)
   const handleSaveAppraisal = async (appraisalResult) => {
     // Enhanced confirmation modal
     const result = await Swal.fire({
@@ -359,8 +526,8 @@ const PerformanceAppraisal = () => {
         popup: 'rounded-xl shadow-2xl border-0',
         title: 'text-lg font-bold text-gray-800',
         htmlContainer: 'text-sm',
-        confirmButton: 'px-6 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg',
-        cancelButton: 'px-6 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-all duration-200'
+        confirmButton: 'px-6 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-green-600',
+        cancelButton: 'px-6 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200'
       }
     });
 
@@ -517,6 +684,9 @@ const PerformanceAppraisal = () => {
     setValidationErrors({ startDate: false, endDate: false });
     setHasAttempted(false);
     setCurrentPage(1);
+    // NEW: Clear selections
+    setSelectedAppraisals(new Set());
+    setSelectAll(false);
     
     // Success toast
     swalToast.fire({
@@ -529,15 +699,28 @@ const PerformanceAppraisal = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2 bg-purple-500 rounded-lg">
-            <UserCheck className="w-6 h-6 text-white" />
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-purple-500 rounded-lg">
+                <UserCheck className="w-6 h-6 text-white" />
+              </div>
+              Performance Appraisal
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Calculate and grade employee performance appraisal using self-rating and supervisor rating
+            </p>
           </div>
-          Performance Appraisal
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Calculate and grade employee performance appraisal using self-rating and supervisor rating
-        </p>
+          
+          {/* Add this button */}
+          <button
+            onClick={() => setShowSavedAppraisalsModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Saved Appraisals</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -732,12 +915,55 @@ const PerformanceAppraisal = () => {
               Appraisal Results ({appraisalResults.length} employee{appraisalResults.length !== 1 ? 's' : ''})
             </h2>
             
-            {/* Pagination Info */}
-            {totalPages > 1 && (
-              <div className="text-sm text-gray-500">
-                Showing {startIndex + 1}-{Math.min(endIndex, appraisalResults.length)} of {appraisalResults.length}
+            {/* NEW: Selection controls */}
+            <div className="flex items-center gap-4">
+              {/* Select All Checkbox */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="selectAll"
+                  checked={selectAll}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                />
+                <label htmlFor="selectAll" className="text-sm font-medium text-gray-700">
+                  Select All
+                </label>
               </div>
-            )}
+
+              {/* Selected count and bulk save button */}
+              {selectedAppraisals.size > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600">
+                    {selectedAppraisals.size} selected
+                  </span>
+                  <button
+                    onClick={handleBulkSave}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardCheck className="h-4 w-4" />
+                        <span>Save Selected ({selectedAppraisals.size})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Pagination Info */}
+              {totalPages > 1 && (
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1}-{Math.min(endIndex, appraisalResults.length)} of {appraisalResults.length}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Results List */}
@@ -747,6 +973,14 @@ const PerformanceAppraisal = () => {
                 {/* Employee Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-4">
+                    {/* NEW: Selection checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={selectedAppraisals.has(appraisalResult.employee_id)}
+                      onChange={(e) => handleSelectAppraisal(appraisalResult.employee_id, e.target.checked)}
+                      className="w-5 h-5 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                    />
+                    
                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                       <User className="w-6 h-6 text-purple-600" />
                     </div>
@@ -1097,6 +1331,12 @@ const PerformanceAppraisal = () => {
           </div>
         </div>
       )}
+
+      {/* Saved Appraisals Modal */}
+      <SavedAppraisalsModal
+        isOpen={showSavedAppraisalsModal}
+        onClose={() => setShowSavedAppraisalsModal(false)}
+      />
     </div>
   );
 };
