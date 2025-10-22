@@ -84,6 +84,7 @@ export const permissions = {
     PerformanceAppraisal: { view: true, edit: true },
     doubleEntry: { view: true, edit: true },
     supplier: { view: true, edit: true },
+    chatbot: { view: true, edit: true },
   },
   hr: {
     chatbot: { view: true },

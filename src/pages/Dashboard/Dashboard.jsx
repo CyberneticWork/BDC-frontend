@@ -942,9 +942,7 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="supplier" action="view">
                 <Supplier />
               </ProtectedComponent>
-            ) :
-            (
-            ) : activeItem === "chatbot" ? (
+            )  : activeItem === "chatbot" ? (
               <ProtectedComponent module="chatbot" action="view">
                 <Chatbot />
               </ProtectedComponent>
