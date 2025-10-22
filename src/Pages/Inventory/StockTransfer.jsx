@@ -24,22 +24,15 @@ const StockTransfer = () => {
     setNextStId(`ST-${String(next).padStart(4, "0")}`);
   }, [invoices]);
 
-  const formatLKR = (value) => {
-    try {
-      return new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR" }).format(Number(value || 0));
-    } catch {
-      const num = Number(value || 0).toFixed(2);
-      return `LKR ${num}`;
-    }
-  };
+  // formatLKR removed — amount display is no longer shown in the form UI
 
     const InlineNewInvoiceForm = ({ nextStId }) => {
     const [formData, setFormData] = useState({
       id: "",
-      center: "",
+      fromCenter: "",
+      toCenter: "",
       date: new Date().toISOString().split("T")[0],
       status: "pending",
-      refNumber: "",
       amount: 0,
       // kept for backward compatibility where needed
       productName: "",
@@ -89,7 +82,8 @@ const StockTransfer = () => {
     const validateForm = () => {
       const e = {};
       if (!formData.id) e.id = "Invoice number not generated";
-      if (!formData.center.trim()) e.center = "Center is required";
+      if (!formData.fromCenter.trim()) e.fromCenter = "From Center is required";
+      if (!formData.toCenter.trim()) e.toCenter = "To Center is required";
       if (!formData.date) e.date = "Date is required";
       if ((items?.length || 0) === 0) e.items = "Add at least one item";
       setErrors(e);
@@ -160,10 +154,10 @@ const StockTransfer = () => {
         setErrors({});
         setFormData({
           id: "",
-          center: "",
+          fromCenter: "",
+          toCenter: "",
           date: new Date().toISOString().split("T")[0],
           status: "pending",
-          refNumber: "",
           amount: 0,
           productName: "",
           quantity: 0,
@@ -191,7 +185,7 @@ const StockTransfer = () => {
         <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
           <h3 className="text-lg sm:text-xl font-semibold mb-4">Create New Stock Transfer</h3>
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 gap-4 mb-4 sm:mb-6">
+              <div className="grid grid-cols-1 gap-4 mb-4 sm:mb-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
@@ -206,37 +200,36 @@ const StockTransfer = () => {
                   {errors.date && <p id="date-error" className="text-red-500 text-sm mt-1">{errors.date}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Center *</label>
-                  <select
-                    value={formData.center}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, center: e.target.value }))}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.center ? "border-red-500" : "border-gray-300"}`}
-                  >
-                    <option value="">Select a center</option>
-                    {centers.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  {errors.center && <p className="text-red-500 text-sm mt-1">{errors.center}</p>}
-                </div>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">From Center *</label>
+                    <select
+                      value={formData.fromCenter}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, fromCenter: e.target.value }))}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.fromCenter ? "border-red-500" : "border-gray-300"}`}
+                    >
+                      <option value="">Select a center</option>
+                      {centers.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    {errors.fromCenter && <p className="text-red-500 text-sm mt-1">{errors.fromCenter}</p>}
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ref Number</label>
-                  <input
-                    type="text"
-                    value={formData.refNumber}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, refNumber: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter reference number"
-                  />
-                </div>
-
-                <div className="lg:place-self-end pr-65 text-center ">
-                  <p className="text-[18px]">Total Amount</p>
-                  <p className="text-[35px] font-medium">{formatLKR(tableTotal)}</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">To Center *</label>
+                    <select
+                      value={formData.toCenter}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, toCenter: e.target.value }))}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.toCenter ? "border-red-500" : "border-gray-300"}`}
+                    >
+                      <option value="">Select a center</option>
+                      {centers.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    {errors.toCenter && <p className="text-red-500 text-sm mt-1">{errors.toCenter}</p>}
+                  </div>
                 </div>
               </div>
 
