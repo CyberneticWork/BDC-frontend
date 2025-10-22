@@ -46,6 +46,7 @@ import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 import UserManagement from "@dashboard/UserManagement";
+import Chatbot from "./Chatbot";
 // Import PMS components
 import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
 import EmployeePerformanceEvaluation from "../PMS/EmployeeEvaluation";
@@ -101,8 +102,15 @@ import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { sidebarUtils, toggleSidebar, closeSidebar, openSidebar, isOutsideClick, handleBreakpointChange } from "../../utils/SidebarUtils";
-import { getResponsive } from '../../utils/ResponsiveUtils';
+import {
+  sidebarUtils,
+  toggleSidebar,
+  closeSidebar,
+  openSidebar,
+  isOutsideClick,
+  handleBreakpointChange,
+} from "../../utils/SidebarUtils";
+import { getResponsive } from "../../utils/ResponsiveUtils";
 
 ChartJS.register(
   CategoryScale,
@@ -507,7 +515,7 @@ const Dashboard = ({ user, onLogout }) => {
     const unsubscribe = sidebarUtils.subscribe((isOpen) => {
       setIsSidebarOpen(isOpen);
     });
-    
+
     return () => unsubscribe();
   }, []);
 
@@ -526,12 +534,12 @@ const Dashboard = ({ user, onLogout }) => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [isSidebarOpen, responsive.isMobile, responsive.isTablet]);
 
@@ -790,7 +798,7 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="lmsUserStats" action="view">
                 <UserStats />
               </ProtectedComponent>
-           ) : activeItem === "accountingDashboard" ? (
+            ) : activeItem === "accountingDashboard" ? (
               <ProtectedComponent module="accountingDashboard" action="view">
                 <AccountingDashboard setActiveItem={setActiveItem} />
               </ProtectedComponent>
@@ -936,6 +944,11 @@ const Dashboard = ({ user, onLogout }) => {
               </ProtectedComponent>
             ) :
             (
+            ) : activeItem === "chatbot" ? (
+              <ProtectedComponent module="chatbot" action="view">
+                <Chatbot />
+              </ProtectedComponent>
+            ) : (
               <div className="space-y-8">
                 <div className="text-center mb-8">
                   <h1 className="text-4xl font-bold text-gray-900 mb-2">
