@@ -184,6 +184,32 @@ const SavedAppraisalsModal = ({ isOpen, onClose }) => {
     return gradeColors[grade] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  // --- new helper: safely format dates for display ---
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString; // fallback to raw value
+    return d.toLocaleDateString();
+  };
+
+  const renderPeriod = (start, end) => {
+    const s = formatDateForDisplay(start);
+    const e = formatDateForDisplay(end);
+
+    if (!s && !e) return "—";
+    if (s && e) {
+      // if same day, show single date
+      if (s === e) return <div>{s}</div>;
+      return (
+        <>
+          <div>{s}</div>
+          <div className="text-xs text-gray-500">to {e}</div>
+        </>
+      );
+    }
+    return <div>{s || e}</div>;
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -278,8 +304,7 @@ const SavedAppraisalsModal = ({ isOpen, onClose }) => {
                             {appraisal.appraiser_name || appraisal.appraiser?.name || '—'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div>{appraisal.start_date}</div>
-                            <div className="text-xs">to {appraisal.end_date}</div>
+                            {renderPeriod(appraisal.start_date, appraisal.end_date)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
