@@ -717,6 +717,25 @@ class PMSService {
     }
   }
 
+  // Bulk save performance appraisals
+  async savePerformanceAppraisalsBulk(appraisalsData) {
+    try {
+      const response = await axios.post('/performance-appraisals/bulk', {
+        appraisals: appraisalsData
+      });
+      
+      // Handle both successful and partial success responses
+      if (response.status === 201 || response.status === 207) {
+        return response;
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("Error saving performance appraisals in bulk:", error);
+      throw error;
+    }
+  }
+
   // Get saved performance appraisals with pagination and search
   async getSavedPerformanceAppraisals(params = {}) {
     try {
