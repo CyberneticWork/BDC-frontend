@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getInvoiceData, addInvoice, getSuppliers, getProducts } from "../../services/Inventory/inventoryService";
+import { getInvoiceData, addInvoice, getSuppliers, getProducts, getPurchaseReturns } from "../../services/Inventory/inventoryService";
 import Payment from "../../components/Inventory/Payment";
 
 const Invoices = () => {
-  const [invoices, setInvoices] = useState([]);
+  // invoices list is not required for PRT sequence - kept locally when adding new invoices
+  const [, setInvoices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextPrtId, setNextPrtId] = useState("");
 
@@ -13,16 +14,32 @@ const Invoices = () => {
     setInvoices(initial);
   }, []);
 
+  // Initialize next PRT id from existing purchase returns (run once on mount)
   useEffect(() => {
-    const nums = invoices
-      .map((inv) => {
-        const m = String(inv.id || "").match(/^PRT-(\d{4})$/i);
-        return m ? parseInt(m[1], 10) : null;
-      })
-      .filter((n) => n !== null);
-    const next = nums.length ? Math.max(...nums) + 1 : 1;
-    setNextPrtId(`PRT-${String(next).padStart(4, "0")}`);
-  }, [invoices]);
+    try {
+      // Prefer a persisted next PRT stored in localStorage so refresh doesn't change it
+      const saved = localStorage.getItem("inventory_nextPrtId");
+      if (saved && /^PRT-\d{4}$/i.test(saved)) {
+        setNextPrtId(saved);
+        return;
+      }
+      const prs = getPurchaseReturns?.() || [];
+      const nums = prs
+        .map((r) => {
+          // purchaseReturns currently use returnNumber like 'PR001' - extract numeric part
+          const m = String(r.returnNumber || "").match(/(\d+)/);
+          return m ? parseInt(m[1], 10) : null;
+        })
+        .filter((n) => n !== null);
+      const next = nums.length ? Math.max(...nums) + 1 : 1;
+      const id = `PRT-${String(next).padStart(4, "0")}`;
+      setNextPrtId(id);
+  try { localStorage.setItem("inventory_nextPrtId", id); } catch { /* ignore localStorage errors */ }
+    } catch {
+      setNextPrtId(`PRT-0001`);
+    }
+    // intentionally run only once on mount
+  }, []);
 
   const formatLKR = (value) => {
     try {
@@ -180,6 +197,24 @@ const Invoices = () => {
         setItems([]);
         setPendingInvoice(null);
         setShowPaymentModal(false);
+        // Move PRT sequence forward so nextPrtId changes immediately after submit
+        try {
+          const m = String(nextPrtId).match(/^PRT-(\d{4})$/i);
+          const curr = m ? parseInt(m[1], 10) : 0;
+          const next = curr + 1;
+          const newId = `PRT-${String(next).padStart(4, "0")}`;
+          setNextPrtId(newId);
+          try { localStorage.setItem("inventory_nextPrtId", newId); } catch { /* ignore */ }
+        } catch {
+          setNextPrtId((p) => {
+            const m = String(p).match(/^PRT-(\d{4})$/i);
+            const curr = m ? parseInt(m[1], 10) : 0;
+            const next = curr + 1;
+            const newId = `PRT-${String(next).padStart(4, "0")}`;
+            try { localStorage.setItem("inventory_nextPrtId", newId); } catch { /* ignore */ }
+            return newId;
+          });
+        }
       } finally {
         setIsSubmitting(false);
       }

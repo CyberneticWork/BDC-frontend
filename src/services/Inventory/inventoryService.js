@@ -208,24 +208,7 @@ const inventoryData = {
       totalAmount: 1320,
     },
   ],
-  stockTransfers: [
-    {
-      id: 1,
-      transferNumber: "ST001",
-      fromLocation: "Main Warehouse",
-      toLocation: "Branch Office A",
-      date: "2024-01-14",
-      status: "Completed",
-      items: [
-        { productName: "Laptop", quantity: 3, unitPrice: 1200, total: 3600 },
-        { productName: "Mouse", quantity: 10, unitPrice: 25, total: 250 },
-      ],
-      totalValue: 3850,
-      transferredBy: "John Smith",
-      receivedBy: "Jane Doe",
-      remarks: "Branch office setup",
-    },
-  ],
+  stockTransfers: [],
   stockVerifications: [
     {
       id: 1,
@@ -257,6 +240,19 @@ const inventoryData = {
     },
   ],
 };
+
+// Load persisted stockTransfers from localStorage if available
+try {
+  const saved = localStorage.getItem("inventory_stockTransfers");
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed)) {
+      inventoryData.stockTransfers = parsed;
+    }
+  }
+} catch {
+  // ignore localStorage errors
+}
 
 // Getter functions
 export const getInvoiceData = () => inventoryData.invoices;
@@ -348,12 +344,22 @@ export const addSalesReturn = (ret) => {
 };
 
 export const addStockTransfer = (transfer) => {
+  // Determine next sequence by scanning existing ST ids to avoid collisions
+  const nums = inventoryData.stockTransfers
+    .map((t) => {
+      const m = String(t.id || "").match(/^ST-(\d{4})$/i);
+      return m ? parseInt(m[1], 10) : null;
+    })
+    .filter((n) => n !== null);
+  const nextSeq = nums.length ? Math.max(...nums) + 1 : 1;
+  const stId = `ST-${String(nextSeq).padStart(4, "0")}`;
   const newTransfer = {
     ...transfer,
-    id: Date.now(),
-    transferNumber: `ST${String(inventoryData.stockTransfers.length + 1).padStart(3, "0")}`,
+    id: stId,
+    transferNumber: stId,
   };
   inventoryData.stockTransfers.push(newTransfer);
+  try { localStorage.setItem("inventory_stockTransfers", JSON.stringify(inventoryData.stockTransfers)); } catch { /* ignore */ }
   return newTransfer;
 };
 
@@ -361,18 +367,29 @@ export const updateStockTransfer = (id, updated) => {
   const idx = inventoryData.stockTransfers.findIndex((t) => t.id === id);
   if (idx !== -1) {
     inventoryData.stockTransfers[idx] = { ...inventoryData.stockTransfers[idx], ...updated };
+  try { localStorage.setItem("inventory_stockTransfers", JSON.stringify(inventoryData.stockTransfers)); } catch { /* ignore */ }
     return inventoryData.stockTransfers[idx];
   }
   return null;
 };
 
 export const addStockVerification = (verification) => {
+  // Determine next STV sequence by scanning existing verification numbers
+  const nums = inventoryData.stockVerifications
+    .map((v) => {
+      const m = String(v.verificationNumber || v.id || "").match(/^STV-(\d{4})$/i);
+      return m ? parseInt(m[1], 10) : null;
+    })
+    .filter((n) => n !== null);
+  const nextSeq = nums.length ? Math.max(...nums) + 1 : 1;
+  const stv = `STV-${String(nextSeq).padStart(4, "0")}`;
   const newVerification = {
     ...verification,
-    id: Date.now(),
-    verificationNumber: `SV${String(inventoryData.stockVerifications.length + 1).padStart(3, "0")}`,
+    id: stv,
+    verificationNumber: stv,
   };
   inventoryData.stockVerifications.push(newVerification);
+  try { localStorage.setItem('inventory_stockVerifications', JSON.stringify(inventoryData.stockVerifications)); } catch { /* ignore */ }
   return newVerification;
 };
 

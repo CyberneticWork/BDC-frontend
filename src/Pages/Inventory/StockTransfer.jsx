@@ -1,28 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getInvoiceData, addInvoice, getProducts } from "../../services/Inventory/inventoryService";
+import { getStockTransfers, addStockTransfer, getProducts } from "../../services/Inventory/inventoryService";
 // Payment component removed
 
 const StockTransfer = () => {
-  const [invoices, setInvoices] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextStId, setNextStId] = useState("");
 
   useEffect(() => {
-    const initial = getInvoiceData();
-    setInvoices(initial);
+    const initial = getStockTransfers();
+    setTransfers(initial);
   }, []);
 
   useEffect(() => {
-    const nums = invoices
-      .map((inv) => {
-        const m = String(inv.id || "").match(/^ST-(\d{4})$/i);
+    const nums = transfers
+      .map((t) => {
+        const m = String(t.id || "").match(/^ST-(\d{4})$/i);
         return m ? parseInt(m[1], 10) : null;
       })
       .filter((n) => n !== null);
     const next = nums.length ? Math.max(...nums) + 1 : 1;
     setNextStId(`ST-${String(next).padStart(4, "0")}`);
-  }, [invoices]);
+  }, [transfers]);
 
   // formatLKR removed — amount display is no longer shown in the form UI
 
@@ -149,11 +149,23 @@ const StockTransfer = () => {
       // Directly add invoice, no payment modal
       setIsSubmitting(true);
       try {
-        const newInvoice = addInvoice(invoiceData);
-        setInvoices((prev) => [...prev, newInvoice]);
+        let nextIdForReset = null;
+  const newTransfer = addStockTransfer(invoiceData);
+  setTransfers((prev) => [...prev, newTransfer]);
+        // compute and set next ST id by incrementing current nextStId
+        try {
+          const m = String(nextStId || "").match(/^ST-(\d{4})$/i);
+          const curr = m ? parseInt(m[1], 10) : 0;
+          const nextNum = curr + 1;
+          const nextId = `ST-${String(nextNum).padStart(4, "0")}`;
+          setNextStId(nextId);
+          nextIdForReset = nextId;
+        } catch {
+          // ignore and keep existing nextStId on failure
+        }
         setErrors({});
         setFormData({
-          id: "",
+          id: nextIdForReset || nextStId,
           fromCenter: "",
           toCenter: "",
           date: new Date().toISOString().split("T")[0],
