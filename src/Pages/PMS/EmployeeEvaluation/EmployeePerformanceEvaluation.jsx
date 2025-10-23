@@ -5,6 +5,7 @@ import {
   Download, 
   Filter, 
   CheckCircle, 
+  Check,
   User, 
   BarChart2,
   ArrowUpRight, 
@@ -16,10 +17,9 @@ import {
   ClipboardCheck,
   ChevronLeft,
   ChevronRight,
-  Square,
-  CheckSquare,
-  Save,
-  Check
+  Building2,
+  Layers,
+  Save
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
 import { toast } from 'react-toastify';
@@ -78,6 +78,14 @@ const EmployeePerformanceEvaluation = () => {
   const [savedCount, setSavedCount] = useState(0);
   const [isLoadingSavedCount, setIsLoadingSavedCount] = useState(false);
 
+  // Add new states for company and department filtering
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+
   useEffect(() => {
     let mounted = true;
     const loadSavedCount = async () => {
@@ -114,12 +122,74 @@ const EmployeePerformanceEvaluation = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  // Fetch companies on component mount
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setIsLoadingCompanies(true);
+      try {
+        const companiesData = await PMSService.getCompanies();
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
+      } catch (error) {
+        console.error("Error loading companies:", error);
+        swalToast.fire({
+          icon: 'error',
+          title: 'Failed to load companies'
+        });
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  // Fetch departments when company is selected
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!selectedCompany) {
+        setDepartments([]);
+        setSelectedDepartment("");
+        return;
+      }
+
+      setIsLoadingDepartments(true);
+      try {
+        const departmentsData = await PMSService.getDepartmentsByCompany(selectedCompany);
+        setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+        setSelectedDepartment(""); // Reset department selection when company changes
+      } catch (error) {
+        console.error("Error loading departments:", error);
+        setDepartments([]);
+        swalToast.fire({
+          icon: 'error',
+          title: 'Failed to load departments'
+        });
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+
+    fetchDepartments();
+  }, [selectedCompany]);
+
   // Fetch employees on mount (initial list)
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        // Use the new getAllEmployees method
-        const response = await PMSService.getAllEmployees();
+        let response;
+        
+        // If company is selected, fetch employees by company/department
+        if (selectedCompany) {
+          response = await PMSService.getEmployeesByCompany(
+            selectedCompany,
+            selectedDepartment || null,
+            ""
+          );
+        } else {
+          // Fall back to all employees
+          response = await PMSService.getAllEmployees();
+        }
+        
         const list = Array.isArray(response) ? response : (response?.data || []);
         
         // Also fetch employees who have task assignments to ensure they're included
@@ -136,14 +206,21 @@ const EmployeePerformanceEvaluation = () => {
               );
               
               if (!existsInMain) {
-                // Add employee from assignment data
-                employeesFromAssignments.push({
-                  id: task.employee_id,
-                  full_name: task.employee_name,
-                  attendance_employee_no: task.employee_id,
-                  department: task.department || '',
-                  company: task.company || ''
-                });
+                // Add employee from assignment data, but only if it matches our company/department filter
+                const matchesCompanyFilter = !selectedCompany || 
+                  task.company_id?.toString() === selectedCompany.toString();
+                const matchesDepartmentFilter = !selectedDepartment || 
+                  task.department_id?.toString() === selectedDepartment.toString();
+                
+                if (matchesCompanyFilter && matchesDepartmentFilter) {
+                  employeesFromAssignments.push({
+                    id: task.employee_id,
+                    full_name: task.employee_name,
+                    attendance_employee_no: task.employee_id,
+                    department: task.department || '',
+                    company: task.company || ''
+                  });
+                }
               }
             }
           });
@@ -182,8 +259,8 @@ const EmployeePerformanceEvaluation = () => {
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, []);
-  
+  }, [selectedCompany, selectedDepartment]); // Add dependencies
+
   // Fetch which employees have tasks assigned
   const fetchEmployeesWithTasks = async (empList) => {
     try {
@@ -287,11 +364,13 @@ const EmployeePerformanceEvaluation = () => {
     setIsLoading(true);
     
     try {
-      // Prepare request data
+      // Prepare request data with company/department filters
       const requestData = {
         start_date: dateRange.startDate,
         end_date: dateRange.endDate,
-        employee_id: selectedEmployee || undefined // Only include if selected
+        employee_id: selectedEmployee || undefined,
+        company_id: selectedCompany || undefined,
+        department_id: selectedDepartment || undefined
       };
       
       const response = await PMSService.calculateEmployeePerformance(requestData);
@@ -301,7 +380,7 @@ const EmployeePerformanceEvaluation = () => {
         await Swal.fire({
           icon: 'info',
           title: 'No Data Found',
-          text: 'No completed tasks found in the selected date range. Try adjusting the date range or ensure tasks are marked as completed.',
+          text: 'No completed tasks found in the selected date range for the specified filters. Try adjusting the date range, company, department selection or ensure tasks are marked as completed.',
           confirmButtonColor: '#3B82F6',
           confirmButtonText: 'OK',
           customClass: {
@@ -320,7 +399,17 @@ const EmployeePerformanceEvaluation = () => {
         setCurrentPage(1); // Reset to first page
         
         if (results.length > 0) {
-          // Enhanced success modal with detailed summary
+          // Enhanced success modal with filter info
+          const filterInfo = [];
+          if (selectedCompany) {
+            const companyName = companies.find(c => c.id.toString() === selectedCompany.toString())?.name || 'Selected Company';
+            filterInfo.push(`Company: ${companyName}`);
+          }
+          if (selectedDepartment) {
+            const departmentName = departments.find(d => d.id.toString() === selectedDepartment.toString())?.name || 'Selected Department';
+            filterInfo.push(`Department: ${departmentName}`);
+          }
+          
           await Swal.fire({
             icon: 'success',
             title: 'Performance Calculated Successfully!',
@@ -334,6 +423,12 @@ const EmployeePerformanceEvaluation = () => {
                   <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <span><strong>${results.reduce((sum, r) => sum + (r.task_count || 0), 0)}</strong> tasks analyzed</span>
                 </div>
+                ${filterInfo.length > 0 ? `
+                  <div class="mt-2 p-2 bg-blue-50 rounded-lg text-xs">
+                    <div class="font-medium text-blue-800 mb-1">Filters Applied:</div>
+                    ${filterInfo.map(info => `<div class="text-blue-700">${info}</div>`).join('')}
+                  </div>
+                ` : ''}
                 <div class="mt-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600">
                   Date Range: ${dateRange.startDate} → ${dateRange.endDate}
                 </div>
@@ -352,36 +447,23 @@ const EmployeePerformanceEvaluation = () => {
       console.error("Error calculating performance:", error);
       setEvaluationResults([]);
       
-      // Enhanced error modal with better error handling
       let errorTitle = 'Calculation Failed';
-      let errorMessage = 'An unexpected error occurred while calculating performance. Please try again.';
-      let errorDetails = '';
+      let errorMessage = 'An error occurred while calculating performance. Please try again.';
       
-      if (error.response?.status === 422) {
-        errorTitle = 'Validation Error';
-        errorMessage = 'The provided data did not pass validation.';
-        if (error.response.data?.errors) {
-          const errors = Object.values(error.response.data.errors).flat();
-          errorDetails = errors.join('<br>');
-        }
-      } else if (error.response?.status === 500) {
-        errorTitle = 'Server Error';
-        errorMessage = 'A server error occurred. Please contact support if the problem persists.';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      if (error.response?.status === 404) {
+        errorTitle = 'No Data Found';
+        errorMessage = 'No completed tasks found for the selected criteria.';
+      } else if (error.response?.status === 422) {
+        errorTitle = 'Invalid Parameters';
+        errorMessage = 'Please check your filter selections and try again.';
       }
       
       await Swal.fire({
         icon: 'error',
         title: errorTitle,
-        html: `
-          <div class="text-left">
-            <p class="mb-3">${errorMessage}</p>
-            ${errorDetails ? `<div class="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">${errorDetails}</div>` : ''}
-          </div>
-        `,
+        text: errorMessage,
         confirmButtonColor: '#EF4444',
-        confirmButtonText: 'Try Again',
+        confirmButtonText: 'OK',
         customClass: {
           popup: 'rounded-xl shadow-2xl',
           title: 'text-lg font-bold text-red-600'
@@ -608,7 +690,7 @@ const EmployeePerformanceEvaluation = () => {
     }
   };
 
-  // Update the handleClearFilters function
+  // Update the handleClearFilters function to include company/department
   const handleClearFilters = () => {
     setDateRange({
       startDate: "",
@@ -617,10 +699,12 @@ const EmployeePerformanceEvaluation = () => {
     setSelectedEmployee("");
     setSelectedEmployeeName("");
     setSearchTerm("");
+    setSelectedCompany("");
+    setSelectedDepartment("");
     setEvaluationResults([]);
     setCurrentPage(1);
     setViewDetails({});
-    setHasAttempted(false); // Reset validation state
+    setHasAttempted(false);
     setValidationErrors({
       startDate: false,
       endDate: false
@@ -754,7 +838,11 @@ const EmployeePerformanceEvaluation = () => {
       const response = await PMSService.saveEmployeePerformanceBulk(evaluationsData);
       
       // Handle response
-      const { saved_count, duplicates, errors, total_requested } = response.data;
+      const responseData = response.data || response;
+      const saved_count = responseData.saved_count || 0;
+      const duplicates = responseData.duplicates || [];
+      const errors = responseData.errors || [];
+      const total_requested = responseData.total_requested || evaluationsData.length;
       
       // Clear selections after successful save
       setSelectedEvaluations(new Set());
@@ -763,7 +851,7 @@ const EmployeePerformanceEvaluation = () => {
       // Update saved count
       setSavedCount(prev => prev + saved_count);
 
-      // Enhanced success modal with better formatting
+      // Enhanced success modal
       await Swal.fire({
         icon: 'success',
         title: 'Bulk Save Completed!',
@@ -800,40 +888,22 @@ const EmployeePerformanceEvaluation = () => {
                 ` : ''}
               </div>
             </div>
-            
-            ${(duplicates.length > 0 || errors.length > 0) ? `
-            <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; font-size: 12px; color: #6b7280;">
-              ${duplicates.length > 0 ? `
-                <p style="margin: 0 0 8px 0;"><strong>Duplicates:</strong> Some evaluations already exist for the selected date range or have overlapping periods.</p>
-                <div style="max-height: 100px; overflow-y: auto; background: white; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
-                  ${duplicates.map(dup => `
-                    <div style="margin-bottom: 4px;">
-                      • ${dup.employee_name || 'Unknown'} (${dup.start_date} to ${dup.end_date})
-                    </div>
-                  `).join('')}
-                </div>
-              ` : ''}
-              ${errors.length > 0 ? `<p style="margin: 0;"><strong>Errors:</strong> Some evaluations could not be saved due to validation errors.</p>` : ''}
-            </div>
-            ` : ''}
           </div>
         `,
         confirmButtonColor: '#10B981',
         confirmButtonText: 'Great!',
-        timer: 8000,
+        timer: 6000,
         timerProgressBar: true,
         width: 600,
         customClass: {
-          popup: 'swal2-rounded',
-          title: 'swal2-title-success',
-          htmlContainer: 'swal2-html-container-custom'
+          popup: 'swal2-rounded'
         }
       });
 
     } catch (error) {
       console.error("Error in bulk save:", error);
       
-      // Enhanced error handling with better formatting
+      // Enhanced error handling
       let errorTitle = 'Bulk Save Failed';
       let errorMessage = 'An unexpected error occurred while saving evaluations.';
       let errorDetails = '';
@@ -870,12 +940,7 @@ const EmployeePerformanceEvaluation = () => {
         `,
         confirmButtonColor: '#EF4444',
         confirmButtonText: 'Try Again',
-        width: 450,
-        customClass: {
-          popup: 'swal2-rounded',
-          title: 'swal2-title-error',
-          htmlContainer: 'swal2-html-container-custom'
-        }
+        width: 450
       });
     } finally {
       setIsBulkSaving(false);
@@ -928,6 +993,75 @@ const EmployeePerformanceEvaluation = () => {
 
       {/* Filter Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        {/* First Row - Company and Department */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Company Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Company (Optional)
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Building2 className="h-5 w-5 text-gray-400" />
+              </div>
+              <select
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                className="appearance-none w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                disabled={isLoadingCompanies}
+              >
+                <option value="">All Companies</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+              {isLoadingCompanies && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              )}
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            </div>
+          </div>
+
+          {/* Department Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Department (Optional)
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Layers className="h-5 w-5 text-gray-400" />
+              </div>
+              <select
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                className="appearance-none w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                disabled={!selectedCompany || isLoadingDepartments}
+              >
+                <option value="">All Departments</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+              {isLoadingDepartments && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              )}
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            </div>
+            {!selectedCompany && (
+              <p className="mt-1 text-xs text-gray-500">Select a company first to choose department</p>
+            )}
+          </div>
+        </div>
+
+        {/* Second Row - Date Range and Employee */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Date Range Selection */}
           <div>
@@ -1026,6 +1160,14 @@ const EmployeePerformanceEvaluation = () => {
                       {employeesWithTasks && Object.keys(employeesWithTasks).length > 0 ? 
                         "Employees with tasks are highlighted" : 
                         "Showing all employees matching search"}
+                      {selectedCompany && (
+                        <span className="block mt-1 text-blue-600">
+                          Filtered by: {companies.find(c => c.id.toString() === selectedCompany.toString())?.name}
+                          {selectedDepartment && (
+                            <span> → {departments.find(d => d.id.toString() === selectedDepartment.toString())?.name}</span>
+                          )}
+                        </span>
+                      )}
                     </div>
                     {filteredEmployees.map(emp => {
                       const hasAssignedTasks = (employeesWithTasks[emp.id] || employeesWithTasks[emp.attendance_employee_no] || 0) > 0;
@@ -1040,7 +1182,7 @@ const EmployeePerformanceEvaluation = () => {
                           onClick={() => {
                             setSelectedEmployee(emp.id);
                             setSelectedEmployeeName(emp.full_name || emp.name);
-                            setSearchTerm(emp.full_name || emp.name);
+                            setSearchTerm("");
                           }}
                         >
                           <div>
@@ -1055,6 +1197,7 @@ const EmployeePerformanceEvaluation = () => {
                             </div>
                             <div className="text-xs text-gray-500">
                               ID: {emp.id} • {emp.attendance_employee_no || emp.attendanceNo || ""}
+                              {emp.department && <span> • {emp.department}</span>}
                             </div>
                           </div>
                         </div>
@@ -1081,6 +1224,25 @@ const EmployeePerformanceEvaluation = () => {
             )}
           </div>
         </div>
+
+        {/* Filter Summary */}
+        {(selectedCompany || selectedDepartment) && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-sm text-blue-800">
+              <span className="font-medium">Active Filters:</span>
+              {selectedCompany && (
+                <span className="ml-2">
+                  Company: {companies.find(c => c.id.toString() === selectedCompany.toString())?.name}
+                </span>
+              )}
+              {selectedDepartment && (
+                <span className="ml-2">
+                  • Department: {departments.find(d => d.id.toString() === selectedDepartment.toString())?.name}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         
         <div className="mt-6 flex justify-between items-center">
           <button
@@ -1525,4 +1687,45 @@ const EmployeePerformanceEvaluation = () => {
   );
 };
 
-export default EmployeePerformanceEvaluation;
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 text-center">
+          <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
+          <p className="text-gray-600">Please refresh the page and try again.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Refresh Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Then wrap your component
+const EmployeePerformanceEvaluationWithBoundary = () => (
+  <ErrorBoundary>
+    <EmployeePerformanceEvaluation />
+  </ErrorBoundary>
+);
+
+export default EmployeePerformanceEvaluationWithBoundary;
