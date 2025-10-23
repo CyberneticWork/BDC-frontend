@@ -128,19 +128,19 @@ const Customer = () => {
   };
 
   const handleEdit = (customer) => {
-    setEditingCustomer(customer);
-    setFormData({
-      customerCategory: customer.customerCategory || '',
-      customerType: customer.customerType || '',
-      customerName: customer.customerName || '',
-      phoneNumber: customer.phoneNumber || '',
-      brNumberNic: customer.brNumberNic || '',
-      email: customer.email || '',
-      address: customer.address || '',
-      city: customer.city || ''
-    });
-    setShowCreateForm(true);
-  };
+  setEditingCustomer(customer);
+  setFormData({
+    customerCategory: customer.customer_category?.id || customer.customerCategory?.id || '',
+    customerType: customer.customer_type?.id || customer.customerType?.id || '',
+    customerName: customer.customerName || customer.name || '',
+    phoneNumber: customer.phoneNumber || customer.phone || '',
+    brNumberNic: customer.brNumberNic || customer.br_number_nic || '',
+    email: customer.email || '',
+    address: customer.address || '',
+    city: customer.city || ''
+  });
+  setShowCreateForm(true);
+};
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
@@ -499,28 +499,26 @@ const Customer = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number *
+                    Phone Number
                   </label>
                   <input
                     type="tel"
                     name="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
-                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    BR Number/NIC *
+                    BR Number/NIC
                   </label>
                   <input
                     type="text"
                     name="brNumberNic"
                     value={formData.brNumberNic}
                     onChange={handleInputChange}
-                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                   />
                 </div>
@@ -542,13 +540,12 @@ const Customer = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Address *
+                  Address
                 </label>
                 <textarea
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  required
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                 />
@@ -556,14 +553,13 @@ const Customer = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  City *
+                  City
                 </label>
                 <input
                   type="text"
                   name="city"
                   value={formData.city}
                   onChange={handleInputChange}
-                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                 />
               </div>
