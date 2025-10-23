@@ -1,5 +1,14 @@
 import React, { useMemo, useState } from "react";
 
+function Section({ title, children }) {
+	return (
+		<div className="border border-gray-200 rounded-lg p-4 mt-3">
+			<div className="font-semibold mb-2 text-gray-800">{title}</div>
+			{children}
+		</div>
+	);
+}
+
 export default function Payment({ onSetPayment, initialMode = "cash" }) {
 	const [mode, setMode] = useState(initialMode);
 	const [showErrors, setShowErrors] = useState(false);
@@ -71,12 +80,9 @@ export default function Payment({ onSetPayment, initialMode = "cash" }) {
 		}
 	};
 
-	const Section = ({ title, children }) => (
-		<div className="border border-gray-200 rounded-lg p-4 mt-3">
-			<div className="font-semibold mb-2 text-gray-800">{title}</div>
-			{children}
-		</div>
-	);
+	// Section is defined at module scope to avoid re-creating the component
+	// on every render. This prevents React from remounting children and
+	// causing inputs to lose focus while typing.
 
 	return (
 		<div className="flex flex-col gap-3">

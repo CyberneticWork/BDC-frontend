@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {Plus,Trash2,CheckCircle,X} from "lucide-react";
-import {getInvoiceData,addInvoice, getCustomers} from '../../services/Inventory/inventoryService';
+import {getInvoiceData,addInvoice, getCustomers, getProducts} from '../../services/Inventory/inventoryService';
 import Payment from '../../components/Inventory/Payment';
 
 const Invoices = () => {
@@ -57,7 +57,12 @@ const Invoices = () => {
       quantity: 0,
     });
     const [errors, setErrors] = useState({});
-    const [items, setItems] = useState([]);
+  const [items, setItems] = useState([]);
+  // Product entry state for typeahead
+  const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const productInputRef = useRef(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingInvoice, setPendingInvoice] = useState(null);
   const [customers, setCustomers] = useState([]);
@@ -116,9 +121,9 @@ const Invoices = () => {
       if (!formData.customer.trim()) newErrors.customer = 'Customer name is required';
       if (!formData.customerEmail.trim()) newErrors.customerEmail = 'Customer email is required';
       if ((items?.length || 0) === 0) {
-        // If there are no line items, require inline product fields
-        if (!formData.productName.trim()) newErrors.productName = 'Product name is required';
-        if (formData.quantity <= 0) newErrors.quantity = 'Quantity must be greater than 0';
+        // If there are no line items, require inline product fields (entry)
+        if (!String(entry.productName || "").trim()) newErrors.productName = 'Product name is required';
+        if ((Number(entry.quantity) || 0) <= 0) newErrors.quantity = 'Quantity must be greater than 0';
       }
       if (formData.amount <= 0 && (items?.length || 0) === 0) newErrors.amount = 'Amount must be greater than 0';
       
@@ -126,9 +131,25 @@ const Invoices = () => {
       return Object.keys(newErrors).length === 0;
     };
 
+    // Products list for typeahead
+    const products = useMemo(() => getProducts() || [], []);
+
+    const filteredProducts = useMemo(() => {
+      const q = (entry.productName || "").toLowerCase().trim();
+      if (!q) return products.slice(0, 8);
+      return products
+        .filter((p) =>
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.sku || "").toLowerCase().includes(q)
+        )
+        .slice(0, 8);
+    }, [entry.productName, products]);
+
     const handleAddItem = () => {
-      const name = (formData.productName || '').trim();
-      const qty = Number(formData.quantity) || 0;
+      const name = String(entry.productName || '').trim();
+      const qty = Math.max(1, Number(entry.quantity) || 0);
+      const selected = entry.productId ? products.find(p => String(p.id) === String(entry.productId)) : products.find(p => (p.name || '').toLowerCase() === name.toLowerCase());
+      const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
       if (!name) {
         setErrors(prev => ({ ...prev, productName: 'Product name is required' }));
         return;
@@ -139,15 +160,16 @@ const Invoices = () => {
       }
       const newItem = {
         id: Date.now(),
+        productId: selected ? selected.id : undefined,
         name,
         quantity: qty,
-        unitPrice: 0,
+        unitPrice: Math.max(0, unitPrice),
         discount: 0,
         discountEnabled: false,
       };
       setItems(prev => [...prev, newItem]);
       // Clear entry fields for next add
-      setFormData(prev => ({ ...prev, productName: '', quantity: 0 }));
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
       setErrors(prev => ({ ...prev, productName: undefined, quantity: undefined }));
     };
 
@@ -339,28 +361,80 @@ const Invoices = () => {
             <div className="mb-6 sm:mb-8 bg-slate-50 rounded-lg p-6 border border-slate-200">
               <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6 border-b border-slate-200 pb-4">Product Details</h4>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Product Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.productName || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, productName: e.target.value }))}
-                    className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 ${errors.productName ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'}`}
-                    placeholder="Enter product name"
-                  />
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-3">Product Name *</label>
+                  <div className="relative" onKeyDown={(e) => {
+                    if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                      setShowSuggestions(true);
+                      return;
+                    }
+                    if (!showSuggestions) return;
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveIndex((prev) => Math.min(prev + 1, filteredProducts.length - 1));
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveIndex((prev) => Math.max(prev - 1, 0));
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (activeIndex >= 0 && filteredProducts[activeIndex]) {
+                        const p = filteredProducts[activeIndex];
+                        setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                        setShowSuggestions(false);
+                        setActiveIndex(-1);
+                      }
+                    } else if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                      setActiveIndex(-1);
+                    }
+                  }}>
+                    <input
+                      ref={productInputRef}
+                      type="text"
+                      value={entry.productName}
+                      onFocus={() => setShowSuggestions(true)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEntry((p) => ({ ...p, productId: "", productName: val }));
+                        setShowSuggestions(true);
+                        setActiveIndex(-1);
+                      }}
+                      onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
+                      className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white hover:border-slate-400'}`}
+                      placeholder="Search product by name or SKU"
+                    />
+                    {showSuggestions && filteredProducts.length > 0 && (
+                      <ul className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl">
+                        {filteredProducts.map((p, idx) => (
+                          <li
+                            key={p.id}
+                            className={`px-4 py-3 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0 ${idx === activeIndex ? 'bg-blue-50 border-blue-200' : 'hover:bg-slate-50'}`}
+                            onMouseEnter={() => setActiveIndex(idx)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                              setShowSuggestions(false);
+                              setActiveIndex(-1);
+                              productInputRef.current?.blur();
+                            }}
+                          >
+                            <span className="text-sm font-medium text-slate-900">{p.name}</span>
+                            <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
+                            <span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   {errors.productName && <p className="text-red-600 text-sm mt-2 font-medium">{errors.productName}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Quantity *
-                  </label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-3">Quantity *</label>
                   <input
                     type="number"
                     min="1"
-                    value={formData.quantity || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                    value={entry.quantity || ''}
+                    onChange={(e) => setEntry(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
                     className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 ${errors.quantity ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'}`}
                     placeholder="Enter quantity"
                   />
