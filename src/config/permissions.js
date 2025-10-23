@@ -84,7 +84,6 @@ export const permissions = {
     PerformanceAppraisal: { view: true, edit: true },
     doubleEntry: { view: true, edit: true },
     supplier: { view: true, edit: true },
-    chatbot: { view: true, edit: true },
     inventory: { view: true, edit: true },
   },
   hr: {
@@ -155,6 +154,7 @@ export const permissions = {
     usersAndRoles: { view: true, edit: true },
     PerformanceAppraisal: { view: true, edit: true },
     inventory: { view: true, edit: true },
+    masterFiles: { view: true, edit: true },
   },
   supervisor: {
     chatbot: { view: true },
@@ -181,7 +181,7 @@ export const permissions = {
     lmsUserStats: { view: true },
     accounting: { view: true },
     accountingDashboard: { view: true },
-    chartOfAccounts: { view: true },
+   
     transactions: { view: true },
     customer: { view: true, edit: true },
     center: { view: true, edit: true },
@@ -198,7 +198,7 @@ export const permissions = {
     pettyCash: { view: true, edit: true },
     cheque: { view: true, edit: true },
     bankReconciliation: { view: true, edit: true },
-    transactions: { view: true, edit: true },
+ 
     transactionsList: { view: true, edit: true },
     salesOrder: { view: true, edit: true },
     salesReturn: { view: true, edit: true },
@@ -235,7 +235,7 @@ export const permissions = {
     pms: { view: true },
     pmsDashboard: { view: true },
     performanceReviews: { view: true, edit: true },
-    myKPIs: { view: true },
+    
     inventory: { view: true },
   },
   employee: {
@@ -256,7 +256,7 @@ export const permissions = {
     pms: { view: true },
     pmsDashboard: { view: true },
     performanceReviews: { view: true, edit: true },
-    myKPIs: { view: true },
+   
     inventory: { view: true },
   },
 };
