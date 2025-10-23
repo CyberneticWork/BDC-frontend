@@ -5,8 +5,8 @@ import {
   addCenter,
   updateCenter,
   deleteCenter
-} from '../../services/AccountingService';
-import { useResponsive } from '../../hooks/useResponsive';
+} from '@services/AccountingService';
+import { useResponsive } from '@hooks/useResponsive';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -24,7 +24,7 @@ import {
   ResponsiveLoadingSpinner,
   ResponsiveBadge,
   ResponsiveModal
-} from '../../components/Accounting/ResponsiveAccountingComponents';
+} from '@components/Accounting/ResponsiveAccountingComponents';
 
 const Center = () => {
   const responsive = useResponsive();

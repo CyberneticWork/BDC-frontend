@@ -225,6 +225,7 @@ const Sidebar = ({
               { id: "customer", name: "Customer" },
               { id: "supplier", name: "Supplier" },
               { id: "center", name: "Center" },
+               { id: "product", name: "Product List" },
             ],
           },
         { id: "invoices", name: "Invoice" },
@@ -316,11 +317,12 @@ const Sidebar = ({
           "customer",
           "supplier",
           "center",
+          "product", 
         ].includes(activeItem),
       masterFiles:
         path.includes("masterFiles") ||
         activeItem === "masterFiles" ||
-        ["customer", "supplier", "center"].includes(activeItem),
+        ["customer", "supplier", "center", "product"].includes(activeItem), // Added "product" here
     });
   }, [activeItem, menuItems]);
 
@@ -381,18 +383,27 @@ const Sidebar = ({
   };
 
   // Recursive function to filter menu items based on permissions
-  const filterMenuItems = (items) => {
+  const filterMenuItems = (items, ancestors = []) => {
     return items
       .map((item) => {
         if (item.subItems) {
-          const filteredSubItems = filterMenuItems(item.subItems);
-          // If any child is permitted, show the parent. Also allow parent to be shown
-          // when it itself has permission. This ensures groups like Inventory -> Master Files
-          // are visible when a child (e.g. customer) has view permission.
-          if (filteredSubItems.length > 0 || hasPermission(item.id, "view")) {
+          const filteredSubItems = filterMenuItems(item.subItems, [...ancestors, item.id]);
+          // Show parent if:
+          // - it has permitted children, OR
+          // - the parent itself has permission, OR
+          // - any ancestor higher up has permission (fallback for broader permissions)
+          if (
+            filteredSubItems.length > 0 ||
+            hasPermission(item.id, "view") ||
+            ancestors.some((a) => hasPermission(a, "view"))
+          ) {
             return { ...item, subItems: filteredSubItems };
           }
-        } else if (hasPermission(item.id, "view")) {
+        } else if (
+          hasPermission(item.id, "view") ||
+          // if user has permission for any ancestor (e.g., "inventory" or "masterFiles"), allow the child
+          ancestors.some((a) => hasPermission(a, "view"))
+        ) {
           return item;
         }
         return null;

@@ -84,6 +84,7 @@ export const permissions = {
     PerformanceAppraisal: { view: true, edit: true },
     doubleEntry: { view: true, edit: true },
     supplier: { view: true, edit: true },
+    product: { view: true, edit: true },
     inventory: { view: true, edit: true },
   },
   hr: {
@@ -155,6 +156,7 @@ export const permissions = {
     PerformanceAppraisal: { view: true, edit: true },
     inventory: { view: true, edit: true },
     masterFiles: { view: true, edit: true },
+    productList: { view: true, edit: true },
   },
   supervisor: {
     chatbot: { view: true },
@@ -185,6 +187,7 @@ export const permissions = {
     transactions: { view: true },
     customer: { view: true, edit: true },
     center: { view: true, edit: true },
+  product: { view: true, edit: true },
     chartOfAccounts: { view: true, edit: true },
     accountList: { view: true, edit: true },
     supplierEnterBill: { view: true, edit: true },
@@ -237,6 +240,7 @@ export const permissions = {
     performanceReviews: { view: true, edit: true },
     
     inventory: { view: true },
+    product: { view: true },
   },
   employee: {
     chatbot: { view: true },
@@ -258,5 +262,6 @@ export const permissions = {
     performanceReviews: { view: true, edit: true },
    
     inventory: { view: true },
+    product: { view: true },
   },
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import SupplierService from '../../services/Account/SupplierService';
+import SupplierService from '@services/Account/SupplierService';
 import Swal from 'sweetalert2';
 import { Plus, X, Edit, Trash2, Phone, Mail, MapPin, CreditCard, Calendar } from 'lucide-react';
 import {
@@ -21,7 +21,7 @@ import {
   ResponsiveLoadingSpinner,
   ResponsiveBadge,
   ResponsiveAlert
-} from '../../components/Accounting/ResponsiveAccountingComponents';
+} from '@components/Accounting/ResponsiveAccountingComponents';
 
 const Supplier = () => {
   const [suppliers, setSuppliers] = useState([]);
