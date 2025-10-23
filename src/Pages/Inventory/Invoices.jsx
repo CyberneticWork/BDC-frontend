@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {Plus,Trash2,CheckCircle,X} from "lucide-react";
-import {getInvoiceData,addInvoice} from '../../services/Inventory/inventoryService';
+import {getInvoiceData,addInvoice, getCustomers} from '../../services/Inventory/inventoryService';
 import Payment from '../../components/Inventory/Payment';
 
 const Invoices = () => {
@@ -60,11 +60,24 @@ const Invoices = () => {
     const [items, setItems] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingInvoice, setPendingInvoice] = useState(null);
+  const [customers, setCustomers] = useState([]);
 
     // Sync generated invoice id from parent into form
     useEffect(() => {
       setFormData(prev => ({ ...prev, id: nextInvoiceId }));
     }, [nextInvoiceId]);
+
+    useEffect(() => {
+      const fetchCustomers = async () => {
+        try {
+          const data = await getCustomers();
+          setCustomers(data);
+        } catch (error) {
+          console.error('Error fetching customers:', error);
+        }
+      };
+      fetchCustomers();
+    }, []);
 
     // Demo center list (can be wired to service later)
     const centers = [
@@ -74,26 +87,8 @@ const Invoices = () => {
       'Warehouse 01'
     ];
 
-    // Build customer options from existing invoices as a convenience
-    const availableCustomers = (() => {
-      const map = new Map();
-      invoices.forEach(inv => {
-        const name = inv.customer;
-        const email = inv.customerEmail;
-        if (name && email && !map.has(email)) {
-          map.set(email, { name, email });
-        }
-      });
-      const list = Array.from(map.values());
-      if (list.length === 0) {
-        return [
-          { name: 'John Doe', email: 'john@example.com' },
-          { name: 'Jane Smith', email: 'jane@example.com' },
-          { name: 'Acme Corp', email: 'billing@acme.test' }
-        ];
-      }
-      return list;
-    })();
+    // Build customer options from fetched customers
+    const availableCustomers = customers.map(c => ({ name: c.name, email: c.email }));
 
     // Compute table total (includes discount per unit * quantity)
     const tableTotal = React.useMemo(() => {

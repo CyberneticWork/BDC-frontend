@@ -3,6 +3,8 @@
 // This service centralizes all Inventory-related dummy data and operations.
 // Pages: GRN, PurchaseOrder, PurchaseReturn, SalesReturn, StockTransfer, StockVerification, Invoices (if inventory invoices)
 
+import axios from '../../utils/axios';
+
 const inventoryData = {
   centers: [
     "Main Center",
@@ -56,24 +58,6 @@ const inventoryData = {
     { id: "SUP-0002", name: "Office Equipment Co" },
     { id: "SUP-0003", name: "Global Components Pvt" },
     { id: "SUP-0004", name: "Sri Lanka Trading Co" },
-  ],
-
-
-  customers: [
-    {
-      id: "SO-0001",
-      customer: "CNN Company",
-    },
-    {
-      id: "SO-0002",
-      customer: "Ratnasiri group",
-     
-    },
-    {
-      id: "SO-0003",
-      customer: "ACB Pvt",
-     
-    },
   ],
 
 
@@ -264,7 +248,15 @@ export const getStockTransfers = () => inventoryData.stockTransfers;
 export const getStockVerifications = () => inventoryData.stockVerifications;
 export const getCenters = () => inventoryData.centers;
 export const getProducts = () => inventoryData.products;
-export const getCustomers = () => inventoryData.customers;
+export const getCustomers = async () => {
+  try {
+    const response = await axios.get('/customers');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    return [];
+  }
+};
 export const getSuppliers = () => inventoryData.suppliers;
 
 // Mutations: create/update/delete with simple in-memory logic

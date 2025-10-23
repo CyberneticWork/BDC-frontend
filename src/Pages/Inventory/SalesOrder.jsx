@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-// Sales Orders come from AccountingService; centers/products from Inventory service
 import { addSalesOrder, getSalesOrders } from "../../services/AccountingService";
-import { getCenters, getProducts, getCustomers  } from "../../services/Inventory/inventoryService";  // dummy data inventoryService.js
+import { getCenters, getProducts, getCustomers  } from "../../services/Inventory/inventoryService";  
 
 const SalesOrder = () => {
 	const [orders, setOrders] = useState([]);
@@ -60,6 +59,7 @@ const SalesOrder = () => {
 	const [items, setItems] = useState([]);
 	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
 		const [errors, setErrors] = useState({});
+		const [customers, setCustomers] = useState([]);
 
 		// Typeahead state for products
 		const [showSuggestions, setShowSuggestions] = useState(false);
@@ -69,6 +69,18 @@ const SalesOrder = () => {
 		useEffect(() => {
 			setForm((p) => ({ ...p, orderNumber: nextSONumber }));
 		}, [nextSONumber]);
+
+		useEffect(() => {
+			const fetchCustomers = async () => {
+				try {
+					const data = await getCustomers();
+					setCustomers(data);
+				} catch (error) {
+					console.error('Error fetching customers:', error);
+				}
+			};
+			fetchCustomers();
+		}, []);
 
 
 			// Centers from service
@@ -90,12 +102,8 @@ const SalesOrder = () => {
 
 		// Build customer options from inventory service customers
 		const customerOptions = useMemo(() => {
-			const list = (getCustomers?.() || [])
-				.map((c) => (typeof c === "string" ? c : c?.customer))
-				.map((s) => (s || "").trim())
-				.filter(Boolean);
-			return Array.from(new Set(list));
-		}, []);
+			return customers.map(c => c.name).filter(Boolean);
+		}, [customers]);
 
 		// Helper to parse discount as amount or % against a base
 		const parseDiscount = (input, base) => {
