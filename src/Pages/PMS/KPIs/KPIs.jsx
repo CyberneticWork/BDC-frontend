@@ -443,6 +443,19 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       processedValue = parseInt(value, 10);
     }
 
+    // If company or department changes, clear assignees and search results to avoid "Unknown" items
+    if (name === 'company' || name === 'department') {
+      // reset employee search and results, and clear selected assignees
+      setEmpSearch("");
+      setCompanyEmployees([]);
+      setFormData(prev => ({
+        ...prev,
+        [name]: processedValue,
+        assignees: []
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: processedValue
