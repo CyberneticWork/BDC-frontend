@@ -25,6 +25,7 @@ import {
   Calculator, // Add for Accounting
   Shield,
   MessageCircle,
+  Package, // Add for Inventory
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -50,6 +51,7 @@ const Sidebar = ({
     chartOfAccounts: false, // Added this
     transactions: false, // Added this
     financeReports: false, // Added this
+    inventory: false, // Added for Inventory section
   });
 
   const menuItems = [
@@ -194,14 +196,6 @@ const Sidebar = ({
           name: "Transactions",
           subItems: [
             { id: "transactionsList", name: "Transaction List" },
-            { id: "invoices", name: "Invoices" },
-            { id: "salesOrder", name: "Sales Order" },
-            { id: "salesReturn", name: "Sales Return" },
-            { id: "grn", name: "GRN" },
-            { id: "purchaseReturn", name: "Purchase Return" },
-            { id: "purchaseOrder", name: "Purchase Order" },
-            { id: "stockTransfer", name: "Stock Transfer" },
-            { id: "stockVerification", name: "Stock Verification" },
           ],
         },
         {
@@ -217,6 +211,22 @@ const Sidebar = ({
         // { id: "ledger", name: "Ledger" },
         // { id: "expenses", name: "Expenses" },
         { id: "accountingSettings", name: "Settings" },
+      ],
+    },
+    { //for inventory section
+      id: "inventory",
+      name: "Inventory",
+      icon: Package,
+      badge: null,
+      subItems: [
+        { id: "invoices", name: "Invoice" },
+        { id: "salesOrder", name: "Sales Order" },
+        { id: "salesReturn", name: "Sales Return" },
+        { id: "grn", name: "GRN" },
+        { id: "purchaseReturn", name: "Purchase Return" },
+        { id: "purchaseOrder", name: "Purchase Order" },
+        { id: "stockTransfer", name: "Stock Transfer" },
+        { id: "stockVerification", name: "Stock Verification" },
       ],
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
@@ -271,17 +281,7 @@ const Sidebar = ({
       transactions:
         path.includes("transactions") ||
         activeItem === "transactions" ||
-        [
-          "transactionsList",
-          "invoices",
-          "salesOrder",
-          "salesReturn",
-          "grn",
-          "purchaseReturn",
-          "purchaseOrder",
-          "stockTransfer",
-          "stockVerification",
-        ].includes(activeItem),
+        ["transactionsList"].includes(activeItem),
       financeReports:
         path.includes("financeReports") ||
         activeItem === "financeReports" ||
@@ -290,6 +290,20 @@ const Sidebar = ({
           "incomeStatement",
           "balanceSheet",
           "cashFlowStatement",
+        ].includes(activeItem),
+
+      inventory: // Added for Inventory Section
+        path.includes("inventory") ||
+        activeItem === "inventory" ||
+        [
+          "invoices",
+          "salesOrder",
+          "salesReturn",
+          "grn",
+          "purchaseReturn",
+          "purchaseOrder",
+          "stockTransfer",
+          "stockVerification",
         ].includes(activeItem),
     });
   }, [activeItem]);
@@ -342,6 +356,9 @@ const Sidebar = ({
       ...prev,
       financeReports: !prev.financeReports,
     }));
+  };
+  const toggleInventory = () => {  // Added for inventory Section
+    setExpandedItems((prev) => ({ ...prev, inventory: !prev.inventory }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -450,6 +467,10 @@ const Sidebar = ({
                             toggle: toggleAccounting,
                             expanded: expandedItems.accounting,
                           },
+                          inventory: { // Added for Inventory Section
+                            toggle: toggleInventory,
+                            expanded: expandedItems.inventory,
+                          },
                           chartOfAccounts: {
                             toggle: toggleChartOfAccounts,
                             expanded: expandedItems.chartOfAccounts,
@@ -535,6 +556,8 @@ const Sidebar = ({
                             ? expandedItems.lms
                             : item.id === "accounting"
                             ? expandedItems.accounting
+                            : item.id === "inventory" // Added for inventory Section
+                            ? expandedItems.inventory
                             : false;
                         if (!topExpanded) return null;
                         return (
