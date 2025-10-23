@@ -70,7 +70,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
     accountName: "",
     accountType: "",
     accountSubCategory: "",
-    openingBalance: ""
+    openingBalance: "",
   });
 
   useEffect(() => {
@@ -80,7 +80,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
         accountName: editAccount.accountName || "",
         accountType: editAccount.accountType || "",
         accountSubCategory: editAccount.accountSubCategory || "",
-        openingBalance: editAccount.openingBalance || ""
+        openingBalance: editAccount.openingBalance || "",
       });
     } else {
       setFormData({
@@ -88,7 +88,7 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
         accountName: "",
         accountType: "",
         accountSubCategory: "",
-        openingBalance: ""
+        openingBalance: "",
       });
     }
   }, [editAccount, isOpen]);
@@ -97,21 +97,29 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
     setFormData({
       ...formData,
       accountType,
-      accountSubCategory: "" // Reset sub-category when type changes
+      accountSubCategory: "", // Reset sub-category when type changes
     });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formData.accountName && formData.accountType && formData.accountSubCategory) {
+      const balanceType = ["ASSETS", "EXPENSES"].includes(formData.accountType) ? "DEBIT" : "CREDIT";
       onSave({
         ...formData,
         id: editAccount ? editAccount.id : Date.now(),
-        openingBalance: parseFloat(formData.openingBalance) || 0
+        openingBalance: parseFloat(formData.openingBalance) || 0,
+        balanceType,
       });
       onClose();
     }
   };
+
+  const balanceLabel = formData.accountType
+    ? ["ASSETS", "EXPENSES"].includes(formData.accountType)
+      ? "Debit"
+      : "Credit"
+    : "";
 
   if (!isOpen) return null;
 
@@ -206,28 +214,9 @@ const ChartOfAccountModal = ({ isOpen, onClose, onSave, editAccount = null }) =>
             </div>
           )}
 
-         {/* <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Account Group
-            </label>
-            <select
-              value={formData.accountGroup}
-              onChange={(e) => setFormData({ ...formData, accountGroup: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-0 text-sm md:text-base"
-              disabled={isLoadingGroups}
-            >
-              <option value="">{isLoadingGroups ? "Loading..." : "Select Account Group"}</option>
-              {accountGroups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.accountGroup}
-                </option>
-              ))}
-            </select>
-          </div>*/}
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Opening Balance
+              Opening Balance ({balanceLabel})
             </label>
             <input
               type="number"
