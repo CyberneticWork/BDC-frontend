@@ -39,7 +39,6 @@ const JournalEntry = () => {
     entryNumber: '',
     entryDate: '',
     description: '',
-    reference: '',
     status: 'Draft'
   });
 
@@ -72,6 +71,13 @@ const JournalEntry = () => {
     }
   };
 
+  // Account type helpers
+  const ACCOUNT_TYPES = ['EQUITY', 'EXPENSE', 'LIABILITIES', 'INCOME', 'ASSETS'];
+  const normalizeType = (t) => t?.toString().trim().toUpperCase().replace(/S$/, '') || '';
+  const getAccountType = (acc) => normalizeType(
+    acc?.accountType ?? acc?.type ?? acc?.category ?? acc?.account_category ?? acc?.group ?? acc?.accountGroup
+  );
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -89,6 +95,10 @@ const JournalEntry = () => {
       updatedLines[index].credit = '';
     } else if (field === 'credit' && value) {
       updatedLines[index].debit = '';
+    }
+    // Clear account name when account type changes
+    if (field === 'account') {
+      updatedLines[index].name = '';
     }
     
     setEntryLines(updatedLines);
@@ -147,7 +157,6 @@ const JournalEntry = () => {
       entryNumber: '',
       entryDate: '',
       description: '',
-      reference: '',
       status: 'Draft'
     });
     setEntryLines([
@@ -164,7 +173,6 @@ const JournalEntry = () => {
       entryNumber: entry.entryNumber,
       entryDate: entry.entryDate,
       description: entry.description || '',
-      reference: entry.reference || '',
       status: entry.status
     });
     setEntryLines(entry.lines || [
@@ -264,11 +272,6 @@ const JournalEntry = () => {
                           <span>${entry.totalAmount?.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {entry.reference && (
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              Ref: {entry.reference}
-                            </span>
-                          )}
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(entry.status)}`}>
                             {entry.status}
                           </span>
@@ -294,9 +297,7 @@ const JournalEntry = () => {
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Description
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reference
-                    </th>
+                    
                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Amount
                     </th>
@@ -318,9 +319,7 @@ const JournalEntry = () => {
                       <td className="px-4 md:px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
                         {entry.description}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {entry.reference || '-'}
-                      </td>
+                      
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${entry.totalAmount?.toFixed(2)}
                       </td>
@@ -397,21 +396,7 @@ const JournalEntry = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reference
-                </label>
-                <input
-                  type="text"
-                  name="reference"
-                  value={formData.reference}
-                  onChange={handleInputChange}
-                  placeholder="Reference number or document"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-                />
-              </div>
-
-              
+              {/* Reference field removed */}
             </div>
 
             <div>
@@ -465,33 +450,37 @@ const JournalEntry = () => {
                       <div className="space-y-3">
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Account*
+                            Account Type*
                           </label>
                           <select
                             value={line.account}
                             onChange={(e) => handleLineChange(index, 'account', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                           >
-                            <option value="">Select Account</option>
-                            {accounts.map((account) => (
-                              <option key={account.id} value={account.accountName}>
-                                {account.accountName}
-                              </option>
+                            <option value="">Select Account Type</option>
+                            {ACCOUNT_TYPES.map((t) => (
+                              <option key={t} value={t}>{t}</option>
                             ))}
                           </select>
                         </div>
                         
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Name
+                            Account Name*
                           </label>
-                          <input
-                            type="text"
+                          <select
                             value={line.name}
                             onChange={(e) => handleLineChange(index, 'name', e.target.value)}
-                            placeholder="Line name"
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                          />
+                            disabled={!line.account}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                          >
+                            <option value="">{line.account ? 'Select Account Name' : 'Select Account Type first'}</option>
+                            {accounts
+                              .filter((a) => normalizeType(line.account) && getAccountType(a) === normalizeType(line.account))
+                              .map((a) => (
+                                <option key={a.id ?? a.accountName} value={a.accountName}>{a.accountName}</option>
+                              ))}
+                          </select>
                         </div>
                         
                         <div>
@@ -546,10 +535,10 @@ const JournalEntry = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
-                          Account Name
+                      Account Type
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
-                          Account Type
+                          Account Name
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r">
                           Description
@@ -574,22 +563,26 @@ const JournalEntry = () => {
                               onChange={(e) => handleLineChange(index, 'account', e.target.value)}
                               className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                             >
-                              <option value="">Select Account</option>
-                              {accounts.map((account) => (
-                                <option key={account.id} value={account.accountName}>
-                                  {account.accountName}
-                                </option>
+                              <option value="">Select Account Type</option>
+                              {ACCOUNT_TYPES.map((t) => (
+                                <option key={t} value={t}>{t}</option>
                               ))}
                             </select>
                           </td>
                           <td className="px-4 py-3 border-r">
-                            <input
-                              type="text"
+                            <select
                               value={line.name}
                               onChange={(e) => handleLineChange(index, 'name', e.target.value)}
-                              placeholder="Line name"
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                            />
+                              disabled={!line.account}
+                              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                            >
+                              <option value="">{line.account ? 'Select Account Name' : 'Select Account Type first'}</option>
+                              {accounts
+                                .filter((a) => normalizeType(line.account) && getAccountType(a) === normalizeType(line.account))
+                                .map((a) => (
+                                  <option key={a.id ?? a.accountName} value={a.accountName}>{a.accountName}</option>
+                                ))}
+                            </select>
                           </td>
                           <td className="px-4 py-3 border-r">
                             <input
