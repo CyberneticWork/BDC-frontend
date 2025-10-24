@@ -30,6 +30,7 @@ import Swal from "sweetalert2";
 import AddKpiTaskModal from "./AddKpiTaskModal";
 import AddCreatorRoleModal from "./AddCreatorRoleModal";
 import AddKpiWeightModal from "./AddKpiWeightModal";
+import SelectedEmployeesModal from "./SelectedEmployeesModal";
 
 // Add this helper function at the top of the file, before the TaskModal component
 const getCurrentUserRole = () => {
@@ -110,6 +111,9 @@ const mergeTemplateWithAssignmentWeights = (templateWeights, assignmentWeights) 
 // Task Modal Component (shared between Add and Edit)
 // NOTE: accepts `employees` prop now (list of {id, name, department})
 const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false, isLoading = false, employees = [] }) => {
+  // Add new state for SelectedEmployeesModal
+  const [showSelectedEmployeesModal, setShowSelectedEmployeesModal] = useState(false);
+
   // Add this new state for the weight modal
   const [isAddWeightModalOpen, setIsAddWeightModalOpen] = useState(false);
   
@@ -1120,20 +1124,44 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
                 </div>
               )}
 
-              {/* Added employees */}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {formData.assignees && formData.assignees.map((id) => {
-                  const emp = findEmployee(id);
-                  if (!emp) return null;
-                  return (
-                    <div key={id} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
-                      <div className="text-sm font-medium">{emp.name}</div>
-                      <button type="button" onClick={() => removeEmployee(id)} className="text-red-600 p-1">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  );
-                })}
+              {/* Added employees - Enhanced display with view all button */}
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  {formData.assignees && formData.assignees.length > 0 ? (
+                    <>
+                      {/* Show first 5 assignees */}
+                      {formData.assignees.slice(0, 5).map((id) => {
+                        const emp = findEmployee(id);
+                        if (!emp) return null;
+                        return (
+                          <div key={id} className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md text-sm">
+                            <div className="font-medium truncate max-w-[150px]">{emp.name}</div>
+                            <button 
+                              type="button" 
+                              onClick={() => removeEmployee(id)} 
+                              className="p-0.5 hover:bg-indigo-100 rounded-full"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Show count and view button if more than 5 assignees */}
+                      {formData.assignees.length > 5 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowSelectedEmployeesModal(true)}
+                          className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-200 transition-colors"
+                        >
+                          +{formData.assignees.length - 5} more • View all
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500">No employees assigned</p>
+                  )}
+                </div>
               </div>
 
               {/* New: Select All button */}
@@ -1308,6 +1336,17 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
               setIsAddWeightModalOpen(false);
             }
           }}
+        />
+
+        {/* Selected Employees Modal (opened from the "View all" assignees button) */}
+        <SelectedEmployeesModal
+          isOpen={showSelectedEmployeesModal}
+          onClose={() => setShowSelectedEmployeesModal(false)}
+          selectedEmployees={formData.assignees || []}
+          allEmployees={companyEmployees.length ? companyEmployees : employees}
+          onRemoveEmployee={removeEmployee}
+          companyName={getCompanyName(formData.company)}
+          departmentName={getDepartmentName(formData.department)}
         />
       </div>
     </div>
