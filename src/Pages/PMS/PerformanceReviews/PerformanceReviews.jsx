@@ -45,6 +45,35 @@ const statusOptions = [
 // Grade options used by ProgressReviewModal
 const gradeOptions = ['A+','A','B','C','C-'];
 
+// Appraisal rating options
+const APPRAISAL_RATINGS = [
+  { 
+    value: 1, 
+    label: 'Poor', 
+    description: 'Well below requirements for successful job performance. Significant improvements must occur immediately. Performance improvement plan mandatory' 
+  },
+  { 
+    value: 2, 
+    label: 'Below Average', 
+    description: 'Meets some performance standards for the position. Some competency issues noted. Intervention recommended.' 
+  },
+  { 
+    value: 3, 
+    label: 'Average', 
+    description: 'Performance is acceptable on all counts with no exceptions.' 
+  },
+  { 
+    value: 4, 
+    label: 'Above Average', 
+    description: 'Performance is regularly above expectations for the position. Exceeds expectations in some areas.' 
+  },
+  { 
+    value: 5, 
+    label: 'Excellent', 
+    description: 'Consistently superior performance. Contributions regularly surpass position requirements and expectations. Has positive impact on organizational goals.' 
+  }
+];
+
 /**
  * Map a linked task name to the metric key in performanceMetrics.
  * Keep this mapping small and similar to TaskProgressUpdateModal.taskNameToMetricKey.
@@ -85,6 +114,10 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   const [taskDetails, setTaskDetails] = useState(null);
   const [isLoadingTask, setIsLoadingTask] = useState(false);
   
+  // Add new state for appraisal rating
+  const [appraisalRating, setAppraisalRating] = useState('');
+  const [isAppraisalTask, setIsAppraisalTask] = useState(false);
+  
   // Add performance metrics state
   const [performanceMetrics, setPerformanceMetrics] = useState({
     jobKnowledge: 0,
@@ -111,6 +144,28 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         const details = await PMSService.getPerformanceReviewDetails(review.id);
         console.log('Fetched task details:', details);
         setTaskDetails(details);
+        
+        // Check if this is a performance appraisal task
+        const taskName = details?.taskName || details?.kpiAssignment?.kpiTask?.task_name || '';
+        const isAppraisal = taskName.toLowerCase().includes('performance appraisal') ||
+                           taskName.toLowerCase().includes('annual appraisal') ||
+                           taskName.toLowerCase().includes('quarterly appraisal') ||
+                           taskName.toLowerCase().includes('employee appraisal') ||
+                           taskName.toLowerCase().includes('job performance') ||
+                           taskName.toLowerCase().includes('performance evaluation') ||
+                           taskName.toLowerCase().includes('annual review') ||
+                           taskName.toLowerCase().includes('performance assessment') ||
+                           details?.isAppraisalTask || 
+                           review?.isPerformanceAppraisal;
+        
+        setIsAppraisalTask(isAppraisal);
+        
+        // Set appraisal rating from existing review data
+        if (details?.performanceReview?.appraisal_rating) {
+          setAppraisalRating(details.performanceReview.appraisal_rating);
+        } else if (review?.appraisal_rating) {
+          setAppraisalRating(review.appraisal_rating);
+        }
       } catch (error) {
         console.error('Error fetching task details:', error);
         toast.error('Failed to load task details');
@@ -271,12 +326,27 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     }
   }, [isOpen]);
 
-  if (!isOpen || !review) return null;
+  // Helper function to convert appraisal rating to progress percentage
+  const getProgressFromAppraisalRating = (rating) => {
+    if (!rating) return 0;
+    // Map 1-5 rating to progress percentage: 1=20%, 2=40%, 3=60%, 4=80%, 5=100%
+    return rating * 20;
+  };
+
+  // Helper function to convert progress percentage to appraisal rating
+  const getAppraisalRatingFromProgress = (progressValue) => {
+    if (progressValue <= 0) return 1;
+    if (progressValue <= 20) return 1;
+    if (progressValue <= 40) return 2;
+    if (progressValue <= 60) return 3;
+    if (progressValue <= 80) return 4;
+    return 5;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // New: require progress to be set (> 0)
+    // Validation for progress
     if (isNaN(progress) || progress <= 0 || progress > 100) {
       await Swal.fire({
         icon: "warning",
@@ -287,12 +357,23 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       return;
     }
 
-    // New: require status to be selected
+    // Validation for status
     if (!statusState || statusState.trim() === "") {
       await Swal.fire({
         icon: "warning",
-        title: "Status Required",
+        title: "Status Required", 
         text: "Please select a review status before saving.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
+    // Validation for appraisal rating (only for performance appraisal tasks)
+    if (isAppraisalTask && (!appraisalRating || appraisalRating < 1 || appraisalRating > 5)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Appraisal Rating Required",
+        text: "Please select an appraisal rating (1-5) for this performance appraisal task.",
         confirmButtonColor: "#F59E0B",
       });
       return;
@@ -301,7 +382,6 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     // Map UI status -> backend status and validate
     const BACKEND_ALLOWED_STATUSES = ['Draft','In Progress','Pending Manager','Pending Employee','Completed'];
     const STATUS_SEND_MAP = {
-      // keep UI short, but send backend-expected value
       'Pending': 'Pending Manager'
     };
 
@@ -310,18 +390,18 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       await Swal.fire({
         icon: "error",
         title: "Invalid Status",
-        text: `Selected status "${statusState}" is not allowed. Choose one of: ${BACKEND_ALLOWED_STATUSES.join(', ')}`,
-        confirmButtonColor: "#EF4444"
+        text: `Invalid status selected: ${statusState}`,
+        confirmButtonColor: "#EF4444",
       });
       return;
     }
 
-    // Existing validations
+    // Existing validations for grade and comments
     if (!grade || !grade.trim()) {
       await Swal.fire({
         icon: "warning",
         title: "Grade Required",
-        text: "Please select a performance grade before saving.",
+        text: "Please select a grade before saving.",
         confirmButtonColor: "#F59E0B",
       });
       return;
@@ -331,7 +411,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       await Swal.fire({
         icon: "warning",
         title: "Comments Required",
-        text: "Please provide supervisor comments.",
+        text: "Please provide supervisor comments before saving.",
         confirmButtonColor: "#F59E0B",
       });
       return;
@@ -343,8 +423,8 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       if (isNaN(v) || v < 0 || v > 100) {
         await Swal.fire({
           icon: "warning",
-          title: "Invalid Metric Value",
-          text: `Metric "${key}" must be between 0 and 100.`,
+          title: "Invalid Metric",
+          text: `${key} must be between 0 and 100.`,
           confirmButtonColor: "#F59E0B",
         });
         return;
@@ -373,11 +453,15 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         progress: parseInt(progress, 10),
         grade,
         supervisorComments: comments,
-        // send mapped backend-friendly status
         status: mappedStatus,
         performanceMetrics,
         lastUpdated: new Date().toISOString()
       };
+
+      // Add appraisal rating only for performance appraisal tasks
+      if (isAppraisalTask) {
+        updatedReview.appraisal_rating = parseInt(appraisalRating, 10);
+      }
 
       // Call parent handler (which calls backend via PMSService.updatePerformanceReview)
       await onSave(updatedReview);
@@ -404,6 +488,8 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     }
   };
 
+  if (!isOpen || !review) return null;
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
@@ -419,8 +505,9 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                 <span className="text-sm text-gray-500">Loading task...</span>
               </div>
             ) : linkedTask ? (
-              <div className="text-sm text-indigo-600 mt-1 font-medium">
+              <div className="text-sm text-indigo-600 mt-1 font-medium flex items-center gap-2">
                 Task: {linkedTask.name}
+                {isAppraisalTask && <span className="px-2 py-0.5 bg-orange-100 text-orange-800 text-xs rounded-full">Performance Appraisal</span>}
               </div>
             ) : (
               <div className="text-sm text-amber-600 mt-1">
@@ -438,12 +525,12 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         </div>
 
         {/* Display database-specific information */}
-        {taskDetails && ( // Remove useDatabase check
+        {taskDetails && (
           <div className="p-6 border-b border-gray-100 bg-blue-50">
             <h3 className="text-sm font-medium text-blue-900 mb-2">Task Information</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-blue-700">Submissions:</span> {taskDetails.submissions.length}
+                <span className="text-blue-700">Submissions:</span> {taskDetails.submissions?.length || 0}
               </div>
               <div>
                 <span className="text-blue-700">Latest Progress:</span> {review.selfReportedProgress}% 
@@ -459,7 +546,51 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         )}
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Progress Section */}
+          {/* Performance Appraisal Rating Section - Only show for appraisal tasks */}
+          {isAppraisalTask && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <label className="block text-sm font-medium text-orange-900 mb-3">
+                Performance Appraisal Rating (1-5) *
+              </label>
+              <div className="space-y-3">
+                {APPRAISAL_RATINGS.map((rating) => (
+                  <div key={rating.value} className="flex items-start space-x-3">
+                    <input
+                      type="radio"
+                      id={`rating-${rating.value}`}
+                      name="appraisalRating"
+                      value={rating.value}
+                      checked={parseInt(appraisalRating) === rating.value}
+                      onChange={(e) => {
+                        const selectedRating = parseInt(e.target.value);
+                        setAppraisalRating(selectedRating);
+                        // Auto-update progress based on rating
+                        setProgress(getProgressFromAppraisalRating(selectedRating));
+                      }}
+                      className="mt-1 h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
+                    />
+                    <div className="flex-1">
+                      <label htmlFor={`rating-${rating.value}`} className="block text-sm font-medium text-gray-900 cursor-pointer">
+                        {rating.value} - {rating.label}
+                      </label>
+                      <p className="text-xs text-gray-600 mt-1">{rating.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Show progress mapping for appraisal tasks */}
+              {appraisalRating && (
+                <div className="mt-4 p-3 bg-orange-100 rounded-lg">
+                  <p className="text-sm text-orange-800">
+                    <strong>Progress Mapping:</strong> Rating {appraisalRating} = {getProgressFromAppraisalRating(appraisalRating)}% progress
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Progress Section - Keep existing structure but conditionally disable for appraisal tasks */}
           <div>
             {/* Enhanced Performance Metrics Header */}
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-4 mb-4">
@@ -472,6 +603,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                     <h3 className="text-lg font-semibold text-gray-900">Performance Review</h3>
                     <p className="text-sm text-gray-600">
                       {linkedTask ? `Task: ${linkedTask.name}` : "General Performance Review"}
+                      {isAppraisalTask && <span className="ml-2 text-orange-600 font-medium">(Uses 1-5 Rating Above)</span>}
                     </p>
                   </div>
                 </div>
@@ -480,7 +612,9 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                   {/* Current Progress Display */}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-indigo-600">{progress}%</div>
-                    <div className="text-xs text-gray-500">Supervisor Rating</div>
+                    <div className="text-xs text-gray-500">
+                      {isAppraisalTask ? 'From Rating' : 'Supervisor Rating'}
+                    </div>
                   </div>
                   
                   {/* Show employee's self-reported progress if available */}
@@ -490,10 +624,18 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                       <div className="text-xs text-gray-500">Employee Self-Report</div>
                     </div>
                   )}
+
+                  {/* Add Self Rating Display */}
+                  {review?.isPerformanceAppraisal && review?.selfRating && (
+                    <div className="text-center border-l border-gray-200 pl-4">
+                      <div className="text-lg font-medium text-purple-600">{review.selfRating}/5</div>
+                      <div className="text-xs text-gray-500">Self Rating</div>
+                    </div>
+                  )}
                 </div>
               </div>
               
-              {/* Single Progress Bar - Visual indicator only (not interactive) */}
+              {/* Progress Bar - Visual indicator only for appraisal tasks, interactive for regular tasks */}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">
@@ -524,8 +666,13 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                   <button
                     type="button"
                     onClick={applySelfReportedMetrics}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-md hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-                    title="Load employee's self-reported metrics (if available)"
+                    disabled={isAppraisalTask}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      isAppraisalTask 
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                    }`}
+                    title={isAppraisalTask ? "Use rating system above for appraisal tasks" : "Load employee's self-reported metrics (if available)"}
                   >
                     <User className="h-4 w-4" />
                     Use Self-Reported
@@ -533,8 +680,13 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                   <button
                     type="button"
                     onClick={resetMetrics}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-                    title="Reset progress to 0"
+                    disabled={isAppraisalTask}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      isAppraisalTask
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500'
+                    }`}
+                    title={isAppraisalTask ? "Use rating system above for appraisal tasks" : "Reset progress to 0"}
                   >
                     <RefreshCw className="h-4 w-4" />
                     Reset
@@ -558,49 +710,51 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
               </div>
             </div>
 
-            {/* Main Progress Control - Single Interactive Slider */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Rate Performance for: <span className="font-semibold text-indigo-600">
-                      {linkedTask ? linkedTask.name : "Overall Performance"}
-                    </span>
-                  </label>
-                  <div className="px-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={progress}
-                      onChange={(e) => setProgress(parseInt(e.target.value, 10))}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500 mt-2">
-                      <span>0%</span>
-                      <span>25%</span>
-                      <span>50%</span>
-                      <span>75%</span>
-                      <span>100%</span>
+            {/* Main Progress Control - Conditionally interactive */}
+            {!isAppraisalTask && (
+              <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Rate Performance for: <span className="font-semibold text-indigo-600">
+                        {linkedTask ? linkedTask.name : "Overall Performance"}
+                      </span>
+                    </label>
+                    <div className="px-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={progress}
+                        onChange={(e) => setProgress(parseInt(e.target.value, 10))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-2">
+                        <span>0%</span>
+                        <span>25%</span>
+                        <span>50%</span>
+                        <span>75%</span>
+                        <span>100%</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Progress indicator text */}
-                <div className="text-center">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    progress < 30 ? 'bg-red-100 text-red-800' : 
-                    progress < 70 ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {progress < 30 ? 'Needs Improvement' : 
-                     progress < 70 ? 'Good Performance' : 
-                     'Excellent Performance'}
-                  </span>
+                  
+                  {/* Progress indicator text */}
+                  <div className="text-center">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      progress < 30 ? 'bg-red-100 text-red-800' : 
+                      progress < 70 ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {progress < 30 ? 'Needs Improvement' : 
+                       progress < 70 ? 'Good Performance' : 
+                       'Excellent Performance'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Collapsible Task Details Panel */}
             <div 
@@ -842,7 +996,9 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
         latestSubmissionNote: Array.isArray(details?.submissions) && details.submissions.length > 0 ? details.submissions[0].note : null,
         documentCount: Array.isArray(details?.submissions) ? details.submissions.filter(s => s.documentName).length : (review.documentCount || 0),
         performanceMetrics: review.performanceMetrics,
-        submissions: details?.submissions ?? []
+        submissions: details?.submissions ?? [],
+        selfRating: details?.selfRating ?? review.selfRating ?? null,
+        isPerformanceAppraisal: details?.isPerformanceAppraisal ?? review.isPerformanceAppraisal ?? false,
       };
       setReviewDetails(transformedDetails);
     } catch (error) {
@@ -986,7 +1142,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
               </div>
 
               {/* Database-specific Task Information */}
-              {reviewDetails.submissions && ( // Remove useDatabase check
+              {reviewDetails.submissions && (
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                   <h3 className="text-sm font-medium text-blue-900 mb-3">Task Submission Details</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -1093,6 +1249,26 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
                     </div>
                     <span className="text-lg font-bold text-gray-900">{reviewDetails.overallRating}</span>
                     <span className="text-sm text-gray-500">out of 5</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Self Rating - new section */}
+              {reviewDetails.isPerformanceAppraisal && reviewDetails.selfRating && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Employee Self Rating</h3>
+                  <div className="bg-purple-50 rounded-xl p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                      <User className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Self Assessment</p>
+                      <p className="font-medium text-gray-900">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {reviewDetails.selfRating}/5
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1243,6 +1419,14 @@ const PerformanceReviews = () => {
     if (grade.startsWith('D')) return 'bg-orange-100 text-orange-800';
     return 'bg-red-100 text-red-800';
   };
+
+  // Add this helper function near your other helper functions (around line 1220, after getGradeBadgeClass)
+const getTaskTypeBadge = (taskType) => {
+  if (taskType === 'Performance Appraisal') {
+    return 'bg-purple-100 text-purple-800';
+  }
+  return 'bg-blue-100 text-blue-800';
+};
 
   // Handle filter changes
   const handleFilterChange = (filterType, value) => {
@@ -1990,29 +2174,38 @@ const PerformanceReviews = () => {
     }
   };
   
-  const handleSaveProgressReview = async (updatedReview) => {
-    try {
-      setIsLoading(true);
-      const payload = {
-        progress: updatedReview.progress,
-        grade: updatedReview.grade,
-        supervisor_comments: updatedReview.supervisorComments,
-        status: updatedReview.status,
-        performance_metrics: updatedReview.performanceMetrics
-      };
-      // call backend (see [`PMSService.updatePerformanceReview`](d:/office/hr_system_frontend/src/services/PMS/PMSService.js))
-      await PMSService.updatePerformanceReview(updatedReview.id, payload);
-      toast.success('Review updated');
-      // mark for refresh and close modal
-      setNeedsRefresh(true);
-      setIsProgressModalOpen(false);
-    } catch (e) {
-      console.error('Update failed', e);
-      toast.error(e?.response?.data?.message || 'Failed to update review');
-    } finally {
-      setIsLoading(false);
+const handleSaveProgressReview = async (updatedReview) => {
+  try {
+    setIsLoading(true);
+    const payload = {
+      progress: updatedReview.progress,
+      grade: updatedReview.grade,
+      supervisor_comments: updatedReview.supervisorComments,
+      status: updatedReview.status,
+      performance_metrics: updatedReview.performanceMetrics || {} // Ensure it's never null/undefined
+    };
+    
+    // Add appraisal rating only if it exists (for performance appraisal tasks)
+    if (updatedReview.appraisal_rating !== undefined && updatedReview.appraisal_rating !== null) {
+      payload.appraisal_rating = updatedReview.appraisal_rating;
     }
-  };
+    
+    console.log('Sending payload to backend:', payload); // Debug log
+    
+    // Call backend (see PMSService.updatePerformanceReview)
+    await PMSService.updatePerformanceReview(updatedReview.id, payload);
+    toast.success('Review updated');
+    // mark for refresh and close modal
+    setNeedsRefresh(true);
+    setIsProgressModalOpen(false);
+  } catch (e) {
+    console.error('Update failed', e);
+    console.error('Error response:', e.response?.data); // More detailed error logging
+    toast.error(e?.response?.data?.message || 'Failed to update review');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleCreateReview = async (formData) => {
     try {
@@ -2107,7 +2300,7 @@ const PerformanceReviews = () => {
             <div>
               <div className="text-sm font-medium text-gray-500">Pending Approval</div>
               <div className="text-xl font-semibold text-gray-900">
-                {reviewData.filter(r => normalizeStatus(r.status) === 'Pending').length}
+                {reviewData.filter(r => r.status === 'Pending').length}
               </div>
             </div>
           </div>
@@ -2135,7 +2328,7 @@ const PerformanceReviews = () => {
         <div className="text-sm font-medium text-gray-700">Grades:</div>
         {['A+','A','B','C','C-'].map(g => (
           <div key={g} className="flex items-center gap-2">
-            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${getGradeBadgeClass(g)}`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${getGradeBadgeClass(g)}`}>
               {g}
             </span>
             <span className="text-xs text-gray-500">
@@ -2242,6 +2435,10 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+                {/* Add the new Task Type column header */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Task Type
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center gap-1">
                     Self-Reported Progress
@@ -2249,27 +2446,8 @@ const PerformanceReviews = () => {
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex itemscenter gap-1">
+                  <div className="flex items-center gap-1">
                     Progress
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Status
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Grade
-                    <ArrowDownUp className="h-3 w-3" />
-                  </div>
-                </th>
-                {/* Moved Weights Total here (after Grade) */}
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="flex items-center gap-1">
-                    Weights Total
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
@@ -2279,10 +2457,24 @@ const PerformanceReviews = () => {
                     <ArrowDownUp className="h-3 w-3" />
                   </div>
                 </th>
+                {/* Add this new column header for Self Rating */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Self Rating
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
+                {/* New Appraisal Rating column (supervisor 1-5 for appraisal tasks) */}
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">
+                    Appraisal Rating
+                    <ArrowDownUp className="h-3 w-3" />
+                  </div>
+                </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
-                           </tr>
+              </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredReviews.length > 0 ? (
@@ -2292,33 +2484,33 @@ const PerformanceReviews = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-900">{review.employeeName}</div>
                         <div className="text-xs text-gray-500">{review.position}</div>
-                        <div className="text-xs text-gray-400">ID: {review.employeeId}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {review.department}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{review.department}</div>
+                    </td>
+                    {/* Add the new Task Type column data */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskTypeBadge(review.taskType)}`}>
+                        {review.taskType}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {typeof review.selfReportedProgress === 'number' ? (
-                        <div className="flex items-center">
-                          <div className="w-38 md:w-50 flex-shrink-0 mr-3">
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                              <div
-                                className={`h-1.5 rounded-full ${
-                                  review.selfReportedProgress < 30 ? 'bg-red-500' :
-                                 
-                                  review.selfReportedProgress < 70 ? 'bg-yellow-500' : 
-                                  'bg-green-500'
-                                }`}
-                                style={{ width: `${review.selfReportedProgress}%` }}
-                              ></div>
-                            </div>
+                      <div className="flex items-center">
+                        <div className="w-38 md:w-50 flex-shrink-0 mr-4">
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                            <div 
+                              className={`h-1.5 rounded-full ${
+                                review.selfReportedProgress < 30 ? 'bg-red-500' : 
+                                review.selfReportedProgress < 70 ? 'bg-yellow-500' : 
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${review.selfReportedProgress}%` }}
+                            ></div>
                           </div>
-                          <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
-                                               </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">—</span>
-                      )}
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">{review.selfReportedProgress}%</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -2337,43 +2529,41 @@ const PerformanceReviews = () => {
                         <span className="text-xs font-medium text-gray-700">{review.progress}%</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(review.status)}`}>
-                        {normalizeStatus(review.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {review.grade ? (
-                       
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getGradeBadgeClass(review.grade)}`}>
-                          {review.grade}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Not graded</span>
-                      )}
-                    </td>
-                    {/* Moved Weights Total cell here (after Grade) */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-center">
-                        <span className="text-sm font-bold text-indigo-600">
-                          {(() => {
-                           
-                            // try weights on review first
-                            if (review?.weights && review.weights.length > 0) {
-                              return review.weights.reduce((sum, w) => sum + (parseFloat(w.percentage) || 0), 0);
-                            }
-                            // fallback: look up the linked task and use its weights
-                            if (review?.taskId) {
-                              // Remove dummy data lookup - weights should come from database
-                              return 0;
-                            }
-                            return 0;
-                          })()}%
-                        </span>
-                      </div>
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {new Date(review.dueDate).toLocaleDateString()}
+                    </td>
+                    {/* Add this new cell for Self Rating */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {review.isPerformanceAppraisal && review.selfRating ? (
+                        <div className="flex items-center">
+                          <div className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                            {review.selfRating}/5
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                    {/* Appraisal Rating (supervisor 1-5) */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(() => {
+                        const val = review.appraisal_rating ?? 
+                                    review.appraisalRating ?? 
+                                    review.appraisal ?? 
+                                    null;
+                                    
+                        if (!val || !review.isPerformanceAppraisal) {
+                          return <span className="text-xs text-gray-400">—</span>;
+                        }
+                        
+                        return (
+                          <div className="flex items-center justify-center">
+                            <div className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                              {Number(val)}/5
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">

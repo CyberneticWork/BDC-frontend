@@ -18,11 +18,16 @@ import {
   ChevronRight,
   UserCheck,
   TrendingUp,
-  Target
+  Target,
+  Check,
+  Square,
+  Building2,
+  Layers
 } from "lucide-react";
 import PMSService from "@services/PMS/PMSService";
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import SavedAppraisalsModal from './SavedAppraisalsModal';
 
 const PerformanceAppraisal = () => {
   // Enhanced SweetAlert2 helpers with professional styling
@@ -71,6 +76,20 @@ const PerformanceAppraisal = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewDetails, setViewDetails] = useState({});
+  const [showSavedAppraisalsModal, setShowSavedAppraisalsModal] = useState(false);
+  
+  // NEW: Selection states for bulk save functionality
+  const [selectedAppraisals, setSelectedAppraisals] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+
+  // Add new states for company and department filtering
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  
   // Pagination (server + client fallback)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -91,11 +110,74 @@ const PerformanceAppraisal = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const searchDebounceRef = useRef(null);
 
+  // Fetch companies on component mount
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setIsLoadingCompanies(true);
+      try {
+        const companiesData = await PMSService.getCompanies();
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
+      } catch (error) {
+        console.error("Error loading companies:", error);
+        swalToast.fire({
+          icon: 'error',
+          title: 'Failed to load companies'
+        });
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  // Fetch departments when company is selected
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!selectedCompany) {
+        setDepartments([]);
+        setSelectedDepartment("");
+        return;
+      }
+
+      setIsLoadingDepartments(true);
+      try {
+        const departmentsData = await PMSService.getDepartmentsByCompany(selectedCompany);
+        setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+        setSelectedDepartment(""); // Reset department selection when company changes
+      } catch (error) {
+        console.error("Error loading departments:", error);
+        setDepartments([]);
+        swalToast.fire({
+          icon: 'error',
+          title: 'Failed to load departments'
+        });
+      } finally {
+        setIsLoadingDepartments(false);
+      }
+    };
+
+    fetchDepartments();
+  }, [selectedCompany]);
+
   // Fetch employees on mount (initial list)
   useEffect(() => {
     const fetchInitialEmployees = async () => {
       try {
-        const employeeData = await PMSService.getAllEmployees();
+        let employeeData;
+        
+        // If company is selected, fetch employees by company/department
+        if (selectedCompany) {
+          employeeData = await PMSService.getEmployeesByCompany(
+            selectedCompany,
+            selectedDepartment || null,
+            ""
+          );
+        } else {
+          // Fall back to all employees
+          employeeData = await PMSService.getAllEmployees();
+        }
+        
         const employeeList = Array.isArray(employeeData) ? employeeData : (employeeData?.data ?? []);
         setEmployees(employeeList);
         await fetchEmployeesWithTasks(employeeList);
@@ -106,8 +188,8 @@ const PerformanceAppraisal = () => {
     };
 
     fetchInitialEmployees();
-  }, []);
-  
+  }, [selectedCompany, selectedDepartment]); // Add dependencies
+
   // Fetch which employees have tasks assigned
   const fetchEmployeesWithTasks = async (empList) => {
     try {
@@ -128,6 +210,12 @@ const PerformanceAppraisal = () => {
       setEmployeesWithTasks({});
     }
   };
+
+  // NEW: Reset selection when results change
+  useEffect(() => {
+    setSelectedAppraisals(new Set());
+    setSelectAll(false);
+  }, [appraisalResults]);
 
   // Debounced search handler - now filters client-side only
   const handleSearchChange = (e) => {
@@ -174,6 +262,8 @@ const PerformanceAppraisal = () => {
         start_date: dateRange.startDate,
         end_date: dateRange.endDate,
         employee_id: selectedEmployee || undefined,
+        company_id: selectedCompany || undefined,
+        department_id: selectedDepartment || undefined,
         page,
         per_page: itemsPerPage
       };
@@ -251,6 +341,17 @@ const PerformanceAppraisal = () => {
       
       // Enhanced success notification
       if ((appraisalResults && appraisalResults.length > 0) || totalItems > 0) {
+        // Build filter info for success message
+        const filterInfo = [];
+        if (selectedCompany) {
+          const companyName = companies.find(c => c.id.toString() === selectedCompany.toString())?.name || 'Selected Company';
+          filterInfo.push(`Company: ${companyName}`);
+        }
+        if (selectedDepartment) {
+          const departmentName = departments.find(d => d.id.toString() === selectedDepartment.toString())?.name || 'Selected Department';
+          filterInfo.push(`Department: ${departmentName}`);
+        }
+        
         await Swal.fire({
           icon: 'success',
           title: 'Appraisal Calculated!',
@@ -264,6 +365,12 @@ const PerformanceAppraisal = () => {
                 <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span><strong>${(appraisalResults.reduce ? appraisalResults.reduce((sum, r) => sum + (r.task_count || 0), 0) : totalItems)}</strong> tasks analyzed</span>
               </div>
+              ${filterInfo.length > 0 ? `
+                <div class="mt-2 p-2 bg-blue-50 rounded-lg text-xs">
+                  <div class="font-medium text-blue-800 mb-1">Filters Applied:</div>
+                  ${filterInfo.map(info => `<div class="text-blue-700">${info}</div>`).join('')}
+                </div>
+              ` : ''}
               <div class="mt-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600">
                 Date Range: ${dateRange.startDate} → ${dateRange.endDate}
               </div>
@@ -320,7 +427,159 @@ const PerformanceAppraisal = () => {
     }
   };
 
-  // Handle save appraisal button click
+  // NEW: Handle individual checkbox selection
+  const handleSelectAppraisal = (appraisalId, isChecked) => {
+    const newSelected = new Set(selectedAppraisals);
+    if (isChecked) {
+      newSelected.add(appraisalId);
+    } else {
+      newSelected.delete(appraisalId);
+    }
+    setSelectedAppraisals(newSelected);
+    
+    // Update select all state
+    setSelectAll(newSelected.size === paginatedResults.length && paginatedResults.length > 0);
+  };
+
+  // NEW: Handle select all functionality
+  const handleSelectAll = (isChecked) => {
+    setSelectAll(isChecked);
+    if (isChecked) {
+      const allIds = new Set(paginatedResults.map(result => result.employee_id));
+      setSelectedAppraisals(allIds);
+    } else {
+      setSelectedAppraisals(new Set());
+    }
+  };
+
+  // NEW: Handle bulk save of selected appraisals
+  const handleBulkSave = async () => {
+    if (selectedAppraisals.size === 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'No Selection',
+        text: 'Please select at least one appraisal to save.',
+        confirmButtonColor: '#F59E0B',
+        customClass: {
+          popup: 'rounded-xl shadow-2xl',
+          title: 'text-lg font-bold text-orange-600'
+        }
+      });
+      return;
+    }
+
+    const selectedData = paginatedResults.filter(result =>
+      selectedAppraisals.has(result.employee_id)
+    );
+
+    const result = await Swal.fire({
+      icon: 'question',
+      title: 'Save Selected Appraisals',
+      html: `
+        <div class="text-left space-y-3">
+          <div class="p-3 bg-blue-50 rounded-lg">
+            <div class="font-semibold text-gray-800">Selected Appraisals: ${selectedData.length}</div>
+            <div class="text-sm text-gray-600 mt-1">
+              ${selectedData.map(item => item.employee_name).join(', ')}
+            </div>
+          </div>
+          <div class="text-sm text-gray-600 text-center">
+            Do you want to save all selected performance appraisals?
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: `Save ${selectedData.length} Appraisal${selectedData.length > 1 ? 's' : ''}`,
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#6B7280',
+      customClass: {
+        popup: 'rounded-xl shadow-2xl border-0',
+        title: 'text-lg font-bold text-gray-800',
+        htmlContainer: 'text-sm',
+        confirmButton: 'px-6 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-green-600',
+        cancelButton: 'px-6 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200'
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsSaving(true);
+    try {
+      const bulkData = selectedData.map(appraisalResult => ({
+        employee_id: parseInt(appraisalResult.employee_id, 10),
+        start_date: dateRange.startDate,
+        end_date: dateRange.endDate,
+        employee_self_rating: parseInt(appraisalResult.employee_self_rating, 10),
+        supervisor_rating: parseInt(appraisalResult.supervisor_rating, 10),
+        average_rating: parseFloat(appraisalResult.average_rating),
+        percentage: parseInt(appraisalResult.percentage, 10),
+        grade: appraisalResult.grade,
+        performance_label: appraisalResult.performance_label,
+        calculation_details: appraisalResult.tasks || [],
+        task_count: parseInt(appraisalResult.task_count, 10)
+      }));
+
+      // IMPORTANT: pass the array (PMSService will wrap into { appraisals: [...] } )
+      const response = await PMSService.savePerformanceAppraisalsBulk(bulkData);
+
+      // normalize response
+      const respData = response?.data ?? response;
+      setSelectedAppraisals(new Set());
+      setSelectAll(false);
+
+      await Swal.fire({
+        icon: 'success',
+        title: respData?.message ?? 'Saved',
+        html: respData?.message ? '' : `<div>${(respData?.saved_count ?? bulkData.length)} appraisal(s) saved.</div>`,
+        timer: 2200,
+        showConfirmButton: false,
+        customClass: { popup: 'rounded-xl shadow-2xl' }
+      });
+
+      // refresh current page results (recalculate or refetch)
+      await fetchAppraisalsPage(currentPage);
+
+    } catch (error) {
+      console.error("Error saving bulk appraisals:", error);
+
+      // Extract validation details if available
+      let title = 'Save Failed';
+      let html = '';
+      if (error.response) {
+        if (error.response.status === 422) {
+          title = 'Validation Error';
+          const errs = error.response.data?.errors ?? error.response.data;
+          if (errs && typeof errs === 'object') {
+            html = '<div class="text-left">';
+            Object.entries(errs).forEach(([k, v]) => {
+              const msg = Array.isArray(v) ? v.join(', ') : v;
+              html += `<div class="text-sm text-red-600 mb-1"><strong>${k}:</strong> ${msg}</div>`;
+            });
+            html += '</div>';
+          } else if (error.response.data?.message) {
+            html = `<div class="text-sm text-red-600">${error.response.data.message}</div>`;
+          }
+        } else if (error.response.data?.message) {
+          html = `<div class="text-sm text-red-600">${error.response.data.message}</div>`;
+        }
+      } else {
+        html = `<div class="text-sm text-red-600">${error.message}</div>`;
+      }
+
+      await Swal.fire({
+        icon: 'error',
+        title,
+        html,
+        confirmButtonColor: '#EF4444',
+        customClass: { popup: 'rounded-xl shadow-2xl' }
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle save appraisal button click (individual save - keep existing functionality)
   const handleSaveAppraisal = async (appraisalResult) => {
     // Enhanced confirmation modal
     const result = await Swal.fire({
@@ -359,8 +618,8 @@ const PerformanceAppraisal = () => {
         popup: 'rounded-xl shadow-2xl border-0',
         title: 'text-lg font-bold text-gray-800',
         htmlContainer: 'text-sm',
-        confirmButton: 'px-6 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg',
-        cancelButton: 'px-6 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-all duration-200'
+        confirmButton: 'px-6 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-green-600',
+        cancelButton: 'px-6 py-2 rounded-lg font-semibold text-gray-700 bg-gray-200'
       }
     });
 
@@ -513,10 +772,14 @@ const PerformanceAppraisal = () => {
     setSelectedEmployee("");
     setSelectedEmployeeName("");
     setSearchTerm("");
+    setSelectedCompany("");
+    setSelectedDepartment("");
     setAppraisalResults([]);
     setValidationErrors({ startDate: false, endDate: false });
     setHasAttempted(false);
     setCurrentPage(1);
+    setSelectedAppraisals(new Set());
+    setSelectAll(false);
     
     // Success toast
     swalToast.fire({
@@ -529,19 +792,100 @@ const PerformanceAppraisal = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2 bg-purple-500 rounded-lg">
-            <UserCheck className="w-6 h-6 text-white" />
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-purple-500 rounded-lg">
+                <UserCheck className="w-6 h-6 text-white" />
+              </div>
+              Performance Appraisal
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Calculate and grade employee performance appraisal using self-rating and supervisor rating
+            </p>
           </div>
-          Performance Appraisal
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Calculate and grade employee performance appraisal using self-rating and supervisor rating
-        </p>
+          
+          <button
+            onClick={() => setShowSavedAppraisalsModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Saved Appraisals</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        {/* First Row - Company and Department */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Company Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Company (Optional)
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Building2 className="h-5 w-5 text-gray-400" />
+              </div>
+              <select
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                className="appearance-none w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                disabled={isLoadingCompanies}
+              >
+                <option value="">All Companies</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+              {isLoadingCompanies && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              )}
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            </div>
+          </div>
+
+          {/* Department Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Department (Optional)
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Layers className="h-5 w-5 text-gray-400" />
+              </div>
+              <select
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                className="appearance-none w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                disabled={!selectedCompany || isLoadingDepartments}
+              >
+                <option value="">All Departments</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+              {isLoadingDepartments && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
+              )}
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            </div>
+            {!selectedCompany && (
+              <p className="mt-1 text-xs text-gray-500">Select a company first to choose department</p>
+            )}
+          </div>
+        </div>
+
+        {/* Second Row - Date Range and Employee */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Date Range Selection */}
           <div>
@@ -634,6 +978,14 @@ const PerformanceAppraisal = () => {
                       {employeesWithTasks && Object.keys(employeesWithTasks).length > 0 ? 
                         "Employees with tasks are highlighted" : 
                         "Showing all employees matching search"}
+                      {selectedCompany && (
+                        <span className="block mt-1 text-purple-600">
+                          Filtered by: {companies.find(c => c.id.toString() === selectedCompany.toString())?.name}
+                          {selectedDepartment && (
+                            <span> → {departments.find(d => d.id.toString() === selectedDepartment.toString())?.name}</span>
+                          )}
+                        </span>
+                      )}
                     </div>
                     {filteredEmployees.map(emp => {
                       const hasAssignedTasks = (employeesWithTasks[emp.id] || employeesWithTasks[emp.attendance_employee_no] || 0) > 0;
@@ -663,6 +1015,7 @@ const PerformanceAppraisal = () => {
                             </div>
                             <div className="text-xs text-gray-500">
                               ID: {emp.id} • {emp.attendance_employee_no || emp.attendanceNo || ""}
+                              {emp.department && <span> • {emp.department}</span>}
                             </div>
                           </div>
                         </div>
@@ -676,14 +1029,34 @@ const PerformanceAppraisal = () => {
             )}
             
             {selectedEmployee && (
-              <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                <div className="text-sm font-medium text-indigo-900">Selected: {selectedEmployeeName}</div>
-                <div className="text-xs text-indigo-600">ID: {selectedEmployee}</div>
+              <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="text-sm font-medium text-purple-900">Selected: {selectedEmployeeName}</div>
+                <div className="text-xs text-purple-600">ID: {selectedEmployee}</div>
               </div>
             )}
           </div>
-
         </div>
+
+        {/* Filter Summary */}
+        {(selectedCompany || selectedDepartment) && (
+          <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="text-sm text-purple-800">
+              <span className="font-medium">Active Filters:</span>
+              {selectedCompany && (
+                <span className="ml-2">
+                  Company: {companies.find(c => c.id.toString() === selectedCompany.toString())?.name}
+                </span>
+              )}
+              {selectedDepartment && (
+                <span className="ml-2">
+                  • Department: {departments.find(d => d.id.toString() === selectedDepartment.toString())?.name}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Date range presets removed as requested */}
         
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 mt-6">
@@ -712,14 +1085,6 @@ const PerformanceAppraisal = () => {
             <X className="h-4 w-4" />
             <span>Clear Filters</span>
           </button>
-          
-          {/* <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            <span>Export Results</span>
-          </button> */}
         </div>
       </div>
 
@@ -732,12 +1097,55 @@ const PerformanceAppraisal = () => {
               Appraisal Results ({appraisalResults.length} employee{appraisalResults.length !== 1 ? 's' : ''})
             </h2>
             
-            {/* Pagination Info */}
-            {totalPages > 1 && (
-              <div className="text-sm text-gray-500">
-                Showing {startIndex + 1}-{Math.min(endIndex, appraisalResults.length)} of {appraisalResults.length}
+            {/* NEW: Selection controls */}
+            <div className="flex items-center gap-4">
+              {/* Select All Checkbox */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="selectAll"
+                  checked={selectAll}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                />
+                <label htmlFor="selectAll" className="text-sm font-medium text-gray-700">
+                  Select All
+                </label>
               </div>
-            )}
+
+              {/* Selected count and bulk save button */}
+              {selectedAppraisals.size > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600">
+                    {selectedAppraisals.size} selected
+                  </span>
+                  <button
+                    onClick={handleBulkSave}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardCheck className="h-4 w-4" />
+                        <span>Save Selected ({selectedAppraisals.size})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Pagination Info */}
+              {totalPages > 1 && (
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1}-{Math.min(endIndex, appraisalResults.length)} of {appraisalResults.length}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Results List */}
@@ -747,6 +1155,14 @@ const PerformanceAppraisal = () => {
                 {/* Employee Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-4">
+                    {/* NEW: Selection checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={selectedAppraisals.has(appraisalResult.employee_id)}
+                      onChange={(e) => handleSelectAppraisal(appraisalResult.employee_id, e.target.checked)}
+                      className="w-5 h-5 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                    />
+                    
                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                       <User className="w-6 h-6 text-purple-600" />
                     </div>
@@ -1097,6 +1513,12 @@ const PerformanceAppraisal = () => {
           </div>
         </div>
       )}
+
+      {/* Saved Appraisals Modal */}
+      <SavedAppraisalsModal
+        isOpen={showSavedAppraisalsModal}
+        onClose={() => setShowSavedAppraisalsModal(false)}
+      />
     </div>
   );
 };
