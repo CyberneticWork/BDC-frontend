@@ -225,7 +225,8 @@ const Sidebar = ({
               { id: "customer", name: "Customer" },
               { id: "supplier", name: "Supplier" },
               { id: "center", name: "Center" },
-               { id: "product", name: "Product List" },
+              { id: "discountLevel", name: "Discount Level" },
+              { id: "product", name: "Product List" },
             ],
           },
         { id: "invoices", name: "Invoice" },
@@ -322,7 +323,7 @@ const Sidebar = ({
       masterFiles:
         path.includes("masterFiles") ||
         activeItem === "masterFiles" ||
-        ["customer", "supplier", "center", "product"].includes(activeItem), // Added "product" here
+        ["customer", "supplier", "center", "product", "discountLevel"].includes(activeItem), // Added "product" here
     });
   }, [activeItem, menuItems]);
 
