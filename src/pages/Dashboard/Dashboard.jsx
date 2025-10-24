@@ -60,12 +60,13 @@ import UserStats from "../LMS/UserStats";
 
 // Import Accounting components
 import AccountingDashboard from "@Accounting/Dashboard";
-import Supplier from "../Accounting/Supplier";
+import Supplier from "@Inventory/Supplier";
 import DoubleEntry from "../Accounting/DoubleEntry";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
 import AccountList from "../Accounting/AccountList";
-import Customer from "../Accounting/Customer";
-import Center from "../Accounting/Center";
+import Customer from "@Inventory/Customer";
+import Center from "@Inventory/Center";
+import ProductList from "../Inventory/MasterFile/ProductList";
 import Transactions from "../Accounting/Transactions";
 import Ledger from "../Accounting/Ledger";
 import TrialBalance from "../Accounting/TrialBalance";
@@ -809,6 +810,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "center" ? (
               <ProtectedComponent module="center" action="view">
                 <Center />
+              </ProtectedComponent>
+            ) : activeItem === "product" ? (
+              <ProtectedComponent module="product" action="view">
+                <ProductList />
               </ProtectedComponent>
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">

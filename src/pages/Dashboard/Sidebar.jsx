@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Building2,
   Users,
@@ -52,9 +52,10 @@ const Sidebar = ({
     transactions: false, // Added this
     financeReports: false, // Added this
     inventory: false, // Added for Inventory section
+    masterFiles: false, // Added Master Files subsection under Inventory
   });
 
-  const menuItems = [
+  const menuItems = useMemo(() => [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
     { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
@@ -168,9 +169,6 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "accountingDashboard", name: "Dashboard" },
-        { id: "customer", name: "Customer" },
-        { id: "supplier", name: "Supplier" },
-        { id: "center", name: "Center" },
         {
           id: "chartOfAccounts",
           name: "Chart of Accounts",
@@ -219,6 +217,17 @@ const Sidebar = ({
       icon: Package,
       badge: null,
       subItems: [
+          {
+            id: "masterFiles",
+            name: "Master Files",
+            icon: FileText,
+            subItems: [
+              { id: "customer", name: "Customer" },
+              { id: "supplier", name: "Supplier" },
+              { id: "center", name: "Center" },
+               { id: "product", name: "Product List" },
+            ],
+          },
         { id: "invoices", name: "Invoice" },
         { id: "salesOrder", name: "Sales Order" },
         { id: "salesReturn", name: "Sales Return" },
@@ -231,7 +240,7 @@ const Sidebar = ({
     },
     { id: "reports", name: "Reports", icon: BarChart3, badge: null },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
-  ];
+  ], []);
 
   // NEW: auto-expand nested groups based on the current activeItem (works on reload)
   useEffect(() => {
@@ -304,9 +313,18 @@ const Sidebar = ({
           "purchaseOrder",
           "stockTransfer",
           "stockVerification",
+          // moved master files children
+          "customer",
+          "supplier",
+          "center",
+          "product", 
         ].includes(activeItem),
+      masterFiles:
+        path.includes("masterFiles") ||
+        activeItem === "masterFiles" ||
+        ["customer", "supplier", "center", "product"].includes(activeItem), // Added "product" here
     });
-  }, [activeItem]);
+  }, [activeItem, menuItems]);
 
   const toggleHrMaster = () => {
     setExpandedItems((prev) => ({ ...prev, hrMaster: !prev.hrMaster }));
@@ -360,17 +378,32 @@ const Sidebar = ({
   const toggleInventory = () => {  // Added for inventory Section
     setExpandedItems((prev) => ({ ...prev, inventory: !prev.inventory }));
   };
+  const toggleMasterFiles = () => {
+    setExpandedItems((prev) => ({ ...prev, masterFiles: !prev.masterFiles }));
+  };
 
   // Recursive function to filter menu items based on permissions
-  const filterMenuItems = (items) => {
+  const filterMenuItems = (items, ancestors = []) => {
     return items
       .map((item) => {
         if (item.subItems) {
-          const filteredSubItems = filterMenuItems(item.subItems);
-          if (filteredSubItems.length > 0 && hasPermission(item.id, "view")) {
+          const filteredSubItems = filterMenuItems(item.subItems, [...ancestors, item.id]);
+          // Show parent if:
+          // - it has permitted children, OR
+          // - the parent itself has permission, OR
+          // - any ancestor higher up has permission (fallback for broader permissions)
+          if (
+            filteredSubItems.length > 0 ||
+            hasPermission(item.id, "view") ||
+            ancestors.some((a) => hasPermission(a, "view"))
+          ) {
             return { ...item, subItems: filteredSubItems };
           }
-        } else if (hasPermission(item.id, "view")) {
+        } else if (
+          hasPermission(item.id, "view") ||
+          // if user has permission for any ancestor (e.g., "inventory" or "masterFiles"), allow the child
+          ancestors.some((a) => hasPermission(a, "view"))
+        ) {
           return item;
         }
         return null;
@@ -569,6 +602,10 @@ const Sidebar = ({
                                   toggle: toggleAllowanceDeduction,
                                   expanded: expandedItems.allowanceDeduction,
                                 },
+                                masterFiles: {
+                                  toggle: toggleMasterFiles,
+                                  expanded: expandedItems.masterFiles,
+                                },
                                 loans: {
                                   toggle: toggleLoans,
                                   expanded: expandedItems.loans,
@@ -632,10 +669,12 @@ const Sidebar = ({
                                    `}
                                     >
                                       <span className="flex items-center gap-2 flex-1 text-left">
-                                        <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
-                                        <span className="truncate">
-                                          {subItem.name}
-                                        </span>
+                                        {subItem.icon ? (
+                                          <subItem.icon className={`h-4 w-4 flex-shrink-0 text-gray-400`} />
+                                        ) : (
+                                          <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
+                                        )}
+                                        <span className="truncate">{subItem.name}</span>
                                       </span>
                                       <span className="flex-shrink-0">
                                         {dropdown.expanded ? (
