@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
-
-const STORAGE_KEY = "product_types";
+import {
+  getAllProductTypes,
+  addProductType,
+  updateProductType,
+  deleteProductType,
+  toggleProductTypeActive,
+} from "../../../services/Inventory/productTypeService";
 
 function ProductType() {
   const [types, setTypes] = useState([]);
@@ -9,32 +14,42 @@ function ProductType() {
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const initialForm = { name: "", code: "", description: "", isActive: true };
+  const [successMessage, setSuccessMessage] = useState("");
+  const initialForm = { name: "", description: "", isActive: true };
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      setTypes(Array.isArray(saved) ? saved : []);
-    } catch {
-      setTypes([]);
-    }
-  }, []);
+    // load product types from API and map backend fields to UI fields
+    const load = async () => {
+      try {
+        const res = await getAllProductTypes();
+        // res expected to be an array of product types with fields: id, type, description, status
+        const mapped = (res || []).map((p) => ({
+          ...p,
+          name: p.type,
+          isActive: p.status === "active",
+        }));
+        setTypes(mapped);
+      } catch (err) {
+        console.error("Failed to load product types", err);
+        setTypes([]);
+      }
+    };
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(types));
-    } catch {
-      // ignore storage errors
-    }
-  }, [types]);
+    load();
+  }, []);
 
   const openModal = (type = null) => {
     console.log('Opening modal for:', type);
     if (type) {
       setEditingId(type.id);
-      setForm({ name: type.name || "", code: type.code || "", description: type.description || "", isActive: !!type.isActive });
+      // handle objects coming from API (mapped) or raw backend shape
+      setForm({
+        name: type.name ?? type.type ?? "",
+        description: type.description ?? "",
+        isActive: typeof type.isActive === "boolean" ? type.isActive : (type.status === "active"),
+      });
     } else {
       setEditingId(null);
       setForm(initialForm);
@@ -53,10 +68,9 @@ function ProductType() {
   const validateForm = () => {
     const newErrors = {};
     if (!form.name.trim()) newErrors.name = "Name is required.";
-    if (!form.code.trim()) newErrors.code = "Code is required.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  } 
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -71,32 +85,80 @@ function ProductType() {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    // Simulate async operation
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    if (editingId) {
-      setTypes((prev) => prev.map((p) => (p.id === editingId ? { ...p, ...form } : p)));
-    } else {
-      const newItem = { ...form, id: String(Date.now()) };
-      setTypes((prev) => [newItem, ...prev]);
+    try {
+      // prepare payload to match backend: { type, description, status }
+      const payload = {
+        type: form.name,
+        description: form.description,
+        status: form.isActive ? "active" : "deactive",
+      };
+
+      if (editingId) {
+        await updateProductType(editingId, payload);
+        // close modal immediately after backend confirms update
+        closeModal();
+        // reload list
+        const res = await getAllProductTypes();
+        const mapped = (res || []).map((p) => ({ ...p, name: p.type, isActive: p.status === "active" }));
+        setTypes(mapped);
+        setSuccessMessage("Product type updated successfully.");
+      } else {
+        await addProductType(payload);
+        // close modal immediately after backend confirms create
+        closeModal();
+        // reload list
+        const res = await getAllProductTypes();
+        const mapped = (res || []).map((p) => ({ ...p, name: p.type, isActive: p.status === "active" }));
+        setTypes(mapped);
+        setSuccessMessage("Product type created successfully.");
+      }
+    } catch (err) {
+      console.error("Failed to save product type", err);
+      // optionally set errors here based on err.response
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
-    closeModal();
   };
+
+  // auto-hide success message after a few seconds
+  useEffect(() => {
+    if (!successMessage) return;
+    const t = setTimeout(() => setSuccessMessage(""), 4000);
+    return () => clearTimeout(t);
+  }, [successMessage]);
 
   const handleDelete = (id) => {
     if (!confirm("Are you sure you want to delete this product type?")) return;
-    setTypes((prev) => prev.filter((p) => p.id !== id));
+    (async () => {
+      try {
+        await deleteProductType(id);
+        const res = await getAllProductTypes();
+        const mapped = (res || []).map((p) => ({ ...p, name: p.type, isActive: p.status === "active" }));
+        setTypes(mapped);
+      } catch (err) {
+        console.error("Failed to delete product type", err);
+      }
+    })();
   };
 
   const toggleActive = (id) => {
-    setTypes((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p)));
+    (async () => {
+      try {
+        await toggleProductTypeActive(id);
+        const res = await getAllProductTypes();
+        const mapped = (res || []).map((p) => ({ ...p, name: p.type, isActive: p.status === "active" }));
+        setTypes(mapped);
+      } catch (err) {
+        console.error("Failed to toggle product type status", err);
+      }
+    })();
   };
 
   const filtered = types.filter(
     (t) =>
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (t.description || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -116,6 +178,23 @@ function ProductType() {
           Create Product Type
         </button>
       </div>
+
+      {/* Success message banner */}
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md flex items-start justify-between">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 mt-0.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <div className="text-sm font-medium">{successMessage}</div>
+          </div>
+          <button onClick={() => setSuccessMessage("")} className="text-green-600 hover:text-green-800 ml-4">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -140,7 +219,7 @@ function ProductType() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th> */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -160,7 +239,7 @@ function ProductType() {
                 filtered.map((t, index) => (
                   <tr key={t.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{t.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.code}</td>
+                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.code}</td> */}
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{t.description}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button
@@ -233,6 +312,7 @@ function ProductType() {
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                 </div>
+                {/*
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
                   <input
@@ -246,6 +326,7 @@ function ProductType() {
                   />
                   {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
                 </div>
+                */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                   <textarea
