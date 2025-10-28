@@ -1,10 +1,37 @@
 import axios from "@utils/axios";
 
-export const getSalaryData = async (month, year, company_id, department_id) => {
+// Supports both legacy positional signature and new object-based signature
+// Legacy: getSalaryData(month, year, company_id, department_id, kpi_type?)
+// New: getSalaryData({ month, year, company_id, department_id, kpi_type })
+export const getSalaryData = async (
+  arg1,
+  year,
+  company_id,
+  department_id,
+  kpi_type
+) => {
   try {
-    const response = await axios.get(
-      `/salaryCal/employees?month=${month}&year=${year}&company_id=${company_id}&department_id=${department_id}`
-    );
+    // Normalize parameters
+    let params;
+    if (typeof arg1 === "object" && arg1 !== null) {
+      params = arg1;
+    } else {
+      params = { month: arg1, year, company_id, department_id, kpi_type };
+    }
+
+    const searchParams = new URLSearchParams();
+    // Required/base params
+    if (params.month !== undefined && params.month !== "")
+      searchParams.append("month", params.month);
+    if (params.year !== undefined && params.year !== "")
+      searchParams.append("year", params.year);
+    if (params.company_id !== undefined && params.company_id !== "")
+      searchParams.append("company_id", params.company_id);
+    // Optional params - append only when provided and non-empty
+    if (params.department_id) searchParams.append("department_id", params.department_id);
+    if (params.kpi_type) searchParams.append("kpi_type", params.kpi_type);
+
+    const response = await axios.get(`/salaryCal/employees?${searchParams.toString()}`);
     return response.data;
   } catch (error) {
     console.error("Error fetching salary data:", error);

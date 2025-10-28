@@ -70,6 +70,8 @@ const SalaryProcessPage = () => {
   const [availableAllowances, setAvailableAllowances] = useState([]);
   const [availableDeductions, setAvailableDeductions] = useState([]);
   const [isLoadingAllowances, setIsLoadingAllowances] = useState(false);
+  // KPI Mode state: "" | "monthly" | "6month"
+  const [kpiType, setKpiType] = useState("");
 
   // New state for selected employees
   const [selectedEmployees, setSelectedEmployees] = useState([]);
@@ -650,12 +652,13 @@ const SalaryProcessPage = () => {
 
     setIsLoading(true);
     try {
-      const data = await getSalaryData(
+      const data = await getSalaryData({
         month,
         year,
-        selectedCompany,
-        selectedDepartment || ""
-      );
+        company_id: selectedCompany,
+        department_id: selectedDepartment || undefined,
+        kpi_type: kpiType || undefined,
+      });
       setEmployeeData(data.data);
       setDisplayedData(data.data);
       setFilteredData(data.data);
@@ -707,6 +710,7 @@ const SalaryProcessPage = () => {
     setSelectedCompany("");
     setSelectedDepartment("");
     setMonth("");
+    setKpiType("");
     setSearchTerm("");
     setFromDate("");
     setToDate("");
@@ -1061,13 +1065,19 @@ const SalaryProcessPage = () => {
       breakdown_total_fixed_deductions: "Total Fixed Deductions",
       breakdown_loan_installment: "Loan Installment",
       breakdown_gross_salary: "Gross Salary",
+      breakdown_kpi_allowance: "KPI Allowance",
+      breakdown_kpi_bonus_allowance: "KPI Bonus (6M)",
       breakdown_total_deductions: "Total Deductions",
       breakdown_stamp: "Stamp Fee (Breakdown)",
       breakdown_net_salary: "Net Salary",
     };
 
-    // Extract headers from the first flattened object
-    const headers = Object.keys(flattenedData[0]);
+  // Extract headers from the first flattened object
+  const headerSet = new Set(Object.keys(flattenedData[0]));
+  // Ensure KPI fields are present even if not in the first row
+  headerSet.add("breakdown_kpi_allowance");
+  headerSet.add("breakdown_kpi_bonus_allowance");
+  const headers = Array.from(headerSet);
 
     // Create user-friendly headers
     const friendlyHeaders = headers.map(
@@ -1366,6 +1376,30 @@ const SalaryProcessPage = () => {
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-400" />
               </div>
 
+              {/* KPI Mode */}
+              <div className="relative flex-1">
+                <label
+                  htmlFor="kpiMode"
+                  className="block text-xs font-semibold text-gray-500 mb-1"
+                >
+                  KPI Mode
+                </label>
+                <select
+                  id="kpiMode"
+                  value={kpiType}
+                  onChange={(e) => setKpiType(e.target.value)}
+                  className="appearance-none w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                >
+                  <option value="">None</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="6month">6 Month Bonus</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-400" />
+                <p className="mt-1 text-[10px] text-gray-500">
+                  Monthly adds to EPF base; 6 Month Bonus adds to gross only
+                </p>
+              </div>
+
               <div className="relative flex-1">
                 <label
                   htmlFor="year"
@@ -1474,7 +1508,11 @@ const SalaryProcessPage = () => {
                     // console.log(JSON.stringify(dataWithMonth));
                     // Convert to CSV and download
                     const csvContent = convertToCSV(filteredData);
-                    downloadCSV(csvContent, `salary_data_${Date.now()}.csv`);
+                    const kpiSuffix = kpiType ? `_${kpiType}` : `_none`;
+                    downloadCSV(
+                      csvContent,
+                      `salary_data${kpiSuffix}_${Date.now()}.csv`
+                    );
 
                     notify.success(
                       "Saved",
@@ -1726,6 +1764,20 @@ const SalaryProcessPage = () => {
                       0
                     ) || 0;
 
+                  // KPI amounts from backend (if any)
+                  const kpiMonthlyAllowance =
+                    employee.salary_breakdown?.kpi_allowance || 0;
+                  const kpiSixMonthBonus =
+                    employee.salary_breakdown?.kpi_bonus_allowance || 0;
+                  const hasKpiAllowanceInList = Array.isArray(employee.allowances)
+                    ? employee.allowances.some(
+                        (a) =>
+                          (a?.name || "")
+                            .toString()
+                            .toLowerCase() === "kpi allowance"
+                      )
+                    : false;
+
                   const netSalary =
                     employee.salary_breakdown?.net_salary ||
                     (parseFloat(employee.basic_salary) || 0) +
@@ -1837,6 +1889,17 @@ const SalaryProcessPage = () => {
                               </span>
                             </div>
                           ))}
+                          {/* Show KPI Allowance if backend provided it but it's not already listed */}
+                          {kpiMonthlyAllowance > 0 && !hasKpiAllowanceInList && (
+                            <div className="flex justify-between text-blue-700">
+                              <span className="text-xs">
+                                KPI Allowance <span className="text-[10px] text-gray-500">(EPF base)</span>
+                              </span>
+                              <span className="font-medium">
+                                {Number(kpiMonthlyAllowance).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
                           <div className="font-semibold border-t mt-1 pt-1">
                             Total: {totalAllowances.toLocaleString()}
                           </div>
@@ -1889,6 +1952,15 @@ const SalaryProcessPage = () => {
                                 {employee.salary_breakdown.gross_salary?.toLocaleString()}
                               </span>
                             </div>
+                            {/* Show KPI Bonus (6M) if provided by backend */}
+                            {kpiSixMonthBonus > 0 && (
+                              <div className="flex justify-between text-purple-700">
+                                <span className="text-xs">KPI Bonus (6M) <span className="text-[10px] text-gray-500">(excluded from EPF base)</span>:</span>
+                                <span>
+                                  {Number(kpiSixMonthBonus).toLocaleString()}
+                                </span>
+                              </div>
+                            )}
                             <div className="flex justify-between">
                               <span className="text-xs">Adj. Basic:</span>
                               <span>
