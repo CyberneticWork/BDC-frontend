@@ -242,16 +242,27 @@ function ProductType() {
                     {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.code}</td> */}
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{t.description}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
+                      {/*  toggle-switch style for Active / Inactive */}
                       <button
                         onClick={() => toggleActive(t.id)}
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          t.isActive
-                            ? "bg-green-100 text-green-800 hover:bg-green-200"
-                            : "bg-red-100 text-red-800 hover:bg-red-200"
-                        } transition-colors`}
+                        aria-pressed={t.isActive}
+                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors"
                       >
-                        {t.isActive ? <ToggleRight className="w-3 h-3 mr-1" /> : <ToggleLeft className="w-3 h-3 mr-1" />}
-                        {t.isActive ? "Active" : "Inactive"}
+                        <span
+                          className={`relative inline-block h-6 w-11 rounded-full transition-colors ${
+                            t.isActive ? "bg-green-500" : "bg-amber-600"
+                          }`}
+                          aria-hidden
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full shadow transform transition-transform ${
+                              t.isActive ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </span>
+                        <span className={`text-xs ${t.isActive ? "text-green-800" : "text-gray-700"}`}>
+                          {t.isActive ? "Active" : "Inactive"}
+                        </span>
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
