@@ -226,7 +226,9 @@ const Sidebar = ({
               { id: "supplier", name: "Supplier" },
               { id: "center", name: "Center" },
               { id: "discountLevel", name: "Discount Level" },
+              { id: "productType", name: "Product Type" },
               { id: "product", name: "Product List" },
+              
             ],
           },
         { id: "invoices", name: "Invoice" },
@@ -318,7 +320,8 @@ const Sidebar = ({
           "customer",
           "supplier",
           "center",
-          "product", 
+          "product",
+          "discountLevel", 
         ].includes(activeItem),
       masterFiles:
         path.includes("masterFiles") ||
