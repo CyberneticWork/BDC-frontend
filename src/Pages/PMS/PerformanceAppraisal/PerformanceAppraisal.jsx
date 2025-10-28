@@ -1205,21 +1205,21 @@ const PerformanceAppraisal = () => {
                   {/* Self Rating Card */}
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-xs font-medium text-gray-600">Self Rating</h4>
+                      <h4 className="text-xs font-medium text-gray-600">Total Self Rating</h4>
                       <TrendingUp className="h-4 w-4 text-blue-500" />
                     </div>
-                    <div className="text-xl font-bold text-blue-600 mb-1">{appraisalResult.employee_self_rating}%</div>
-                    <div className="text-xs text-gray-500">Employee's self-assessment</div>
+                    <div className="text-xl font-bold text-blue-600 mb-1">{appraisalResult.employee_self_rating} pts</div>
+                    <div className="text-xs text-gray-500">Sum of all self ratings (1–5 scale)</div>
                   </div>
 
                   {/* Supervisor Rating Card */}
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-xs font-medium text-gray-600">Supervisor Rating</h4>
+                      <h4 className="text-xs font-medium text-gray-600">Total Supervisor Rating</h4>
                       <UserCheck className="h-4 w-4 text-green-500" />
                     </div>
-                    <div className="text-xl font-bold text-green-600 mb-1">{appraisalResult.supervisor_rating}%</div>
-                    <div className="text-xs text-gray-500">Manager's assessment</div>
+                    <div className="text-xl font-bold text-green-600 mb-1">{appraisalResult.supervisor_rating} pts</div>
+                    <div className="text-xs text-gray-500">Sum of all supervisor ratings (1–5 scale)</div>
                   </div>
 
                   {/* Grade Card */}
@@ -1232,7 +1232,7 @@ const PerformanceAppraisal = () => {
                     </div>
                     <div className="text-lg font-bold text-gray-900 mb-1">{appraisalResult.performance_label}</div>
                     <div className="text-xs text-gray-500">
-                      Based on combined ratings
+                      Based on combined rating-points
                     </div>
                   </div>
                   
@@ -1244,19 +1244,19 @@ const PerformanceAppraisal = () => {
                       <div className="w-full bg-gray-200 rounded-full h-1.5">
                         <div 
                           className={`h-1.5 rounded-full ${
-                            appraisalResult.percentage < 30 ? 'bg-red-500' : 
-                            appraisalResult.percentage < 60 ? 'bg-yellow-500' : 
+                            (appraisalResult.percentage || 0) < 30 ? 'bg-red-500' : 
+                            (appraisalResult.percentage || 0) < 60 ? 'bg-yellow-500' : 
                             'bg-green-500'
                           }`}
-                          style={{ width: `${appraisalResult.percentage}%` }}
+                          style={{ width: `${appraisalResult.percentage || 0}%` }}
                         ></div>
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      Formula: (Combined Average ÷ 60) × 100
+                      Formula: (Combined Average in points ÷ {appraisalResult.dividend || (appraisalResult.task_count * 5)} points) × 100
                     </div>
                   </div>
-                  
+
                   {/* Task Summary Card */}
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 md:col-span-4">
                     <h4 className="text-xs font-medium text-gray-600 mb-2">Task Summary</h4>
@@ -1270,19 +1270,21 @@ const PerformanceAppraisal = () => {
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-blue-400" />
                         <span className="text-gray-700">
-                          Avg Self Rating: <strong>{appraisalResult.employee_self_rating}%</strong>
+                          Total Self Rating: <strong>{appraisalResult.employee_self_rating} pts</strong>
+                          <span className="text-xs text-gray-500 ml-2">(max {appraisalResult.task_count * 5} pts)</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <UserCheck className="h-4 w-4 text-green-400" />
                         <span className="text-gray-700">
-                          Avg Supervisor Rating: <strong>{appraisalResult.supervisor_rating}%</strong>
+                          Total Supervisor Rating: <strong>{appraisalResult.supervisor_rating} pts</strong>
+                          <span className="text-xs text-gray-500 ml-2">(max {appraisalResult.task_count * 5} pts)</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <BarChart2 className="h-4 w-4 text-purple-400" />
                         <span className="text-gray-700">
-                          Combined Average: <strong>{appraisalResult.average_rating}%</strong>
+                          Combined Average: <strong>{appraisalResult.average_rating} pts</strong>
                         </span>
                       </div>
                       <div className="text-gray-500 text-xs">
@@ -1311,7 +1313,7 @@ const PerformanceAppraisal = () => {
                               Supervisor Rating
                             </th>
                             <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Task Average
+                              Task Average (points)
                             </th>
                           </tr>
                         </thead>
@@ -1322,43 +1324,43 @@ const PerformanceAppraisal = () => {
                                 {task.task_name}
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs text-blue-600">
-                                {task.employee_self_rating}%
+                                {task.employee_self_rating}
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs text-green-600">
-                                {task.supervisor_rating}%
+                                {task.supervisor_rating}
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-purple-600">
-                                {((task.employee_self_rating + task.supervisor_rating) / 2).toFixed(1)}%
+                                {(((task.employee_self_rating || 0) + (task.supervisor_rating || 0)) / 2).toFixed(1)} pts
                               </td>
                             </tr>
                           ))}
                           <tr className="bg-blue-50">
                             <td colSpan="3" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                              Average Self Rating:
+                              Total Self Rating:
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-blue-600">
-                              {appraisalResult.employee_self_rating}%
+                              {appraisalResult.employee_self_rating} pts
                             </td>
                           </tr>
                           <tr className="bg-green-50">
                             <td colSpan="3" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                              Average Supervisor Rating:
+                              Total Supervisor Rating:
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-green-600">
-                              {appraisalResult.supervisor_rating}%
+                              {appraisalResult.supervisor_rating} pts
                             </td>
                           </tr>
                           <tr className="bg-purple-50">
                             <td colSpan="3" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                              Combined Average = (Self + Supervisor) ÷ 2:
+                              Combined Average (points) = (Total Self + Total Supervisor) ÷ 2:
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-purple-600">
-                              {appraisalResult.average_rating}%
+                              {appraisalResult.average_rating} pts
                             </td>
                           </tr>
                           <tr className="bg-gray-50">
                             <td colSpan="3" className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900 text-right">
-                              Final Percentage = (Average ÷ 60) × 100 (capped at 100%):
+                              Final Percentage = (Average (pts) ÷ {appraisalResult.dividend || (appraisalResult.task_count * 5)} pts) × 100:
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-indigo-600">
                               {appraisalResult.percentage}%
@@ -1370,11 +1372,12 @@ const PerformanceAppraisal = () => {
                     
                     {/* Add formula explanation */}
                     <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                      <h5 className="text-xs font-semibold text-blue-800 mb-2">Calculation Formula:</h5>
+                      <h5 className="text-xs font-semibold text-blue-800 mb-2">Updated Calculation Formula:</h5>
                       <div className="space-y-1 text-xs text-blue-700">
-                        <div>1. Calculate average for each task: (Self Rating + Supervisor Rating) ÷ 2</div>
-                        <div>2. Calculate overall average: Sum of all task averages ÷ Number of tasks</div>
-                        <div>3. Final Percentage: (Overall Average ÷ 60) × 100 (capped at 100%)</div>
+                        <div>1. Sum all self ratings: {appraisalResult.tasks?.map(t => t.employee_self_rating).join(' + ')} = {appraisalResult.employee_self_rating} pts</div>
+                        <div>2. Sum all supervisor ratings: {appraisalResult.tasks?.map(t => t.supervisor_rating).join(' + ')} = {appraisalResult.supervisor_rating} pts</div>
+                        <div>3. Combined Average: ({appraisalResult.employee_self_rating} + {appraisalResult.supervisor_rating}) ÷ 2 = {appraisalResult.average_rating} pts</div>
+                        <div>4. Final Percentage: ({appraisalResult.average_rating} ÷ {appraisalResult.dividend || (appraisalResult.task_count * 5)} pts) × 100 = {appraisalResult.percentage}%</div>
                       </div>
                     </div>
                   </div>
