@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Search, Package, BarChart3, Filter } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { fetchDiscountLevels } from '../../../services/Inventory/discountLevelService';
 
 const ProductList = () => {
   const [products, setProducts] = useState([]);
@@ -14,17 +15,33 @@ const ProductList = () => {
     minPrice: '',
     mrp: ''
   });
+  const [discountLevels, setDiscountLevels] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     description: '',
     oemNumbers: '',
     barcode: '',
+    discountLevel: '',
     cost: '',
     minPrice: '',
     mrp: '',
     isActive: true
   });
+
+  // Fetch discount levels on component mount
+  useEffect(() => {
+    const loadDiscountLevels = async () => {
+      try {
+        const levels = await fetchDiscountLevels();
+        setDiscountLevels(levels);
+      } catch (error) {
+        console.error('Failed to fetch discount levels:', error);
+        // You might want to show a toast notification here
+      }
+    };
+    loadDiscountLevels();
+  }, []);
 
   // Refs for keyboard navigation
   const formRefs = {
@@ -68,6 +85,7 @@ const ProductList = () => {
         description: product.description,
         oemNumbers: product.oemNumbers,
         barcode: product.barcode,
+        discountLevel: product.discountLevel || '',
         cost: product.cost || '',
         minPrice: product.minPrice || '',
         mrp: product.mrp || '',
@@ -80,6 +98,7 @@ const ProductList = () => {
         description: '',
         oemNumbers: '',
         barcode: '',
+        discountLevel: '',
         cost: '',
         minPrice: '',
         mrp: '',
@@ -145,16 +164,19 @@ const ProductList = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Compare as strings to avoid type mismatches between numbers and strings
+    const selectedLevel = discountLevels.find(l => String(l.id || l.value) === String(formData.discountLevel));
     if (currentProduct) {
       // Edit existing product
       setProducts(prev => prev.map(p =>
-        p.id === currentProduct.id ? { ...p, ...formData } : p
+        p.id === currentProduct.id ? { ...p, ...formData, discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '' } : p
       ));
     } else {
       // Add new product
       const newProduct = {
         id: Date.now(),
         ...formData,
+        discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '',
         isActive: formData.isActive
       };
       setProducts(prev => [...prev, newProduct]);
@@ -352,6 +374,9 @@ const ProductList = () => {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
                       Barcode
                     </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                      Discount Level
+                    </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
                       Actions
                     </th>
@@ -394,6 +419,13 @@ const ProductList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
                         {product.barcode || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                        {product.discountLevelName || (() => {
+                          // Fallback lookup: coerce to string for robust comparison
+                          const level = discountLevels.find(l => String(l.id || l.value) === String(product.discountLevel));
+                          return level ? (level.name || level.label || level.value) : 'N/A';
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium border-r border-gray-200">
                         <div className="flex items-center space-x-1">
@@ -535,6 +567,33 @@ const ProductList = () => {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white resize-none"
                       placeholder="Enter product description"
                     />
+                  </div>
+
+                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Discount Level
+                    </label>
+                   <select
+                     name="discountLevel"
+                     value={formData.discountLevel}
+                     onChange={handleInputChange}
+                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
+                   >
+                     <option value="">Select Discount Level</option>
+                     {discountLevels.map((level) => (
+                       <option key={level.id || level.value} value={level.id || level.value}>
+                         {level.name || level.label || level.value}
+                       </option>
+                     ))}
+                   </select>
+                   {formData.discountLevel && (
+                     <p className="text-sm text-gray-600 mt-1">
+                       Selected: {(() => {
+                         const level = discountLevels.find(l => String(l.id || l.value) === String(formData.discountLevel));
+                         return level ? (level.name || level.label || level.value) : '';
+                       })()}
+                     </p>
+                   )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
