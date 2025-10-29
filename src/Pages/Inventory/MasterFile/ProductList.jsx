@@ -4,7 +4,7 @@ import { Plus, Edit, Trash2, X, Search, Package, BarChart3, Filter } from 'lucid
 import Swal from 'sweetalert2';
 import { fetchDiscountLevels } from '../../../services/Inventory/discountLevelService';
 import { getAllProductTypes } from '../../../services/Inventory/productTypeService';
-import { getAll, create, update, remove } from '../../../services/Inventory/productListService';
+import { getAll, update, remove } from '../../../services/Inventory/productListService';
 
 const ProductList = () => {
   const [products, setProducts] = useState([]);
@@ -60,7 +60,8 @@ const ProductList = () => {
     const loadProducts = async () => {
       try {
         const data = await getAll();
-        setProducts(data || []);
+        setProducts(Array.isArray(data) ? data : data?.data || []);
+
       } catch (err) {
         console.error('Failed to fetch products:', err);
       }
@@ -208,12 +209,18 @@ const ProductList = () => {
         Swal.fire({ title: 'Success!', text: 'Product updated successfully.', icon: 'success', timer: 1800, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
       } else {
         const payload = { ...formData };
-        const res = await create(payload);
-        const newProduct = res || { id: Date.now(), ...payload };
+        // DEVELOPMENT: suppress API call when creating products and log payload for inspection
+        // This prevents hitting the backend while allowing the UI to show the created item locally.
+        console.log('Product create payload (API call suppressed):', payload);
+
+        // Create a local product object so the UI reflects the newly created product.
+        const newProduct = { id: Date.now(), ...payload };
         newProduct.discountLevelName = selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '';
         newProduct.productTypeName = selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : '';
         setProducts(prev => [...prev, newProduct]);
-        Swal.fire({ title: 'Success!', text: 'Product created successfully.', icon: 'success', timer: 1800, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
+
+        // Inform the user that the create was saved locally and logged
+        Swal.fire({ title: 'Saved locally', text: 'Product data logged to console (API call suppressed).', icon: 'info', timer: 1800, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
       }
       closeModal();
     } catch (err) {
