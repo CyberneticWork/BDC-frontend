@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Search, Package, BarChart3, Filter } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { fetchDiscountLevels } from '../../../services/Inventory/discountLevelService';
+import { getAllProductTypes } from '../../../services/Inventory/productTypeService';
 
 const ProductList = () => {
   const [products, setProducts] = useState([]);
@@ -23,11 +24,14 @@ const ProductList = () => {
     oemNumbers: '',
     barcode: '',
     discountLevel: '',
+    productType: '',
     cost: '',
     minPrice: '',
     mrp: '',
     isActive: true
   });
+
+  const [productTypes, setProductTypes] = useState([]);
 
   // Fetch discount levels on component mount
   useEffect(() => {
@@ -41,6 +45,16 @@ const ProductList = () => {
       }
     };
     loadDiscountLevels();
+    // Load product types as well
+    const loadProductTypes = async () => {
+      try {
+        const types = await getAllProductTypes();
+        setProductTypes(types || []);
+      } catch (err) {
+        console.error('Failed to fetch product types:', err);
+      }
+    };
+    loadProductTypes();
   }, []);
 
   // Refs for keyboard navigation
@@ -86,6 +100,7 @@ const ProductList = () => {
         oemNumbers: product.oemNumbers,
         barcode: product.barcode,
         discountLevel: product.discountLevel || '',
+        productType: product.productType || product.productTypeId || '',
         cost: product.cost || '',
         minPrice: product.minPrice || '',
         mrp: product.mrp || '',
@@ -99,6 +114,7 @@ const ProductList = () => {
         oemNumbers: '',
         barcode: '',
         discountLevel: '',
+        productType: '',
         cost: '',
         minPrice: '',
         mrp: '',
@@ -166,10 +182,11 @@ const ProductList = () => {
     e.preventDefault();
     // Compare as strings to avoid type mismatches between numbers and strings
     const selectedLevel = discountLevels.find(l => String(l.id || l.value) === String(formData.discountLevel));
+    const selectedType = productTypes.find(t => String(t.id || t.value) === String(formData.productType));
     if (currentProduct) {
       // Edit existing product
       setProducts(prev => prev.map(p =>
-        p.id === currentProduct.id ? { ...p, ...formData, discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '' } : p
+        p.id === currentProduct.id ? { ...p, ...formData, discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '', productTypeName: selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : '' } : p
       ));
     } else {
       // Add new product
@@ -177,6 +194,7 @@ const ProductList = () => {
         id: Date.now(),
         ...formData,
         discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '',
+        productTypeName: selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : '',
         isActive: formData.isActive
       };
       setProducts(prev => [...prev, newProduct]);
@@ -594,6 +612,33 @@ const ProductList = () => {
                        })()}
                      </p>
                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Product Type
+                    </label>
+                    <select
+                      name="productType"
+                      value={formData.productType}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
+                    >
+                      <option value="">Select Product Type</option>
+                      {productTypes.map((t) => (
+                        <option key={t.id || t.value} value={t.id || t.value}>
+                          {t.name || t.type || t.label || t.value}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.productType && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Selected: {(() => {
+                          const t = productTypes.find(pt => String(pt.id || pt.value) === String(formData.productType));
+                          return t ? (t.name || t.type || t.label || t.value) : '';
+                        })()}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
