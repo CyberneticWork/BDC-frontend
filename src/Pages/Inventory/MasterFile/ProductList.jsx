@@ -395,6 +395,9 @@ const ProductList = () => {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
                       Discount Level
                     </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Product Type
+                      </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
                       Actions
                     </th>
@@ -443,6 +446,12 @@ const ProductList = () => {
                           // Fallback lookup: coerce to string for robust comparison
                           const level = discountLevels.find(l => String(l.id || l.value) === String(product.discountLevel));
                           return level ? (level.name || level.label || level.value) : 'N/A';
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                        {product.productTypeName || (() => {
+                          const t = productTypes.find(pt => String(pt.id || pt.value) === String(product.productType || product.productTypeId));
+                          return t ? (t.name || t.type || t.label || t.value) : 'N/A';
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium border-r border-gray-200">
