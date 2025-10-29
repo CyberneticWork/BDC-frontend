@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, X, Search, Package, BarChart3, Filter } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { fetchDiscountLevels } from '../../../services/Inventory/discountLevelService';
+import { getAllProductTypes } from '../../../services/Inventory/productTypeService';
+import { getAll, create, update, remove } from '../../../services/Inventory/productListService';
 
 const ProductList = () => {
   const [products, setProducts] = useState([]);
@@ -23,11 +25,14 @@ const ProductList = () => {
     oemNumbers: '',
     barcode: '',
     discountLevel: '',
+    productType: '',
     cost: '',
     minPrice: '',
     mrp: '',
     isActive: true
   });
+
+  const [productTypes, setProductTypes] = useState([]);
 
   // Fetch discount levels on component mount
   useEffect(() => {
@@ -41,6 +46,26 @@ const ProductList = () => {
       }
     };
     loadDiscountLevels();
+    // Load product types as well
+    const loadProductTypes = async () => {
+      try {
+        const types = await getAllProductTypes();
+        setProductTypes(types || []);
+      } catch (err) {
+        console.error('Failed to fetch product types:', err);
+      }
+    };
+    loadProductTypes();
+    // Load products
+    const loadProducts = async () => {
+      try {
+        const data = await getAll();
+        setProducts(data || []);
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
+      }
+    };
+    loadProducts();
   }, []);
 
   // Refs for keyboard navigation
@@ -86,6 +111,7 @@ const ProductList = () => {
         oemNumbers: product.oemNumbers,
         barcode: product.barcode,
         discountLevel: product.discountLevel || '',
+        productType: product.productType || product.productTypeId || '',
         cost: product.cost || '',
         minPrice: product.minPrice || '',
         mrp: product.mrp || '',
@@ -99,6 +125,7 @@ const ProductList = () => {
         oemNumbers: '',
         barcode: '',
         discountLevel: '',
+        productType: '',
         cost: '',
         minPrice: '',
         mrp: '',
@@ -162,36 +189,55 @@ const ProductList = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // Compare as strings to avoid type mismatches between numbers and strings
     const selectedLevel = discountLevels.find(l => String(l.id || l.value) === String(formData.discountLevel));
-    if (currentProduct) {
-      // Edit existing product
-      setProducts(prev => prev.map(p =>
-        p.id === currentProduct.id ? { ...p, ...formData, discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '' } : p
-      ));
-    } else {
-      // Add new product
-      const newProduct = {
-        id: Date.now(),
-        ...formData,
-        discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '',
-        isActive: formData.isActive
-      };
-      setProducts(prev => [...prev, newProduct]);
+    const selectedType = productTypes.find(t => String(t.id || t.value) === String(formData.productType));
+
+    try {
+      if (currentProduct) {
+        const payload = { ...formData };
+        const res = await update(currentProduct.id, payload);
+        // Use returned resource when available, otherwise merge formData
+        const updatedProduct = res || { ...currentProduct, ...payload };
+        // Ensure friendly display names remain present
+        updatedProduct.discountLevelName = selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : updatedProduct.discountLevelName;
+        updatedProduct.productTypeName = selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : updatedProduct.productTypeName;
+        setProducts(prev => prev.map(p => p.id === currentProduct.id ? updatedProduct : p));
+        Swal.fire({ title: 'Success!', text: 'Product updated successfully.', icon: 'success', timer: 1800, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
+      } else {
+        const payload = { ...formData };
+        const res = await create(payload);
+        const newProduct = res || { id: Date.now(), ...payload };
+        newProduct.discountLevelName = selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '';
+        newProduct.productTypeName = selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : '';
+        setProducts(prev => [...prev, newProduct]);
+        Swal.fire({ title: 'Success!', text: 'Product created successfully.', icon: 'success', timer: 1800, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
+      }
+      closeModal();
+    } catch (err) {
+      console.error('Failed to save product:', err);
+      const message = err?.message || err?.error || JSON.stringify(err);
+      Swal.fire({ title: 'Error', text: String(message), icon: 'error' });
     }
-    closeModal();
   };
 
-  const handleToggleActive = (id) => {
-    setProducts(prev => prev.map(p =>
-      p.id === id ? { ...p, isActive: !p.isActive } : p
-    ));
+  const handleToggleActive = async (id) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    const updated = { ...product, isActive: !product.isActive };
+    try {
+      await update(id, { isActive: updated.isActive });
+      setProducts(prev => prev.map(p => p.id === id ? updated : p));
+    } catch (err) {
+      console.error('Failed to toggle active state:', err);
+      Swal.fire({ title: 'Error', text: 'Could not change product status.', icon: 'error' });
+    }
   };
 
-  const handleRemove = (id) => {
-    Swal.fire({
+  const handleRemove = async (id) => {
+    const result = await Swal.fire({
       title: 'Delete Product?',
       text: 'This action cannot be undone. The product will be permanently removed.',
       icon: 'warning',
@@ -205,21 +251,18 @@ const ProductList = () => {
         confirmButton: 'rounded-lg font-medium',
         cancelButton: 'rounded-lg font-medium'
       }
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setProducts(prev => prev.filter(p => p.id !== id));
-        Swal.fire({
-          title: 'Deleted!',
-          text: 'Product has been successfully deleted.',
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: {
-            popup: 'rounded-xl'
-          }
-        });
-      }
     });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await remove(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+      Swal.fire({ title: 'Deleted!', text: 'Product has been successfully deleted.', icon: 'success', timer: 1600, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
+    } catch (err) {
+      console.error(`Error deleting product ${id}:`, err);
+      Swal.fire({ title: 'Error', text: 'Failed to delete product.', icon: 'error' });
+    }
   };
 
   const filteredProducts = products.filter(product =>
@@ -377,6 +420,9 @@ const ProductList = () => {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
                       Discount Level
                     </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Product Type
+                      </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
                       Actions
                     </th>
@@ -425,6 +471,12 @@ const ProductList = () => {
                           // Fallback lookup: coerce to string for robust comparison
                           const level = discountLevels.find(l => String(l.id || l.value) === String(product.discountLevel));
                           return level ? (level.name || level.label || level.value) : 'N/A';
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-200">
+                        {product.productTypeName || (() => {
+                          const t = productTypes.find(pt => String(pt.id || pt.value) === String(product.productType || product.productTypeId));
+                          return t ? (t.name || t.type || t.label || t.value) : 'N/A';
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium border-r border-gray-200">
@@ -594,6 +646,33 @@ const ProductList = () => {
                        })()}
                      </p>
                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Product Type
+                    </label>
+                    <select
+                      name="productType"
+                      value={formData.productType}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
+                    >
+                      <option value="">Select Product Type</option>
+                      {productTypes.map((t) => (
+                        <option key={t.id || t.value} value={t.id || t.value}>
+                          {t.name || t.type || t.label || t.value}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.productType && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Selected: {(() => {
+                          const t = productTypes.find(pt => String(pt.id || pt.value) === String(formData.productType));
+                          return t ? (t.name || t.type || t.label || t.value) : '';
+                        })()}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
