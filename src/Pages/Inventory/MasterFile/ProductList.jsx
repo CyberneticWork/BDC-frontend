@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, X, Search, Package, BarChart3, Filter } from 'lucid
 import Swal from 'sweetalert2';
 import { fetchDiscountLevels } from '../../../services/Inventory/discountLevelService';
 import { getAllProductTypes } from '../../../services/Inventory/productTypeService';
+import { getAll, create, update, remove } from '../../../services/Inventory/productListService';
 
 const ProductList = () => {
   const [products, setProducts] = useState([]);
@@ -55,6 +56,16 @@ const ProductList = () => {
       }
     };
     loadProductTypes();
+    // Load products
+    const loadProducts = async () => {
+      try {
+        const data = await getAll();
+        setProducts(data || []);
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
+      }
+    };
+    loadProducts();
   }, []);
 
   // Refs for keyboard navigation
@@ -178,38 +189,55 @@ const ProductList = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // Compare as strings to avoid type mismatches between numbers and strings
     const selectedLevel = discountLevels.find(l => String(l.id || l.value) === String(formData.discountLevel));
     const selectedType = productTypes.find(t => String(t.id || t.value) === String(formData.productType));
-    if (currentProduct) {
-      // Edit existing product
-      setProducts(prev => prev.map(p =>
-        p.id === currentProduct.id ? { ...p, ...formData, discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '', productTypeName: selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : '' } : p
-      ));
-    } else {
-      // Add new product
-      const newProduct = {
-        id: Date.now(),
-        ...formData,
-        discountLevelName: selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '',
-        productTypeName: selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : '',
-        isActive: formData.isActive
-      };
-      setProducts(prev => [...prev, newProduct]);
+
+    try {
+      if (currentProduct) {
+        const payload = { ...formData };
+        const res = await update(currentProduct.id, payload);
+        // Use returned resource when available, otherwise merge formData
+        const updatedProduct = res || { ...currentProduct, ...payload };
+        // Ensure friendly display names remain present
+        updatedProduct.discountLevelName = selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : updatedProduct.discountLevelName;
+        updatedProduct.productTypeName = selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : updatedProduct.productTypeName;
+        setProducts(prev => prev.map(p => p.id === currentProduct.id ? updatedProduct : p));
+        Swal.fire({ title: 'Success!', text: 'Product updated successfully.', icon: 'success', timer: 1800, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
+      } else {
+        const payload = { ...formData };
+        const res = await create(payload);
+        const newProduct = res || { id: Date.now(), ...payload };
+        newProduct.discountLevelName = selectedLevel ? (selectedLevel.name || selectedLevel.label || selectedLevel.value) : '';
+        newProduct.productTypeName = selectedType ? (selectedType.name || selectedType.type || selectedType.label || selectedType.value) : '';
+        setProducts(prev => [...prev, newProduct]);
+        Swal.fire({ title: 'Success!', text: 'Product created successfully.', icon: 'success', timer: 1800, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
+      }
+      closeModal();
+    } catch (err) {
+      console.error('Failed to save product:', err);
+      const message = err?.message || err?.error || JSON.stringify(err);
+      Swal.fire({ title: 'Error', text: String(message), icon: 'error' });
     }
-    closeModal();
   };
 
-  const handleToggleActive = (id) => {
-    setProducts(prev => prev.map(p =>
-      p.id === id ? { ...p, isActive: !p.isActive } : p
-    ));
+  const handleToggleActive = async (id) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    const updated = { ...product, isActive: !product.isActive };
+    try {
+      await update(id, { isActive: updated.isActive });
+      setProducts(prev => prev.map(p => p.id === id ? updated : p));
+    } catch (err) {
+      console.error('Failed to toggle active state:', err);
+      Swal.fire({ title: 'Error', text: 'Could not change product status.', icon: 'error' });
+    }
   };
 
-  const handleRemove = (id) => {
-    Swal.fire({
+  const handleRemove = async (id) => {
+    const result = await Swal.fire({
       title: 'Delete Product?',
       text: 'This action cannot be undone. The product will be permanently removed.',
       icon: 'warning',
@@ -223,21 +251,18 @@ const ProductList = () => {
         confirmButton: 'rounded-lg font-medium',
         cancelButton: 'rounded-lg font-medium'
       }
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setProducts(prev => prev.filter(p => p.id !== id));
-        Swal.fire({
-          title: 'Deleted!',
-          text: 'Product has been successfully deleted.',
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: {
-            popup: 'rounded-xl'
-          }
-        });
-      }
     });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await remove(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+      Swal.fire({ title: 'Deleted!', text: 'Product has been successfully deleted.', icon: 'success', timer: 1600, showConfirmButton: false, customClass: { popup: 'rounded-xl' } });
+    } catch (err) {
+      console.error(`Error deleting product ${id}:`, err);
+      Swal.fire({ title: 'Error', text: 'Failed to delete product.', icon: 'error' });
+    }
   };
 
   const filteredProducts = products.filter(product =>
