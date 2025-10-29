@@ -86,6 +86,9 @@ export const permissions = {
     supplier: { view: true, edit: true },
     product: { view: true, edit: true },
     inventory: { view: true, edit: true },
+    productList: { view: true, edit: true },
+    discountLevel: { view: true, edit: true },
+    productType: { view: true, edit: true },
   },
   hr: {
     chatbot: { view: true },
@@ -157,6 +160,7 @@ export const permissions = {
     inventory: { view: true, edit: true },
     masterFiles: { view: true, edit: true },
     productList: { view: true, edit: true },
+    discountLevel: { view: true, edit: true },
   },
   supervisor: {
     chatbot: { view: true },

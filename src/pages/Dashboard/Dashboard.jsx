@@ -66,7 +66,9 @@ import ChartOfAccounts from "../Accounting/ChartOfAccounts";
 import AccountList from "../Accounting/AccountList";
 import Customer from "@Inventory/Customer";
 import Center from "@Inventory/Center";
+import DiscountLevel from "../Inventory/MasterFile/DiscountLevel";
 import ProductList from "../Inventory/MasterFile/ProductList";
+import ProductType from "../Inventory/MasterFile/ProductType";
 import Transactions from "../Accounting/Transactions";
 import Ledger from "../Accounting/Ledger";
 import TrialBalance from "../Accounting/TrialBalance";
@@ -814,6 +816,14 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "product" ? (
               <ProtectedComponent module="product" action="view">
                 <ProductList />
+              </ProtectedComponent>
+            ) : activeItem === "productType" ? (
+              <ProtectedComponent module="productType" action="view">
+                <ProductType />
+              </ProtectedComponent>
+            ) : activeItem === "discountLevel" ? (
+              <ProtectedComponent module="discountLevel" action="view">
+                <DiscountLevel />
               </ProtectedComponent>
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">
