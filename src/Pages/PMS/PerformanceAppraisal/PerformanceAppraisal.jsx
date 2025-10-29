@@ -655,18 +655,31 @@ const PerformanceAppraisal = () => {
         task_count: parseInt(appraisalResult.task_count)
       };
       
-      await PMSService.savePerformanceAppraisal(saveData);
+      const response = await PMSService.savePerformanceAppraisal(saveData);
+      
+      // Handle different response types
+      const action = response.action || 'saved';
+      let successTitle = 'Appraisal Saved!';
+      let successMessage = `Performance appraisal for <strong>${appraisalResult.employee_name}</strong> has been saved successfully.`;
+      
+      if (action === 'updated') {
+        successTitle = 'Appraisal Updated!';
+        successMessage = `Performance appraisal for <strong>${appraisalResult.employee_name}</strong> has been updated successfully (data was different from existing record).`;
+      } else if (action === 'restored_and_updated') {
+        successTitle = 'Appraisal Restored!';
+        successMessage = `Performance appraisal for <strong>${appraisalResult.employee_name}</strong> has been restored from deleted records and updated.`;
+      }
       
       // Enhanced success toast with animation
       await Swal.fire({
         icon: 'success',
-        title: 'Appraisal Saved!',
+        title: successTitle,
         html: `
           <div class="text-center">
             <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <CheckCircle class="w-8 h-8 text-green-600" />
             </div>
-            <p class="text-gray-700">Performance appraisal for <strong>${appraisalResult.employee_name}</strong> has been saved successfully.</p>
+            <p class="text-gray-700">${successMessage}</p>
             <p class="text-sm text-gray-500 mt-2">The appraisal is now stored in the system.</p>
           </div>
         `,
@@ -683,6 +696,33 @@ const PerformanceAppraisal = () => {
       console.error("Error saving appraisal:", error);
       
       let errorMessage = 'Failed to save the performance appraisal. Please try again.';
+      
+      // Handle specific error types
+      if (error.response?.status === 409 && error.response?.data?.error_type === 'duplicate_data') {
+        const existingDate = error.response.data.existing_created_at;
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Duplicate Appraisal',
+          html: `
+            <div class="text-left">
+              <p class="text-gray-700 mb-3">An identical performance appraisal already exists for <strong>${appraisalResult.employee_name}</strong> for this date range.</p>
+              <div class="bg-yellow-50 p-3 rounded-lg text-sm">
+                <div class="font-medium text-yellow-800">Existing Record Details:</div>
+                <div class="text-yellow-700 mt-1">Created: ${new Date(existingDate).toLocaleString()}</div>
+                <div class="text-yellow-700">Same data, grades, and calculations</div>
+              </div>
+              <p class="text-gray-600 mt-3 text-sm">No changes were made since the data is identical.</p>
+            </div>
+          `,
+          confirmButtonColor: '#F59E0B',
+          customClass: {
+            popup: 'rounded-xl shadow-2xl',
+            title: 'text-lg font-bold text-yellow-600'
+          }
+        });
+        return;
+      }
+      
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
