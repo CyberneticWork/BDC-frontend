@@ -42,6 +42,13 @@ const CreateNewAllowance = () => {
   const [importErrors, setImportErrors] = useState([]);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
 
+  const getToday = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0"); // months start at 0
+    const dd = String(today.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
   // Form states
   const [editAllowance, setEditAllowance] = useState({
     id: null,
@@ -67,7 +74,7 @@ const CreateNewAllowance = () => {
     // category removed
     status: "active",
     allowance_type: "fixed",
-    fixed_date: "",
+    fixed_date: getToday(),
     variable_from: "",
     variable_to: "",
   });
@@ -76,6 +83,8 @@ const CreateNewAllowance = () => {
     add: {},
     edit: {},
   });
+
+  
 
   // Constants
   // categories removed
@@ -137,6 +146,7 @@ const CreateNewAllowance = () => {
   // Fetch data on component mount
   useEffect(() => {
     fetchData();
+    getToday();
   }, []);
 
   const fetchData = async () => {
@@ -316,9 +326,9 @@ const CreateNewAllowance = () => {
         errors.company_id = ["Company is required"];
       }
       // department is optional now
-      if (!newAllowance.amount) {
-        errors.amount = ["Amount is required"];
-      }
+      // if (!newAllowance.amount) {
+      //   errors.amount = ["Amount is required"];
+      // }
 
       // Date validation
       if (newAllowance.allowance_type === "fixed") {
@@ -381,7 +391,7 @@ const CreateNewAllowance = () => {
         status: "active",
         allowance_type: "fixed",
         amount: "",
-        fixed_date: "",
+        fixed_date: getToday(),
         variable_from: "",
         variable_to: "",
       });
@@ -417,9 +427,9 @@ const CreateNewAllowance = () => {
         errors.company_id = ["Company is required"];
       }
       // department is optional now
-      if (!editAllowance.amount) {
-        errors.amount = ["Amount is required"];
-      }
+      // if (!editAllowance.amount) {
+      //   errors.amount = ["Amount is required"];
+      // }
 
       // Date validation
       if (editAllowance.allowance_type === "fixed") {
@@ -551,7 +561,7 @@ const CreateNewAllowance = () => {
       amount: "",
       status: "active",
       allowance_type: "fixed",
-      fixed_date: "",
+      fixed_date: getToday(),
       variable_from: "",
       variable_to: "",
     });
@@ -569,7 +579,7 @@ const CreateNewAllowance = () => {
       department_id: "",
       status: "active",
       allowance_type: "fixed",
-      fixed_date: "",
+      fixed_date: getToday(),
       variable_from: "",
       variable_to: "",
     });
@@ -653,7 +663,9 @@ const CreateNewAllowance = () => {
                 ) : (
                   <>
                     <Download size={20} />
-                    <span className="font-medium">Export Allowance Template</span>
+                    <span className="font-medium">
+                      Export Allowance Template
+                    </span>
                   </>
                 )}
               </button>
@@ -1104,7 +1116,7 @@ const CreateNewAllowance = () => {
                   </div>
                 )}
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Amount *
                 </label>
@@ -1122,7 +1134,7 @@ const CreateNewAllowance = () => {
                     {formErrors.add.amount[0]}
                   </p>
                 )}
-              </div>
+              </div> */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Company *
