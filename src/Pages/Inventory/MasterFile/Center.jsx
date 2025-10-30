@@ -7,7 +7,7 @@ const [centers, setCenters] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "" });
+  const [form, setForm] = useState({ name: "", description: "" });
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,15 +52,17 @@ const [centers, setCenters] = useState([]);
     setTimeout(() => {
       if (editingId) {
         setCenters(prev => prev.map(center =>
-          center.id === editingId ? { ...center, name: form.name } : center
+          center.id === editingId ? { ...center, name: form.name, description: form.description } : center
         ));
         setSuccessMessage("Center updated successfully!");
       } else {
         const newCenter = {
           id: Date.now(),
-          name: form.name
+          name: form.name,
+          description: form.description
         };
         setCenters(prev => [...prev, newCenter]);
+        console.log("Center created with description:", form.description);
         setSuccessMessage("Center created successfully!");
       }
       closeModal();
@@ -70,10 +72,10 @@ const [centers, setCenters] = useState([]);
 
   const openModal = (center = null) => {
     if (center) {
-      setForm({ name: center.name });
+      setForm({ name: center.name, description: center.description || "" });
       setEditingId(center.id);
     } else {
-      setForm({ name: "" });
+      setForm({ name: "", description: "" });
       setEditingId(null);
     }
     setIsModalOpen(true);
@@ -82,7 +84,7 @@ const [centers, setCenters] = useState([]);
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
-    setForm({ name: "" });
+    setForm({ name: "", description: "" });
     setErrors({});
   };
 
@@ -235,6 +237,17 @@ const [centers, setCenters] = useState([]);
                     placeholder="Enter center name"
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter center description (optional)"
+                  />
                 </div>
                 <div className="flex items-center justify-end gap-3 pt-4">
                   <button
