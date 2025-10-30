@@ -1,11 +1,10 @@
-import axios from "axios";
-
+import axios from "../../utils/axios";
 
 const fetchProductLists = async (params = {}) => {
   try {
-    const response = await axios.get("/product-lists", { params });
+    const response = await axios.get("/products", { params });
     return response.data?.data ?? response.data;
-    } catch (error) {
+  } catch (error) {
     console.error("Error fetching product lists:", error);
     return [];
   }
@@ -13,35 +12,34 @@ const fetchProductLists = async (params = {}) => {
 
 const createProductList = async (payload) => {
   try {
-    const response = await axios.post("/product-lists", payload);       
+    const response = await axios.post("/products", payload);
     return response.data?.data ?? response.data;
-    } catch (error) {
+  } catch (error) {
     console.error("Error creating product list:", error);
     // bubble up the error payload where callers can show validation messages
     throw error.response?.data ?? error;
-  } 
+  }
 };
 
-const updateProductList = async (id, payload) => {      
-    try {
-    const response = await axios.put(`/product-lists/${id}`, payload);
+const updateProductList = async (id, payload) => {
+  try {
+    const response = await axios.put(`/products/${id}`, payload);
     return response.data?.data ?? response.data;
-    }
-    catch (error) {
+  } catch (error) {
     console.error(`Error updating product list ${id}:`, error);
     throw error.response?.data ?? error;
-  }     
+  }
 };
 
-const deleteProductList = async (id) => {   
-    try {
-    const response = await axios.delete(`/product-lists/${id}`);
+const deleteProductList = async (id) => {
+  try {
+    const response = await axios.delete(`/products/${id}`);
     // delete returns 204 No Content in backend; return true on success
     return response.status === 204 ? true : response.data;
-    }   catch (error) {                     
+  } catch (error) {
     console.error(`Error deleting product list ${id}:`, error);
     throw error.response?.data ?? error;
-    }
+  }
 };
 
 // Compatibility wrappers used by components in the project
@@ -49,20 +47,12 @@ const getAll = async (params = {}) => {
   return await fetchProductLists(params);
 };
 const create = async (payload) => {
-    return await createProductList(payload);            
+  return await createProductList(payload);
 };
 const update = async (id, payload) => {
-    return await updateProductList(id, payload);            
-}
-const remove = async (id) => {
-    return await deleteProductList(id);
+  return await updateProductList(id, payload);
 };
-export {
-    getAll,
-    create,
-    update,
-    remove,
-};  
-
-
-
+const remove = async (id) => {
+  return await deleteProductList(id);
+};
+export { getAll, create, update, remove };
