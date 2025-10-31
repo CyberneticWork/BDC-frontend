@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {Plus,Trash2,CheckCircle,X} from "lucide-react";
-import {getInvoiceData,addInvoice, getCustomers, getProducts} from '../../services/Inventory/inventoryService';
+import { addInvoice } from '../../services/Inventory/inventoryService';
+import { fetchCenters as fetchCentersService } from '../../services/Inventory/centerService';
+import { getAll as fetchProductsService } from '../../services/Inventory/productListService';
+import { getCustomers as fetchCustomersService } from '../../services/Account/CustomerService';
 import Payment from '../../components/Inventory/Payment';
 
 const Invoices = () => {
@@ -12,9 +15,8 @@ const Invoices = () => {
   const [successText, setSuccessText] = useState("");
 
   useEffect(() => {
-    // Load initial data from service
-    const initialInvoices = getInvoiceData();
-    setInvoices(initialInvoices);
+    // Start with empty list (avoid hardcoded demo data)
+    setInvoices([]);
   }, []);
 
   // Compute next invoice id whenever invoices change
@@ -66,6 +68,8 @@ const Invoices = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingInvoice, setPendingInvoice] = useState(null);
   const [customers, setCustomers] = useState([]);
+  const [centers, setCenters] = useState([]);
+  const [products, setProducts] = useState([]);
 
     // Sync generated invoice id from parent into form
     useEffect(() => {
@@ -73,24 +77,64 @@ const Invoices = () => {
     }, [nextInvoiceId]);
 
     useEffect(() => {
-      const fetchCustomers = async () => {
+      // Load customers, centers, and products from services
+      const loadCustomers = async () => {
         try {
-          const data = await getCustomers();
-          setCustomers(data);
+          const data = await fetchCustomersService();
+          const normalized = Array.isArray(data)
+            ? data.map((c) => ({
+                id: c.id ?? c.customer_id ?? String(c.email || c.name || Math.random()),
+                name: c.name ?? c.customer_name ?? `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+                email: c.email ?? c.contact_email ?? '',
+              }))
+            : [];
+          setCustomers(normalized);
         } catch (error) {
           console.error('Error fetching customers:', error);
+          setCustomers([]);
         }
       };
-      fetchCustomers();
-    }, []);
 
-    // Demo center list (can be wired to service later)
-    const centers = [
-      'Main Center',
-      'Branch A',
-      'Branch B',
-      'Warehouse 01'
-    ];
+      const loadCenters = async () => {
+        try {
+          const data = await fetchCentersService();
+          const normalized = Array.isArray(data)
+            ? data.map((c) => ({
+                id: c.id ?? c.center_id ?? c.value ?? String(c.name || c.title || c),
+                name: c.name ?? c.center_name ?? c.title ?? String(c.name || c),
+              }))
+            : [];
+          setCenters(normalized);
+        } catch (error) {
+          console.error('Error fetching centers:', error);
+          setCenters([]);
+        }
+      };
+
+      const loadProducts = async () => {
+        try {
+          const data = await fetchProductsService();
+          const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+          const normalized = list.map((p) => ({
+            id: p.id ?? p.product_id ?? String(p.sku || p.code || p.name),
+            name: p.name ?? p.product_name ?? p.title ?? `#${p.id}`,
+            sku: p.sku ?? p.code ?? p.product_code ?? '',
+            unitPrice: Number(p.unitPrice ?? p.price ?? p.unit_price ?? p.selling_price ?? 0),
+            mrp: Number(p.mrp ?? p.mrp_price ?? p.retail_price ?? p.price ?? 0),
+            costPrice: Number(p.costPrice ?? p.cost_price ?? p.purchase_price ?? p.buying_price ?? p.cost ?? 0),
+            currentstock: p.currentstock ?? p.stock ?? p.qty ?? 0,
+          }));
+          setProducts(normalized);
+        } catch (error) {
+          console.error('Error fetching products:', error);
+          setProducts([]);
+        }
+      };
+
+      loadCustomers();
+      loadCenters();
+      loadProducts();
+    }, []);
 
     // Build customer options from fetched customers
     const availableCustomers = customers.map(c => ({ name: c.name, email: c.email }));
@@ -116,7 +160,7 @@ const Invoices = () => {
       const newErrors = {};
       
       if (!formData.id) newErrors.id = 'Invoice number not generated';
-      if (!formData.center.trim()) newErrors.center = 'Center is required';
+  if (!String(formData.center).trim()) newErrors.center = 'Center is required';
       if (!formData.date) newErrors.date = 'Date is required';
       if (!formData.customer.trim()) newErrors.customer = 'Customer name is required';
       if (!formData.customerEmail.trim()) newErrors.customerEmail = 'Customer email is required';
@@ -131,8 +175,7 @@ const Invoices = () => {
       return Object.keys(newErrors).length === 0;
     };
 
-    // Products list for typeahead
-    const products = useMemo(() => getProducts() || [], []);
+  // Products are loaded from service in effect above
 
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
@@ -238,6 +281,19 @@ const Invoices = () => {
         setShowPaymentModal(false);
         setSuccessText(`Invoice ${newInvoice?.id || nextInvoiceId} created successfully.`);
         setShowSuccess(true);
+        // Refresh centers after invoice creation per requirement
+        try {
+          const freshCenters = await fetchCentersService();
+          const normalized = Array.isArray(freshCenters)
+            ? freshCenters.map((c) => ({
+                id: c.id ?? c.center_id ?? c.value ?? String(c.name || c.title || c),
+                name: c.name ?? c.center_name ?? c.title ?? String(c.name || c),
+              }))
+            : [];
+          setCenters(normalized);
+        } catch (e) {
+          // ignore refresh errors
+        }
       } catch (error) {
         console.error('Error creating invoice:', error);
       } finally {
@@ -277,10 +333,11 @@ const Invoices = () => {
                 <input
                   type="date"
                   value={formData.date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  disabled
+                  title="Invoice date is auto-set and cannot be changed"
                   aria-invalid={!!errors.date}
                   aria-describedby={errors.date ? 'date-error' : undefined}
-                  className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 ${errors.date ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'}`}
+                  className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 ${errors.date ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'} opacity-90 cursor-not-allowed`}
                 />
                 {errors.date && <p id="date-error" className="text-red-600 text-sm mt-2 font-medium">{errors.date}</p>}
               </div>
@@ -297,7 +354,7 @@ const Invoices = () => {
                 >
                   <option value="">Select a center</option>
                   {centers.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
                 {errors.center && <p className="text-red-600 text-sm mt-2 font-medium">{errors.center}</p>}
@@ -420,7 +477,9 @@ const Invoices = () => {
                           >
                             <span className="text-sm font-medium text-slate-900">{p.name}</span>
                             <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-                            <span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
+                            <span className="ml-auto text-xs text-slate-600 font-semibold">
+                              Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}
+                            </span>
                           </li>
                         ))}
                       </ul>
