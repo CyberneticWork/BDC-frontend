@@ -64,6 +64,7 @@ const Invoices = () => {
   const [centers, setCenters] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
 
     useEffect(() => {
       setFormData((p) => ({ ...p, id: nextGrnId }));
@@ -73,6 +74,7 @@ const Invoices = () => {
     useEffect(() => {
       const loadCenters = async () => {
         try {
+          setLoading(prev => ({ ...prev, centers: true }));
           const data = await fetchCentersService();
           const normalized = Array.isArray(data)
             ? data.map((c) => ({
@@ -84,11 +86,14 @@ const Invoices = () => {
         } catch (e) {
           console.error("Error fetching centers:", e);
           setCenters([]);
+        } finally {
+          setLoading(prev => ({ ...prev, centers: false }));
         }
       };
 
       const loadSuppliers = async () => {
         try {
+          setLoading(prev => ({ ...prev, suppliers: true }));
           const data = await SupplierService.list();
           const normalized = Array.isArray(data)
             ? data.map((s) => ({ id: s.id ?? s.supplier_id ?? s.value ?? String(s.name || s.title || s), name: s.name ?? s.supplier_name ?? s.title ?? String(s.name || s) }))
@@ -97,11 +102,14 @@ const Invoices = () => {
         } catch (e) {
           console.error("Error fetching suppliers:", e);
           setSuppliers([]);
+        } finally {
+          setLoading(prev => ({ ...prev, suppliers: false }));
         }
       };
 
       const loadProducts = async () => {
         try {
+          setLoading(prev => ({ ...prev, products: true }));
           const resp = await fetchProductsService();
           const list = Array.isArray(resp) ? resp : (Array.isArray(resp?.data) ? resp.data : []);
           const normalized = list.map((p) => ({
@@ -118,6 +126,8 @@ const Invoices = () => {
         } catch (e) {
           console.error("Error fetching products:", e);
           setProducts([]);
+        } finally {
+          setLoading(prev => ({ ...prev, products: false }));
         }
       };
 
@@ -293,10 +303,11 @@ const Invoices = () => {
                   <select
                     value={formData.center}
                     onChange={(e) => setFormData((prev) => ({ ...prev, center: e.target.value }))}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
+                    disabled={loading.centers}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} ${loading.centers ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
-                    <option value="">Select a center</option>
-                    {centers.map((c) => (
+                    <option value="">{loading.centers ? 'Loading centers…' : 'Select a center'}</option>
+                    {!loading.centers && centers.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -308,12 +319,13 @@ const Invoices = () => {
                   <select
                     value={formData.supplier}
                     onChange={(e) => setFormData((prev) => ({ ...prev, supplier: e.target.value }))}
+                    disabled={loading.suppliers}
                     aria-invalid={!!errors.supplier}
                     aria-describedby={errors.supplier ? "supplier-error" : undefined}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.supplier ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.supplier ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} ${loading.suppliers ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
-                    <option value="">Select supplier</option>
-                    {suppliers.map((s) => (
+                    <option value="">{loading.suppliers ? 'Loading suppliers…' : 'Select supplier'}</option>
+                    {!loading.suppliers && suppliers.map((s) => (
                       <option key={s.id} value={s.name}>{s.name}</option>
                     ))}
                   </select>
@@ -394,41 +406,49 @@ const Invoices = () => {
                         onBlur={() => {
                           setTimeout(() => setShowSuggestions(false), 150);
                         }}
-                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
-                        placeholder="Type to search product (name or SKU)"
+                        disabled={loading.products}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} ${loading.products ? "opacity-60 cursor-not-allowed" : ""}`}
+                        placeholder={loading.products ? "Loading products…" : "Type to search product (name or SKU)"}
                       />
-                      {showSuggestions && filteredProducts.length > 0 && (
+                      {showSuggestions && (
                         <ul className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl">
-                          {filteredProducts.map((p, idx) => (
-                            <li
-                              key={p.id}
-                              className={`px-4 py-3 cursor-pointer flex justify-between items-center transition-colors duration-150 ${idx === activeIndex ? "bg-blue-50 border-l-4 border-blue-500" : "hover:bg-slate-50"}`}
-                              onMouseEnter={() => setActiveIndex(idx)}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                const defaultUnit = (typeof p.costPrice === 'number' && !Number.isNaN(p.costPrice) && p.costPrice > 0)
-                                  ? Number(p.costPrice)
-                                  : Number(p.unitPrice) || 0;
-                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit });
-                                setShowSuggestions(false);
-                                setActiveIndex(-1);
-                                productInputRef.current?.blur();
-                              }}
-                            >
-                              <span className="text-sm font-medium text-slate-900">{p.name}</span>
-                              <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-                              <span className="ml-auto text-xs text-slate-600 font-medium">
-                                Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP LKR {Number(p.mrp || 0).toFixed(2)}{typeof p.currentstock !== "undefined" ? ` • Stock ${p.currentstock}` : ""}
-                              </span>
+                          {loading.products ? (
+                            <li className="px-4 py-3 text-slate-600 text-sm flex items-center gap-2">
+                              <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></span>
+                              Loading products…
                             </li>
-                          ))}
+                          ) : (
+                            filteredProducts.map((p, idx) => (
+                              <li
+                                key={p.id}
+                                className={`px-4 py-3 cursor-pointer flex justify-between items-center transition-colors duration-150 ${idx === activeIndex ? "bg-blue-50 border-l-4 border-blue-500" : "hover:bg-slate-50"}`}
+                                onMouseEnter={() => setActiveIndex(idx)}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  const defaultUnit = (typeof p.costPrice === 'number' && !Number.isNaN(p.costPrice) && p.costPrice > 0)
+                                    ? Number(p.costPrice)
+                                    : Number(p.unitPrice) || 0;
+                                  setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit });
+                                  setShowSuggestions(false);
+                                  setActiveIndex(-1);
+                                  productInputRef.current?.blur();
+                                }}
+                              >
+                                <span className="text-sm font-medium text-slate-900">{p.name}</span>
+                                <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
+                                <span className="ml-auto text-xs text-slate-600 font-medium">
+                                  Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP LKR {Number(p.mrp || 0).toFixed(2)}{typeof p.currentstock !== "undefined" ? ` • Stock ${p.currentstock}` : ""}
+                                </span>
+                              </li>
+                            ))
+                          )}
                         </ul>
                       )}
                     </div>
                     {errors.productName && <p className="text-red-500 text-sm mt-2 font-medium">{errors.productName}</p>}
                   </div>
                   <div className="flex items-end">
-                    <button type="button" onClick={handleAddItem} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-md">
+                    <button type="button" onClick={handleAddItem} disabled={loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                       <Plus className="h-5 w-5" />
                       Add to List
                     </button>
@@ -552,13 +572,18 @@ const Invoices = () => {
               <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 mt-8">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loading.centers || loading.suppliers || loading.products}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-semibold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                 >
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                       Creating GRN...
+                    </>
+                  ) : loading.centers || loading.suppliers || loading.products ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Loading…
                     </>
                   ) : (
                     <>

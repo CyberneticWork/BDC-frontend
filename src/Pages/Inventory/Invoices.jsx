@@ -70,6 +70,7 @@ const Invoices = () => {
   const [customers, setCustomers] = useState([]);
   const [centers, setCenters] = useState([]);
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState({ customers: false, centers: false, products: false });
 
     // Sync generated invoice id from parent into form
     useEffect(() => {
@@ -80,6 +81,7 @@ const Invoices = () => {
       // Load customers, centers, and products from services
       const loadCustomers = async () => {
         try {
+          setLoading(prev => ({ ...prev, customers: true }));
           const data = await fetchCustomersService();
           const normalized = Array.isArray(data)
             ? data.map((c) => ({
@@ -92,11 +94,14 @@ const Invoices = () => {
         } catch (error) {
           console.error('Error fetching customers:', error);
           setCustomers([]);
+        } finally {
+          setLoading(prev => ({ ...prev, customers: false }));
         }
       };
 
       const loadCenters = async () => {
         try {
+          setLoading(prev => ({ ...prev, centers: true }));
           const data = await fetchCentersService();
           const normalized = Array.isArray(data)
             ? data.map((c) => ({
@@ -108,11 +113,14 @@ const Invoices = () => {
         } catch (error) {
           console.error('Error fetching centers:', error);
           setCenters([]);
+        } finally {
+          setLoading(prev => ({ ...prev, centers: false }));
         }
       };
 
       const loadProducts = async () => {
         try {
+          setLoading(prev => ({ ...prev, products: true }));
           const data = await fetchProductsService();
           const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
           const normalized = list.map((p) => ({
@@ -128,6 +136,8 @@ const Invoices = () => {
         } catch (error) {
           console.error('Error fetching products:', error);
           setProducts([]);
+        } finally {
+          setLoading(prev => ({ ...prev, products: false }));
         }
       };
 
@@ -350,10 +360,11 @@ const Invoices = () => {
                 <select
                   value={formData.center}
                   onChange={(e) => setFormData(prev => ({ ...prev, center: e.target.value }))}
-                  className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 bg-white ${errors.center ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'}`}
+                  disabled={loading.centers}
+                  className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 bg-white ${errors.center ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'} ${loading.centers ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  <option value="">Select a center</option>
-                  {centers.map(c => (
+                  <option value="">{loading.centers ? 'Loading centers…' : 'Select a center'}</option>
+                  {!loading.centers && centers.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -375,12 +386,13 @@ const Invoices = () => {
                       setFormData(prev => ({ ...prev, customer: '', customerEmail: '' }));
                     }
                   }}
+                  disabled={loading.customers}
                   aria-invalid={!!(errors.customer || errors.customerEmail)}
                   aria-describedby={(errors.customer || errors.customerEmail) ? 'customer-error' : undefined}
-                  className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 bg-white ${(errors.customer || errors.customerEmail) ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'}`}
+                  className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 bg-white ${(errors.customer || errors.customerEmail) ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'} ${loading.customers ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  <option value="">Select customer </option>
-                  {availableCustomers.map(c => (
+                  <option value="">{loading.customers ? 'Loading customers…' : 'Select customer'}</option>
+                  {!loading.customers && availableCustomers.map(c => (
                     <option key={c.email} value={c.email}>{`${c.name} (${c.email})`}</option>
                   ))}
                 </select>
@@ -457,12 +469,19 @@ const Invoices = () => {
                         setActiveIndex(-1);
                       }}
                       onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
-                      className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white hover:border-slate-400'}`}
-                      placeholder="Search product by name or SKU"
+                      disabled={loading.products}
+                      className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white hover:border-slate-400'} ${loading.products ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      placeholder={loading.products ? "Loading products…" : "Search product by name or SKU"}
                     />
-                    {showSuggestions && filteredProducts.length > 0 && (
+                    {showSuggestions && (
                       <ul className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl">
-                        {filteredProducts.map((p, idx) => (
+                        {loading.products ? (
+                          <li className="px-4 py-3 text-slate-600 text-sm flex items-center gap-2">
+                            <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></span>
+                            Loading products…
+                          </li>
+                        ) : (
+                          filteredProducts.map((p, idx) => (
                           <li
                             key={p.id}
                             className={`px-4 py-3 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0 ${idx === activeIndex ? 'bg-blue-50 border-blue-200' : 'hover:bg-slate-50'}`}
@@ -481,7 +500,8 @@ const Invoices = () => {
                               Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}
                             </span>
                           </li>
-                        ))}
+                        ))
+                        )}
                       </ul>
                     )}
                   </div>
@@ -505,7 +525,7 @@ const Invoices = () => {
 
 
                 <div className="flex items-end">
-                  <button type="button" onClick={handleAddItem} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md">
+                  <button type="button" onClick={handleAddItem} disabled={loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                     <Plus className="h-5 w-5" />
                     Add Item
                   </button>
@@ -633,7 +653,7 @@ const Invoices = () => {
             <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 pt-6 border-t border-slate-200">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || loading.centers || loading.customers || loading.products}
                 className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-lg flex items-center justify-center gap-3 shadow-lg w-full sm:w-auto"
               >
                 {isSubmitting ? (
@@ -644,7 +664,7 @@ const Invoices = () => {
                 ) : (
                   <>
                     <Plus className="h-5 w-5" />
-                    Create Invoice
+                    {loading.centers || loading.customers || loading.products ? 'Loading…' : 'Create Invoice'}
                   </>
                 )}
               </button>
