@@ -469,11 +469,11 @@ const Invoices = () => {
                         setActiveIndex(-1);
                       }}
                       onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
-                      disabled={loading.products}
-                      className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white hover:border-slate-400'} ${loading.products ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      placeholder={loading.products ? "Loading products…" : "Search product by name or SKU"}
+                      disabled={!formData.center || loading.products}
+                      className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white hover:border-slate-400'} ${(loading.products || !formData.center) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      placeholder={!formData.center ? "Select a center first" : (loading.products ? "Loading products…" : "Search product by name or SKU")}
                     />
-                    {showSuggestions && (
+                    {showSuggestions && formData.center && (
                       <ul className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl">
                         {loading.products ? (
                           <li className="px-4 py-3 text-slate-600 text-sm flex items-center gap-2">
@@ -525,7 +525,7 @@ const Invoices = () => {
 
 
                 <div className="flex items-end">
-                  <button type="button" onClick={handleAddItem} disabled={loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="button" onClick={handleAddItem} disabled={!formData.center || loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                     <Plus className="h-5 w-5" />
                     Add Item
                   </button>

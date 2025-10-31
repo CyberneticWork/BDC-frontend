@@ -406,11 +406,11 @@ const Invoices = () => {
                         onBlur={() => {
                           setTimeout(() => setShowSuggestions(false), 150);
                         }}
-                        disabled={loading.products}
-                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} ${loading.products ? "opacity-60 cursor-not-allowed" : ""}`}
-                        placeholder={loading.products ? "Loading products…" : "Type to search product (name or SKU)"}
+                        disabled={!formData.center || loading.products}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} ${(loading.products || !formData.center) ? "opacity-60 cursor-not-allowed" : ""}`}
+                        placeholder={!formData.center ? "Select a center first" : (loading.products ? "Loading products…" : "Type to search product (name or SKU)")}
                       />
-                      {showSuggestions && (
+                      {showSuggestions && formData.center && (
                         <ul className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl">
                           {loading.products ? (
                             <li className="px-4 py-3 text-slate-600 text-sm flex items-center gap-2">
@@ -448,7 +448,7 @@ const Invoices = () => {
                     {errors.productName && <p className="text-red-500 text-sm mt-2 font-medium">{errors.productName}</p>}
                   </div>
                   <div className="flex items-end">
-                    <button type="button" onClick={handleAddItem} disabled={loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="button" onClick={handleAddItem} disabled={!formData.center || loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                       <Plus className="h-5 w-5" />
                       Add to List
                     </button>
