@@ -333,7 +333,7 @@ const Invoices = () => {
                 <input
                   type="date"
                   value={formData.date}
-                  disabled
+                  
                   title="Invoice date is auto-set and cannot be changed"
                   aria-invalid={!!errors.date}
                   aria-describedby={errors.date ? 'date-error' : undefined}
