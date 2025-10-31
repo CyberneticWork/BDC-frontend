@@ -469,12 +469,12 @@ class PMSService {
   async updatePerformanceReview(assignmentId, reviewData) {
     try {
       console.log('PMSService sending data:', reviewData); // Debug log
-      
+    
       const response = await axios.put(`/pms/performance-reviews/${assignmentId}`, reviewData);
       return response.data;
     } catch (error) {
       console.error("Error updating performance review:", error);
-      console.error("Error response data:", error.response?.data); // More detailed logging
+      console.error("Error response data:", error.response?.data);
       throw error;
     }
   }
@@ -798,6 +798,17 @@ class PMSService {
       return response.data;
     } catch (error) {
       console.error("Error checking assignee weights:", error);
+      throw error;
+    }
+  }
+
+  // Add this new method to the PMSService class
+  async savePracticalFeedback(reviewId, payload) {
+    try {
+      const response = await axios.post(`/pms/performance-reviews/${reviewId}/save-feedback`, payload);
+      return response.data;
+    } catch (error) {
+      console.error(`Error saving practical feedback for review ${reviewId}:`, error?.response?.data ?? error);
       throw error;
     }
   }
