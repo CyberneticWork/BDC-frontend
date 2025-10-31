@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import { getInvoiceData, addInvoice, getSuppliers, getProducts } from "../../services/Inventory/inventoryService";
+import { addGRN } from "../../services/Inventory/inventoryService";
+import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
+import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
+import SupplierService from "../../services/Account/SupplierService";
 import Payment from "../../components/Inventory/Payment";
 
 const Invoices = () => {
@@ -9,8 +12,8 @@ const Invoices = () => {
   const [nextGrnId, setNextGrnId] = useState("");
 
   useEffect(() => {
-    const initial = getInvoiceData();
-    setInvoices(initial);
+    // Start with empty list (remove dependency on hardcoded demo data)
+    setInvoices([]);
   }, []);
 
   useEffect(() => {
@@ -58,14 +61,70 @@ const Invoices = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const productInputRef = useRef(null);
+  const [centers, setCenters] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [products, setProducts] = useState([]);
 
     useEffect(() => {
       setFormData((p) => ({ ...p, id: nextGrnId }));
     }, [nextGrnId]);
 
-    const centers = ["Main Center", "Branch A", "Branch B", "Warehouse 01"];
-    const suppliers = getSuppliers();
-    const products = useMemo(() => getProducts?.() || [], []);
+    // Load data from services (centers, suppliers, products)
+    useEffect(() => {
+      const loadCenters = async () => {
+        try {
+          const data = await fetchCentersService();
+          const normalized = Array.isArray(data)
+            ? data.map((c) => ({
+                id: c.id ?? c.center_id ?? c.value ?? String(c.name || c.title || c),
+                name: c.name ?? c.center_name ?? c.title ?? String(c.name || c),
+              }))
+            : [];
+          setCenters(normalized);
+        } catch (e) {
+          console.error("Error fetching centers:", e);
+          setCenters([]);
+        }
+      };
+
+      const loadSuppliers = async () => {
+        try {
+          const data = await SupplierService.list();
+          const normalized = Array.isArray(data)
+            ? data.map((s) => ({ id: s.id ?? s.supplier_id ?? s.value ?? String(s.name || s.title || s), name: s.name ?? s.supplier_name ?? s.title ?? String(s.name || s) }))
+            : [];
+          setSuppliers(normalized);
+        } catch (e) {
+          console.error("Error fetching suppliers:", e);
+          setSuppliers([]);
+        }
+      };
+
+      const loadProducts = async () => {
+        try {
+          const resp = await fetchProductsService();
+          const list = Array.isArray(resp) ? resp : (Array.isArray(resp?.data) ? resp.data : []);
+          const normalized = list.map((p) => ({
+            id: p.id ?? p.product_id ?? String(p.sku || p.code || p.name),
+            name: p.name ?? p.product_name ?? p.title ?? `#${p.id}`,
+            sku: p.sku ?? p.code ?? p.product_code ?? "",
+            // keep selling/unit price if present, but also capture explicit cost
+            unitPrice: Number(p.unitPrice ?? p.price ?? p.unit_price ?? p.selling_price ?? p.cost_price ?? 0),
+            costPrice: Number(p.costPrice ?? p.cost_price ?? p.purchase_price ?? p.buying_price ?? p.cost ?? 0),
+            mrp: Number(p.mrp ?? p.mrp_price ?? p.retail_price ?? p.price ?? 0),
+            currentstock: p.currentstock ?? p.stock ?? p.qty ?? 0,
+          }));
+          setProducts(normalized);
+        } catch (e) {
+          console.error("Error fetching products:", e);
+          setProducts([]);
+        }
+      };
+
+      loadCenters();
+      loadSuppliers();
+      loadProducts();
+    }, []);
 
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
@@ -92,10 +151,10 @@ const Invoices = () => {
 
     const validateForm = () => {
       const e = {};
-      if (!formData.id) e.id = "Invoice number not generated";
-      if (!formData.center.trim()) e.center = "Center is required";
+      if (!formData.id) e.id = "GRN number not generated";
+      if (!String(formData.center).trim()) e.center = "Center is required";
       if (!formData.date) e.date = "Date is required";
-      if (!formData.supplier.trim()) e.supplier = "Supplier is required";
+      if (!String(formData.supplier).trim()) e.supplier = "Supplier is required";
       if ((items?.length || 0) === 0) e.items = "Add at least one item";
       setErrors(e);
       return Object.keys(e).length === 0;
@@ -165,8 +224,8 @@ const Invoices = () => {
       if (!pendingInvoice) return;
       setIsSubmitting(true);
       try {
-        const newInvoice = addInvoice({ ...pendingInvoice, payment: paymentData });
-        setInvoices((prev) => [...prev, newInvoice]);
+        const newGRN = addGRN({ ...pendingInvoice, payment: paymentData });
+        setInvoices((prev) => [...prev, newGRN]);
         setErrors({});
         setFormData({
           id: "",
@@ -184,6 +243,14 @@ const Invoices = () => {
         setShowPaymentModal(false);
         // Show success modal
         setSuccessText(`GRN ${pendingInvoice.id} has been created successfully!`);
+        // Refresh centers after creation per requirement
+        try {
+          const freshCenters = await fetchCentersService();
+          const normalized = Array.isArray(freshCenters)
+            ? freshCenters.map((c) => ({ id: c.id ?? c.center_id ?? c.value ?? String(c.name || c.title || c), name: c.name ?? c.center_name ?? c.title ?? String(c.name || c) }))
+            : [];
+          setCenters(normalized);
+        } catch {}
         setShowSuccess(true);
       } finally {
         setIsSubmitting(false);
@@ -212,10 +279,11 @@ const Invoices = () => {
                   <input
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
+                    disabled
+                    title="GRN date is auto-set and cannot be changed"
                     aria-invalid={!!errors.date}
                     aria-describedby={errors.date ? "date-error" : undefined}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.date ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.date ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} opacity-90 cursor-not-allowed`}
                   />
                   {errors.date && <p id="date-error" className="text-red-500 text-sm mt-2 font-medium">{errors.date}</p>}
                 </div>
@@ -229,7 +297,7 @@ const Invoices = () => {
                   >
                     <option value="">Select a center</option>
                     {centers.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                   {errors.center && <p className="text-red-500 text-sm mt-2 font-medium">{errors.center}</p>}
@@ -252,6 +320,8 @@ const Invoices = () => {
                   {errors.supplier && <p id="supplier-error" className="text-red-500 text-sm mt-2 font-medium">Supplier is required</p>}
                 </div>
               </div>
+
+              {/* Customer Details removed as requested */}
 
               <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
                 <div>
@@ -295,7 +365,10 @@ const Invoices = () => {
                           e.preventDefault();
                           if (activeIndex >= 0 && filteredProducts[activeIndex]) {
                             const p = filteredProducts[activeIndex];
-                            setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                            const defaultUnit = (typeof p.costPrice === 'number' && !Number.isNaN(p.costPrice) && p.costPrice > 0)
+                              ? Number(p.costPrice)
+                              : Number(p.unitPrice) || 0;
+                            setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
                           } else {
@@ -333,7 +406,10 @@ const Invoices = () => {
                               onMouseEnter={() => setActiveIndex(idx)}
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
-                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                                const defaultUnit = (typeof p.costPrice === 'number' && !Number.isNaN(p.costPrice) && p.costPrice > 0)
+                                  ? Number(p.costPrice)
+                                  : Number(p.unitPrice) || 0;
+                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
                                 productInputRef.current?.blur();
@@ -341,7 +417,9 @@ const Invoices = () => {
                             >
                               <span className="text-sm font-medium text-slate-900">{p.name}</span>
                               <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-                              <span className="ml-auto text-xs text-slate-600 font-medium">LKR {Number(p.unitPrice || 0).toFixed(2)}{typeof p.currentstock !== "undefined" ? ` • Stock ${p.currentstock}` : ""}</span>
+                              <span className="ml-auto text-xs text-slate-600 font-medium">
+                                Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP LKR {Number(p.mrp || 0).toFixed(2)}{typeof p.currentstock !== "undefined" ? ` • Stock ${p.currentstock}` : ""}
+                              </span>
                             </li>
                           ))}
                         </ul>
