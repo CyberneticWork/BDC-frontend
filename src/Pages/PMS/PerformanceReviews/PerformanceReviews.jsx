@@ -939,7 +939,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
                 rows="4"
                 maxLength="2000"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-vertical"
-                placeholder="Provide specific, actionable feedback to help the employee improve their performance and achieve better results..."
+                placeholder="Provide specific, actionable feedback to help improve their performance and achieve better results..."
               ></textarea>
               <div className="flex justify-between items-center mt-1">
                 <div className="text-xs text-gray-500">
@@ -1052,6 +1052,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
         grade: review.grade,
         progress: review.progress,
         supervisorComments: review.supervisorComments,
+        practicalFeedback: details?.performanceReview?.practicalFeedback ?? review.practicalFeedback ?? null, // Add this line
         lastUpdated: review.lastUpdated,
         selfReportedProgress: review.selfReportedProgress,
         selfReportedLastUpdated: review.selfReportedLastUpdated,
@@ -1293,6 +1294,45 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Supervisor Comments</h3>
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="text-gray-700 whitespace-pre-line">{reviewDetails.supervisorComments}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Practical Feedback */}
+              {reviewDetails.practicalFeedback && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <div className="p-1 rounded-full bg-purple-100">
+                      <Award className="h-4 w-4 text-purple-600" />
+                    </div>
+                    Practical Feedback
+                  </h3>
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <FileText className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="mb-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Actionable Feedback
+                          </span>
+                        </div>
+                        <p className="text-gray-800 whitespace-pre-line leading-relaxed">{reviewDetails.practicalFeedback}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Optional: Add feedback metadata if available */}
+                    <div className="mt-4 pt-3 border-t border-purple-200">
+                      <div className="flex items-center gap-2 text-xs text-purple-700">
+                        <div className="w-4 h-4">
+                          <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                          </svg>
+                        </div>
+                        <span>This feedback is designed to help improve performance and achieve better results</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1643,6 +1683,7 @@ const getTaskTypeBadge = (taskType) => {
             </div>
             
             <textarea 
+ 
               id="practical-feedback-input" 
               class="feedback-textarea" 
               placeholder="Provide specific, actionable feedback to help improve performance and achieve better results..."
@@ -1665,7 +1706,6 @@ const getTaskTypeBadge = (taskType) => {
               </ul>
             </div>
           </div>
-        </div>
 
         <style>
           .practical-feedback-modal {
