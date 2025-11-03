@@ -2618,7 +2618,7 @@ const handleSaveProgressReview = async (updatedReview) => {
                         )}
 
                         {/* Practical Feedback - open feedback prompt */}
-                        {userRole !== 'user' && userPermissions.edit && (
+                        {/* {userRole !== 'user' && userPermissions.edit && (
                           <button
                             className="text-teal-600 hover:text-teal-900 p-1"
                             onClick={() => openPracticalFeedbackModal(review)}
@@ -2626,7 +2626,7 @@ const handleSaveProgressReview = async (updatedReview) => {
                           >
                             <Award className="h-4 w-4" />
                           </button>
-                        )}
+                        )} */}
 
                         {/* Show Edit Review only if not "user" role and has edit permission */}
                         {/* {userRole !== 'user' && userPermissions.edit && (
