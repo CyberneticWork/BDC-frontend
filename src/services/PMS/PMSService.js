@@ -790,6 +790,17 @@ class PMSService {
       throw error;
     }
   }
+
+  // Add this new method
+  async checkAssigneeWeights(data) {
+    try {
+      const response = await axios.post('/pms/kpi-task-assignments/check-weights', data);
+      return response.data;
+    } catch (error) {
+      console.error("Error checking assignee weights:", error);
+      throw error;
+    }
+  }
 }
 
 export default new PMSService();
