@@ -5,6 +5,7 @@ import { fetchCenters as fetchCentersService } from "../../services/Inventory/ce
 import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
 import SupplierService from "../../services/Account/SupplierService";
 import Payment from "../../components/Inventory/Payment";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
@@ -38,6 +39,7 @@ const Invoices = () => {
   };
 
   const InlineNewInvoiceForm = ({ nextGrnId }) => {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
       id: "",
       center: "",
@@ -240,8 +242,21 @@ const Invoices = () => {
       if (!pendingInvoice) return;
       setIsSubmitting(true);
       try {
-        const newGRN = await createGRN({ ...pendingInvoice, payment: paymentData });
-        setInvoices((prev) => [...prev, newGRN]);
+        const dataToSend = {
+          // Send both id and voucherNumber (backend accepts either) and add created_by fallback
+          voucherNumber: pendingInvoice?.id,
+          ...pendingInvoice,
+          payment: paymentData,
+          created_by: user?.id ?? undefined,
+          // Map payment amount to inventory.paid_value as required by backend
+          paid_value: typeof paymentData?.amount === 'number' ? paymentData.amount : Number(paymentData?.amount) || 0,
+        };
+  console.log("Data to be sent to backend:", dataToSend);
+  const apiResp = await createGRN(dataToSend);
+  const saved = apiResp?.data ?? apiResp;
+  const voucher = saved?.voucherNumber || pendingInvoice?.id;
+  // Push a minimal record using voucher id so next sequence increments correctly
+  setInvoices((prev) => [...prev, { id: voucher }]);
         setErrors({});
         setFormData({
           id: "",
@@ -257,8 +272,8 @@ const Invoices = () => {
         setItems([]);
         setPendingInvoice(null);
         setShowPaymentModal(false);
-        // Show success modal
-        setSuccessText(`GRN ${newGRN.grnNumber || newGRN.id} has been created successfully!`);
+  // Show success modal
+  setSuccessText(`GRN ${voucher} has been created successfully!`);
         // Refresh centers after creation per requirement
         try {
           const freshCenters = await fetchCentersService();
