@@ -158,7 +158,7 @@ const AddKpiTaskModal = ({ isOpen, onClose, onCreated }) => {
       await Swal.fire({ icon: "success", title: "Deleted", timer: 900, showConfirmButton: false });
     } catch (err) {
       console.error("Failed to delete KPI task:", err);
-      await Swal.fire({ icon: "error", title: "Error", text: "Failed to delete KPI task." });
+      await Swal.fire({ icon: "error", title: "Error", text: "Failed to delete KPI task: Cannot delete this KPI task as it is currently assigned to employees" });
     } finally {
       setBusyId(null);
     }

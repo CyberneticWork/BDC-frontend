@@ -525,30 +525,8 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
 
   const minStartDateForMode = computeMinStartDate(initialData);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Prevent start date in the past only for Create mode
-    if (!isEdit && formData.startDate && formData.startDate < getToday()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Invalid Start Date",
-        text: "Start date cannot be in the past. Please choose today or a future date.",
-        confirmButtonColor: "#F59E0B",
-      });
-      return;
-    }
-
-    // Existing end-date validation (keeps ensuring end > start)
-    if (formData.endDate && formData.startDate && formData.endDate < formData.startDate) {
-      Swal.fire({
-        icon: "warning",
-        title: "Invalid Date Range",
-        text: "End date must be after start date.",
-        confirmButtonColor: "#F59E0B",
-      });
-      return;
-    }
 
     // Validate weights total: must not exceed 100%
     const totalWeights = Array.isArray(formData.weights)
@@ -556,8 +534,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       : 0;
     
     if (totalWeights > 100) {
-      // show validation and keep current form data intact
-      Swal.fire({
+      await Swal.fire({
         icon: "warning",
         title: "Weights sum exceeds 100%",
         html: `The total of all performance criteria weights is <strong>${totalWeights}%</strong>. Please adjust so the total does not exceed <strong>100%</strong>.`,
@@ -565,13 +542,64 @@ const TaskModal = ({ isOpen, onClose, onSubmit, initialData = {}, isEdit = false
       });
       return;
     }
-    
+
+    // New: Check weights for each assignee (only for regular KPIs)
+    if (!formData.kpi_type) { // Only check for regular KPIs
+      try {
+        const checkData = {
+          assignees: formData.assignees,
+          start_date: formData.startDate,
+          end_date: formData.endDate,
+          weights: formData.weights,
+          kpi_task_id: isEdit && initialData?.id ? initialData.id : null // Fix: Use initialData.id instead of currentKpi.id
+        };
+
+        const weightCheck = await PMSService.checkAssigneeWeights(checkData);
+
+        if (weightCheck.hasOverLimit) {
+          let message = '<div class="text-left">';
+          message += '<p class="mb-4">Cannot assign this KPI task. The following employees would exceed 100% total weights for the month:</p>';
+          message += '<ul class="list-disc pl-4 space-y-2">';
+          
+          weightCheck.overLimitAssignees.forEach(assignee => {
+            message += `
+              <li>
+                <strong>${assignee.name}</strong><br>
+                Current total: ${assignee.currentTotal}%<br>
+                New task weights: ${totalWeights}%<br>
+                Would exceed by: ${(assignee.currentTotal + totalWeights - 100).toFixed(1)}%
+              </li>
+            `;
+          });
+          
+          message += '</ul></div>';
+
+          await Swal.fire({
+            icon: "warning",
+            title: "Weight Limit Exceeded",
+            html: message,
+            confirmButtonColor: "#F59E0B",
+          });
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking assignee weights:", error);
+        await Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Failed to validate assignee weights. Please try again.",
+        });
+        return;
+      }
+    }
+
     // Add computed names to formData before submitting
     const enrichedFormData = {
       ...formData,
       companyName: getCompanyName(formData.company),
       departmentName: getDepartmentName(formData.department),
     };
+
     onSubmit(enrichedFormData);
   };
 
