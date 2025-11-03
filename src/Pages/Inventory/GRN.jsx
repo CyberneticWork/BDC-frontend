@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import { addGRN } from "../../services/Inventory/inventoryService";
+import { createGRN } from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
 import SupplierService from "../../services/Account/SupplierService";
@@ -240,7 +240,7 @@ const Invoices = () => {
       if (!pendingInvoice) return;
       setIsSubmitting(true);
       try {
-        const newGRN = addGRN({ ...pendingInvoice, payment: paymentData });
+        const newGRN = await createGRN({ ...pendingInvoice, payment: paymentData });
         setInvoices((prev) => [...prev, newGRN]);
         setErrors({});
         setFormData({
@@ -258,7 +258,7 @@ const Invoices = () => {
         setPendingInvoice(null);
         setShowPaymentModal(false);
         // Show success modal
-        setSuccessText(`GRN ${pendingInvoice.id} has been created successfully!`);
+        setSuccessText(`GRN ${newGRN.grnNumber || newGRN.id} has been created successfully!`);
         // Refresh centers after creation per requirement
         try {
           const freshCenters = await fetchCentersService();
@@ -271,6 +271,9 @@ const Invoices = () => {
           console.warn("refresh centers failed", e);
         }
         setShowSuccess(true);
+      } catch (error) {
+        console.error('Error creating GRN:', error);
+        // TODO: Show error message to user
       } finally {
         setIsSubmitting(false);
       }
