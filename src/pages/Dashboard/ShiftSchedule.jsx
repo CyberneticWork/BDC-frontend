@@ -186,45 +186,65 @@ const ShiftModal = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Morning OT Start</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Morning OT Start
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="time"
                   value={form.morningOtStart || ""}
-                  onChange={(e) => setForm({ ...form, morningOtStart: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, morningOtStart: e.target.value })
+                  }
                 />
                 {errors.morning_ot_start && (
-                  <div className="text-xs text-red-600 mt-1">{errors.morning_ot_start[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.morning_ot_start[0]}
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Morning OT End</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Morning OT End
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="time"
                   value={form.morningOtEnd || ""}
-                  onChange={(e) => setForm({ ...form, morningOtEnd: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, morningOtEnd: e.target.value })
+                  }
                 />
                 {errors.morning_ot_end && (
-                  <div className="text-xs text-red-600 mt-1">{errors.morning_ot_end[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.morning_ot_end[0]}
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Morning OT Rate</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Morning OT Rate
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={form.morningOtRate || ""}
-                  onChange={(e) => setForm({ ...form, morningOtRate: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, morningOtRate: e.target.value })
+                  }
                 />
                 {errors.morning_ot_rate && (
-                  <div className="text-xs text-red-600 mt-1">{errors.morning_ot_rate[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.morning_ot_rate[0]}
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Morning OT Max Minutes</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Morning OT Max Minutes
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="number"
@@ -232,10 +252,14 @@ const ShiftModal = ({
                   min="0"
                   placeholder="0"
                   value={form.morningOtMaxMinutes || ""}
-                  onChange={(e) => setForm({ ...form, morningOtMaxMinutes: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, morningOtMaxMinutes: e.target.value })
+                  }
                 />
                 {errors.morning_ot_max_minutes && (
-                  <div className="text-xs text-red-600 mt-1">{errors.morning_ot_max_minutes[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.morning_ot_max_minutes[0]}
+                  </div>
                 )}
               </div>
             </div>
@@ -249,33 +273,47 @@ const ShiftModal = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Night OT Start</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Night OT Start
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="time"
                   value={form.nightOtStart || ""}
-                  onChange={(e) => setForm({ ...form, nightOtStart: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, nightOtStart: e.target.value })
+                  }
                 />
                 {errors.night_ot_start && (
-                  <div className="text-xs text-red-600 mt-1">{errors.night_ot_start[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.night_ot_start[0]}
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Night OT End</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Night OT End
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="time"
                   value={form.nightOtEnd || ""}
-                  onChange={(e) => setForm({ ...form, nightOtEnd: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, nightOtEnd: e.target.value })
+                  }
                 />
                 {errors.night_ot_end && (
-                  <div className="text-xs text-red-600 mt-1">{errors.night_ot_end[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.night_ot_end[0]}
+                  </div>
                 )}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Night Normal OT Max Minutes</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Night Normal OT Max Minutes
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="number"
@@ -283,43 +321,61 @@ const ShiftModal = ({
                   min="0"
                   placeholder="0"
                   value={form.nightNormalOtMaxMinutes || ""}
-                  onChange={(e) => setForm({ ...form, nightNormalOtMaxMinutes: e.target.value })}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      nightNormalOtMaxMinutes: e.target.value,
+                    })
+                  }
                 />
                 {errors.night_normal_ot_max_minutes && (
-                  <div className="text-xs text-red-600 mt-1">{errors.night_normal_ot_max_minutes[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.night_normal_ot_max_minutes[0]}
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Night Normal OT Rate</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Night Normal OT Rate
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={form.nightNormalOtRate || ""}
-                  onChange={(e) => setForm({ ...form, nightNormalOtRate: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, nightNormalOtRate: e.target.value })
+                  }
                 />
                 {errors.night_normal_ot_rate && (
-                  <div className="text-xs text-red-600 mt-1">{errors.night_normal_ot_rate[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.night_normal_ot_rate[0]}
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Night Special OT Rate</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Night Special OT Rate
+                </label>
                 <input
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={form.nightSpecialOtRate || ""}
-                  onChange={(e) => setForm({ ...form, nightSpecialOtRate: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, nightSpecialOtRate: e.target.value })
+                  }
                 />
                 {errors.night_special_ot_rate && (
-                  <div className="text-xs text-red-600 mt-1">{errors.night_special_ot_rate[0]}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.night_special_ot_rate[0]}
+                  </div>
                 )}
               </div>
             </div>
           </div>
-
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
@@ -667,8 +723,6 @@ const ShiftSchedule = () => {
               <Users className="w-8 h-8 text-blue-500" />
             </div>
           </div>
-         
-          
         </div>
       </div>
 
@@ -738,9 +792,7 @@ const ShiftSchedule = () => {
                   <tr
                     key={shift.code}
                     className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 ${
-                      index % 2 === 0
-                        ? "bg-white"
-                        : "bg-gray-50/30"
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                     }`}
                   >
                     <td className="px-4 py-4">
@@ -754,7 +806,6 @@ const ShiftSchedule = () => {
                           <span className="text-sm font-semibold text-gray-900">
                             {shift.description}
                           </span>
-                          
                         </div>
                         <div className="flex items-center gap-4 text-xs text-gray-600">
                           <div className="flex items-center gap-1">
@@ -795,32 +846,65 @@ const ShiftSchedule = () => {
                     <td className="px-4 py-4">
                       <div className="space-y-2 text-sm text-gray-700">
                         <div className="flex flex-col gap-1">
-                          <span className="font-semibold text-gray-900">Morning OT</span>
+                          <span className="font-semibold text-gray-900">
+                            Morning OT
+                          </span>
                           <div className="flex flex-wrap items-center gap-3">
-                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">Start: {formatTime(shift.morningOtStart)}</span>
-                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">End: {formatTime(shift.morningOtEnd)}</span>
-                            {shift.morningOtRate !== null && shift.morningOtRate !== undefined && shift.morningOtRate !== "" && (
-                              <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">Rate: {shift.morningOtRate}</span>
-                            )}
-                            {shift.morningOtMaxMinutes !== null && shift.morningOtMaxMinutes !== undefined && shift.morningOtMaxMinutes !== "" && (
-                              <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">Max: {shift.morningOtMaxMinutes} min</span>
-                            )}
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                              Start: {formatTime(shift.morningOtStart)}
+                            </span>
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                              End: {formatTime(shift.morningOtEnd)}
+                            </span>
+                            {shift.morningOtRate !== null &&
+                              shift.morningOtRate !== undefined &&
+                              shift.morningOtRate !== "" && (
+                                <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                                  Rate: {shift.morningOtRate}
+                                </span>
+                              )}
+                            {shift.morningOtMaxMinutes !== null &&
+                              shift.morningOtMaxMinutes !== undefined &&
+                              shift.morningOtMaxMinutes !== "" && (
+                                <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                                  Max: {shift.morningOtMaxMinutes} min
+                                </span>
+                              )}
                           </div>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="font-semibold text-gray-900">Night OT</span>
+                          <span className="font-semibold text-gray-900">
+                            Night OT
+                          </span>
                           <div className="flex flex-wrap items-center gap-3">
-                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">Start: {formatTime(shift.nightOtStart)}</span>
-                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">End: {formatTime(shift.nightOtEnd)}</span>
-                            {shift.nightNormalOtMaxMinutes !== null && shift.nightNormalOtMaxMinutes !== undefined && shift.nightNormalOtMaxMinutes !== "" && (
-                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">Normal Max: {shift.nightNormalOtMaxMinutes} min</span>
-                            )}
-                            {shift.nightNormalOtRate !== null && shift.nightNormalOtRate !== undefined && shift.nightNormalOtRate !== "" && (
-                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">Normal Rate: {shift.nightNormalOtRate}</span>
-                            )}
-                            {shift.nightSpecialOtRate !== null && shift.nightSpecialOtRate !== undefined && shift.nightSpecialOtRate !== "" && (
-                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">Special Rate: {shift.nightSpecialOtRate}</span>
-                            )}
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                              Start: {formatTime(shift.nightOtStart)}
+                            </span>
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                              End: {formatTime(shift.nightOtEnd)}
+                            </span>
+                            {shift.nightNormalOtMaxMinutes !== null &&
+                              shift.nightNormalOtMaxMinutes !== undefined &&
+                              shift.nightNormalOtMaxMinutes !== "" && (
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                                  Normal Max: {shift.nightNormalOtMaxMinutes}{" "}
+                                  min
+                                </span>
+                              )}
+                            {shift.nightNormalOtRate !== null &&
+                              shift.nightNormalOtRate !== undefined &&
+                              shift.nightNormalOtRate !== "" && (
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                                  Normal Rate: {shift.nightNormalOtRate}
+                                </span>
+                              )}
+                            {shift.nightSpecialOtRate !== null &&
+                              shift.nightSpecialOtRate !== undefined &&
+                              shift.nightSpecialOtRate !== "" && (
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                                  Special Rate: {shift.nightSpecialOtRate}
+                                </span>
+                              )}
                           </div>
                         </div>
                       </div>
