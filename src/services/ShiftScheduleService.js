@@ -21,6 +21,16 @@ const ShiftScheduleService = {
         start_time: shiftData.startTime,
         end_time: shiftData.endTime,
         midnight_roster: shiftData.midnightRoster,
+        // New OT fields
+        morning_ot_start: shiftData.morningOtStart,
+        morning_ot_end: shiftData.morningOtEnd,
+        morning_ot_rate: shiftData.morningOtRate,
+        morning_ot_max_minutes: shiftData.morningOtMaxMinutes,
+        night_ot_start: shiftData.nightOtStart,
+        night_ot_end: shiftData.nightOtEnd,
+        night_normal_ot_max_minutes: shiftData.nightNormalOtMaxMinutes,
+        night_normal_ot_rate: shiftData.nightNormalOtRate,
+        night_special_ot_rate: shiftData.nightSpecialOtRate,
       });
       return response.data.data;
     } catch (error) {
@@ -38,6 +48,16 @@ const ShiftScheduleService = {
         start_time: shiftData.startTime,
         end_time: shiftData.endTime,
         midnight_roster: shiftData.midnightRoster,
+        // New OT fields
+        morning_ot_start: shiftData.morningOtStart,
+        morning_ot_end: shiftData.morningOtEnd,
+        morning_ot_rate: shiftData.morningOtRate,
+        morning_ot_max_minutes: shiftData.morningOtMaxMinutes,
+        night_ot_start: shiftData.nightOtStart,
+        night_ot_end: shiftData.nightOtEnd,
+        night_normal_ot_max_minutes: shiftData.nightNormalOtMaxMinutes,
+        night_normal_ot_rate: shiftData.nightNormalOtRate,
+        night_special_ot_rate: shiftData.nightSpecialOtRate,
       });
       return response.data.data;
     } catch (error) {
