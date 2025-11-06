@@ -38,13 +38,8 @@ const ShiftModal = ({
     // New OT fields
     morningOtStart: "",
     morningOtEnd: "",
-    morningOtRate: "",
-    morningOtMaxMinutes: "",
     nightOtStart: "",
     nightOtEnd: "",
-    nightNormalOtMaxMinutes: "",
-    nightNormalOtRate: "",
-    nightSpecialOtRate: "",
     ...initialData,
   });
 
@@ -187,7 +182,7 @@ const ShiftModal = ({
                 <i>(Optional)</i>
               </span>
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Morning OT Start
@@ -224,47 +219,6 @@ const ShiftModal = ({
                   </div>
                 )}
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Morning OT Rate
-                </label>
-                <input
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.morningOtRate || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, morningOtRate: e.target.value })
-                  }
-                />
-                {errors.morning_ot_rate && (
-                  <div className="text-xs text-red-600 mt-1">
-                    {errors.morning_ot_rate[0]}
-                  </div>
-                )}
-              </div>
-              {/* <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Morning OT Max Minutes
-                </label>
-                <input
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  type="number"
-                  step="1"
-                  min="0"
-                  placeholder="0"
-                  value={form.morningOtMaxMinutes || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, morningOtMaxMinutes: e.target.value })
-                  }
-                />
-                {errors.morning_ot_max_minutes && (
-                  <div className="text-xs text-red-600 mt-1">
-                    {errors.morning_ot_max_minutes[0]}
-                  </div>
-                )}
-              </div> */}
             </div>
           </div>
 
@@ -311,72 +265,6 @@ const ShiftModal = ({
                 {errors.night_ot_end && (
                   <div className="text-xs text-red-600 mt-1">
                     {errors.night_ot_end[0]}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Night Normal OT Max Minutes
-                </label>
-                <input
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  type="number"
-                  step="1"
-                  min="0"
-                  placeholder="0"
-                  value={form.nightNormalOtMaxMinutes || ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      nightNormalOtMaxMinutes: e.target.value,
-                    })
-                  }
-                />
-                {errors.night_normal_ot_max_minutes && (
-                  <div className="text-xs text-red-600 mt-1">
-                    {errors.night_normal_ot_max_minutes[0]}
-                  </div>
-                )}
-              </div> */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Night Normal OT Rate
-                </label>
-                <input
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.nightNormalOtRate || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, nightNormalOtRate: e.target.value })
-                  }
-                />
-                {errors.night_normal_ot_rate && (
-                  <div className="text-xs text-red-600 mt-1">
-                    {errors.night_normal_ot_rate[0]}
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Night Special OT Rate
-                </label>
-                <input
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.nightSpecialOtRate || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, nightSpecialOtRate: e.target.value })
-                  }
-                />
-                {errors.night_special_ot_rate && (
-                  <div className="text-xs text-red-600 mt-1">
-                    {errors.night_special_ot_rate[0]}
                   </div>
                 )}
               </div>
@@ -477,13 +365,8 @@ const ShiftSchedule = () => {
           // New OT fields mapping
           morningOtStart: shift.morning_ot_start,
           morningOtEnd: shift.morning_ot_end,
-          morningOtRate: shift.morning_ot_rate,
-          morningOtMaxMinutes: shift.morning_ot_max_minutes,
           nightOtStart: shift.night_ot_start,
           nightOtEnd: shift.night_ot_end,
-          nightNormalOtMaxMinutes: shift.night_normal_ot_max_minutes,
-          nightNormalOtRate: shift.night_normal_ot_rate,
-          nightSpecialOtRate: shift.night_special_ot_rate,
         }))
       );
     } catch (error) {

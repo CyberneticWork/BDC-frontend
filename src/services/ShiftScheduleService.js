@@ -1,5 +1,14 @@
 import axios from "@utils/axios";
 
+// Ensure time strings match backend expected format 'H:i' (e.g., '09:30')
+const toHM = (t) => {
+  if (!t) return null;
+  const s = String(t);
+  // Accept 'HH:MM' or 'HH:MM:SS' -> trim to first 5 chars
+  if (s.length >= 5 && s.includes(":")) return s.slice(0, 5);
+  return s;
+};
+
 const ShiftScheduleService = {
   // Get all shifts
   getAllShifts: async () => {
@@ -18,19 +27,14 @@ const ShiftScheduleService = {
       const response = await axios.post("/shifts", {
         shift_code: shiftData.code,
         shift_description: shiftData.description,
-        start_time: shiftData.startTime,
-        end_time: shiftData.endTime,
+        start_time: toHM(shiftData.startTime),
+        end_time: toHM(shiftData.endTime),
         midnight_roster: shiftData.midnightRoster,
         // New OT fields
-        morning_ot_start: shiftData.morningOtStart,
-        morning_ot_end: shiftData.morningOtEnd,
-        morning_ot_rate: shiftData.morningOtRate,
-        morning_ot_max_minutes: shiftData.morningOtMaxMinutes,
+        morning_ot_start: toHM(shiftData.morningOtStart),
+        morning_ot_end: toHM(shiftData.morningOtEnd),
         night_ot_start: shiftData.nightOtStart,
-        night_ot_end: shiftData.nightOtEnd,
-        night_normal_ot_max_minutes: shiftData.nightNormalOtMaxMinutes,
-        night_normal_ot_rate: shiftData.nightNormalOtRate,
-        night_special_ot_rate: shiftData.nightSpecialOtRate,
+        night_ot_end: toHM(shiftData.nightOtEnd),
       });
       return response.data.data;
     } catch (error) {
@@ -45,19 +49,14 @@ const ShiftScheduleService = {
       const response = await axios.put(`/shifts/${id}`, {
         shift_code: shiftData.code,
         shift_description: shiftData.description,
-        start_time: shiftData.startTime,
-        end_time: shiftData.endTime,
+        start_time: toHM(shiftData.startTime),
+        end_time: toHM(shiftData.endTime),
         midnight_roster: shiftData.midnightRoster,
         // New OT fields
-        morning_ot_start: shiftData.morningOtStart,
-        morning_ot_end: shiftData.morningOtEnd,
-        morning_ot_rate: shiftData.morningOtRate,
-        morning_ot_max_minutes: shiftData.morningOtMaxMinutes,
-        night_ot_start: shiftData.nightOtStart,
-        night_ot_end: shiftData.nightOtEnd,
-        night_normal_ot_max_minutes: shiftData.nightNormalOtMaxMinutes,
-        night_normal_ot_rate: shiftData.nightNormalOtRate,
-        night_special_ot_rate: shiftData.nightSpecialOtRate,
+        morning_ot_start: toHM(shiftData.morningOtStart),
+        morning_ot_end: toHM(shiftData.morningOtEnd),
+        night_ot_start: toHM(shiftData.nightOtStart),
+        night_ot_end: toHM(shiftData.nightOtEnd),
       });
       return response.data.data;
     } catch (error) {
