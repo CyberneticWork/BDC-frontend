@@ -183,6 +183,9 @@ const ShiftModal = ({
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
               Morning OT
+              <span className="text-xs text-gray-500">
+                <i>(Optional)</i>
+              </span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
@@ -241,7 +244,7 @@ const ShiftModal = ({
                   </div>
                 )}
               </div>
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Morning OT Max Minutes
                 </label>
@@ -261,7 +264,7 @@ const ShiftModal = ({
                     {errors.morning_ot_max_minutes[0]}
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -270,6 +273,9 @@ const ShiftModal = ({
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
               Night OT
+              <span className="text-xs text-gray-500">
+                <i>(Optional)</i>
+              </span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -310,7 +316,7 @@ const ShiftModal = ({
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Night Normal OT Max Minutes
                 </label>
@@ -333,7 +339,7 @@ const ShiftModal = ({
                     {errors.night_normal_ot_max_minutes[0]}
                   </div>
                 )}
-              </div>
+              </div> */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Night Normal OT Rate
