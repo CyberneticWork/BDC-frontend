@@ -307,6 +307,32 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
 
                   <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
                     <label
+                      htmlFor="otActiveSpecial"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Special OT Active
+                    </label>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      style={{
+                        backgroundColor: formData.compensation.otActiveSpecial
+                          ? "#3b82f6"
+                          : "#e5e7eb",
+                      }}
+                      onClick={() => handleToggleChange("otActiveSpecial")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          formData.compensation.otActiveSpecial
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <label
                       htmlFor="nopayActive"
                       className="text-sm font-medium text-gray-700"
                     >
@@ -467,6 +493,115 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                       />
                     </div>
                     <FieldError error={errors.compensation?.ot_night_rate} />
+                  </div>
+                </div>
+
+                <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-4 flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />
+                  Special Overtime Settings
+                </h2>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <label
+                      htmlFor="morningOtSpecial"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Morning OT
+                    </label>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      style={{
+                        backgroundColor: formData.compensation.morningOtSpecial
+                          ? "#3b82f6"
+                          : "#e5e7eb",
+                      }}
+                      onClick={() => handleToggleChange("morningOtSpecial")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          formData.compensation.morningOtSpecial
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <label
+                      htmlFor="eveningOtSpecial"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Evening OT
+                    </label>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      style={{
+                        backgroundColor: formData.compensation.eveningOtSpecial
+                          ? "#3b82f6"
+                          : "#e5e7eb",
+                      }}
+                      onClick={() => handleToggleChange("eveningOtSpecial")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          formData.compensation.eveningOtSpecial
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Morning OT Rate <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.compensation.ot_morning_rate_special}
+                        onChange={(e) =>
+                          handleInputChange("ot_morning_rate_special", e.target.value)
+                        }
+                        onKeyDown={handleKeyDown}
+                        className={`w-full pl-10 pr-4 py-3 border ${
+                          errors.compensation?.ot_morning_rate_special
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                        placeholder="Enter Morning OT Rate"
+                        required
+                      />
+                    </div>
+                    <FieldError error={errors.compensation?.ot_morning_rate_special} />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Night OT Rate <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.compensation.ot_night_rate_special}
+                        onChange={(e) =>
+                          handleInputChange("ot_night_rate_special", e.target.value)
+                        }
+                        onKeyDown={handleKeyDown}
+                        className={`w-full pl-10 pr-4 py-3 border ${
+                          errors.compensation?.ot_night_rate_special
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                        placeholder="Enter Night OT Rate"
+                        required
+                      />
+                    </div>
+                    <FieldError error={errors.compensation?.ot_night_rate_special} />
                   </div>
                 </div>
               </div>

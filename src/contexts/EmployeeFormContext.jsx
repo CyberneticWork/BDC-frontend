@@ -66,6 +66,9 @@ const initialState = {
     primaryEmploymentBasic: false,
     enableEpfEtf: false,
     otActive: false,
+
+    otActiveSpecial: false,
+
     earlyDeduction: false,
     incrementActive: false,
     nopayActive: false,
@@ -73,6 +76,12 @@ const initialState = {
     ot_morning_rate: "0",
     ot_night_rate: "0",
     eveningOt: false,
+
+    morningOtSpecial: false,
+    ot_morning_rate_special: "0",
+    ot_night_rate_special: "0",
+    eveningOtSpecial: false,
+
     budgetaryReliefAllowance2015: false,
     budgetaryReliefAllowance2016: false,
     stamp: false,
