@@ -77,7 +77,7 @@ const Sidebar = ({
         {
           id: "allowanceDeduction",
           name: "Compensation",
-          icon: DollarSign,
+         
           subItems: [
             { id: "createNewAllowance", name: "Allowance" },
             { id: "createNewDeduction", name: "Deduction" },
@@ -86,7 +86,7 @@ const Sidebar = ({
         {
           id: "loans",
           name: "Loans",
-          icon: DollarSign,
+        
           subItems: [
             { id: "viewLoans", name: "View Loans" },
             { id: "employeeLoan", name: "Employee Wise Loan" },
@@ -95,7 +95,7 @@ const Sidebar = ({
         {
           id: "salaryProcess",
           name: "Salary Process",
-          icon: DollarSign,
+         
           subItems: [
             { id: "SalaryProcessPage", name: "Salary Process" },
             { id: "SalaryPage", name: "View Salary" },
@@ -104,7 +104,7 @@ const Sidebar = ({
         {
           id: "timeAttendance",
           name: "Time Attendance",
-          icon: UserCheck,
+        
           subItems: [
             { id: "TimeCard", name: "Time Card" },
             { id: "Overtime", name: "Over Time" },
