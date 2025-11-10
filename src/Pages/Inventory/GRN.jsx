@@ -44,6 +44,11 @@ const Invoices = () => {
       id: "",
       center: "",
       supplier: "",
+  supplierName: "",
+  centerName: "",
+      customerId: "",
+      fromCenter: "",
+      toCenter: "",
       date: new Date().toISOString().split("T")[0],
       status: "pending",
       refNumber: "",
@@ -242,10 +247,21 @@ const Invoices = () => {
       if (!pendingInvoice) return;
       setIsSubmitting(true);
       try {
+        const centerId = pendingInvoice.center_id ?? pendingInvoice.center ?? "";
+        const supplierId = pendingInvoice.supplier_id ?? pendingInvoice.supplier ?? "";
+        const customerId = pendingInvoice.customer_id ?? pendingInvoice.customerId ?? "";
+        const fromCenter = pendingInvoice.from_center ?? pendingInvoice.fromCenter ?? centerId;
+        const toCenter = pendingInvoice.to_center ?? pendingInvoice.toCenter ?? centerId;
+
         const dataToSend = {
           // Send both id and voucherNumber (backend accepts either) and add created_by fallback
-          voucherNumber: pendingInvoice?.id,
           ...pendingInvoice,
+          voucherNumber: pendingInvoice?.id,
+          center_id: centerId,
+          supplier_id: supplierId,
+          customer_id: customerId,
+          from_center: fromCenter,
+          to_center: toCenter,
           payment: paymentData,
           created_by: user?.id ?? undefined,
           // Map payment amount to inventory.paid_value as required by backend
@@ -264,7 +280,12 @@ const Invoices = () => {
         setFormData({
           id: "",
           center: "",
+          centerName: "",
           supplier: "",
+          supplierName: "",
+          customerId: "",
+          fromCenter: "",
+          toCenter: "",
           date: new Date().toISOString().split("T")[0],
           status: "pending",
           refNumber: "",
@@ -332,7 +353,17 @@ const Invoices = () => {
                   <label className="block text-sm font-semibold text-slate-700 mb-3">Center *</label>
                   <select
                     value={formData.center}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, center: e.target.value }))}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const selected = centers.find((c) => String(c.id) === String(selectedId));
+                      setFormData((prev) => ({
+                        ...prev,
+                        center: selectedId,
+                        fromCenter: selectedId,
+                        toCenter: selectedId,
+                        centerName: selected?.name || "",
+                      }));
+                    }}
                     disabled={loading.centers}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} ${loading.centers ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
@@ -348,7 +379,15 @@ const Invoices = () => {
                   <label className="block text-sm font-semibold text-slate-700 mb-3">Supplier Name *</label>
                   <select
                     value={formData.supplier}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, supplier: e.target.value }))}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const selected = suppliers.find((s) => String(s.id) === String(selectedId));
+                      setFormData((prev) => ({
+                        ...prev,
+                        supplier: selectedId,
+                        supplierName: selected?.name || "",
+                      }));
+                    }}
                     disabled={loading.suppliers}
                     aria-invalid={!!errors.supplier}
                     aria-describedby={errors.supplier ? "supplier-error" : undefined}
@@ -356,7 +395,7 @@ const Invoices = () => {
                   >
                     <option value="">{loading.suppliers ? 'Loading suppliers…' : 'Select supplier'}</option>
                     {!loading.suppliers && suppliers.map((s) => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                   {errors.supplier && <p id="supplier-error" className="text-red-500 text-sm mt-2 font-medium">Supplier is required</p>}
