@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { createGRN, getNextGrn } from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
@@ -7,27 +7,43 @@ import SupplierService from "../../services/Account/SupplierService";
 import Payment from "../../components/Inventory/Payment";
 import { useAuth } from "../../contexts/AuthContext";
 
+const incrementGrnCode = (code) => {
+  if (!code) return "";
+  const match = String(code).match(/^(.*?)(\d+)([^0-9]*)$/);
+  if (!match) return String(code);
+  const [, prefix, digits, suffix] = match;
+  const nextDigits = (parseInt(digits, 10) + 1).toString().padStart(digits.length, "0");
+  return `${prefix}${nextDigits}${suffix}`;
+};
+
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Display the next GRN fetched from backend
   const [nextGrnId, setNextGrnId] = useState("");
 
+  const refreshNextGrn = useCallback(async () => {
+    try {
+      const resp = await getNextGrn();
+      const next = resp?.data?.next || "";
+      if (next) {
+        setNextGrnId(next);
+        return next;
+      }
+      setNextGrnId((prev) => prev || "GRN-0001");
+      return next;
+    } catch (e) {
+      console.warn("Failed to fetch next GRN from server; using fallback.", e);
+      setNextGrnId((prev) => (prev ? incrementGrnCode(prev) : "GRN-0001"));
+      return null;
+    }
+  }, []);
+
   // Fetch next GRN from backend on mount
   useEffect(() => {
-    const loadNext = async () => {
-      try {
-        const resp = await getNextGrn();
-        const next = resp?.data?.next || "";
-        setNextGrnId(next);
-      } catch (e) {
-        console.warn("Failed to fetch next GRN from server; falling back to local seed.", e);
-        setNextGrnId((prev) => prev || "GRN-0001");
-      }
-    };
     setInvoices([]);
-    loadNext();
-  }, []);
+    refreshNextGrn();
+  }, [refreshNextGrn]);
 
   const formatLKR = (value) => {
     try {
@@ -38,17 +54,17 @@ const Invoices = () => {
     }
   };
 
-  const InlineNewInvoiceForm = ({ nextGrnId }) => {
+  const InlineNewInvoiceForm = ({ nextGrnId, refreshNextGrn, setNextGrnId: updateNextGrnId }) => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
       id: "",
-      center: "",
-      supplier: "",
-  supplierName: "",
-  centerName: "",
-      customerId: "",
-      fromCenter: "",
-      toCenter: "",
+    center: "",
+    supplier: "",
+    supplierName: "",
+    centerName: "",
+    customerId: "",
+    fromCenter: "",
+    toCenter: "",
       date: new Date().toISOString().split("T")[0],
       status: "pending",
       refNumber: "",
@@ -69,10 +85,10 @@ const Invoices = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const productInputRef = useRef(null);
-  const [centers, setCenters] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
+    const [centers, setCenters] = useState([]);
+    const [suppliers, setSuppliers] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
 
     useEffect(() => {
       setFormData((p) => ({ ...p, id: nextGrnId }));
@@ -267,15 +283,21 @@ const Invoices = () => {
           // Map payment amount to inventory.paid_value as required by backend
           paid_value: typeof paymentData?.amount === 'number' ? paymentData.amount : Number(paymentData?.amount) || 0,
         };
-  console.log("Data to be sent to backend:", dataToSend);
-  const apiResp = await createGRN(dataToSend);
-  const saved = apiResp?.data ?? apiResp;
-  const voucher = saved?.voucherNumber || pendingInvoice?.id;
-  // Refresh next number from server after successful create
-  try {
-    const next = await getNextGrn();
-    setNextGrnId(next?.data?.next || "");
-  } catch {}
+        console.log("Data to be sent to backend:", dataToSend);
+        const apiResp = await createGRN(dataToSend);
+        const saved = apiResp?.data ?? apiResp;
+        const voucher = saved?.voucherNumber || pendingInvoice?.id;
+        const optimisticNext = incrementGrnCode(voucher || pendingInvoice?.id || nextGrnId);
+        if (optimisticNext && typeof updateNextGrnId === "function") {
+          updateNextGrnId(optimisticNext);
+        }
+        if (typeof refreshNextGrn === "function") {
+          try {
+            await refreshNextGrn();
+          } catch (_) {
+            // already applied optimistic update; ignore refresh failure
+          }
+        }
         setErrors({});
         setFormData({
           id: "",
@@ -296,8 +318,8 @@ const Invoices = () => {
         setItems([]);
         setPendingInvoice(null);
         setShowPaymentModal(false);
-  // Show success modal
-  setSuccessText(`GRN ${voucher} has been created successfully!`);
+    // Show success modal
+    setSuccessText(`GRN ${voucher} has been created successfully!`);
         // Refresh centers after creation per requirement
         try {
           const freshCenters = await fetchCentersService();
@@ -718,7 +740,11 @@ const Invoices = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <section aria-label="Create new GRN">
-          <InlineNewInvoiceForm nextGrnId={nextGrnId} />
+          <InlineNewInvoiceForm
+            nextGrnId={nextGrnId}
+            refreshNextGrn={refreshNextGrn}
+            setNextGrnId={setNextGrnId}
+          />
         </section>
       </div>
     </div>
