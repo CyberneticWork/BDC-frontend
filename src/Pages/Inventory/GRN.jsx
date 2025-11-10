@@ -1,15 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import { addGRN } from "../../services/Inventory/inventoryService";
+import { createGRN } from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
 import SupplierService from "../../services/Account/SupplierService";
 import Payment from "../../components/Inventory/Payment";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nextGrnId, setNextGrnId] = useState("");
+  // Start with GRN-0001 by default so a new user/session will see the first GRN id
+  const [nextGrnId, setNextGrnId] = useState("GRN-0001");
 
   useEffect(() => {
     // Start with empty list (remove dependency on hardcoded demo data)
@@ -37,6 +39,7 @@ const Invoices = () => {
   };
 
   const InlineNewInvoiceForm = ({ nextGrnId }) => {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
       id: "",
       center: "",
@@ -148,7 +151,8 @@ const Invoices = () => {
       return items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
+        // discount is optional and applied per-unit if present
+        const disc = Number(it.discount || 0) || 0;
         const lineTotal = unit * qty;
         const lineDiscount = disc * qty;
         return acc + (lineTotal - lineDiscount);
@@ -176,7 +180,11 @@ const Invoices = () => {
         ? products.find((p) => String(p.id) === String(entry.productId))
         : products.find((p) => (p.name || "").toLowerCase() === name.toLowerCase());
       const qty = Math.max(1, Number(entry.quantity) || 1);
-      const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
+      // Prefer the product's cost price for GRN unit price (purchase use-case).
+      // Fall back to product.unitPrice or the manually entered entry.unitPrice.
+      const unitPrice = selected
+        ? (Number(selected.costPrice) || Number(selected.unitPrice) || 0)
+        : (Number(entry.unitPrice) || 0);
       if (!name) {
         setErrors((prev) => ({ ...prev, productName: "Product name is required" }));
         return;
@@ -186,8 +194,8 @@ const Invoices = () => {
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
+        // discount is optional and editable per-row (no separate toggle)
         discount: 0,
-        discountEnabled: false,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
       };
@@ -212,7 +220,7 @@ const Invoices = () => {
       const computedAmount = items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
+        const disc = Number(it.discount || 0) || 0;
         const lineTotal = unit * qty;
         const lineDiscount = disc * qty;
         return acc + (lineTotal - lineDiscount);
@@ -234,8 +242,21 @@ const Invoices = () => {
       if (!pendingInvoice) return;
       setIsSubmitting(true);
       try {
-        const newGRN = addGRN({ ...pendingInvoice, payment: paymentData });
-        setInvoices((prev) => [...prev, newGRN]);
+        const dataToSend = {
+          // Send both id and voucherNumber (backend accepts either) and add created_by fallback
+          voucherNumber: pendingInvoice?.id,
+          ...pendingInvoice,
+          payment: paymentData,
+          created_by: user?.id ?? undefined,
+          // Map payment amount to inventory.paid_value as required by backend
+          paid_value: typeof paymentData?.amount === 'number' ? paymentData.amount : Number(paymentData?.amount) || 0,
+        };
+  console.log("Data to be sent to backend:", dataToSend);
+  const apiResp = await createGRN(dataToSend);
+  const saved = apiResp?.data ?? apiResp;
+  const voucher = saved?.voucherNumber || pendingInvoice?.id;
+  // Push a minimal record using voucher id so next sequence increments correctly
+  setInvoices((prev) => [...prev, { id: voucher }]);
         setErrors({});
         setFormData({
           id: "",
@@ -251,8 +272,8 @@ const Invoices = () => {
         setItems([]);
         setPendingInvoice(null);
         setShowPaymentModal(false);
-        // Show success modal
-        setSuccessText(`GRN ${pendingInvoice.id} has been created successfully!`);
+  // Show success modal
+  setSuccessText(`GRN ${voucher} has been created successfully!`);
         // Refresh centers after creation per requirement
         try {
           const freshCenters = await fetchCentersService();
@@ -260,8 +281,14 @@ const Invoices = () => {
             ? freshCenters.map((c) => ({ id: c.id ?? c.center_id ?? c.value ?? String(c.name || c.title || c), name: c.name ?? c.center_name ?? c.title ?? String(c.name || c) }))
             : [];
           setCenters(normalized);
-        } catch {}
+        } catch (e) {
+          // non-fatal: log and continue
+          console.warn("refresh centers failed", e);
+        }
         setShowSuccess(true);
+      } catch (error) {
+        console.error('Error creating GRN:', error);
+        // TODO: Show error message to user
       } finally {
         setIsSubmitting(false);
       }
@@ -468,8 +495,7 @@ const Invoices = () => {
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">MRP</th>
-                              <th scope="col" className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
-                              <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="Per unit discount when enabled">Discount</th>
+                                            <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="Per unit discount (optional)">Discount</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Total</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Action</th>
                             </tr>
@@ -516,24 +542,7 @@ const Invoices = () => {
                                       className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
                                     />
                                   </td>
-                                  <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      role="switch"
-                                      aria-checked={!!it.discountEnabled}
-                                      aria-disabled={it.discountEnabled}
-                                      disabled={it.discountEnabled}
-                                      onClick={() => {
-                                        if (it.discountEnabled) return;
-                                        setItems((prev) => prev.map((row) => (row.id === it.id ? { ...row, discountEnabled: true } : row)));
-                                      }}
-                                      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${it.discountEnabled ? "bg-blue-600 opacity-60 cursor-not-allowed" : "bg-slate-300 hover:bg-slate-400"}`}
-                                      title={it.discountEnabled ? "Discount enabled (locked)" : "Enable discount for this row"}
-                                    >
-                                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${it.discountEnabled ? "translate-x-6" : "translate-x-1"}`}/>
-                                      <span className="sr-only">Toggle discount</span>
-                                    </button>
-                                  </td>
+                                  {/* Discount toggle removed — discount input is optional and editable */}
                                   <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                     <input
                                       type="number"
@@ -541,10 +550,8 @@ const Invoices = () => {
                                       step="0.01"
                                       value={it.discount}
                                       onChange={(e) => updateItemField(it.id, "discount", parseFloat(e.target.value) || 0)}
-                                      disabled={!it.discountEnabled}
                                       aria-label={`Per-unit discount for ${it.name}`}
-                                      title={!it.discountEnabled ? "Enable discount in this row to edit" : undefined}
-                                      className={`w-24 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-60 ${!it.discountEnabled ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200" : "border-slate-300 bg-white hover:border-slate-400"}`}
+                                      className="w-24 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 border-slate-300 bg-white hover:border-slate-400"
                                     />
                                   </td>
                                   <td className="px-4 sm:px-6 py-4 text-sm font-bold text-slate-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>

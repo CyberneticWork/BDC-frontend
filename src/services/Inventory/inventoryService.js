@@ -134,36 +134,7 @@ const inventoryData = {
       totalAmount: 4400,
     },
   ],
-  grn: [
-    {
-      id: 1,
-      grnNumber: "GRN001",
-      supplier: "Tech Supplies Ltd",
-      purchaseOrder: "PO-0001",
-      receivedDate: "2024-01-12",
-      status: "Received",
-      items: [
-        { productName: "Laptop", orderedQty: 10, receivedQty: 10, unitPrice: 1000, total: 10000 },
-        { productName: "Mouse", orderedQty: 20, receivedQty: 18, unitPrice: 20, total: 360 },
-      ],
-      totalAmount: 10360,
-      remarks: "2 mice missing from shipment",
-    },
-    {
-      id: 2,
-      grnNumber: "GRN002",
-      supplier: "Office Equipment Co",
-      purchaseOrder: "PO-0002",
-      receivedDate: "2024-01-18",
-      status: "Partial",
-      items: [
-        { productName: "Desktop PC", orderedQty: 5, receivedQty: 3, unitPrice: 750, total: 2250 },
-        { productName: "Keyboard", orderedQty: 5, receivedQty: 5, unitPrice: 50, total: 250 },
-      ],
-      totalAmount: 2500,
-      remarks: "Remaining 2 PCs to be delivered next week",
-    },
-  ],
+  
   purchaseReturns: [
     {
       id: 1,
@@ -241,7 +212,6 @@ try {
 // Getter functions
 export const getInvoiceData = () => inventoryData.invoices;
 export const getPurchaseOrders = () => inventoryData.purchaseOrders;
-export const getGRN = () => inventoryData.grn;
 export const getPurchaseReturns = () => inventoryData.purchaseReturns;
 export const getSalesReturns = () => inventoryData.salesReturns;
 export const getStockTransfers = () => inventoryData.stockTransfers;
@@ -258,6 +228,17 @@ export const getCustomers = async () => {
   }
 };
 export const getSuppliers = () => inventoryData.suppliers;
+
+// GRN API functions
+export const createGRN = async (grnData) => {
+  try {
+    const response = await axios.post('/grn', grnData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating GRN:', error);
+    throw error;
+  }
+};
 
 // Mutations: create/update/delete with simple in-memory logic
 export const addInvoice = (invoice) => {
@@ -303,16 +284,6 @@ export const updatePurchaseOrder = (id, updated) => {
     return inventoryData.purchaseOrders[idx];
   }
   return null;
-};
-
-export const addGRN = (grn) => {
-  const newGrn = {
-    ...grn,
-    id: Date.now(),
-    grnNumber: `GRN${String(inventoryData.grn.length + 1).padStart(3, "0")}`,
-  };
-  inventoryData.grn.push(newGrn);
-  return newGrn;
 };
 
 export const addPurchaseReturn = (ret) => {
@@ -398,7 +369,6 @@ export default {
   // getters
   getInvoiceData,
   getPurchaseOrders,
-  getGRN,
   getPurchaseReturns,
   getSalesReturns,
   getStockTransfers,
@@ -413,11 +383,12 @@ export default {
   deleteInvoice,
   addPurchaseOrder,
   updatePurchaseOrder,
-  addGRN,
   addPurchaseReturn,
   addSalesReturn,
   addStockTransfer,
   updateStockTransfer,
   addStockVerification,
   updateStockVerification,
+  // GRN
+  createGRN,
 };
