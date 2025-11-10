@@ -6,6 +6,7 @@ import { getAll as fetchProductsService } from "../../services/Inventory/product
 import SupplierService from "../../services/Account/SupplierService";
 import Payment from "../../components/Inventory/Payment";
 import { useAuth } from "../../contexts/AuthContext";
+import ErrorMessage from "../../components/ErrorMessage/ErrorMessage";
 
 const incrementGrnCode = (code) => {
   if (!code) return "";
@@ -17,7 +18,7 @@ const incrementGrnCode = (code) => {
 };
 
 const Invoices = () => {
-  const [invoices, setInvoices] = useState([]);
+  const [, setInvoices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Display the next GRN fetched from backend
   const [nextGrnId, setNextGrnId] = useState("");
@@ -74,6 +75,7 @@ const Invoices = () => {
       quantity: 0,
     });
     const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
     const [items, setItems] = useState([]);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [pendingInvoice, setPendingInvoice] = useState(null);
@@ -210,8 +212,10 @@ const Invoices = () => {
         setErrors((prev) => ({ ...prev, productName: "Product name is required" }));
         return;
       }
+      const productId = selected ? selected.id : entry.productId;
       const newItem = {
-        id: Date.now() + Math.floor(Math.random() * 1000),
+        rowId: Date.now() + Math.floor(Math.random() * 1000),
+        productId: productId ?? "",
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
@@ -225,19 +229,24 @@ const Invoices = () => {
       setShowSuggestions(false);
       setActiveIndex(-1);
       setErrors((prev) => ({ ...prev, productName: undefined }));
+      setSubmitError("");
     };
 
-    const updateItemField = (id, field, value) => {
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
+    const updateItemField = (rowId, field, value) => {
+      setItems((prev) => prev.map((it) => (it.rowId === rowId ? { ...it, [field]: value } : it)));
+      setSubmitError("");
     };
 
-    const deleteItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
+    const deleteItem = (rowId) => {
+      setItems((prev) => prev.filter((it) => it.rowId !== rowId));
+      setSubmitError("");
+    };
 
     const handleSubmit = async (e) => {
       e.preventDefault();
+      setSubmitError("");
       if (!validateForm()) return;
 
-      const firstItem = items[0];
       const computedAmount = items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
@@ -247,10 +256,40 @@ const Invoices = () => {
         return acc + (lineTotal - lineDiscount);
       }, 0);
 
+      const itemsForPayload = items.map((item) => {
+        const { rowId: _ROW_ID, id: legacyId, ...itemWithoutRowId } = item;
+        let resolvedProductId = itemWithoutRowId.productId ?? legacyId ?? null;
+        if (resolvedProductId === "") {
+          resolvedProductId = null;
+        }
+        const numericProductId = resolvedProductId != null ? Number(resolvedProductId) : null;
+        const finalProductId = resolvedProductId != null && !Number.isNaN(numericProductId)
+          ? numericProductId
+          : resolvedProductId;
+        const quantity = Number(itemWithoutRowId.quantity) || 0;
+        const unitPrice = Number(itemWithoutRowId.unitPrice) || 0;
+        const discount = Number(itemWithoutRowId.discount) || 0;
+        const mrp = Number(itemWithoutRowId.mrp) || 0;
+
+        return {
+          ...itemWithoutRowId,
+          id: finalProductId,
+          productId: finalProductId,
+          product_id: finalProductId,
+          quantity,
+          unitPrice,
+          unit_price: unitPrice,
+          discount,
+          mrp,
+        };
+      });
+
+      const firstItem = itemsForPayload[0];
+
       const invoiceData = {
         ...formData,
         amount: computedAmount || formData.amount,
-        items,
+        items: itemsForPayload,
         productName: firstItem ? firstItem.name : "",
         quantity: firstItem ? firstItem.quantity : 0,
       };
@@ -294,7 +333,7 @@ const Invoices = () => {
         if (typeof refreshNextGrn === "function") {
           try {
             await refreshNextGrn();
-          } catch (_) {
+          } catch {
             // already applied optimistic update; ignore refresh failure
           }
         }
@@ -318,8 +357,8 @@ const Invoices = () => {
         setItems([]);
         setPendingInvoice(null);
         setShowPaymentModal(false);
-    // Show success modal
-    setSuccessText(`GRN ${voucher} has been created successfully!`);
+        // Show success modal
+        setSuccessText(`GRN ${voucher} has been created successfully!`);
         // Refresh centers after creation per requirement
         try {
           const freshCenters = await fetchCentersService();
@@ -332,9 +371,61 @@ const Invoices = () => {
           console.warn("refresh centers failed", e);
         }
         setShowSuccess(true);
+        setSubmitError("");
       } catch (error) {
         console.error('Error creating GRN:', error);
-        // TODO: Show error message to user
+        const status = error?.response?.status;
+        const data = error?.response?.data;
+
+        const collectMissingIds = (payload) => {
+          if (!payload) return [];
+          if (Array.isArray(payload)) return payload.filter(Boolean).map(String);
+          if (typeof payload === "object") {
+            return Object.values(payload)
+              .flat()
+              .filter(Boolean)
+              .map(String);
+          }
+          return String(payload)
+            .split(/[,\s]+/)
+            .map((val) => val.trim())
+            .filter(Boolean);
+        };
+
+        let message = 'Failed to create GRN. Please try again.';
+        if (status === 422) {
+          const missingCandidates = [
+            data?.missing_ids,
+            data?.missingIds,
+            data?.missing_products,
+            data?.missingProducts,
+            data?.errors?.missing_ids,
+            data?.errors?.missingIds,
+          ];
+
+          const missingIds = missingCandidates
+            .map(collectMissingIds)
+            .reduce((acc, arr) => acc.concat(arr), [])
+            .filter((value, index, self) => self.indexOf(value) === index);
+
+          if (missingIds.length > 0) {
+            message = `Please verify each item uses a valid product id (products.id). Missing ids: ${missingIds.join(", ")}.`;
+          } else if (typeof data?.message === 'string' && data.message.trim()) {
+            message = data.message.trim();
+          } else if (data?.errors) {
+            if (Array.isArray(data.errors)) {
+              message = data.errors.filter(Boolean).join(' ');
+            } else if (typeof data.errors === 'object') {
+              message = Object.values(data.errors).flat().filter(Boolean).join(' ');
+            }
+          }
+        } else if (typeof data?.message === 'string' && data.message.trim()) {
+          message = data.message.trim();
+        }
+
+        setSubmitError(message);
+        setShowPaymentModal(false);
+        setPendingInvoice(null);
       } finally {
         setIsSubmitting(false);
       }
@@ -354,6 +445,7 @@ const Invoices = () => {
 
         <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <h3 className="text-xl sm:text-2xl font-semibold text-slate-900 mb-6">Create New GRN</h3>
+          {submitError && <ErrorMessage message={submitError} />}
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-4 mb-4 sm:mb-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
@@ -570,7 +662,7 @@ const Invoices = () => {
                               const Total = (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0);
                               const rowTotal = Total - Discount;
                               return (
-                                <tr key={it.id} className="hover:bg-slate-50/60 transition-colors duration-150">
+                                <tr key={it.rowId} className="hover:bg-slate-50/60 transition-colors duration-150">
                                   <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-700 whitespace-nowrap">{idx + 1}</td>
                                   <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900">{it.name}</td>
                                   <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-right whitespace-nowrap">{it.currentStock}</td>
@@ -579,7 +671,7 @@ const Invoices = () => {
                                       type="number"
                                       min="1"
                                       value={it.quantity}
-                                      onChange={(e) => updateItemField(it.id, "quantity", parseInt(e.target.value) || 0)}
+                                      onChange={(e) => updateItemField(it.rowId, "quantity", parseInt(e.target.value) || 0)}
                                       aria-label={`Quantity for ${it.name}`}
                                       className="w-20 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
                                     />
@@ -590,7 +682,7 @@ const Invoices = () => {
                                       min="0"
                                       step="0.01"
                                       value={it.unitPrice}
-                                      onChange={(e) => updateItemField(it.id, "unitPrice", parseFloat(e.target.value) || 0)}
+                                      onChange={(e) => updateItemField(it.rowId, "unitPrice", parseFloat(e.target.value) || 0)}
                                       aria-label={`Unit price for ${it.name}`}
                                       className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
                                     />
@@ -601,7 +693,7 @@ const Invoices = () => {
                                       min="0"
                                       step="0.01"
                                       value={it.mrp}
-                                      onChange={(e) => updateItemField(it.id, "mrp", parseFloat(e.target.value) || 0)}
+                                      onChange={(e) => updateItemField(it.rowId, "mrp", parseFloat(e.target.value) || 0)}
                                       aria-label={`MRP for ${it.name}`}
                                       className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
                                     />
@@ -613,7 +705,7 @@ const Invoices = () => {
                                       min="0"
                                       step="0.01"
                                       value={it.discount}
-                                      onChange={(e) => updateItemField(it.id, "discount", parseFloat(e.target.value) || 0)}
+                                      onChange={(e) => updateItemField(it.rowId, "discount", parseFloat(e.target.value) || 0)}
                                       aria-label={`Per-unit discount for ${it.name}`}
                                       className="w-24 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 border-slate-300 bg-white hover:border-slate-400"
                                     />
@@ -622,7 +714,7 @@ const Invoices = () => {
                                   <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                     <button
                                       type="button"
-                                      onClick={() => deleteItem(it.id)}
+                                      onClick={() => deleteItem(it.rowId)}
                                       className="inline-flex items-center justify-center rounded-lg p-2 text-red-600 hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 transition-all duration-200 shadow-sm"
                                       aria-label={`Remove ${it.name} from list`}
                                     >
