@@ -240,6 +240,17 @@ export const createGRN = async (grnData) => {
   }
 };
 
+// Fetch next auto-generated GRN number (preview only)
+export const getNextGrn = async () => {
+  try {
+    const response = await axios.get('/grn/next');
+    return response.data; // { data: { next, year, sequence } }
+  } catch (error) {
+    console.error('Error fetching next GRN number:', error);
+    throw error;
+  }
+};
+
 // Mutations: create/update/delete with simple in-memory logic
 export const addInvoice = (invoice) => {
   const newInvoice = {
@@ -391,4 +402,5 @@ export default {
   updateStockVerification,
   // GRN
   createGRN,
+  getNextGrn,
 };

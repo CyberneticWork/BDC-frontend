@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import { createGRN } from "../../services/Inventory/inventoryService";
+import { createGRN, getNextGrn } from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
 import SupplierService from "../../services/Account/SupplierService";
@@ -10,24 +10,24 @@ import { useAuth } from "../../contexts/AuthContext";
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Start with GRN-0001 by default so a new user/session will see the first GRN id
-  const [nextGrnId, setNextGrnId] = useState("GRN-0001");
+  // Display the next GRN fetched from backend
+  const [nextGrnId, setNextGrnId] = useState("");
 
+  // Fetch next GRN from backend on mount
   useEffect(() => {
-    // Start with empty list (remove dependency on hardcoded demo data)
+    const loadNext = async () => {
+      try {
+        const resp = await getNextGrn();
+        const next = resp?.data?.next || "";
+        setNextGrnId(next);
+      } catch (e) {
+        console.warn("Failed to fetch next GRN from server; falling back to local seed.", e);
+        setNextGrnId((prev) => prev || "GRN-0001");
+      }
+    };
     setInvoices([]);
+    loadNext();
   }, []);
-
-  useEffect(() => {
-    const nums = invoices
-      .map((inv) => {
-        const m = String(inv.id || "").match(/^GRN-(\d{4})$/i);
-        return m ? parseInt(m[1], 10) : null;
-      })
-      .filter((n) => n !== null);
-    const next = nums.length ? Math.max(...nums) + 1 : 1;
-    setNextGrnId(`GRN-${String(next).padStart(4, "0")}`);
-  }, [invoices]);
 
   const formatLKR = (value) => {
     try {
@@ -255,8 +255,11 @@ const Invoices = () => {
   const apiResp = await createGRN(dataToSend);
   const saved = apiResp?.data ?? apiResp;
   const voucher = saved?.voucherNumber || pendingInvoice?.id;
-  // Push a minimal record using voucher id so next sequence increments correctly
-  setInvoices((prev) => [...prev, { id: voucher }]);
+  // Refresh next number from server after successful create
+  try {
+    const next = await getNextGrn();
+    setNextGrnId(next?.data?.next || "");
+  } catch {}
         setErrors({});
         setFormData({
           id: "",
