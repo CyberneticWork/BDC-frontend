@@ -9,6 +9,7 @@ import {
   X,
   ChevronRight,
   Eye,
+  AlertTriangle,
 } from "lucide-react";
 import ShiftScheduleService from "@services/ShiftScheduleService";
 import RosterService from "@services/RosterService";
@@ -22,6 +23,7 @@ import {
   employeesByCompany,
 } from "@services/ApiDataService";
 import Swal from "sweetalert2";
+import { toast } from "react-toastify"; // Make sure you have react-toastify installed
 
 const RosterManagementSystem = () => {
   // State for form inputs
@@ -43,6 +45,8 @@ const RosterManagementSystem = () => {
   const [showAllRostersModal, setShowAllRostersModal] = useState(false);
   const [allRosters, setAllRosters] = useState([]);
   const [loadingAllRosters, setLoadingAllRosters] = useState(false);
+  const [deletingRoster, setDeletingRoster] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Data states
   const [companies, setCompanies] = useState([]);
@@ -711,6 +715,44 @@ const RosterManagementSystem = () => {
     setSearchedRosters([]);
     setRosterSearchPerformed(false);
     setSearchMessage("");
+  };
+
+  // Add delete confirmation handler
+  const handleDeleteConfirm = (roster) => {
+    setDeletingRoster(roster);
+    setShowDeleteConfirm(true);
+  };
+
+  // Add actual delete handler
+  const handleDeleteRoster = async () => {
+    if (!deletingRoster) return;
+
+    try {
+      await RosterService.deleteRoster(deletingRoster.id);
+
+      // Remove from current list
+      setAllRosters((prevRosters) =>
+        prevRosters.filter((r) => r.id !== deletingRoster.id)
+      );
+
+      // Also remove from searched results if exists
+      setSearchedRosters((prevRosters) =>
+        prevRosters.filter((r) => r.id !== deletingRoster.id)
+      );
+
+      toast.success("Roster deleted successfully");
+      setShowDeleteConfirm(false);
+      setDeletingRoster(null);
+    } catch (error) {
+      console.error("Error deleting roster:", error);
+      toast.error(error.message || "Failed to delete roster");
+    }
+  };
+
+  // Cancel delete
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingRoster(null);
   };
 
   return (
@@ -1614,7 +1656,7 @@ const RosterManagementSystem = () => {
       {/* All Rosters Modal - Updated with Search */}
       {showAllRostersModal && (
         <div className="fixed inset-0 backdrop-blur-sm bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full p-6 relative">
+          <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full p-6 relative">
             <button
               className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
               onClick={() => setShowAllRostersModal(false)}
@@ -1687,52 +1729,6 @@ const RosterManagementSystem = () => {
                   </select>
                 </div>
 
-                {/* <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Department
-                  </label>
-                  <select
-                    value={rosterSearchParams.department_id}
-                    onChange={(e) =>
-                      setRosterSearchParams({
-                        ...rosterSearchParams,
-                        department_id: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((dep) => (
-                      <option key={dep.id} value={dep.id}>
-                        {dep.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Sub Department
-                  </label>
-                  <select
-                    value={rosterSearchParams.sub_department_id}
-                    onChange={(e) =>
-                      setRosterSearchParams({
-                        ...rosterSearchParams,
-                        sub_department_id: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Sub Department</option>
-                    {subDepartments.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                  </select>
-                </div> */}
-
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Employee ID
@@ -1787,16 +1783,17 @@ const RosterManagementSystem = () => {
               ) : (
                 <>
                   <table className="min-w-full text-sm border">
-                    <thead className="bg-gray-100">
+                    <thead className="bg-gray-100 sticky top-0">
                       <tr>
-                        <th className="px-4 py-2 border">Roster ID</th>
-                        <th className="px-4 py-2 border">Shift Code</th>
-                        <th className="px-4 py-2 border">Company</th>
-                        <th className="px-4 py-2 border">Department</th>
-                        <th className="px-4 py-2 border">Sub Dept</th>
-                        <th className="px-4 py-2 border">Employee</th>
-                        <th className="px-4 py-2 border">Date From</th>
-                        <th className="px-4 py-2 border">Date To</th>
+                        <th className="px-4 py-2 border text-left">Roster ID</th>
+                        <th className="px-4 py-2 border text-left">Shift Code</th>
+                        <th className="px-4 py-2 border text-left">Company</th>
+                        <th className="px-4 py-2 border text-left">Department</th>
+                        <th className="px-4 py-2 border text-left">Sub Dept</th>
+                        <th className="px-4 py-2 border text-left">Employee</th>
+                        <th className="px-4 py-2 border text-left">Date From</th>
+                        <th className="px-4 py-2 border text-left">Date To</th>
+                        <th className="px-4 py-2 border text-left">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1804,32 +1801,42 @@ const RosterManagementSystem = () => {
                         (rosterSearchPerformed
                           ? searchedRosters
                           : allRosters) || []
-                      ).map((r, idx) => (
+                      ).map((roster, idx) => (
                         <tr
-                          key={r.id || idx}
+                          key={roster.id || idx}
                           className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
                         >
-                          <td className="px-4 py-2 border">{r.roster_id}</td>
-                          <td className="px-4 py-2 border">{r.shift_code}</td>
+                          <td className="px-4 py-2 border">{roster.roster_id}</td>
+                          <td className="px-4 py-2 border">{roster.shift_code}</td>
                           <td className="px-4 py-2 border">
-                            {r.company_name ||
-                              getCompanyName(r.company_id?.toString())}
+                            {roster.company_name ||
+                              getCompanyName(roster.company_id?.toString())}
                           </td>
                           <td className="px-4 py-2 border">
-                            {r.department_name ||
-                              getDepartmentName(r.department_id?.toString())}
+                            {roster.department_name ||
+                              getDepartmentName(roster.department_id?.toString())}
                           </td>
                           <td className="px-4 py-2 border">
-                            {r.sub_department_name ||
+                            {roster.sub_department_name ||
                               getSubDepartmentName(
-                                r.sub_department_id?.toString()
+                                roster.sub_department_id?.toString()
                               )}
                           </td>
                           <td className="px-4 py-2 border">
-                            {r.employee_name || r.employee_id}
+                            {roster.employee_name || roster.employee_id}
                           </td>
-                          <td className="px-4 py-2 border">{r.date_from}</td>
-                          <td className="px-4 py-2 border">{r.date_to}</td>
+                          <td className="px-4 py-2 border">{roster.date_from}</td>
+                          <td className="px-4 py-2 border">{roster.date_to}</td>
+                          <td className="px-4 py-2 border">
+                            <button
+                              onClick={() => handleDeleteConfirm(roster)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-colors"
+                              title="Delete Roster"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1870,6 +1877,47 @@ const RosterManagementSystem = () => {
                 onClick={() => setShowAllRostersModal(false)}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-500 mr-2" />
+              <h3 className="text-lg font-medium">Confirm Delete</h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this roster? This action will soft delete the roster and it can be restored later if needed.
+            </p>
+
+            {deletingRoster && (
+              <div className="bg-gray-50 p-3 rounded mb-4">
+                <p><strong>Roster ID:</strong> {deletingRoster.roster_id}</p>
+                <p><strong>Company:</strong> {deletingRoster.company_name || '-'}</p>
+                <p><strong>Employee:</strong> {deletingRoster.employee_name || '-'}</p>
+                <p><strong>Date:</strong> {deletingRoster.date_from} to {deletingRoster.date_to}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRoster}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
               </button>
             </div>
           </div>
