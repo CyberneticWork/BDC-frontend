@@ -201,8 +201,13 @@ const Invoices = () => {
     const handleAddItem = () => {
       const name = String(entry.productName || '').trim();
       const qty = Math.max(1, Number(entry.quantity) || 0);
-      const selected = entry.productId ? products.find(p => String(p.id) === String(entry.productId)) : products.find(p => (p.name || '').toLowerCase() === name.toLowerCase());
-      const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
+      const selected = entry.productId
+        ? products.find(p => String(p.id) === String(entry.productId))
+        : products.find(p => (p.name || '').toLowerCase() === name.toLowerCase());
+
+      // Use the cost price of the selected product as the unit price
+      const unitPrice = selected ? Number(selected.costPrice) || 0 : Number(entry.unitPrice) || 0;
+
       if (!name) {
         setErrors(prev => ({ ...prev, productName: 'Product name is required' }));
         return;
@@ -211,6 +216,7 @@ const Invoices = () => {
         setErrors(prev => ({ ...prev, quantity: 'Quantity must be greater than 0' }));
         return;
       }
+
       const newItem = {
         id: Date.now(),
         productId: selected ? selected.id : undefined,
@@ -220,9 +226,11 @@ const Invoices = () => {
         discount: 0,
         discountEnabled: false,
       };
+
       setItems(prev => [...prev, newItem]);
+
       // Clear entry fields for next add
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      setEntry({ productId: '', productName: '', quantity: 1, unitPrice: 0 });
       setErrors(prev => ({ ...prev, productName: undefined, quantity: undefined }));
     };
 
