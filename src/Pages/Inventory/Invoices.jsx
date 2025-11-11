@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {Plus,Trash2,CheckCircle,X} from "lucide-react";
-import { addInvoice } from '../../services/Inventory/inventoryService';
 import { fetchCenters as fetchCentersService } from '../../services/Inventory/centerService';
 import { getAll as fetchProductsService } from '../../services/Inventory/productListService';
 import { getCustomers as fetchCustomersService } from '../../services/Account/CustomerService';
+import { createINV } from '../../services/Inventory/inventoryService';
+import { useAuth } from '../../contexts/AuthContext';
 import Payment from '../../components/Inventory/Payment';
 
 const Invoices = () => {
 
   const [invoices, setInvoices] = useState([]);
+  // Track submit state when posting to backend
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextInvoiceId, setNextInvoiceId] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -58,7 +60,7 @@ const Invoices = () => {
       productName: '',
       quantity: 0,
     });
-    const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({});
   const [items, setItems] = useState([]);
   // Product entry state for typeahead
   const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
@@ -274,14 +276,93 @@ const Invoices = () => {
       setShowPaymentModal(true);
     };
 
+    const { user } = useAuth();
+
     const finalizeInvoiceWithPayment = async (paymentData) => {
       if (!pendingInvoice) return;
+
+      // Build one JSON payload combining invoice and payment
+      // Exclude customerEmail from output payload
+      const { customerEmail: _omitCustomerEmail, ...pendingSansEmail } = pendingInvoice || {};
+      const invoicePayload = {
+        ...pendingSansEmail,
+        status: null,
+        payment: paymentData,
+        created_by: user?.id || user?.user_id || undefined,
+      };
+
+      // Log request and also send to backend INV endpoint
+      try {
+        // Prepare helpful console output
+        const itemsWithTotals = (invoicePayload.items || []).map((it) => {
+          const qty = Number(it.quantity) || 0;
+          const unit = Number(it.unitPrice) || 0;
+          const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
+          const lineTotal = unit * qty;
+          const lineDiscount = disc * qty;
+          const rowTotal = lineTotal - lineDiscount;
+          return {
+            name: it.name,
+            productId: it.productId ?? '',
+            quantity: qty,
+            unitPrice: unit,
+            discountEnabled: !!it.discountEnabled,
+            discountPerUnit: disc,
+            lineTotal,
+            lineDiscount,
+            rowTotal,
+          };
+        });
+
+        const grand = itemsWithTotals.reduce((acc, r) => acc + Number(r.rowTotal || 0), 0);
+
+        // Grouped, readable output
+        console.group('%cInvoice: SET PAYMENT','color:#2563eb;font-weight:bold');
+        console.info('Invoice ID:', invoicePayload.id);
+        console.info('Date:', invoicePayload.date);
+        console.info('Center:', invoicePayload.center);
+  console.info('Customer:', invoicePayload.customer);
+  console.info('Created By:', invoicePayload.created_by);
+        console.info('Ref Number:', invoicePayload.refNumber || '-');
+        console.info('Status:', invoicePayload.status);
+        console.info('Amount (computed):', grand);
+        console.groupCollapsed('Items (with totals)');
+        console.table(itemsWithTotals);
+        console.groupEnd();
+        console.group('Payment');
+        console.info('Mode:', invoicePayload.payment?.mode);
+        console.info('Amount:', invoicePayload.payment?.amount);
+        if (invoicePayload.payment?.mode === 'online') {
+          console.info('Bank Name:', invoicePayload.payment?.bankName);
+          console.info('Reference No:', invoicePayload.payment?.referenceNo);
+          console.info('Transfer Date:', invoicePayload.payment?.transferDate);
+        }
+        if (invoicePayload.payment?.mode === 'cheque') {
+          console.info('Cheque No:', invoicePayload.payment?.chequeNo);
+          console.info('Bank Name:', invoicePayload.payment?.bankName);
+          console.info('Cheque Date:', invoicePayload.payment?.chequeDate);
+        }
+        if (invoicePayload.payment?.note) console.info('Note:', invoicePayload.payment?.note);
+        console.groupEnd();
+
+        // Full JSON view (pretty printed)
+        console.groupCollapsed('Full JSON payload');
+        console.log(JSON.stringify(invoicePayload, null, 2));
+        console.groupEnd();
+        console.groupEnd();
+      } catch {
+        // Fallback in case console.table or grouping fails in some environments
+        console.log('Invoice JSON payload:', invoicePayload);
+      }
+
       setIsSubmitting(true);
       try {
-        const newInvoice = addInvoice({ ...pendingInvoice, payment: paymentData });
-        setInvoices(prev => [...prev, newInvoice]);
+        const resp = await createINV(invoicePayload);
+        const created = resp?.data ?? resp ?? invoicePayload;
+        setInvoices(prev => [...prev, created]);
+
         // Reset form for next entry
-        setErrors({});
+        setErrors(prev => ({ ...prev, submit: undefined }));
         setFormData({
           id: '', // will be filled by effect
           center: '',
@@ -297,9 +378,10 @@ const Invoices = () => {
         setItems([]);
         setPendingInvoice(null);
         setShowPaymentModal(false);
-        setSuccessText(`Invoice ${newInvoice?.id || nextInvoiceId} created successfully.`);
+        setSuccessText(`Invoice ${created?.id || invoicePayload?.id || nextInvoiceId} created successfully.`);
         setShowSuccess(true);
-        // Refresh centers after invoice creation per requirement
+
+        // Optionally refresh centers list post-create
         try {
           const freshCenters = await fetchCentersService();
           const normalized = Array.isArray(freshCenters)
@@ -309,14 +391,35 @@ const Invoices = () => {
               }))
             : [];
           setCenters(normalized);
-        } catch (e) {
+        } catch {
           // ignore refresh errors
         }
-      } catch (error) {
-        console.error('Error creating invoice:', error);
+      } catch (err) {
+        console.error('Failed to create invoice (INV):', err);
+        setErrors(prev => ({ ...prev, submit: 'Failed to create invoice. Please try again.' }));
       } finally {
         setIsSubmitting(false);
       }
+
+      // Reset form for next entry
+      setErrors(prev => ({ ...prev, submit: undefined }));
+      setFormData({
+        id: '', // will be filled by effect
+        center: '',
+        customer: '',
+        customerEmail: '',
+        date: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        refNumber: '',
+        amount: 0,
+        productName: '',
+        quantity: 0,
+      });
+      setItems([]);
+      setPendingInvoice(null);
+      setShowPaymentModal(false);
+      setSuccessText(`Invoice ${invoicePayload?.id || nextInvoiceId} prepared (console only).`);
+      setShowSuccess(true);
     };
     
 
@@ -677,6 +780,10 @@ const Invoices = () => {
                 )}
               </button>
             </div>
+            {errors.submit && (
+              <p className="text-red-600 text-sm font-medium mt-2 text-center sm:text-right">{errors.submit}</p>
+            )}
+            {/* No submit errors in console-only mode */}
             </div>
           </form>
         </div>

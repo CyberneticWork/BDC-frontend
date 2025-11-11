@@ -240,6 +240,17 @@ export const createGRN = async (grnData) => {
   }
 };
 
+// INV API functions
+export const createINV = async (invData) => {
+  try {
+    const response = await axios.post('/invoices', invData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating INV:', error);
+    throw error;
+  }
+};
+
 // Fetch next auto-generated GRN number (preview only)
 export const getNextGrn = async () => {
   try {
