@@ -42,12 +42,15 @@ const deleteRoster = async (id) => {
 
 const searchRosters = async (searchParams) => {
   try {
+    console.log('Sending search request with params:', searchParams); // Debug log
     const response = await axios.get("/roster/search", {
       params: searchParams,
     });
-    return response.data.data || [];
+    console.log('Search API response:', response.data); // Debug log
+    return response.data.data || response.data || [];
   } catch (error) {
     console.error("Error searching rosters:", error);
+    console.error("Error response:", error.response?.data); // Debug log
     throw error;
   }
 };

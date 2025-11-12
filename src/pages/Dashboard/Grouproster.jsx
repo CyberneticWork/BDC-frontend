@@ -24,6 +24,7 @@ import {
 } from "@services/ApiDataService";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify"; // Make sure you have react-toastify installed
+import axios from "axios"; // Import axios
 
 const RosterManagementSystem = () => {
   // State for form inputs
@@ -84,6 +85,7 @@ const RosterManagementSystem = () => {
     department_id: "",
     sub_department_id: "",
     employee_id: "",
+    roster_id: "",
   });
   const [searchedRosters, setSearchedRosters] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -669,26 +671,32 @@ const RosterManagementSystem = () => {
       // Clean up empty fields to avoid sending them as empty strings
       const cleanParams = {};
       Object.keys(rosterSearchParams).forEach((key) => {
-        if (rosterSearchParams[key]) {
-          cleanParams[key] = rosterSearchParams[key];
+        if (rosterSearchParams[key] && rosterSearchParams[key].trim() !== '') {
+          cleanParams[key] = rosterSearchParams[key].trim();
         }
       });
 
+      console.log('Search parameters being sent:', cleanParams); // Debug log
+
       const data = await RosterService.searchRosters(cleanParams);
+      console.log('Search response received:', data); // Debug log
 
       // Normalize nested API structure just like "All Rosters"
       const flattenedRosters = normalizeRosterItems(
         Array.isArray(data) ? data : []
       );
 
+      console.log('Normalized search results:', flattenedRosters); // Debug log
+
       if (flattenedRosters.length === 0) {
         setSearchedRosters([]);
-        setSearchMessage("No roster data matched your search.");
+        setSearchMessage("No roster data matched your search criteria.");
       } else {
         setSearchedRosters(flattenedRosters);
-        setSearchMessage("");
+        setSearchMessage(`Found ${flattenedRosters.length} matching roster(s).`);
       }
     } catch (err) {
+      console.error('Search error:', err); // Debug log
       setSearchedRosters([]);
       setSearchMessage("Search failed. Please try again.");
       Swal.fire({
@@ -711,6 +719,7 @@ const RosterManagementSystem = () => {
       department_id: "",
       sub_department_id: "",
       employee_id: "",
+      roster_id: "", // Add this line
     });
     setSearchedRosters([]);
     setRosterSearchPerformed(false);
@@ -1747,6 +1756,24 @@ const RosterManagementSystem = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Roster ID
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter roster ID"
+                    value={rosterSearchParams.roster_id}
+                    onChange={(e) =>
+                      setRosterSearchParams({
+                        ...rosterSearchParams,
+                        roster_id: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
                 <div className="col-span-3 flex justify-end space-x-3">
                   <button
                     type="button"
@@ -1885,7 +1912,7 @@ const RosterManagementSystem = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex items-center mb-4">
               <AlertTriangle className="w-6 h-6 text-red-500 mr-2" />
