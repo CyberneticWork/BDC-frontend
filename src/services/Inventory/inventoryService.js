@@ -59,47 +59,6 @@ const inventoryData = {
     { id: "SUP-0003", name: "Global Components Pvt" },
     { id: "SUP-0004", name: "Sri Lanka Trading Co" },
   ],
-
-
-  invoices: [
-    // Mirror structure used by Invoices page
-    {
-      id: "INV-0001",
-      customer: "Acme Corporation",
-      customerEmail: "billing@acme.com",
-      amount: 5420.0,
-      date: "2024-01-15",
-      dueDate: "2024-02-15",
-      status: "paid",
-      items: [
-        { description: "Web Development Services", quantity: 1, rate: 5000, amount: 5000 },
-        { description: "Domain & Hosting", quantity: 1, rate: 420, amount: 420 },
-      ],
-    },
-    {
-      id: "INV-0002",
-      customer: "Tech Solutions Ltd",
-      customerEmail: "accounts@techsolutions.com",
-      amount: 8750.0,
-      date: "2024-01-18",
-      dueDate: "2024-02-18",
-      status: "pending",
-      items: [
-        { description: "Software Development", quantity: 1, rate: 8000, amount: 8000 },
-        { description: "Project Management", quantity: 1, rate: 750, amount: 750 },
-      ],
-    },
-    {
-      id: "INV-0003",
-      customer: "Global Enterprises",
-      customerEmail: "finance@global.com",
-      amount: 3200.0,
-      date: "2024-01-20",
-      dueDate: "2024-02-05",
-      status: "overdue",
-      items: [{ description: "Consulting Services", quantity: 40, rate: 80, amount: 3200 }],
-    },
-  ],
   purchaseOrders: [
     {
       id: 1,
@@ -210,7 +169,6 @@ try {
 }
 
 // Getter functions
-export const getInvoiceData = () => inventoryData.invoices;
 export const getPurchaseOrders = () => inventoryData.purchaseOrders;
 export const getPurchaseReturns = () => inventoryData.purchaseReturns;
 export const getSalesReturns = () => inventoryData.salesReturns;
@@ -260,33 +218,6 @@ export const getNextGrn = async () => {
     console.error('Error fetching next GRN number:', error);
     throw error;
   }
-};
-
-// Mutations: create/update/delete with simple in-memory logic
-export const addInvoice = (invoice) => {
-  const newInvoice = {
-    ...invoice,
-    id: `INV-${String(inventoryData.invoices.length + 1).padStart(4, "0")}`,
-  };
-  inventoryData.invoices.push(newInvoice);
-  return newInvoice;
-};
-
-export const updateInvoice = (id, updated) => {
-  const idx = inventoryData.invoices.findIndex((i) => i.id === id);
-  if (idx !== -1) {
-    inventoryData.invoices[idx] = { ...inventoryData.invoices[idx], ...updated };
-    return inventoryData.invoices[idx];
-  }
-  return null;
-};
-
-export const deleteInvoice = (id) => {
-  const idx = inventoryData.invoices.findIndex((i) => i.id === id);
-  if (idx !== -1) {
-    return inventoryData.invoices.splice(idx, 1)[0];
-  }
-  return null;
 };
 
 export const addPurchaseOrder = (order) => {
@@ -389,7 +320,6 @@ export const updateStockVerification = (id, updated) => {
 
 export default {
   // getters
-  getInvoiceData,
   getPurchaseOrders,
   getPurchaseReturns,
   getSalesReturns,
@@ -400,9 +330,6 @@ export default {
   getCustomers,
   getSuppliers,
   // mutations
-  addInvoice,
-  updateInvoice,
-  deleteInvoice,
   addPurchaseOrder,
   updatePurchaseOrder,
   addPurchaseReturn,

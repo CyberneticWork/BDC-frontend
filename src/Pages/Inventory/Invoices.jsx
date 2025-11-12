@@ -54,7 +54,7 @@ const Invoices = () => {
       customer: '',
       customerEmail: '',
       date: new Date().toISOString().split('T')[0],
-      status: 'pending',
+      status: '',
       refNumber: '',
       amount: 0,
       productName: '',
@@ -321,8 +321,8 @@ const Invoices = () => {
         console.info('Invoice ID:', invoicePayload.id);
         console.info('Date:', invoicePayload.date);
         console.info('Center:', invoicePayload.center);
-  console.info('Customer:', invoicePayload.customer);
-  console.info('Created By:', invoicePayload.created_by);
+        console.info('Customer:', invoicePayload.customer);
+        console.info('Created By:', invoicePayload.created_by);
         console.info('Ref Number:', invoicePayload.refNumber || '-');
         console.info('Status:', invoicePayload.status);
         console.info('Amount (computed):', grand);
@@ -400,26 +400,6 @@ const Invoices = () => {
       } finally {
         setIsSubmitting(false);
       }
-
-      // Reset form for next entry
-      setErrors(prev => ({ ...prev, submit: undefined }));
-      setFormData({
-        id: '', // will be filled by effect
-        center: '',
-        customer: '',
-        customerEmail: '',
-        date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-        refNumber: '',
-        amount: 0,
-        productName: '',
-        quantity: 0,
-      });
-      setItems([]);
-      setPendingInvoice(null);
-      setShowPaymentModal(false);
-      setSuccessText(`Invoice ${invoicePayload?.id || nextInvoiceId} prepared (console only).`);
-      setShowSuccess(true);
     };
     
 

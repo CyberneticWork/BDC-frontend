@@ -1,18 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import { getInvoiceData, addInvoice, getSuppliers, getProducts, getPurchaseReturns } from "../../services/Inventory/inventoryService";
+import { getSuppliers, getProducts, getPurchaseReturns } from "../../services/Inventory/inventoryService";
 import Payment from "../../components/Inventory/Payment";
 
 const Invoices = () => {
-  // invoices list is not required for PRT sequence - kept locally when adding new invoices
-  const [, setInvoices] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextPrtId, setNextPrtId] = useState("");
-
-  useEffect(() => {
-    const initial = getInvoiceData();
-    setInvoices(initial);
-  }, []);
 
   // Initialize next PRT id from existing purchase returns (run once on mount)
   useEffect(() => {
@@ -180,10 +173,9 @@ const Invoices = () => {
 
     const finalizeInvoiceWithPayment = async (paymentData) => {
       if (!pendingInvoice) return;
+      const completedInvoice = { ...pendingInvoice, payment: paymentData };
       setIsSubmitting(true);
       try {
-        const newInvoice = addInvoice({ ...pendingInvoice, payment: paymentData });
-        setInvoices((prev) => [...prev, newInvoice]);
         setErrors({});
         setFormData({
           id: "",
@@ -197,7 +189,7 @@ const Invoices = () => {
           quantity: 0,
         });
         setItems([]);
-        setPendingInvoice(null);
+  setPendingInvoice(null);
         setShowPaymentModal(false);
         // Move PRT sequence forward so nextPrtId changes immediately after submit
         try {
@@ -217,8 +209,8 @@ const Invoices = () => {
             return newId;
           });
         }
-        // Show success modal
-        setSuccessText(`Purchase Return ${pendingInvoice.id} has been created successfully!`);
+  // Show success modal
+  setSuccessText(`Purchase Return ${completedInvoice.id} has been created successfully!`);
         setShowSuccess(true);
       } finally {
         setIsSubmitting(false);
