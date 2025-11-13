@@ -83,6 +83,7 @@ import PurchaseReturn from "../Inventory/PurchaseReturn";
 import PurchaseOrder from "../Inventory/PurchaseOrder";
 import StockTransfer from "../Inventory/StockTransfer";
 import StockVerification from "../Inventory/StockVerification";
+import Pending from "../Inventory/Pending";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
@@ -893,7 +894,11 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="stockVerification" action="view">
                 <StockVerification />
               </ProtectedComponent>
-            ) : activeItem === "expenses" ? (
+            ) : activeItem === "pendingApprovals" ? (
+              <ProtectedComponent module="pendingApprovals" action="view">
+                <Pending />
+              </ProtectedComponent>
+            ) : activeItem === "supplier" ? (
               <ProtectedComponent module="expenses" action="view">
                 <Expenses />
               </ProtectedComponent>

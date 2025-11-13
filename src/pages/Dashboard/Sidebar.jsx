@@ -231,6 +231,7 @@ const Sidebar = ({
               
             ],
           },
+        {id: "pendingApprovals", name: "Pending Approval"},
         { id: "invoices", name: "Invoice" },
         { id: "salesOrder", name: "Sales Order" },
         { id: "salesReturn", name: "Sales Return" },
@@ -316,6 +317,7 @@ const Sidebar = ({
           "purchaseOrder",
           "stockTransfer",
           "stockVerification",
+          "pendingApprovals",
           // moved master files children
           "customer",
           "supplier",

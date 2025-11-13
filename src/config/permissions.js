@@ -89,6 +89,7 @@ export const permissions = {
     productList: { view: true, edit: true },
     discountLevel: { view: true, edit: true },
     productType: { view: true, edit: true },
+    pendingApprovals: { view: true, edit: true },
   },
   hr: {
     chatbot: { view: true },
