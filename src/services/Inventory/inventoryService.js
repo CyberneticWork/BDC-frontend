@@ -220,6 +220,17 @@ export const getNextGrn = async () => {
   }
 };
 
+//fetch next auto-Generate INV number (Preview only)
+export const getNextInv = async () => {
+  try {
+    const response = await axios.get('/invoices/next');
+    return response.data; // { data: { next, year, sequence } }
+  } catch (error) {
+    console.error('Error fetching next INV number:', error);
+    throw error;
+  }
+};
+
 export const addPurchaseOrder = (order) => {
   const newOrder = {
     ...order,

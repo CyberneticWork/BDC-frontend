@@ -1,37 +1,100 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {Plus,Trash2,CheckCircle,X} from "lucide-react";
 import { fetchCenters as fetchCentersService } from '../../services/Inventory/centerService';
 import { getAll as fetchProductsService } from '../../services/Inventory/productListService';
 import { getCustomers as fetchCustomersService } from '../../services/Account/CustomerService';
-import { createINV } from '../../services/Inventory/inventoryService';
+import { createINV, getNextInv } from '../../services/Inventory/inventoryService';
 import { useAuth } from '../../contexts/AuthContext';
 import Payment from '../../components/Inventory/Payment';
 
-const Invoices = () => {
+const LAST_INVOICE_STORAGE_KEY = "inventory_last_invoice_id";
 
-  const [invoices, setInvoices] = useState([]);
+
+const incrementInvCode = (code) => {
+  const match = String(code).match(/^(.*?)(\d+)([^0-9]*)$/);   
+  if (!match) return String(code);
+  const [, prefix, digits, suffix] = match;
+  const nextDigits = (parseInt(digits, 10) + 1).toString().padStart(digits.length, "0");
+  return `${prefix}${nextDigits}${suffix}`;
+  }
+
+
+
+const Invoices = () => {
   // Track submit state when posting to backend
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextInvoiceId, setNextInvoiceId] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [successText, setSuccessText] = useState("");
+  const lastCreatedInvoiceRef = useRef("");
 
   useEffect(() => {
-    // Start with empty list (avoid hardcoded demo data)
-    setInvoices([]);
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(LAST_INVOICE_STORAGE_KEY);
+    if (stored) {
+      lastCreatedInvoiceRef.current = stored.trim();
+    }
   }, []);
 
-  // Compute next invoice id whenever invoices change
+  // Fetch next invoice id from backend (preview) instead of computing locally
+  const refreshNextInv = useCallback(async () => {
+    const applyStoredFallback = () => {
+      const storedLast = (lastCreatedInvoiceRef.current || "").trim();
+      if (!storedLast) return null;
+      const nextFromStored = incrementInvCode(storedLast);
+      if (nextFromStored) {
+        setNextInvoiceId(nextFromStored);
+        return nextFromStored;
+      }
+      return null;
+    };
+
+    try {
+      const resp = await getNextInv();
+      const rawNext = resp?.data?.next ?? resp?.next ?? resp?.data?.voucher ?? resp?.voucher ?? resp?.data?.current ?? resp?.current ?? "";
+      if (rawNext) {
+        const normalized = String(rawNext).trim();
+        if (normalized) {
+          lastCreatedInvoiceRef.current = normalized;
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(LAST_INVOICE_STORAGE_KEY, normalized);
+            } catch {
+              // ignore storage errors
+            }
+          }
+          const displayId = incrementInvCode(normalized) || normalized;
+          if (displayId) {
+            setNextInvoiceId(displayId);
+            return displayId;
+          }
+        }
+      }
+
+      const fallbackFromStored = applyStoredFallback();
+      if (fallbackFromStored) return fallbackFromStored;
+
+      const year = new Date().getFullYear().toString().slice(-2);
+      const fallbackNext = `INV-${year}-0001`;
+      setNextInvoiceId(fallbackNext);
+      return fallbackNext;
+    } catch (e) {
+      console.warn("Failed to fetch next Invoice from server; using fallback.", e);
+      const fallbackFromStored = applyStoredFallback();
+      if (fallbackFromStored) return fallbackFromStored;
+
+      const year = new Date().getFullYear().toString().slice(-2);
+      const fallbackNext = `INV-${year}-0001`;
+      setNextInvoiceId((prev) => prev || fallbackNext);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
-    const nums = invoices
-      .map(inv => {
-        const m = String(inv.id || '').match(/^INV-(\d{4})$/i);
-        return m ? parseInt(m[1], 10) : null;
-      })
-      .filter(n => n !== null);
-    const next = (nums.length ? Math.max(...nums) + 1 : 1);
-    setNextInvoiceId(`INV-${String(next).padStart(4, '0')}`);
-  }, [invoices]);
+    refreshNextInv();
+  }, [refreshNextInv]);
+
+  // next invoice id is provided by backend via refreshNextInv
 
   // No filters or status display; only creation form remains
 
@@ -359,7 +422,32 @@ const Invoices = () => {
       try {
         const resp = await createINV(invoicePayload);
         const created = resp?.data ?? resp ?? invoicePayload;
-        setInvoices(prev => [...prev, created]);
+        const candidateIdRaw = created?.voucherNumber
+          ?? created?.id
+          ?? created?.data?.voucherNumber
+          ?? created?.data?.id
+          ?? invoicePayload?.id
+          ?? nextInvoiceId;
+        const normalizedCandidateId = candidateIdRaw != null ? String(candidateIdRaw).trim() : "";
+        if (normalizedCandidateId) {
+          lastCreatedInvoiceRef.current = normalizedCandidateId;
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(LAST_INVOICE_STORAGE_KEY, normalizedCandidateId);
+            } catch {
+              // ignore storage errors
+            }
+          }
+        }
+
+        // After successful creation, fetch authoritative next invoice number from backend
+        try {
+          await refreshNextInv();
+        } catch {
+          // Fallback to optimistic increment only if refresh fails
+          const fallbackNext = normalizedCandidateId ? incrementInvCode(normalizedCandidateId) : null;
+          if (fallbackNext) setNextInvoiceId(fallbackNext);
+        }
 
         // Reset form for next entry
         setErrors(prev => ({ ...prev, submit: undefined }));

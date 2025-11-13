@@ -17,8 +17,8 @@ const incrementGrnCode = (code) => {
   return `${prefix}${nextDigits}${suffix}`;
 };
 
-const Invoices = () => {
-  const [, setInvoices] = useState([]);
+const GRN = () => {
+  const [, setGrns] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Display the next GRN fetched from backend
   const [nextGrnId, setNextGrnId] = useState("");
@@ -41,8 +41,8 @@ const Invoices = () => {
   }, []);
 
   // Fetch next GRN from backend on mount
-  useEffect(() => {
-    setInvoices([]);
+    useEffect(() => {
+    setGrns([]);
     refreshNextGrn();
   }, [refreshNextGrn]);
 
@@ -55,7 +55,7 @@ const Invoices = () => {
     }
   };
 
-  const InlineNewInvoiceForm = ({ nextGrnId, refreshNextGrn, setNextGrnId: updateNextGrnId }) => {
+  const InlineNewGRNForm = ({ nextGrnId, refreshNextGrn, setNextGrnId: updateNextGrnId }) => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
       id: "",
@@ -78,7 +78,7 @@ const Invoices = () => {
   const [submitError, setSubmitError] = useState("");
     const [items, setItems] = useState([]);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [pendingInvoice, setPendingInvoice] = useState(null);
+    const [pendingGRN, setPendingGRN] = useState(null);
     const [showSuccess, setShowSuccess] = useState(false);
     const [successText, setSuccessText] = useState("");
 
@@ -286,7 +286,7 @@ const Invoices = () => {
 
       const firstItem = itemsForPayload[0];
 
-      const invoiceData = {
+      const grnData = {
         ...formData,
         amount: computedAmount || formData.amount,
         items: itemsForPayload,
@@ -294,24 +294,24 @@ const Invoices = () => {
         quantity: firstItem ? firstItem.quantity : 0,
       };
 
-      setPendingInvoice(invoiceData);
+      setPendingGRN(grnData);
       setShowPaymentModal(true);
     };
 
-    const finalizeInvoiceWithPayment = async (paymentData) => {
-      if (!pendingInvoice) return;
+    const finalizeGRNWithPayment = async (paymentData) => {
+      if (!pendingGRN) return;
       setIsSubmitting(true);
       try {
-        const centerId = pendingInvoice.center_id ?? pendingInvoice.center ?? "";
-        const supplierId = pendingInvoice.supplier_id ?? pendingInvoice.supplier ?? "";
-        const customerId = pendingInvoice.customer_id ?? pendingInvoice.customerId ?? "";
-        const fromCenter = pendingInvoice.from_center ?? pendingInvoice.fromCenter ?? centerId;
-        const toCenter = pendingInvoice.to_center ?? pendingInvoice.toCenter ?? centerId;
+        const centerId = pendingGRN.center_id ?? pendingGRN.center ?? "";
+        const supplierId = pendingGRN.supplier_id ?? pendingGRN.supplier ?? "";
+        const customerId = pendingGRN.customer_id ?? pendingGRN.customerId ?? "";
+        const fromCenter = pendingGRN.from_center ?? pendingGRN.fromCenter ?? centerId;
+        const toCenter = pendingGRN.to_center ?? pendingGRN.toCenter ?? centerId;
 
         const dataToSend = {
           // Send both id and voucherNumber (backend accepts either) and add created_by fallback
-          ...pendingInvoice,
-          voucherNumber: pendingInvoice?.id,
+          ...pendingGRN,
+          voucherNumber: pendingGRN?.id,
           center_id: centerId,
           supplier_id: supplierId,
           customer_id: customerId,
@@ -325,8 +325,8 @@ const Invoices = () => {
         console.log("Data to be sent to backend:", dataToSend);
         const apiResp = await createGRN(dataToSend);
         const saved = apiResp?.data ?? apiResp;
-        const voucher = saved?.voucherNumber || pendingInvoice?.id;
-        const optimisticNext = incrementGrnCode(voucher || pendingInvoice?.id || nextGrnId);
+        const voucher = saved?.voucherNumber || pendingGRN?.id;
+        const optimisticNext = incrementGrnCode(voucher || pendingGRN?.id || nextGrnId);
         if (optimisticNext && typeof updateNextGrnId === "function") {
           updateNextGrnId(optimisticNext);
         }
@@ -355,7 +355,7 @@ const Invoices = () => {
           quantity: 0,
         });
         setItems([]);
-        setPendingInvoice(null);
+        setPendingGRN(null);
         setShowPaymentModal(false);
         // Show success modal
         setSuccessText(`GRN ${voucher} has been created successfully!`);
@@ -425,7 +425,7 @@ const Invoices = () => {
 
         setSubmitError(message);
         setShowPaymentModal(false);
-        setPendingInvoice(null);
+        setPendingGRN(null);
       } finally {
         setIsSubmitting(false);
       }
@@ -777,9 +777,9 @@ const Invoices = () => {
               </div>
               <div className="p-6">
                 <div className="mb-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  Total Payable: <span className="font-bold text-slate-900 text-lg">{formatLKR(pendingInvoice?.amount || tableTotal)}</span>
+                  Total Payable: <span className="font-bold text-slate-900 text-lg">{formatLKR(pendingGRN?.amount || tableTotal)}</span>
                 </div>
-                <Payment onSetPayment={finalizeInvoiceWithPayment} />
+                <Payment onSetPayment={finalizeGRNWithPayment} />
               </div>
             </div>
           </div>
@@ -832,7 +832,7 @@ const Invoices = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <section aria-label="Create new GRN">
-          <InlineNewInvoiceForm
+          <InlineNewGRNForm
             nextGrnId={nextGrnId}
             refreshNextGrn={refreshNextGrn}
             setNextGrnId={setNextGrnId}
@@ -843,4 +843,4 @@ const Invoices = () => {
   );
 };
 
-export default Invoices;
+export default GRN;
