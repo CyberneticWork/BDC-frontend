@@ -77,12 +77,25 @@ const restoreRoster = async (id) => {
   }
 };
 
+const bulkDeleteRosters = async (rosterIds) => {
+  try {
+    const response = await axios.delete(`/rosters/bulk-delete`, {
+      data: { ids: rosterIds }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error bulk deleting rosters:", error);
+    throw error.response?.data || error.message;
+  }
+};
+
 export default {
   getAllRosters,
   createRoster,
   updateRoster,
   searchRosters,
   deleteRoster,
+  bulkDeleteRosters,
   getTrashedRosters,
   restoreRoster,
 };

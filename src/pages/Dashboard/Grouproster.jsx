@@ -97,6 +97,11 @@ const RosterManagementSystem = () => {
   // Add a new state for companyWise checkbox
   const [isCompanyWise, setIsCompanyWise] = useState(false);
 
+  // Add new state variables for bulk operations
+  const [selectedRosterIds, setSelectedRosterIds] = useState(new Set());
+  const [selectAllRosters, setSelectAllRosters] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   // Set default dates on component mount
   useEffect(() => {
     const today = new Date();
@@ -762,6 +767,96 @@ const RosterManagementSystem = () => {
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
     setDeletingRoster(null);
+  };
+
+  // Add bulk selection handlers
+  const handleSelectAllRosters = () => {
+    if (selectAllRosters) {
+      setSelectedRosterIds(new Set());
+    } else {
+      const currentRosters = rosterSearchPerformed ? searchedRosters : allRosters;
+      const allIds = new Set(currentRosters.map(roster => roster.id));
+      setSelectedRosterIds(allIds);
+    }
+    setSelectAllRosters(!selectAllRosters);
+  };
+
+  const handleSelectRoster = (rosterId) => {
+    const newSelected = new Set(selectedRosterIds);
+    if (newSelected.has(rosterId)) {
+      newSelected.delete(rosterId);
+    } else {
+      newSelected.add(rosterId);
+    }
+    setSelectedRosterIds(newSelected);
+    
+    // Update select all state based on current selection
+    const currentRosters = rosterSearchPerformed ? searchedRosters : allRosters;
+    setSelectAllRosters(newSelected.size === currentRosters.length && currentRosters.length > 0);
+  };
+
+  // Add bulk delete handler
+  const handleBulkDeleteRosters = async () => {
+    if (selectedRosterIds.size === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "No Selection",
+        text: "Please select at least one roster to delete",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Delete Selected Rosters?",
+      text: `This will delete ${selectedRosterIds.size} roster record(s). This action cannot be undone.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete them!",
+      cancelButtonText: "Cancel"
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsBulkDeleting(true);
+    try {
+      await RosterService.bulkDeleteRosters(Array.from(selectedRosterIds));
+      
+      // Remove deleted rosters from local state
+      setAllRosters(prev => prev.filter(roster => !selectedRosterIds.has(roster.id)));
+      setSearchedRosters(prev => prev.filter(roster => !selectedRosterIds.has(roster.id)));
+      
+      // Clear selection
+      setSelectedRosterIds(new Set());
+      setSelectAllRosters(false);
+
+      Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        text: `Successfully deleted ${selectedRosterIds.size} roster record(s)`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error("Error deleting rosters:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error!",
+        text: error.message || "Failed to delete selected rosters",
+        confirmButtonColor: "#3085d6",
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  // Reset selections when modal closes
+  const handleCloseAllRostersModal = () => {
+    setShowAllRostersModal(false);
+    setSelectedRosterIds(new Set());
+    setSelectAllRosters(false);
   };
 
   return (
@@ -1662,13 +1757,13 @@ const RosterManagementSystem = () => {
         </div>
       )}
 
-      {/* All Rosters Modal - Updated with Search */}
+      {/* All Rosters Modal - Updated with Bulk Delete */}
       {showAllRostersModal && (
         <div className="fixed inset-0 backdrop-blur-sm bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full p-6 relative">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full p-6 relative max-h-[90vh] overflow-hidden flex flex-col">
             <button
               className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
-              onClick={() => setShowAllRostersModal(false)}
+              onClick={handleCloseAllRostersModal}
             >
               <X className="w-6 h-6" />
             </button>
@@ -1677,10 +1772,7 @@ const RosterManagementSystem = () => {
             {/* Search Form */}
             <div className="mb-6 border rounded-lg p-4 bg-gray-50">
               <h3 className="text-md font-semibold mb-3">Search Rosters</h3>
-              <form
-                onSubmit={handleRosterSearch}
-                className="grid grid-cols-3 gap-4"
-              >
+              <form onSubmit={handleRosterSearch} className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Date From
@@ -1800,8 +1892,38 @@ const RosterManagementSystem = () => {
               </form>
             </div>
 
+            {/* Bulk Operations Panel */}
+            {selectedRosterIds.size > 0 && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-red-800 font-medium">
+                      {selectedRosterIds.size} roster(s) selected
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleBulkDeleteRosters}
+                    disabled={isBulkDeleting}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                  >
+                    {isBulkDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        Delete Selected
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Results Table */}
-            <div className="overflow-x-auto max-h-[55vh]">
+            <div className="flex-1 overflow-y-auto">
               {loadingAllRosters ? (
                 <div className="p-8 text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500 mx-auto mb-4"></div>
@@ -1809,99 +1931,104 @@ const RosterManagementSystem = () => {
                 </div>
               ) : (
                 <>
-                  <table className="min-w-full text-sm border">
-                    <thead className="bg-gray-100 sticky top-0">
-                      <tr>
-                        <th className="px-4 py-2 border text-left">Roster ID</th>
-                        <th className="px-4 py-2 border text-left">Shift Code</th>
-                        <th className="px-4 py-2 border text-left">Company</th>
-                        <th className="px-4 py-2 border text-left">Department</th>
-                        <th className="px-4 py-2 border text-left">Sub Dept</th>
-                        <th className="px-4 py-2 border text-left">Employee</th>
-                        <th className="px-4 py-2 border text-left">Date From</th>
-                        <th className="px-4 py-2 border text-left">Date To</th>
-                        <th className="px-4 py-2 border text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(
-                        (rosterSearchPerformed
-                          ? searchedRosters
-                          : allRosters) || []
-                      ).map((roster, idx) => (
-                        <tr
-                          key={roster.id || idx}
-                          className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                        >
-                          <td className="px-4 py-2 border">{roster.roster_id}</td>
-                          <td className="px-4 py-2 border">{roster.shift_code}</td>
-                          <td className="px-4 py-2 border">
-                            {roster.company_name ||
-                              getCompanyName(roster.company_id?.toString())}
-                          </td>
-                          <td className="px-4 py-2 border">
-                            {roster.department_name ||
-                              getDepartmentName(roster.department_id?.toString())}
-                          </td>
-                          <td className="px-4 py-2 border">
-                            {roster.sub_department_name ||
-                              getSubDepartmentName(
-                                roster.sub_department_id?.toString()
-                              )}
-                          </td>
-                          <td className="px-4 py-2 border">
-                            {roster.employee_name || roster.employee_id}
-                          </td>
-                          <td className="px-4 py-2 border">{roster.date_from}</td>
-                          <td className="px-4 py-2 border">{roster.date_to}</td>
-                          <td className="px-4 py-2 border">
-                            <button
-                              onClick={() => handleDeleteConfirm(roster)}
-                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-colors"
-                              title="Delete Roster"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Delete
-                            </button>
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm border">
+                      <thead className="bg-gray-100 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2 border">
+                            <input
+                              type="checkbox"
+                              checked={selectAllRosters}
+                              onChange={handleSelectAllRosters}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                          </th>
+                          <th className="px-4 py-2 border">Roster ID</th>
+                          <th className="px-4 py-2 border">Shift Code</th>
+                          <th className="px-4 py-2 border">Company</th>
+                          <th className="px-4 py-2 border">Department</th>
+                          <th className="px-4 py-2 border">Sub Dept</th>
+                          <th className="px-4 py-2 border">Employee</th>
+                          <th className="px-4 py-2 border">Date From</th>
+                          <th className="px-4 py-2 border">Date To</th>
+                          <th className="px-4 py-2 border">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {/* Show a friendly message when a search was performed but returned no results */}
-                  {rosterSearchPerformed && searchedRosters.length === 0 && (
-                    <div className="p-6 text-center text-gray-600">
-                      <p className="font-medium">
-                        {searchMessage ||
-                          "No roster data found for the given criteria."}
-                      </p>
-                      <p className="text-sm mt-2 text-gray-500">
-                        Adjust your filters or click Reset to show all rosters.
-                      </p>
-                    </div>
-                  )}
-                  {/* If no search performed and no data at all */}
-                  {!rosterSearchPerformed && allRosters.length === 0 && (
-                    <div className="p-6 text-center text-gray-600">
-                      <p className="font-medium">No roster data found.</p>
-                    </div>
-                  )}
+                      </thead>
+                      <tbody>
+                        {(rosterSearchPerformed ? searchedRosters : allRosters).map((roster, idx) => (
+                          <tr key={roster.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                            <td className="px-4 py-2 border text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedRosterIds.has(roster.id)}
+                                onChange={() => handleSelectRoster(roster.id)}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-4 py-2 border">{roster.roster_id}</td>
+                            <td className="px-4 py-2 border">{roster.shift_code}</td>
+                            <td className="px-4 py-2 border">{roster.company_name || "-"}</td>
+                            <td className="px-4 py-2 border">{roster.department_name || "-"}</td>
+                            <td className="px-4 py-2 border">{roster.sub_department_name || "-"}</td>
+                            <td className="px-4 py-2 border">{roster.employee_name || "-"}</td>
+                            <td className="px-4 py-2 border">{roster.date_from || "-"}</td>
+                            <td className="px-4 py-2 border">{roster.date_to || "-"}</td>
+                            <td className="px-4 py-2 border text-center">
+                              <button
+                                onClick={() => handleDeleteConfirm(roster)}
+                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Handle empty states */}
+                        {rosterSearchPerformed && searchedRosters.length === 0 && (
+                          <tr>
+                            <td colSpan="10" className="px-4 py-8 text-center text-gray-500">
+                              <div className="flex flex-col items-center">
+                                <Search className="w-12 h-12 text-gray-400 mb-2" />
+                                <p className="font-medium">No search results found</p>
+                                <p className="text-sm mt-2 text-gray-500">
+                                  Try adjusting your search criteria
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {!rosterSearchPerformed && allRosters.length === 0 && (
+                          <tr>
+                            <td colSpan="10" className="px-4 py-8 text-center text-gray-500">
+                              <p className="font-medium">No roster data found.</p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </>
               )}
             </div>
 
-            <div className="flex justify-between items-center mt-4">
+            {/* Footer */}
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-500">
                 {searchedRosters.length > 0
                   ? `Showing ${searchedRosters.length} search results`
                   : allRosters.length > 0
                   ? `Showing ${allRosters.length} total rosters`
                   : ""}
+                {selectedRosterIds.size > 0 && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    • {selectedRosterIds.size} selected
+                  </span>
+                )}
               </div>
               <button
                 className="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700"
-                onClick={() => setShowAllRostersModal(false)}
+                onClick={handleCloseAllRostersModal}
               >
                 Close
               </button>
