@@ -314,7 +314,6 @@ const GRN = () => {
           from_center: fromCenter ?? null,
           to_center: toCenter ?? null,
           created_by: user?.id ?? undefined,
-          paid_value: Number(grnData.amount) || 0,
         };
         console.log("Data to be sent to backend:", dataToSend);
         const apiResp = await createGRN(dataToSend);
