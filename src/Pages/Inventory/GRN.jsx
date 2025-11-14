@@ -69,7 +69,6 @@ const GRN = () => {
       status: "pending",
       refNumber: "",
       amount: 0,
-      // kept for backward compatibility where needed
       productName: "",
       quantity: 0,
     });
@@ -80,7 +79,7 @@ const GRN = () => {
     const [successText, setSuccessText] = useState("");
 
     // Entry state and typeahead like SalesOrder page
-    const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+    const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const productInputRef = useRef(null);
@@ -88,6 +87,7 @@ const GRN = () => {
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
+    const [isBatchEnabled] = useState(false);
 
     useEffect(() => {
       setFormData((p) => ({ ...p, id: nextGrnId }));
@@ -194,14 +194,23 @@ const GRN = () => {
       return Object.keys(e).length === 0;
     };
 
+    // enable below code for batch vice GRN 
+
+    /* const handleBatchModeChange = (checked) => {
+      setIsBatchEnabled(checked);
+      setEntry((prev) => ({ ...prev, batchNumber: "" }));
+      setErrors((prev) => ({ ...prev, batchNumber: undefined }));
+      if (items.length > 0) {
+        setItems([]);
+      }
+    }; */
+
     const handleAddItem = () => {
       const name = (entry.productName || "").trim();
       const selected = entry.productId
         ? products.find((p) => String(p.id) === String(entry.productId))
         : products.find((p) => (p.name || "").toLowerCase() === name.toLowerCase());
       const qty = Math.max(1, Number(entry.quantity) || 1);
-      // Prefer the product's cost price for GRN unit price (purchase use-case).
-      // Fall back to product.unitPrice or the manually entered entry.unitPrice.
       const unitPrice = selected
         ? (Number(selected.costPrice) || Number(selected.unitPrice) || 0)
         : (Number(entry.unitPrice) || 0);
@@ -209,23 +218,55 @@ const GRN = () => {
         setErrors((prev) => ({ ...prev, productName: "Product name is required" }));
         return;
       }
+      if (isBatchEnabled && !String(entry.batchNumber || "").trim()) {
+        setErrors((prev) => ({ ...prev, batchNumber: "Batch number is required" }));
+        return;
+      }
       const productId = selected ? selected.id : entry.productId;
+      if (!isBatchEnabled) {
+        const duplicateRow = items.find((it) => {
+          if (productId) {
+            return String(it.productId) === String(productId);
+          }
+          return (it.name || "").toLowerCase() === name.toLowerCase();
+        });
+        if (duplicateRow) {
+          setItems((prev) => prev.map((it) => {
+            const matches = productId
+              ? String(it.productId) === String(productId)
+              : (it.name || "").toLowerCase() === name.toLowerCase();
+            if (!matches) return it;
+            const existingQty = Number(it.quantity) || 0;
+            return {
+              ...it,
+              quantity: existingQty + qty,
+              unitPrice: Math.max(0, unitPrice),
+            };
+          }));
+          setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
+          setShowSuggestions(false);
+          setActiveIndex(-1);
+          setErrors((prev) => ({ ...prev, productName: undefined }));
+          setSubmitError("");
+          return;
+        }
+      }
       const newItem = {
         rowId: Date.now() + Math.floor(Math.random() * 1000),
         productId: productId ?? "",
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
-        // discount is optional and editable per-row (no separate toggle)
         discount: 0,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
+        batchNumber: isBatchEnabled ? String(entry.batchNumber || "").trim() : null,
       };
       setItems((prev) => [...prev, newItem]);
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
       setShowSuggestions(false);
       setActiveIndex(-1);
-      setErrors((prev) => ({ ...prev, productName: undefined }));
+      setErrors((prev) => ({ ...prev, productName: undefined, batchNumber: undefined }));
       setSubmitError("");
     };
 
@@ -268,6 +309,7 @@ const GRN = () => {
         const discount = Number(itemWithoutRowId.discount) || 0;
         const mrp = Number(itemWithoutRowId.mrp) || 0;
         const lineTotal = (unitPrice - discount) * quantity;
+        const batchNumber = itemWithoutRowId.batchNumber ? String(itemWithoutRowId.batchNumber).trim() : null;
 
         return {
           ...itemWithoutRowId,
@@ -281,6 +323,8 @@ const GRN = () => {
           unit_price: unitPrice,
           discount,
           mrp,
+          batchNumber,
+          batch_number: batchNumber,
           lineNumber: index + 1,
           line_number: index + 1,
           total: lineTotal,
@@ -294,6 +338,8 @@ const GRN = () => {
         ...formWithoutLegacyFields,
         amount: computedAmount || formData.amount,
         items: itemsForPayload,
+        batchTrackingEnabled: isBatchEnabled,
+        batch_tracking_enabled: isBatchEnabled,
       };
 
       setIsSubmitting(true);
@@ -303,6 +349,12 @@ const GRN = () => {
         const customerId = grnData.customer_id ?? grnData.customerId ?? "";
         const fromCenter = grnData.from_center ?? grnData.fromCenter ?? null;
         const toCenter = grnData.to_center ?? grnData.toCenter ?? null;
+        const inventoryStockPayload = itemsForPayload.map((item) => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          batch_number: item.batch_number ?? null,
+          center_id: centerId,
+        }));
 
         const dataToSend = {
           // Send both id and voucherNumber (backend accepts either) and add created_by fallback
@@ -314,6 +366,8 @@ const GRN = () => {
           from_center: fromCenter ?? null,
           to_center: toCenter ?? null,
           created_by: user?.id ?? undefined,
+          inventoryStocks: inventoryStockPayload,
+          inventory_stocks: inventoryStockPayload,
         };
         console.log("Data to be sent to backend:", dataToSend);
         const apiResp = await createGRN(dataToSend);
@@ -350,7 +404,7 @@ const GRN = () => {
         setItems([]);
         // Show success modal
         setSuccessText(`GRN ${voucher} has been created successfully!`);
-        // Refresh centers after creation per requirement
+        
         try {
           const freshCenters = await fetchCentersService();
           const normalized = Array.isArray(freshCenters)
@@ -525,11 +579,28 @@ const GRN = () => {
                 </div>
               </div>
 
-              {/* Product Section - SalesOrder-like entry */}
+          { /* enable below code for batch vice GRN  */}
+
               <div className="mb-6 sm:mb-8">
                 <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6">Product Details</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-                  <div className="sm:col-span-3">
+                {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-blue-600 border-slate-300 rounded"
+                      checked={isBatchEnabled}
+                      onChange={(e) => handleBatchModeChange(e.target.checked)}
+                    />
+                    Enable batch numbers per item
+                  </label>
+                  <p className="text-xs text-slate-500">
+                    {isBatchEnabled
+                      ? "Each line requires a batch number and will be stored separately."
+                      : "Quantities aggregate by product and update a single stock row."}
+                  </p>
+                </div> */}
+                <div className={`grid grid-cols-1 gap-6 ${isBatchEnabled ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
+                  <div className={isBatchEnabled ? "sm:col-span-3" : "sm:col-span-3"}>
                     <label className="block text-sm font-semibold text-slate-700 mb-3">Product Name *</label>
                     <div
                       className="relative"
@@ -552,7 +623,7 @@ const GRN = () => {
                             const defaultUnit = (typeof p.costPrice === 'number' && !Number.isNaN(p.costPrice) && p.costPrice > 0)
                               ? Number(p.costPrice)
                               : Number(p.unitPrice) || 0;
-                            setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit });
+                            setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit, batchNumber: "" });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
                           } else {
@@ -600,7 +671,7 @@ const GRN = () => {
                                   const defaultUnit = (typeof p.costPrice === 'number' && !Number.isNaN(p.costPrice) && p.costPrice > 0)
                                     ? Number(p.costPrice)
                                     : Number(p.unitPrice) || 0;
-                                  setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit });
+                                  setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: defaultUnit, batchNumber: "" });
                                   setShowSuggestions(false);
                                   setActiveIndex(-1);
                                   productInputRef.current?.blur();
@@ -619,7 +690,23 @@ const GRN = () => {
                     </div>
                     {errors.productName && <p className="text-red-500 text-sm mt-2 font-medium">{errors.productName}</p>}
                   </div>
-                  <div className="flex items-end">
+                   
+                   {/*enable below code for batch vice GRN  */}
+
+                  {/* {isBatchEnabled && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-semibold text-slate-700 mb-3">Batch Number *</label>
+                      <input
+                        type="text"
+                        value={entry.batchNumber}
+                        onChange={(e) => setEntry((prev) => ({ ...prev, batchNumber: e.target.value }))}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${errors.batchNumber ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
+                        placeholder="Enter batch number"
+                      />
+                      {errors.batchNumber && <p className="text-red-500 text-sm mt-2 font-medium">{errors.batchNumber}</p>}
+                    </div>
+                  )} */}
+                  <div className="flex items-end sm:col-span-1">
                     <button type="button" onClick={handleAddItem} disabled={!formData.center || loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                       <Plus className="h-5 w-5" />
                       Add to List
@@ -636,6 +723,9 @@ const GRN = () => {
                             <tr>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
+                              {isBatchEnabled && (
+                                <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch</th>
+                              )}
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Current Stock</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
@@ -654,6 +744,18 @@ const GRN = () => {
                                 <tr key={it.rowId} className="hover:bg-slate-50/60 transition-colors duration-150">
                                   <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-700 whitespace-nowrap">{idx + 1}</td>
                                   <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900">{it.name}</td>
+                                  {isBatchEnabled && (
+                                    <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+                                      <input
+                                        type="text"
+                                        value={it.batchNumber || ""}
+                                        onChange={(e) => updateItemField(it.rowId, "batchNumber", e.target.value)}
+                                        aria-label={`Batch number for ${it.name}`}
+                                        className="w-32 px-3 py-2 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
+                                        placeholder="Batch"
+                                      />
+                                    </td>
+                                  )}
                                   <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-right whitespace-nowrap">{it.currentStock}</td>
                                   <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                     <input
