@@ -64,7 +64,7 @@ const GRN = () => {
       centerName: "",
       customerId: "",
       fromCenter: null,
-      toCenter: "",
+      toCenter: null,
       date: new Date().toISOString().split("T")[0],
       status: "pending",
       refNumber: "",
@@ -288,14 +288,12 @@ const GRN = () => {
         };
       });
 
-      const firstItem = itemsForPayload[0];
+      const { productName: _legacyProductName, quantity: _legacyQuantity, ...formWithoutLegacyFields } = formData;
 
       const grnData = {
-        ...formData,
+        ...formWithoutLegacyFields,
         amount: computedAmount || formData.amount,
         items: itemsForPayload,
-        productName: firstItem ? firstItem.name : "",
-        quantity: firstItem ? firstItem.quantity : 0,
       };
 
       setIsSubmitting(true);
@@ -304,7 +302,7 @@ const GRN = () => {
         const supplierId = grnData.supplier_id ?? grnData.supplier ?? "";
         const customerId = grnData.customer_id ?? grnData.customerId ?? "";
         const fromCenter = grnData.from_center ?? grnData.fromCenter ?? null;
-        const toCenter = grnData.to_center ?? grnData.toCenter ?? centerId;
+        const toCenter = grnData.to_center ?? grnData.toCenter ?? null;
 
         const dataToSend = {
           // Send both id and voucherNumber (backend accepts either) and add created_by fallback
@@ -314,7 +312,7 @@ const GRN = () => {
           supplier_id: supplierId,
           customer_id: customerId,
           from_center: fromCenter ?? null,
-          to_center: toCenter || null,
+          to_center: toCenter ?? null,
           created_by: user?.id ?? undefined,
           paid_value: Number(grnData.amount) || 0,
         };
@@ -342,7 +340,7 @@ const GRN = () => {
           supplierName: "",
           customerId: "",
           fromCenter: null,
-          toCenter: "",
+          toCenter: null,
           date: new Date().toISOString().split("T")[0],
           status: "pending",
           refNumber: "",
@@ -466,7 +464,7 @@ const GRN = () => {
                         ...prev,
                         center: selectedId,
                         fromCenter: null,
-                        toCenter: selectedId,
+                        toCenter: null,
                         centerName: selected?.name || "",
                       }));
                     }}

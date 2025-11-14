@@ -315,7 +315,6 @@ const Invoices = () => {
       }
 
       // Prepare invoice payload up to this point (without payment)
-      const firstItem = items[0];
       const computedAmount = items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
@@ -325,13 +324,13 @@ const Invoices = () => {
         return acc + (lineTotal - lineDiscount);
       }, 0);
 
+      const { productName: _legacyProductName, quantity: _legacyQuantity, ...formWithoutLegacyFields } = formData;
+
       const invoiceData = {
-        ...formData,
+        ...formWithoutLegacyFields,
         amount: computedAmount || formData.amount,
         items,
-        // keep backward-compatible fields for displays using single product
-        productName: firstItem ? firstItem.name : formData.productName,
-        quantity: firstItem ? firstItem.quantity : formData.quantity,
+        // keep backward-compatible metadata only within items; omit root-level unit price/qty
       };
 
       // Open Payment popup; finalize after payment is set
