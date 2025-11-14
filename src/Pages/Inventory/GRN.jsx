@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, CheckCircle, X } from "lucide-react";
+import { Plus, Trash2, CheckCircle } from "lucide-react";
 import { createGRN, getNextGrn } from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
 import SupplierService from "../../services/Account/SupplierService";
-import Payment from "../../components/Inventory/Payment";
 import { useAuth } from "../../contexts/AuthContext";
 import ErrorMessage from "../../components/ErrorMessage/ErrorMessage";
 
@@ -59,13 +58,13 @@ const GRN = () => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
       id: "",
-    center: "",
-    supplier: "",
-    supplierName: "",
-    centerName: "",
-    customerId: "",
-    fromCenter: "",
-    toCenter: "",
+      center: "",
+      supplier: "",
+      supplierName: "",
+      centerName: "",
+      customerId: "",
+      fromCenter: null,
+      toCenter: "",
       date: new Date().toISOString().split("T")[0],
       status: "pending",
       refNumber: "",
@@ -75,10 +74,8 @@ const GRN = () => {
       quantity: 0,
     });
     const [errors, setErrors] = useState({});
-  const [submitError, setSubmitError] = useState("");
+    const [submitError, setSubmitError] = useState("");
     const [items, setItems] = useState([]);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [pendingGRN, setPendingGRN] = useState(null);
     const [showSuccess, setShowSuccess] = useState(false);
     const [successText, setSuccessText] = useState("");
 
@@ -256,7 +253,7 @@ const GRN = () => {
         return acc + (lineTotal - lineDiscount);
       }, 0);
 
-      const itemsForPayload = items.map((item) => {
+      const itemsForPayload = items.map((item, index) => {
         const { rowId: _ROW_ID, id: legacyId, ...itemWithoutRowId } = item;
         let resolvedProductId = itemWithoutRowId.productId ?? legacyId ?? null;
         if (resolvedProductId === "") {
@@ -270,17 +267,24 @@ const GRN = () => {
         const unitPrice = Number(itemWithoutRowId.unitPrice) || 0;
         const discount = Number(itemWithoutRowId.discount) || 0;
         const mrp = Number(itemWithoutRowId.mrp) || 0;
+        const lineTotal = (unitPrice - discount) * quantity;
 
         return {
           ...itemWithoutRowId,
           id: finalProductId,
           productId: finalProductId,
           product_id: finalProductId,
+          productName: itemWithoutRowId.name,
+          product_name: itemWithoutRowId.name,
           quantity,
           unitPrice,
           unit_price: unitPrice,
           discount,
           mrp,
+          lineNumber: index + 1,
+          line_number: index + 1,
+          total: lineTotal,
+          line_total: lineTotal,
         };
       });
 
@@ -294,39 +298,31 @@ const GRN = () => {
         quantity: firstItem ? firstItem.quantity : 0,
       };
 
-      setPendingGRN(grnData);
-      setShowPaymentModal(true);
-    };
-
-    const finalizeGRNWithPayment = async (paymentData) => {
-      if (!pendingGRN) return;
       setIsSubmitting(true);
       try {
-        const centerId = pendingGRN.center_id ?? pendingGRN.center ?? "";
-        const supplierId = pendingGRN.supplier_id ?? pendingGRN.supplier ?? "";
-        const customerId = pendingGRN.customer_id ?? pendingGRN.customerId ?? "";
-        const fromCenter = pendingGRN.from_center ?? pendingGRN.fromCenter ?? centerId;
-        const toCenter = pendingGRN.to_center ?? pendingGRN.toCenter ?? centerId;
+        const centerId = grnData.center_id ?? grnData.center ?? "";
+        const supplierId = grnData.supplier_id ?? grnData.supplier ?? "";
+        const customerId = grnData.customer_id ?? grnData.customerId ?? "";
+        const fromCenter = grnData.from_center ?? grnData.fromCenter ?? null;
+        const toCenter = grnData.to_center ?? grnData.toCenter ?? centerId;
 
         const dataToSend = {
           // Send both id and voucherNumber (backend accepts either) and add created_by fallback
-          ...pendingGRN,
-          voucherNumber: pendingGRN?.id,
+          ...grnData,
+          voucherNumber: grnData?.id,
           center_id: centerId,
           supplier_id: supplierId,
           customer_id: customerId,
-          from_center: fromCenter,
-          to_center: toCenter,
-          payment: paymentData,
+          from_center: fromCenter ?? null,
+          to_center: toCenter || null,
           created_by: user?.id ?? undefined,
-          // Map payment amount to inventory.paid_value as required by backend
-          paid_value: typeof paymentData?.amount === 'number' ? paymentData.amount : Number(paymentData?.amount) || 0,
+          paid_value: Number(grnData.amount) || 0,
         };
         console.log("Data to be sent to backend:", dataToSend);
         const apiResp = await createGRN(dataToSend);
         const saved = apiResp?.data ?? apiResp;
-        const voucher = saved?.voucherNumber || pendingGRN?.id;
-        const optimisticNext = incrementGrnCode(voucher || pendingGRN?.id || nextGrnId);
+        const voucher = saved?.voucherNumber || grnData?.id;
+        const optimisticNext = incrementGrnCode(voucher || grnData?.id || nextGrnId);
         if (optimisticNext && typeof updateNextGrnId === "function") {
           updateNextGrnId(optimisticNext);
         }
@@ -345,7 +341,7 @@ const GRN = () => {
           supplier: "",
           supplierName: "",
           customerId: "",
-          fromCenter: "",
+          fromCenter: null,
           toCenter: "",
           date: new Date().toISOString().split("T")[0],
           status: "pending",
@@ -355,8 +351,6 @@ const GRN = () => {
           quantity: 0,
         });
         setItems([]);
-        setPendingGRN(null);
-        setShowPaymentModal(false);
         // Show success modal
         setSuccessText(`GRN ${voucher} has been created successfully!`);
         // Refresh centers after creation per requirement
@@ -424,8 +418,6 @@ const GRN = () => {
         }
 
         setSubmitError(message);
-        setShowPaymentModal(false);
-        setPendingGRN(null);
       } finally {
         setIsSubmitting(false);
       }
@@ -473,7 +465,7 @@ const GRN = () => {
                       setFormData((prev) => ({
                         ...prev,
                         center: selectedId,
-                        fromCenter: selectedId,
+                        fromCenter: null,
                         toCenter: selectedId,
                         centerName: selected?.name || "",
                       }));
@@ -759,31 +751,6 @@ const GRN = () => {
             </div>
           </form>
         </div>
-
-        {showPaymentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPaymentModal(false)} aria-hidden="true" />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 border border-slate-200">
-              <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                <h3 className="text-xl font-semibold text-slate-900">Set Payment</h3>
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="text-slate-500 hover:text-slate-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-                  aria-label="Close payment modal"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-6">
-                <div className="mb-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  Total Payable: <span className="font-bold text-slate-900 text-lg">{formatLKR(pendingGRN?.amount || tableTotal)}</span>
-                </div>
-                <Payment onSetPayment={finalizeGRNWithPayment} />
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Success Modal */}
         {showSuccess && (
