@@ -29,12 +29,13 @@ import EmployeeAdd from "@dashboard/EmployeeAdd";
 import ShowEmployee from "@dashboard/ShowEmployee";
 import CreateNewDeduction from "@dashboard/createnewdeduction";
 import ShiftSchedule from "@dashboard/ShiftSchedule";
+import ShiftOvertimeRates from "@dashboard/ShiftOvertimeRates";
 import CreateNewAllowance from "@dashboard/createnewallowance";
 import EmployeeLoan from "@dashboard/employeeloan";
 import TimeCard from "@dashboard/timecard";
 import Overtime from "@dashboard/overtime";
 import Department from "@dashboard/Department";
-import Grouproster from "@dashboard/Grouproster";
+import Grouproster from "@dashboard/grouproster";
 import LeaveMaster from "@dashboard/LeaveMaster";
 import NoPayManagement from "@dashboard/nopaymanagement";
 import LeaveCalendar from "@dashboard/leavecalendar";
@@ -646,6 +647,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "grouproster" ? (
               <ProtectedComponent module="grouproster" action="view">
                 <Grouproster />
+              </ProtectedComponent>
+            ) : activeItem === "shiftOvertimeRates" ? (
+              <ProtectedComponent module="shiftOvertimeRates" action="view">
+                <ShiftOvertimeRates />
               </ProtectedComponent>
             ) : activeItem === "leavecalendar" ? (
               <ProtectedComponent module="leavecalendar" action="view">

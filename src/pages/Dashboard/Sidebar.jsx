@@ -63,6 +63,7 @@ const Sidebar = ({
         { id: "departmentMaster", name: "Department Master" },
         { id: "shiftTime", name: "Shift Time" },
         { id: "grouproster", name: "Roster" },
+        { id: "shiftOvertimeRates", name: "Shift OT Rates" },
         { id: "resignation", name: "Resignation" },
         { id: "termination", name: "Termination" },
         // { id: "userManagement", name: "User Management", icon: Users },
