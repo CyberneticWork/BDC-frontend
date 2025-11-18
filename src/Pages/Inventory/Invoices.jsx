@@ -126,7 +126,7 @@ const Invoices = () => {
   const [errors, setErrors] = useState({});
   const [items, setItems] = useState([]);
   // Product entry state for typeahead
-  const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+  const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const productInputRef = useRef(null);
@@ -136,6 +136,7 @@ const Invoices = () => {
   const [centers, setCenters] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState({ customers: false, centers: false, products: false });
+  const [isBatchEnabled, setIsBatchEnabled] = useState(false);
 
     // Sync generated invoice id from parent into form
     useEffect(() => {
@@ -250,6 +251,15 @@ const Invoices = () => {
       return Object.keys(newErrors).length === 0;
     };
 
+    const handleBatchModeChange = (checked) => {
+      setIsBatchEnabled(checked);
+      setEntry((prev) => ({ ...prev, batchNumber: "" }));
+      setErrors((prev) => ({ ...prev, batchNumber: undefined }));
+      if (items.length > 0) {
+        setItems([]);
+      }
+    };
+
   // Products are loaded from service in effect above
 
     const filteredProducts = useMemo(() => {
@@ -281,6 +291,10 @@ const Invoices = () => {
         setErrors(prev => ({ ...prev, quantity: 'Quantity must be greater than 0' }));
         return;
       }
+      if (isBatchEnabled && !String(entry.batchNumber || '').trim()) {
+        setErrors(prev => ({ ...prev, batchNumber: 'Batch number is required' }));
+        return;
+      }
 
       const newItem = {
         id: Date.now(),
@@ -290,13 +304,14 @@ const Invoices = () => {
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
         discountEnabled: false,
+        batchNumber: isBatchEnabled ? String(entry.batchNumber || '').trim() : null,
       };
 
       setItems(prev => [...prev, newItem]);
 
       // Clear entry fields for next add
-      setEntry({ productId: '', productName: '', quantity: 1, unitPrice: 0 });
-      setErrors(prev => ({ ...prev, productName: undefined, quantity: undefined }));
+      setEntry({ productId: '', productName: '', quantity: 1, unitPrice: 0, batchNumber: '' });
+      setErrors(prev => ({ ...prev, productName: undefined, quantity: undefined, batchNumber: undefined }));
     };
 
     const updateItemField = (id, field, value) => {
@@ -326,11 +341,47 @@ const Invoices = () => {
 
       const { productName: _legacyProductName, quantity: _legacyQuantity, ...formWithoutLegacyFields } = formData;
 
+      const normalizedItems = items.map((item, index) => {
+        const quantity = Number(item.quantity) || 0;
+        const unitPrice = Number(item.unitPrice) || 0;
+        const discountValue = item.discountEnabled ? Number(item.discount) || 0 : 0;
+        const batchNumber = item.batchNumber ? String(item.batchNumber).trim() : null;
+        const base = {
+          ...item,
+          quantity,
+          unitPrice,
+          discount: item.discount,
+          batchNumber,
+          batch_number: batchNumber,
+          lineNumber: index + 1,
+          line_number: index + 1,
+          line_total: (unitPrice - discountValue) * quantity,
+        };
+        return base;
+      });
+
+      const centerId = formWithoutLegacyFields.center_id ?? formWithoutLegacyFields.center ?? '';
+      const inventoryStockPayload = normalizedItems
+        .map((item) => {
+          const resolvedProductId = item.product_id ?? item.productId ?? null;
+          if (!resolvedProductId) return null;
+          return {
+            product_id: resolvedProductId,
+            quantity: item.quantity,
+            batch_number: item.batch_number ?? item.batchNumber ?? null,
+            center_id: centerId || null,
+          };
+        })
+        .filter(Boolean);
+
       const invoiceData = {
         ...formWithoutLegacyFields,
         amount: computedAmount || formData.amount,
-        items,
-        // keep backward-compatible metadata only within items; omit root-level unit price/qty
+        items: normalizedItems,
+        batchTrackingEnabled: isBatchEnabled,
+        batch_tracking_enabled: isBatchEnabled,
+        inventoryStocks: inventoryStockPayload,
+        inventory_stocks: inventoryStockPayload,
       };
 
       // Open Payment popup; finalize after payment is set
@@ -370,6 +421,7 @@ const Invoices = () => {
             unitPrice: unit,
             discountEnabled: !!it.discountEnabled,
             discountPerUnit: disc,
+            batchNumber: it.batchNumber ?? '',
             lineTotal,
             lineDiscount,
             rowTotal,
@@ -607,8 +659,24 @@ const Invoices = () => {
             {/* Product Section */}
             <div className="mb-6 sm:mb-8 bg-slate-50 rounded-lg p-6 border border-slate-200">
               <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6 border-b border-slate-200 pb-4">Product Details</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="sm:col-span-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 border-slate-300 rounded"
+                    checked={isBatchEnabled}
+                    onChange={(e) => handleBatchModeChange(e.target.checked)}
+                  />
+                  Enable batch numbers per item
+                </label>
+                <p className="text-xs text-slate-500">
+                  {isBatchEnabled
+                    ? "Each invoice line must carry a batch number."
+                    : "Quantities group per product without batch tracking."}
+                </p>
+              </div>
+              <div className={`grid grid-cols-1 gap-4 ${isBatchEnabled ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+                <div className={isBatchEnabled ? 'sm:col-span-3' : 'sm:col-span-2'}>
                   <label className="block text-sm font-semibold text-slate-700 mb-3">Product Name *</label>
                   <div className="relative" onKeyDown={(e) => {
                     if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
@@ -626,7 +694,7 @@ const Invoices = () => {
                       e.preventDefault();
                       if (activeIndex >= 0 && filteredProducts[activeIndex]) {
                         const p = filteredProducts[activeIndex];
-                        setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                        setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: '' });
                         setShowSuggestions(false);
                         setActiveIndex(-1);
                       }
@@ -666,7 +734,7 @@ const Invoices = () => {
                             onMouseEnter={() => setActiveIndex(idx)}
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
-                              setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                              setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: '' });
                               setShowSuggestions(false);
                               setActiveIndex(-1);
                               productInputRef.current?.blur();
@@ -700,7 +768,19 @@ const Invoices = () => {
 
                 {/* Removed global Special Request toggle; discount is now controlled per row */}
 
-
+                {isBatchEnabled && (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-3">Batch Number *</label>
+                    <input
+                      type="text"
+                      value={entry.batchNumber}
+                      onChange={(e) => setEntry((prev) => ({ ...prev, batchNumber: e.target.value }))}
+                      className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 ${errors.batchNumber ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'}`}
+                      placeholder="Enter batch number"
+                    />
+                    {errors.batchNumber && <p className="text-red-600 text-sm mt-2 font-medium">{errors.batchNumber}</p>}
+                  </div>
+                )}
 
                 <div className="flex items-end">
                   <button type="button" onClick={handleAddItem} disabled={!formData.center || loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
@@ -722,6 +802,9 @@ const Invoices = () => {
                           <tr>
                             <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
                             <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
+                            {isBatchEnabled && (
+                              <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch</th>
+                            )}
                             <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
                             <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
                             <th scope="col" className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
@@ -742,6 +825,18 @@ const Invoices = () => {
                               <tr key={it.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{idx + 1}</td>
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.name}</td>
+                                {isBatchEnabled && (
+                                  <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+                                    <input
+                                      type="text"
+                                      value={it.batchNumber || ''}
+                                      onChange={(e) => updateItemField(it.id, 'batchNumber', e.target.value)}
+                                      aria-label={`Batch number for ${it.name}`}
+                                      className="w-32 px-3 py-2 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
+                                      placeholder="Batch"
+                                    />
+                                  </td>
+                                )}
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
                                     type="number"

@@ -87,7 +87,7 @@ const GRN = () => {
     const [suppliers, setSuppliers] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
-    const [isBatchEnabled] = useState(false);
+    const [isBatchEnabled, setIsBatchEnabled] = useState(false);
 
     useEffect(() => {
       setFormData((p) => ({ ...p, id: nextGrnId }));
@@ -196,14 +196,14 @@ const GRN = () => {
 
     // enable below code for batch vice GRN 
 
-    /* const handleBatchModeChange = (checked) => {
+    const handleBatchModeChange = (checked) => {
       setIsBatchEnabled(checked);
       setEntry((prev) => ({ ...prev, batchNumber: "" }));
       setErrors((prev) => ({ ...prev, batchNumber: undefined }));
       if (items.length > 0) {
         setItems([]);
       }
-    }; */
+    };
 
     const handleAddItem = () => {
       const name = (entry.productName || "").trim();
@@ -583,7 +583,7 @@ const GRN = () => {
 
               <div className="mb-6 sm:mb-8">
                 <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6">Product Details</h4>
-                {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
                     <input
                       type="checkbox"
@@ -598,7 +598,7 @@ const GRN = () => {
                       ? "Each line requires a batch number and will be stored separately."
                       : "Quantities aggregate by product and update a single stock row."}
                   </p>
-                </div> */}
+                </div>
                 <div className={`grid grid-cols-1 gap-6 ${isBatchEnabled ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
                   <div className={isBatchEnabled ? "sm:col-span-3" : "sm:col-span-3"}>
                     <label className="block text-sm font-semibold text-slate-700 mb-3">Product Name *</label>
@@ -693,7 +693,7 @@ const GRN = () => {
                    
                    {/*enable below code for batch vice GRN  */}
 
-                  {/* {isBatchEnabled && (
+                  {isBatchEnabled && (
                     <div className="sm:col-span-2">
                       <label className="block text-sm font-semibold text-slate-700 mb-3">Batch Number *</label>
                       <input
@@ -705,7 +705,7 @@ const GRN = () => {
                       />
                       {errors.batchNumber && <p className="text-red-500 text-sm mt-2 font-medium">{errors.batchNumber}</p>}
                     </div>
-                  )} */}
+                  )}
                   <div className="flex items-end sm:col-span-1">
                     <button type="button" onClick={handleAddItem} disabled={!formData.center || loading.products} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                       <Plus className="h-5 w-5" />
