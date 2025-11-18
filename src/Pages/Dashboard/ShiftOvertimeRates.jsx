@@ -8,10 +8,11 @@ const toFixedOrEmpty = (v) => (v === "" || v === null || v === undefined ? "" : 
 
 const initialForm = {
   shift_id: "",
-  normal_hours_rate: "",
-  ot_rate: "",
-  holiday_rate: "",
-  ignore_hours_threshold: "1.00",
+  shift_hours_per_day: "",
+  working_days_per_month: "",
+  ot_multiplier: "",
+  holiday_multiplier: "",
+  ignore_hours_threshold: "",
 };
 
 const ShiftOvertimeRates = () => {
@@ -115,9 +116,10 @@ const ShiftOvertimeRates = () => {
           setRecordId(existing.id);
           setForm({
             shift_id: existing.shift_id,
-            normal_hours_rate: toFixedOrEmpty(existing.normal_hours_rate),
-            ot_rate: toFixedOrEmpty(existing.ot_rate),
-            holiday_rate: toFixedOrEmpty(existing.holiday_rate),
+            shift_hours_per_day: toFixedOrEmpty(existing.shift_hours_per_day),
+            working_days_per_month: toFixedOrEmpty(existing.working_days_per_month),
+            ot_multiplier: toFixedOrEmpty(existing.ot_multiplier),
+            holiday_multiplier: toFixedOrEmpty(existing.holiday_multiplier),
             ignore_hours_threshold: toFixedOrEmpty(existing.ignore_hours_threshold),
           });
         } else {
@@ -160,9 +162,10 @@ const ShiftOvertimeRates = () => {
   const payload = useMemo(
     () => ({
       shift_id: Number(form.shift_id || selectedShiftId),
-      normal_hours_rate: form.normal_hours_rate === "" ? 0 : Number(form.normal_hours_rate),
-      ot_rate: form.ot_rate === "" ? 0 : Number(form.ot_rate),
-      holiday_rate: form.holiday_rate === "" ? 0 : Number(form.holiday_rate),
+      shift_hours_per_day: form.shift_hours_per_day === "" ? 0 : Number(form.shift_hours_per_day),
+      working_days_per_month: form.working_days_per_month === "" ? 0 : Number(form.working_days_per_month),
+      ot_multiplier: form.ot_multiplier === "" ? 0 : Number(form.ot_multiplier),
+      holiday_multiplier: form.holiday_multiplier === "" ? 0 : Number(form.holiday_multiplier),
       ignore_hours_threshold: form.ignore_hours_threshold === "" ? 0 : Number(form.ignore_hours_threshold),
     }),
     [form, selectedShiftId]
@@ -179,14 +182,17 @@ const ShiftOvertimeRates = () => {
     try {
       if (recordId) {
         await ShiftOvertimeRateService.update(recordId, payload);
-        Swal.fire({ icon: "success", title: "Updated", text: "Shift OT rates updated successfully.", timer: 1500, showConfirmButton: false });
+        Swal.fire({ icon: "success", title: "Updated", text: "Shift OT configuration updated successfully.", timer: 1500, showConfirmButton: false });
       } else {
         const created = await ShiftOvertimeRateService.create(payload);
         setRecordId(created?.id ?? null);
-        Swal.fire({ icon: "success", title: "Saved", text: "Shift OT rates saved successfully.", timer: 1500, showConfirmButton: false });
+        Swal.fire({ icon: "success", title: "Saved", text: "Shift OT configuration saved successfully.", timer: 1500, showConfirmButton: false });
       }
+
+      // Clear form automatically after successful operation
+      handleClear();
     } catch (e) {
-      const msg = e?.response?.data?.message || "Failed to save OT rates.";
+      const msg = e?.response?.data?.message || "Failed to save OT configuration.";
       const val = e?.response?.data?.errors;
       if (val) setErrors(val);
       Swal.fire({ icon: "error", title: "Error", text: msg });
@@ -200,27 +206,29 @@ const ShiftOvertimeRates = () => {
     setSelectedShift(null);
     setForm({
       shift_id: "",
-      normal_hours_rate: "",
-      ot_rate: "",
-      holiday_rate: "",
-      ignore_hours_threshold: "1.00",
+      shift_hours_per_day: "",
+      working_days_per_month: "",
+      ot_multiplier: "",
+      holiday_multiplier: "",
+      ignore_hours_threshold: "",
     });
     setRecordId(null);
     setErrors({});
   };
 
-  // Function to copy calculated rates to form
+  // Function to copy calculated configuration to form
   const copyCalculatedRates = () => {
     setForm(prev => ({
       ...prev,
-      normal_hours_rate: independentCalcs.hourlyRate.toFixed(2),
-      ot_rate: independentCalcs.otRate.toFixed(2),
-      holiday_rate: independentCalcs.holidayRate.toFixed(2)
+      shift_hours_per_day: independentCalcs.shiftHours.toFixed(2),
+      working_days_per_month: independentCalcs.daysInMonth.toFixed(2),
+      ot_multiplier: "1.50",
+      holiday_multiplier: "2.00"
     }));
     Swal.fire({
       icon: "success",
-      title: "Rates Copied",
-      text: "Calculated rates have been copied to the form.",
+      title: "Configuration Copied",
+      text: "Calculated parameters have been copied to the form.",
       timer: 1500,
       showConfirmButton: false
     });
@@ -234,7 +242,7 @@ const ShiftOvertimeRates = () => {
       setSavedRates(data);
       setShowModal(true);
     } catch (e) {
-      Swal.fire({ icon: "error", title: "Error", text: "Failed to load saved rates" });
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to load saved configurations" });
     } finally {
       setLoadingTable(false);
     }
@@ -250,8 +258,8 @@ const ShiftOvertimeRates = () => {
   // Delete rate
   const handleDeleteRate = async (id) => {
     const result = await Swal.fire({
-      title: "Delete Rate?",
-      text: "Are you sure you want to delete this overtime rate configuration?",
+      title: "Delete Configuration?",
+      text: "Are you sure you want to delete this overtime configuration?",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -265,14 +273,14 @@ const ShiftOvertimeRates = () => {
         Swal.fire({
           icon: "success",
           title: "Deleted!",
-          text: "Rate configuration has been deleted.",
+          text: "Configuration has been deleted.",
           timer: 1500,
           showConfirmButton: false,
         });
         // Reload the table
         loadSavedRates();
       } catch (e) {
-        Swal.fire({ icon: "error", title: "Error", text: "Failed to delete rate" });
+        Swal.fire({ icon: "error", title: "Error", text: "Failed to delete configuration" });
       }
     }
   };
@@ -286,8 +294,8 @@ const ShiftOvertimeRates = () => {
               <DollarSign className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Shift Overtime Rates</h1>
-              <p className="text-gray-600">Configure normal hours rate, OT rate, holiday rate, and ignore-hours threshold per shift</p>
+              <h1 className="text-2xl font-bold text-gray-900">Shift Overtime Configuration</h1>
+              <p className="text-gray-600">Configure shift parameters and overtime multipliers for dynamic rate calculation</p>
             </div>
           </div>
           <button
@@ -300,7 +308,7 @@ const ShiftOvertimeRates = () => {
         </div>
       </div>
 
-      {/* Independent Rate Calculator Card */}
+      {/* Independent Rate Calculator Card - keeping existing implementation */}
       <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -363,7 +371,7 @@ const ShiftOvertimeRates = () => {
             </div>
           </div>
 
-          {/* Results Section */}
+          {/* Results Section - keeping existing implementation */}
           <div className="space-y-4">
             {/* Normal Rate */}
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -449,9 +457,9 @@ const ShiftOvertimeRates = () => {
         </div>
       </div>
 
-      {/* Shift Selection and Rate Configuration Card */}
+      {/* Shift Selection and Configuration Card */}
       <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
-        {/* Shift picker + meta */}
+        {/* Shift picker + meta - keeping existing implementation */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Select Shift</label>
@@ -510,7 +518,7 @@ const ShiftOvertimeRates = () => {
                       </div>
                     </>
                   ) : (
-                    <span className="text-gray-500 text-sm">Pick a shift to view its details and configure rates.</span>
+                    <span className="text-gray-500 text-sm">Pick a shift to view its details and configure parameters.</span>
                   )}
                 </div>
               </div>
@@ -518,74 +526,93 @@ const ShiftOvertimeRates = () => {
           </div>
         </div>
 
-        {/* Rates form */}
+        {/* New Configuration form with parameter fields */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Configure Rates</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Configure Parameters</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Normal Hours Rate
-                <span className="text-xs text-gray-500 block">Rate for regular working hours</span>
+                Shift Hours per Day
+                <span className="text-xs text-gray-500 block">Hours worked per day</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">Rs.</span>
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="0.00"
-                  value={num(form.normal_hours_rate)}
-                  onChange={onNumberChange("normal_hours_rate")}
-                  className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="8.00"
+                  value={num(form.shift_hours_per_day)}
+                  onChange={onNumberChange("shift_hours_per_day")}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">hrs</span>
               </div>
-              {errors?.normal_hours_rate && <p className="text-xs text-red-600 mt-1">{errors.normal_hours_rate[0]}</p>}
+              {errors?.shift_hours_per_day && <p className="text-xs text-red-600 mt-1">{errors.shift_hours_per_day[0]}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Overtime Rate
-                <span className="text-xs text-gray-500 block">Rate for overtime hours</span>
+                Working Days per Month
+                <span className="text-xs text-gray-500 block">Expected working days</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">Rs.</span>
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="0.00"
-                  value={num(form.ot_rate)}
-                  onChange={onNumberChange("ot_rate")}
-                  className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="30.00"
+                  value={num(form.working_days_per_month)}
+                  onChange={onNumberChange("working_days_per_month")}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">days</span>
               </div>
-              {errors?.ot_rate && <p className="text-xs text-red-600 mt-1">{errors.ot_rate[0]}</p>}
+              {errors?.working_days_per_month && <p className="text-xs text-red-600 mt-1">{errors.working_days_per_month[0]}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Holiday Rate
-                <span className="text-xs text-gray-500 block">Rate for holiday work</span>
+                OT Multiplier
+                <span className="text-xs text-gray-500 block">Overtime rate multiplier</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">Rs.</span>
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="0.00"
-                  value={num(form.holiday_rate)}
-                  onChange={onNumberChange("holiday_rate")}
-                  className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="1.50"
+                  value={num(form.ot_multiplier)}
+                  onChange={onNumberChange("ot_multiplier")}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">×</span>
               </div>
-              {errors?.holiday_rate && <p className="text-xs text-red-600 mt-1">{errors.holiday_rate[0]}</p>}
+              {errors?.ot_multiplier && <p className="text-xs text-red-600 mt-1">{errors.ot_multiplier[0]}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Holiday Multiplier
+                <span className="text-xs text-gray-500 block">Holiday rate multiplier</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="2.00"
+                  value={num(form.holiday_multiplier)}
+                  onChange={onNumberChange("holiday_multiplier")}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">×</span>
+              </div>
+              {errors?.holiday_multiplier && <p className="text-xs text-red-600 mt-1">{errors.holiday_multiplier[0]}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ignore Hours Threshold
-                <span className="text-xs text-gray-500 block">Hours to ignore before calculating OT</span>
+                <span className="text-xs text-gray-500 block">Hours to ignore before OT</span>
               </label>
               <div className="relative">
                 <input
@@ -603,12 +630,13 @@ const ShiftOvertimeRates = () => {
           </div>
 
           <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">💡 How it works:</h3>
+            <h3 className="text-sm font-medium text-blue-900 mb-2">💡 How the new system works:</h3>
             <ul className="text-xs text-blue-800 space-y-1">
-              <li>• <strong>Normal Hours Rate:</strong> Applied to regular working hours within shift duration</li>
-              <li>• <strong>Overtime Rate:</strong> Applied to hours worked beyond normal shift hours</li>
-              <li>• <strong>Holiday Rate:</strong> Special rate for work performed on designated holidays</li>
-              <li>• <strong>Ignore Hours Threshold:</strong> Hours to ignore before calculating overtime (e.g., 1.00 = ignore first hour of OT)</li>
+              <li>• <strong>Shift Hours per Day:</strong> Used to calculate total monthly hours (Hours × Days)</li>
+              <li>• <strong>Working Days per Month:</strong> Expected working days for calculating hourly rate</li>
+              <li>• <strong>OT Multiplier:</strong> Factor to multiply base rate for overtime (typically 1.5)</li>
+              <li>• <strong>Holiday Multiplier:</strong> Factor to multiply base rate for holidays (typically 2.0)</li>
+              <li>• <strong>Rates are calculated dynamically:</strong> Employee Salary ÷ (Hours × Days) × Multiplier</li>
             </ul>
           </div>
         </div>
@@ -628,7 +656,7 @@ const ShiftOvertimeRates = () => {
               ) : (
                 <>
                   <Save size={18} />
-                  {recordId ? "Update Rates" : "Save Rates"}
+                  {recordId ? "Update Configuration" : "Save Configuration"}
                 </>
               )}
             </button>
@@ -645,7 +673,7 @@ const ShiftOvertimeRates = () => {
             {recordId && (
               <div className="inline-flex items-center gap-2 text-green-700 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
                 <CheckCircle2 size={16} />
-                <span className="text-sm font-medium">Rates configured for this shift</span>
+                <span className="text-sm font-medium">Configuration saved for this shift</span>
               </div>
             )}
           </div>
@@ -659,12 +687,12 @@ const ShiftOvertimeRates = () => {
         </div>
       </div>
 
-      {/* Modal for Saved Data */}
+      {/* Updated Modal for Saved Data */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Saved Shift Overtime Rates</h2>
+              <h2 className="text-xl font-bold text-gray-900">Saved Shift Overtime Configurations</h2>
               <button
                 onClick={() => setShowModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -680,7 +708,7 @@ const ShiftOvertimeRates = () => {
                 </div>
               ) : savedRates.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">No saved overtime rates found.</p>
+                  <p className="text-gray-500">No saved overtime configurations found.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -689,9 +717,10 @@ const ShiftOvertimeRates = () => {
                       <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Shift Code</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Normal Rate</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">OT Rate</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Holiday Rate</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Hours/Day</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Days/Month</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">OT Multiplier</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Holiday Multiplier</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Ignore Threshold</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Actions</th>
                       </tr>
@@ -702,16 +731,19 @@ const ShiftOvertimeRates = () => {
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">{rate.shift_code}</td>
                           <td className="px-4 py-3 text-sm text-gray-700">{rate.shift_description}</td>
                           <td className="px-4 py-3 text-sm text-right font-mono text-gray-900">
-                            Rs. {Number(rate.normal_hours_rate).toFixed(2)}
+                            {Number(rate.shift_hours_per_day).toFixed(2)}h
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right font-mono text-gray-900">
+                            {Number(rate.working_days_per_month).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 text-sm text-right font-mono text-green-700">
-                            Rs. {Number(rate.ot_rate).toFixed(2)}
+                            {Number(rate.ot_multiplier).toFixed(2)}×
                           </td>
                           <td className="px-4 py-3 text-sm text-right font-mono text-orange-700">
-                            Rs. {Number(rate.holiday_rate).toFixed(2)}
+                            {Number(rate.holiday_multiplier).toFixed(2)}×
                           </td>
-                          <td className="px-4 py-3 text-sm text-right font-mono text-gray-700">
-                            {Number(rate.ignore_hours_threshold).toFixed(2)} hrs
+                          <td className="px-4 py-3 text-right text-xs font-semibold text-gray-700">
+                            {Number(rate.ignore_hours_threshold).toFixed(2)}h
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-2">

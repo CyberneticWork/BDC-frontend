@@ -41,6 +41,17 @@ const ShiftOvertimeRateService = {
     const res = await axios.get("/shift-overtime-rates");
     return res.data?.data ?? [];
   },
+
+  // Calculate rates for a specific shift and basic salary
+  calculateRates: async (shiftId, basicSalary) => {
+    const res = await axios.post(
+      `/shift-overtime-rates/${shiftId}/calculate-rates`,
+      {
+        basic_salary: basicSalary,
+      }
+    );
+    return res.data?.data;
+  },
 };
 
 export default ShiftOvertimeRateService;
