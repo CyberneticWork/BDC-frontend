@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { addSalesOrder, getSalesOrders } from "../../services/AccountingService";
-import { getCenters, getProducts, getCustomers  } from "../../services/Inventory/inventoryService";  
+import { getCenters as getStaticCenters, getProducts as getStaticProducts } from "../../services/Inventory/inventoryService";
+import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
+import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
+import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
 
 const SalesOrder = () => {
 	const [orders, setOrders] = useState([]);
@@ -60,6 +63,8 @@ const SalesOrder = () => {
 	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
 		const [errors, setErrors] = useState({});
 		const [customers, setCustomers] = useState([]);
+		const [centers, setCenters] = useState(() => getStaticCenters() || []);
+		const [products, setProducts] = useState(() => getStaticProducts() || []);
 
 		// Typeahead state for products
 		const [showSuggestions, setShowSuggestions] = useState(false);
@@ -71,23 +76,83 @@ const SalesOrder = () => {
 		}, [nextSONumber]);
 
 		useEffect(() => {
-			const fetchCustomers = async () => {
+			let active = true;
+			const loadCustomers = async () => {
 				try {
-					const data = await getCustomers();
-					setCustomers(data);
+					const data = await fetchCustomersService();
+					if (!active) return;
+					const normalized = Array.isArray(data)
+						? data.map((c) => ({
+							id: c.id ?? c.customer_id ?? c.email ?? c.name,
+							name: c.name ?? c.customer_name ?? `${c.first_name || ""} ${c.last_name || ""}`.trim(),
+							email: c.email ?? c.contact_email ?? "",
+						}))
+						: [];
+					setCustomers(normalized.filter((c) => c.name));
 				} catch (error) {
-					console.error('Error fetching customers:', error);
+					console.error("Error fetching customers:", error);
 				}
 			};
-			fetchCustomers();
+			loadCustomers();
+			return () => {
+				active = false;
+			};
 		}, []);
 
+		useEffect(() => {
+			let active = true;
+			const loadCenters = async () => {
+				try {
+					const data = await fetchCentersService();
+					if (!active) return;
+					const normalized = Array.isArray(data)
+						? data
+							.map((c) => c.name ?? c.center_name ?? c.title ?? c.value ?? (typeof c === "string" ? c : ""))
+							.filter(Boolean)
+						: [];
+					if (normalized.length) {
+						setCenters(normalized);
+					}
+				} catch (error) {
+					console.error("Error fetching centers:", error);
+				}
+			};
+			loadCenters();
+			return () => {
+				active = false;
+			};
+		}, []);
 
-			// Centers from service
-			const centers = useMemo(() => getCenters() || [], []);
-
-			// Products for suggestions
-			const products = useMemo(() => getProducts() || [], []);
+		useEffect(() => {
+			let active = true;
+			const loadProducts = async () => {
+				try {
+					const data = await fetchProductsService();
+					if (!active) return;
+					const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+					if (!list.length) {
+						setProducts(getStaticProducts() || []);
+						return;
+					}
+					const normalized = list.map((p, idx) => ({
+						id: p.id ?? p.product_id ?? p.sku ?? p.code ?? `INV-P-${idx}`,
+						name: p.name ?? p.product_name ?? p.title ?? `Product ${idx + 1}`,
+						sku: p.sku ?? p.code ?? p.product_code ?? "",
+						unitPrice: Number(p.unitPrice ?? p.price ?? p.unit_price ?? p.selling_price ?? 0),
+						mrp: Number(p.mrp ?? p.mrp_price ?? p.retail_price ?? p.price ?? 0),
+						currentstock: Number(p.currentstock ?? p.currentStock ?? p.stock ?? p.qty ?? 0),
+					}));
+					setProducts(normalized);
+				} catch (error) {
+					console.error("Error fetching products:", error);
+					setProducts(getStaticProducts() || []);
+				}
+			};
+			loadProducts();
+			return () => {
+				active = false;
+			};
+		}, []);
 
 			const filteredProducts = useMemo(() => {
 				const q = (entry.productName || "").toLowerCase().trim();
@@ -229,6 +294,7 @@ const SalesOrder = () => {
 						tax,
 						totalAmount,
 				};
+				console.log("Sales order payload:", payload);
 				const created = addSalesOrder(payload);
 				setOrders((prev) => [...prev, created]);
 				// Show success toast
