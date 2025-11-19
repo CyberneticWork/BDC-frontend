@@ -7,12 +7,8 @@ import axios from '../../utils/axios';
 
 const inventoryData = {
   centers: [
-    "Main Center",
-    "Branch A",
-    "Branch B",
-    "Warehouse 01",
   ],
-  // Simple product catalog used by Purchase Orders and other inventory pages
+
   products: [
     {
       id: "1",
@@ -231,6 +227,17 @@ export const getNextInv = async () => {
   }
 };
 
+//fetch next auto-Generate Sales Order number (Preview only)
+export const getNextSalesOrder = async () => {
+  try {
+    const response = await axios.get('/sales-orders/next');
+    return response.data; // { data: { next, year, sequence } }
+  } catch (error) {
+    console.error('Error fetching next Sales Order number:', error);
+    throw error;
+  }
+};
+
 export const addPurchaseOrder = (order) => {
   const newOrder = {
     ...order,
@@ -352,4 +359,9 @@ export default {
   // GRN
   createGRN,
   getNextGrn,
+  // INV
+  createINV,
+  getNextInv,
+  // Sales Order
+  getNextSalesOrder,
 };

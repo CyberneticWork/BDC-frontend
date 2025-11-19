@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {Plus,Trash2,CheckCircle,X} from "lucide-react";
 import { fetchCenters as fetchCentersService } from '../../services/Inventory/centerService';
-import { getAll as fetchProductsService } from '../../services/Inventory/productListService';
+import { getInventoryDetails as fetchInventoryDetails } from '../../services/Inventory/productListService';
 import { getCustomers as fetchCustomersService } from '../../services/Account/CustomerService';
 import { createINV, getNextInv } from '../../services/Inventory/inventoryService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -135,6 +135,7 @@ const Invoices = () => {
   const [customers, setCustomers] = useState([]);
   const [centers, setCenters] = useState([]);
   const [products, setProducts] = useState([]);
+  const [inventoryDetails, setInventoryDetails] = useState([]);
   const [loading, setLoading] = useState({ customers: false, centers: false, products: false });
   const [isBatchEnabled, setIsBatchEnabled] = useState(false);
 
@@ -184,24 +185,15 @@ const Invoices = () => {
         }
       };
 
-      const loadProducts = async () => {
+      const loadInventory = async () => {
         try {
           setLoading(prev => ({ ...prev, products: true }));
-          const data = await fetchProductsService();
+          const data = await fetchInventoryDetails();
           const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-          const normalized = list.map((p) => ({
-            id: p.id ?? p.product_id ?? String(p.sku || p.code || p.name),
-            name: p.name ?? p.product_name ?? p.title ?? `#${p.id}`,
-            sku: p.sku ?? p.code ?? p.product_code ?? '',
-            unitPrice: Number(p.unitPrice ?? p.price ?? p.unit_price ?? p.selling_price ?? 0),
-            mrp: Number(p.mrp ?? p.mrp_price ?? p.retail_price ?? p.price ?? 0),
-            costPrice: Number(p.costPrice ?? p.cost_price ?? p.purchase_price ?? p.buying_price ?? p.cost ?? 0),
-            currentstock: p.currentstock ?? p.stock ?? p.qty ?? 0,
-          }));
-          setProducts(normalized);
+          setInventoryDetails(list);
         } catch (error) {
-          console.error('Error fetching products:', error);
-          setProducts([]);
+          console.error('Error fetching inventory details:', error);
+          setInventoryDetails([]);
         } finally {
           setLoading(prev => ({ ...prev, products: false }));
         }
@@ -209,8 +201,50 @@ const Invoices = () => {
 
       loadCustomers();
       loadCenters();
-      loadProducts();
+      loadInventory();
     }, []);
+
+    useEffect(() => {
+      // Recalculate the available product list whenever the selected center changes
+      const centerId = String(formData.center || '').trim();
+      if (!centerId) {
+        setProducts([]);
+        return;
+      }
+
+      const flattenCenterInventory = inventoryDetails.flatMap((product) => {
+        const centerStocks = Array.isArray(product.inventory) ? product.inventory : [];
+        return centerStocks
+          .filter((stock) => String(stock.center?.id) === centerId)
+          .map((stock) => {
+            const availableQty = Number(
+              stock.available_quantity ??
+              stock.availableQuantity ??
+              stock.qty ??
+              stock.quantity ??
+              0
+            );
+
+            return {
+              id: product.id ?? product.product_id ?? stock.inventory_stock_id ?? `${product.name}-${stock.center?.id}`,
+              productId: product.id ?? product.product_id ?? stock.product_id,
+              name: product.name ?? product.product_name ?? product.title ?? 'Unnamed product',
+              sku: product.code ?? product.barcode ?? product.sku ?? '',
+              unitPrice: Number(product.min_price ?? product.cost ?? product.price ?? 0),
+              mrp: Number(product.mrp ?? product.price ?? product.min_price ?? 0),
+              costPrice: Number(product.cost ?? product.min_price ?? 0),
+              availableQty,
+              totalAvailable: Number(product.total_available_quantity ?? product.totalAvailableQty ?? 0),
+              inventoryStockId: stock.inventory_stock_id,
+              centerId: stock.center?.id ?? null,
+              centerName: stock.center?.name ?? '',
+              batchNumber: stock.batch_number ?? stock.batchNumber ?? null,
+            };
+          });
+      });
+
+      setProducts(flattenCenterInventory);
+    }, [formData.center, inventoryDetails]);
 
     // Build customer options from fetched customers
     const availableCustomers = customers.map(c => ({ name: c.name, email: c.email }));
@@ -289,6 +323,10 @@ const Invoices = () => {
       }
       if (qty <= 0) {
         setErrors(prev => ({ ...prev, quantity: 'Quantity must be greater than 0' }));
+        return;
+      }
+      if (selected && qty > Number(selected.availableQty ?? Infinity)) {
+        setErrors(prev => ({ ...prev, quantity: `Only ${selected.availableQty ?? 0} units available at this center` }));
         return;
       }
       if (isBatchEnabled && !String(entry.batchNumber || '').trim()) {
@@ -742,8 +780,9 @@ const Invoices = () => {
                           >
                             <span className="text-sm font-medium text-slate-900">{p.name}</span>
                             <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-                            <span className="ml-auto text-xs text-slate-600 font-semibold">
-                              Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}
+                            <span className="ml-auto text-xs text-slate-600 font-semibold text-right">
+                              Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)}<br />
+                              Stock {Number(p.availableQty ?? p.currentstock ?? 0)} units
                             </span>
                           </li>
                         ))

@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { addSalesOrder, getSalesOrders } from "../../services/AccountingService";
-import { getCenters as getStaticCenters, getProducts as getStaticProducts } from "../../services/Inventory/inventoryService";
+import { getInventoryDetails as fetchInventoryDetails } from "../../services/Inventory/productListService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
-import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
 
 const SalesOrder = () => {
 	const [orders, setOrders] = useState([]);
@@ -60,11 +59,14 @@ const SalesOrder = () => {
 			refNumber: "",
 		});
 	const [items, setItems] = useState([]);
-	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
 		const [errors, setErrors] = useState({});
 		const [customers, setCustomers] = useState([]);
-		const [centers, setCenters] = useState(() => getStaticCenters() || []);
-		const [products, setProducts] = useState(() => getStaticProducts() || []);
+		const [centers, setCenters] = useState([]);
+		const [products, setProducts] = useState([]);
+		const [inventoryDetails, setInventoryDetails] = useState([]);
+		const [selectedCenterId, setSelectedCenterId] = useState("");
+		const [loading, setLoading] = useState({ customers: false, centers: false, products: false });
 
 		// Typeahead state for products
 		const [showSuggestions, setShowSuggestions] = useState(false);
@@ -79,6 +81,7 @@ const SalesOrder = () => {
 			let active = true;
 			const loadCustomers = async () => {
 				try {
+					setLoading((prev) => ({ ...prev, customers: true }));
 					const data = await fetchCustomersService();
 					if (!active) return;
 					const normalized = Array.isArray(data)
@@ -91,6 +94,10 @@ const SalesOrder = () => {
 					setCustomers(normalized.filter((c) => c.name));
 				} catch (error) {
 					console.error("Error fetching customers:", error);
+				} finally {
+					if (active) {
+						setLoading((prev) => ({ ...prev, customers: false }));
+					}
 				}
 			};
 			loadCustomers();
@@ -103,18 +110,24 @@ const SalesOrder = () => {
 			let active = true;
 			const loadCenters = async () => {
 				try {
+					setLoading((prev) => ({ ...prev, centers: true }));
 					const data = await fetchCentersService();
 					if (!active) return;
 					const normalized = Array.isArray(data)
-						? data
-							.map((c) => c.name ?? c.center_name ?? c.title ?? c.value ?? (typeof c === "string" ? c : ""))
-							.filter(Boolean)
+						? data.map((c) => ({
+							id: c.id ?? c.center_id ?? c.value ?? c.name,
+							name: c.name ?? c.center_name ?? c.title ?? c.value ?? String(c.name || ""),
+						}))
 						: [];
 					if (normalized.length) {
-						setCenters(normalized);
+						setCenters(normalized.filter((c) => c.id && c.name));
 					}
 				} catch (error) {
 					console.error("Error fetching centers:", error);
+				} finally {
+					if (active) {
+						setLoading((prev) => ({ ...prev, centers: false }));
+					}
 				}
 			};
 			loadCenters();
@@ -125,36 +138,72 @@ const SalesOrder = () => {
 
 		useEffect(() => {
 			let active = true;
-			const loadProducts = async () => {
+			const loadInventory = async () => {
 				try {
-					const data = await fetchProductsService();
+					setLoading((prev) => ({ ...prev, products: true }));
+					const data = await fetchInventoryDetails();
 					if (!active) return;
 					const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
-					if (!list.length) {
-						setProducts(getStaticProducts() || []);
-						return;
-					}
-					const normalized = list.map((p, idx) => ({
-						id: p.id ?? p.product_id ?? p.sku ?? p.code ?? `INV-P-${idx}`,
-						name: p.name ?? p.product_name ?? p.title ?? `Product ${idx + 1}`,
-						sku: p.sku ?? p.code ?? p.product_code ?? "",
-						unitPrice: Number(p.unitPrice ?? p.price ?? p.unit_price ?? p.selling_price ?? 0),
-						mrp: Number(p.mrp ?? p.mrp_price ?? p.retail_price ?? p.price ?? 0),
-						currentstock: Number(p.currentstock ?? p.currentStock ?? p.stock ?? p.qty ?? 0),
-					}));
-					setProducts(normalized);
+					setInventoryDetails(list);
 				} catch (error) {
-					console.error("Error fetching products:", error);
-					setProducts(getStaticProducts() || []);
+					console.error("Error fetching inventory details:", error);
+					if (active) setInventoryDetails([]);
+				} finally {
+					if (active) {
+						setLoading((prev) => ({ ...prev, products: false }));
+					}
 				}
 			};
-			loadProducts();
+			loadInventory();
 			return () => {
 				active = false;
 			};
 		}, []);
 
-			const filteredProducts = useMemo(() => {
+		useEffect(() => {
+			const centerId = String(selectedCenterId || "").trim();
+			if (!centerId) {
+				setProducts([]);
+				return;
+			}
+
+			const flattened = inventoryDetails.flatMap((product) => {
+				const centerStocks = Array.isArray(product.inventory) ? product.inventory : [];
+				return centerStocks
+					.filter((stock) => String(stock.center?.id) === centerId)
+					.map((stock) => {
+						const availableQty = Number(
+							stock.available_quantity ??
+							stock.availableQuantity ??
+							stock.available_qty ??
+							stock.availableQty ??
+							stock.qty ??
+							0
+						);
+						const productId = product.id ?? product.product_id ?? stock.product_id;
+						const inventoryStockId = stock.inventory_stock_id ?? `${productId}-${centerId}`;
+
+						return {
+							id: `${inventoryStockId}`,
+							productId,
+							name: product.name ?? product.product_name ?? "Unnamed product",
+							sku: product.code ?? product.sku ?? product.barcode ?? "",
+							unitPrice: Number(product.min_price ?? product.cost ?? product.price ?? 0),
+							mrp: Number(product.mrp ?? product.price ?? product.min_price ?? 0),
+							currentstock: availableQty,
+							availableQty,
+							centerId: stock.center?.id ?? null,
+							centerName: stock.center?.name ?? "",
+							inventoryStockId,
+							batchNumber: stock.batch_number ?? stock.batchNumber ?? null,
+						};
+					});
+			});
+
+			setProducts(flattened);
+		}, [selectedCenterId, inventoryDetails]);
+
+		const filteredProducts = useMemo(() => {
 				const q = (entry.productName || "").toLowerCase().trim();
 				if (!q) return products.slice(0, 8);
 				return products
@@ -163,11 +212,11 @@ const SalesOrder = () => {
 						(p.sku || "").toLowerCase().includes(q)
 					)
 					.slice(0, 8);
-			}, [entry.productName, products]);
+		}, [entry.productName, products]);
 
 		// Build customer options from inventory service customers
 		const customerOptions = useMemo(() => {
-			return customers.map(c => c.name).filter(Boolean);
+			return customers.map((c) => c.name).filter(Boolean);
 		}, [customers]);
 
 		// Helper to parse discount as amount or % against a base
@@ -226,28 +275,35 @@ const SalesOrder = () => {
 			const selected = entry.productId ? products.find((p) => String(p.id) === String(entry.productId)) : products.find((p) => (p.name || "").toLowerCase() === name.toLowerCase());
 			const qty = Math.max(1, Number(entry.quantity) || 1);
 			const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
-			const currentStock = selected ? Number(selected.currentstock) || 0 : 0;
+			const currentStock = selected ? Number(selected.availableQty ?? selected.currentstock ?? 0) || 0 : 0;
 			const mrp = selected ? Number(selected.mrp) || 0 : 0;
+			const batchNumber = selected?.batchNumber ? String(selected.batchNumber).trim() : "";
 			const e = {};
+			if (!selectedCenterId) e.center = "Select a center first";
 			if (!name) e.productName = "Product name is required";
 			if (unitPrice < 0) e.unitPrice = "Unit price cannot be negative";
+			if (selected && qty > currentStock) {
+				e.quantity = `Only ${currentStock} units available at this center`;
+			}
 			setErrors((prev) => ({ ...prev, ...e }));
 			if (Object.keys(e).length) return;
 			setItems((prev) => [
 				...prev,
 				{
 					id: Date.now() + Math.floor(Math.random() * 1000),
-					productId: selected ? selected.id : undefined,
+					productId: selected ? selected.productId ?? selected.id : undefined,
+					inventoryStockId: selected?.inventoryStockId ?? null,
 					productName: name,
 					quantity: qty,
 					unitPrice: Math.max(0, unitPrice),
 					currentStock,
 					mrp,
+					batchNumber: batchNumber || null,
 					discountEnabled: false,
 					discountInput: "",
 				},
 			]);
-			setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+			setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
 		};
 
 		const updateItem = (id, field, rawValue) => {
@@ -258,7 +314,11 @@ const SalesOrder = () => {
 						return { ...it, discountInput: String(rawValue || "") };
 					}
 					const num = typeof rawValue === "number" ? rawValue : Number(rawValue) || 0;
-					if (field === "quantity") return { ...it, quantity: Math.max(1, Math.floor(num)) };
+					if (field === "quantity") {
+						const safeQty = Math.max(1, Math.floor(num));
+						const capped = it.currentStock ? Math.min(safeQty, Number(it.currentStock)) : safeQty;
+						return { ...it, quantity: capped };
+					}
 					if (field === "unitPrice") {
 						return { ...it, unitPrice: Math.max(0, num) };
 					}
@@ -274,21 +334,26 @@ const SalesOrder = () => {
 			if (!validate()) return;
 			setIsSubmitting(true);
 			try {
-							const payload = {
+				const payload = {
 					...form,
-						items: items.map((it) => {
-							const qty = Number(it.quantity) || 0;
-							const price = Number(it.unitPrice) || 0;
-							const gross = qty * price;
-								const dAmt = it.discountEnabled ? parseDiscount(it.discountInput, gross) : 0;
-							return {
-								...it,
-								lineGross: gross,
-								lineDiscountInput: it.discountInput || "",
-								lineDiscountAmount: dAmt,
-								lineNet: Math.max(0, gross - dAmt),
-							};
-						}),
+					centerId: selectedCenterId || null,
+					center_id: selectedCenterId || null,
+					items: items.map((it) => {
+						const qty = Number(it.quantity) || 0;
+						const price = Number(it.unitPrice) || 0;
+						const gross = qty * price;
+						const dAmt = it.discountEnabled ? parseDiscount(it.discountInput, gross) : 0;
+						const normalizedBatch = it.batchNumber ?? it.batch_number ?? null;
+						return {
+							...it,
+							batchNumber: normalizedBatch,
+							batch_number: normalizedBatch,
+							lineGross: gross,
+							lineDiscountInput: it.discountInput || "",
+							lineDiscountAmount: dAmt,
+							lineNet: Math.max(0, gross - dAmt),
+						};
+					}),
 						subtotal,
 						discountTotal,
 						tax,
@@ -309,8 +374,9 @@ const SalesOrder = () => {
 				}
 				// Reset
 				setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
+				setSelectedCenterId("");
 				setItems([]);
-				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
 				setErrors({});
 			} finally {
 				setIsSubmitting(false);
@@ -346,14 +412,20 @@ const SalesOrder = () => {
 								<div className="space-y-2">
 									<label className="block text-sm font-semibold text-slate-700 mb-2">Center *</label>
 									<select
-										value={form.center}
-										onChange={(e) => setForm((p) => ({ ...p, center: e.target.value }))}
-										className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
+										value={selectedCenterId}
+										onChange={(e) => {
+											const value = e.target.value;
+											setSelectedCenterId(value);
+											const centerMeta = centers.find((c) => String(c.id) === value);
+											setForm((p) => ({ ...p, center: centerMeta?.name || "" }));
+										}}
+										disabled={loading.centers}
+										className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"} ${loading.centers ? "opacity-60 cursor-not-allowed" : ""}`}
 									>
-										<option value="">Select a center</option>
+										<option value="">{loading.centers ? "Loading centers…" : "Select a center"}</option>
 										{centers.map((c) => (
-											<option key={c} value={c}>
-												{c}
+											<option key={c.id} value={c.id}>
+												{c.name}
 											</option>
 										))}
 									</select>
@@ -417,7 +489,7 @@ const SalesOrder = () => {
 												e.preventDefault();
 												if (activeIndex >= 0 && filteredProducts[activeIndex]) {
 													const p = filteredProducts[activeIndex];
-													setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+													setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: p.batchNumber ? String(p.batchNumber) : "" });
 													setShowSuggestions(false);
 													setActiveIndex(-1);
 												}
@@ -433,7 +505,7 @@ const SalesOrder = () => {
 												onFocus={() => setShowSuggestions(true)}
 												onChange={(e) => {
 													const val = e.target.value;
-													setEntry((p) => ({ ...p, productId: "", productName: val }));
+													setEntry((p) => ({ ...p, productId: "", productName: val, batchNumber: "" }));
 													setShowSuggestions(true);
 													setActiveIndex(-1);
 												}}
@@ -441,10 +513,11 @@ const SalesOrder = () => {
 													// Delay hiding to allow click selection
 													setTimeout(() => setShowSuggestions(false), 150);
 												}}
-												className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
-												placeholder="Search product by name or SKU"
+												disabled={!selectedCenterId || loading.products}
+												className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"} ${(!selectedCenterId || loading.products) ? "opacity-60 cursor-not-allowed" : ""}`}
+												placeholder={!selectedCenterId ? "Select a center first" : loading.products ? "Loading products…" : "Search product by name or SKU"}
 											/>
-											{showSuggestions && filteredProducts.length > 0 && (
+											{showSuggestions && selectedCenterId && filteredProducts.length > 0 && (
 												<ul className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl">
 													{filteredProducts.map((p, idx) => (
 														<li
@@ -453,7 +526,7 @@ const SalesOrder = () => {
 															onMouseEnter={() => setActiveIndex(idx)}
 															onMouseDown={(e) => e.preventDefault()}
 															onClick={() => {
-																setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+																setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: p.batchNumber ? String(p.batchNumber) : "" });
 																setShowSuggestions(false);
 																setActiveIndex(-1);
 																productInputRef.current?.blur();
@@ -461,7 +534,10 @@ const SalesOrder = () => {
 														>
 															<span className="text-sm font-medium text-slate-900">{p.name}</span>
 															<span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-															<span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
+															<span className="ml-auto text-xs text-slate-600 font-semibold text-right">
+																LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)}<br />
+																Stock {Number(p.availableQty ?? p.currentstock ?? 0)} units
+															</span>
 														</li>
 													))}
 												</ul>
@@ -475,7 +551,8 @@ const SalesOrder = () => {
 										<button
 											type="button"
 											onClick={addItem}
-											className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md">
+											disabled={!selectedCenterId || loading.products}
+											className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
 											<Plus className="h-5 w-5" />
 											Add Item
 										</button>
@@ -495,6 +572,7 @@ const SalesOrder = () => {
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Current Stock</th>
+															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch Number</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">MRP</th>
 															<th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
@@ -525,6 +603,7 @@ const SalesOrder = () => {
 																		/>
 																	</td>
 																	<td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">{it.currentStock}</td>
+																	<td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">{String(it.batchNumber ?? it.batch_number ?? "").trim() || "—"}</td>
 																	<td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
 																		<input
 																			type="number"

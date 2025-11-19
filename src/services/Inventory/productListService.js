@@ -1,5 +1,18 @@
 import axios from "../../utils/axios";
 
+// Fetch all inventory product details
+const fetchAllInventoryDetails = async (params = {}) => {
+  try {
+    const response = await axios.get("/products/inventory/details", { params });
+    return response.data?.data ?? response.data;
+  } catch (error) {
+    console.error("Error fetching product lists details:", error);
+    return [];
+  }
+};
+
+
+
 const fetchProductLists = async (params = {}) => {
   try {
     const response = await axios.get("/products", { params });
@@ -55,4 +68,7 @@ const update = async (id, payload) => {
 const remove = async (id) => {
   return await deleteProductList(id);
 };
-export { getAll, create, update, remove };
+const getInventoryDetails = async (params = {}) => {
+  return await fetchAllInventoryDetails(params);
+};
+export { getAll, create, update, remove, getInventoryDetails };
