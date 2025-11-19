@@ -16,6 +16,9 @@ export default defineConfig({
       "@services": path.resolve(__dirname, "./src/services"),
       "@contexts": path.resolve(__dirname, "./src/contexts"),
       "@src": path.resolve(__dirname, "./src"),
+      "@hooks": path.resolve(__dirname, "./src/hooks"),
+      "@Accounting": path.resolve(__dirname, "./src/Pages/Accounting"),
+      "@Inventory": path.resolve(__dirname, "./src/Pages/Inventory/MasterFile"),
     },
   },
 });

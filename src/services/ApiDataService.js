@@ -174,3 +174,13 @@ export const employeesByCompany = async (id) => {
     return [];
   }
 };
+
+export const addNewDesignation = async (data) => {
+  try {
+    const response = await axios.post(`${API_PREFIX}/addNewDesignation`, {name :data});
+    return response.data;
+  } catch (error) {
+    console.error("Error adding addNewDesignation:", error);
+    throw error;
+  }
+};

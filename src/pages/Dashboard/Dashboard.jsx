@@ -23,7 +23,7 @@ import {
   LineElement,
 } from "chart.js";
 
-import Sidebar from "@dashboard/Sidebar";
+import Sidebar from "./Sidebar";
 import EmployeeMaster from "@dashboard/AddEmployeeMaster/EmployeeMaster";
 import EmployeeAdd from "@dashboard/EmployeeAdd";
 import ShowEmployee from "@dashboard/ShowEmployee";
@@ -47,6 +47,7 @@ import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/ViewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 import UserManagement from "@dashboard/UserManagement";
+import Chatbot from "./Chatbot";
 // Import PMS components
 import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
 import EmployeePerformanceEvaluation from "../PMS/EmployeeEvaluation";
@@ -59,18 +60,45 @@ import LMS from "../LMS/LMS";
 import UserStats from "../LMS/UserStats";
 
 // Import Accounting components
-import AccountingDashboard from "../Accounting/Dashboard";
+import AccountingDashboard from "@Accounting/Dashboard";
+import Supplier from "@Inventory/Supplier";
+import DoubleEntry from "../Accounting/DoubleEntry";
 import ChartOfAccounts from "../Accounting/ChartOfAccounts";
+import AccountList from "../Accounting/AccountList";
+import Customer from "@Inventory/Customer";
+import Center from "@Inventory/Center";
+import DiscountLevel from "../Inventory/MasterFile/DiscountLevel";
+import ProductList from "../Inventory/MasterFile/ProductList";
+import ProductType from "../Inventory/MasterFile/ProductType";
 import Transactions from "../Accounting/Transactions";
 import Ledger from "../Accounting/Ledger";
 import TrialBalance from "../Accounting/TrialBalance";
 import IncomeStatement from "../Accounting/IncomeStatement";
 import BalanceSheet from "../Accounting/BalanceSheet";
 import CashFlowStatement from "../Accounting/CashFlowStatement";
-import Invoices from "../Accounting/Invoices";
+import Invoices from "../Inventory/Invoices";
+import SalesOrder from "../Inventory/SalesOrder";
+import SalesReturn from "../Inventory/SalesReturn";
+import GRN from "../Inventory/GRN";
+import PurchaseReturn from "../Inventory/PurchaseReturn";
+import PurchaseOrder from "../Inventory/PurchaseOrder";
+import StockTransfer from "../Inventory/StockTransfer";
+import StockVerification from "../Inventory/StockVerification";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
+// Import new accounting pages
+import SupplierEnterBill from "../Accounting/SupplierEnterBill";
+import Payment from "../Accounting/Payment";
+import AdvancePayment from "../Accounting/AdvancePayment";
+import MakeDeposit from "../Accounting/MakeDeposit";
+import Receipt from "../Accounting/Receipt";
+import UtilityBill from "../Accounting/UtilityBill";
+import UtilityBillPayment from "../Accounting/UtilityBillPayment";
+import JournalEntry from "../Accounting/JournalEntry";
+import PettyCash from "../Accounting/PettyCash";
+import Cheque from "../Accounting/Cheque";
+import BankReconciliation from "../Accounting/BankReconciliation";
 
 import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
@@ -78,6 +106,15 @@ import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
 
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+  sidebarUtils,
+  toggleSidebar,
+  closeSidebar,
+  openSidebar,
+  isOutsideClick,
+  handleBreakpointChange,
+} from "../../utils/SidebarUtils";
+import { getResponsive } from "../../utils/ResponsiveUtils";
 
 ChartJS.register(
   CategoryScale,
@@ -474,7 +511,49 @@ const QuickActions = ({ setActiveItem }) => {
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeItem, setActiveItem] = useState("dashboard");
-  const [isOpen, setIsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const responsive = getResponsive();
+
+  // Handle sidebar state changes
+  useEffect(() => {
+    const unsubscribe = sidebarUtils.subscribe((isOpen) => {
+      setIsSidebarOpen(isOpen);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Handle breakpoint changes
+  useEffect(() => {
+    handleBreakpointChange(responsive.isDesktop);
+  }, [responsive.isDesktop]);
+
+  // Handle outside clicks for sidebar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if ((responsive.isMobile || responsive.isTablet) && isSidebarOpen) {
+        if (isOutsideClick(event)) {
+          closeSidebar();
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isSidebarOpen, responsive.isMobile, responsive.isTablet]);
+
+  const toggle = () => {
+    toggleSidebar();
+  };
+
+  const close = () => {
+    closeSidebar();
+  };
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -515,16 +594,17 @@ const Dashboard = ({ user, onLogout }) => {
         onLogout={onLogout}
         activeItem={activeItem}
         setActiveItem={handleSetActiveItem}
-        isOpen={isOpen}
-        setIsOpen={setIsOpen}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
       />
-      <div className="flex-1 flex flex-col min-h-screen">
-        <nav className="bg-white shadow-lg border-b border-gray-200">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
+      <div className="flex-1 flex flex-col lg:ml-0">
+        <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
+          <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
+            <div className="flex justify-between h-14 sm:h-16">
               <div className="flex items-center lg:hidden">
                 <button
-                  onClick={() => setIsOpen(true)}
+                  data-hamburger
+                  onClick={toggle}
                   className="text-gray-500 hover:text-gray-700 focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
                 >
                   <svg
@@ -578,8 +658,8 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </div>
         </nav>
-        <div className="py-6 sm:px-6 lg:px-8 flex-1">
-          <div className="px-4 py-6 sm:px-0 h-full">
+        <div className="flex-1">
+          <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8">
             {activeItem === "employeeMaster" ? (
               <ProtectedComponent module="employeeMaster" action="view">
                 <EmployeeMaster />
@@ -728,14 +808,42 @@ const Dashboard = ({ user, onLogout }) => {
               </ProtectedComponent>
             ) : activeItem === "accountingDashboard" ? (
               <ProtectedComponent module="accountingDashboard" action="view">
-                <AccountingDashboard />
+                <AccountingDashboard setActiveItem={setActiveItem} />
+              </ProtectedComponent>
+            ) : activeItem === "customer" ? (
+              <ProtectedComponent module="customer" action="view">
+                <Customer />
+              </ProtectedComponent>
+            ) : activeItem === "center" ? (
+              <ProtectedComponent module="center" action="view">
+                <Center />
+              </ProtectedComponent>
+            ) : activeItem === "product" ? (
+              <ProtectedComponent module="product" action="view">
+                <ProductList />
+              </ProtectedComponent>
+            ) : activeItem === "productType" ? (
+              <ProtectedComponent module="productType" action="view">
+                <ProductType />
+              </ProtectedComponent>
+            ) : activeItem === "discountLevel" ? (
+              <ProtectedComponent module="discountLevel" action="view">
+                <DiscountLevel />
               </ProtectedComponent>
             ) : activeItem === "chartOfAccounts" ? (
               <ProtectedComponent module="chartOfAccounts" action="view">
                 <ChartOfAccounts />
               </ProtectedComponent>
+            ) : activeItem === "accountList" ? (
+              <ProtectedComponent module="accountList" action="view">
+                <AccountList />
+              </ProtectedComponent>
             ) : activeItem === "transactions" ? (
               <ProtectedComponent module="transactions" action="view">
+                <Transactions />
+              </ProtectedComponent>
+            ) : activeItem === "transactionsList" ? (
+              <ProtectedComponent module="transactionsList" action="view">
                 <Transactions />
               </ProtectedComponent>
             ) : activeItem === "ledger" ? (
@@ -762,6 +870,34 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="invoices" action="view">
                 <Invoices />
               </ProtectedComponent>
+            ) : activeItem === "salesOrder" ? (
+              <ProtectedComponent module="salesOrder" action="view">
+                <SalesOrder />
+              </ProtectedComponent>
+            ) : activeItem === "salesReturn" ? (
+              <ProtectedComponent module="salesReturn" action="view">
+                <SalesReturn />
+              </ProtectedComponent>
+            ) : activeItem === "grn" ? (
+              <ProtectedComponent module="grn" action="view">
+                <GRN />
+              </ProtectedComponent>
+            ) : activeItem === "purchaseReturn" ? (
+              <ProtectedComponent module="purchaseReturn" action="view">
+                <PurchaseReturn />
+              </ProtectedComponent>
+            ) : activeItem === "purchaseOrder" ? (
+              <ProtectedComponent module="purchaseOrder" action="view">
+                <PurchaseOrder />
+              </ProtectedComponent>
+            ) : activeItem === "stockTransfer" ? (
+              <ProtectedComponent module="stockTransfer" action="view">
+                <StockTransfer />
+              </ProtectedComponent>
+            ) : activeItem === "stockVerification" ? (
+              <ProtectedComponent module="stockVerification" action="view">
+                <StockVerification />
+              </ProtectedComponent>
             ) : activeItem === "expenses" ? (
               <ProtectedComponent module="expenses" action="view">
                 <Expenses />
@@ -773,6 +909,62 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "accountingSettings" ? (
               <ProtectedComponent module="accountingSettings" action="view">
                 <AccountingSettings />
+              </ProtectedComponent>
+            ) : activeItem === "supplierEnterBill" ? (
+              <ProtectedComponent module="supplierEnterBill" action="view">
+                <SupplierEnterBill />
+              </ProtectedComponent>
+            ) : activeItem === "payment" ? (
+              <ProtectedComponent module="payment" action="view">
+                <Payment />
+              </ProtectedComponent>
+            ) : activeItem === "advancePayment" ? (
+              <ProtectedComponent module="advancePayment" action="view">
+                <AdvancePayment />
+              </ProtectedComponent>
+            ) : activeItem === "makeDeposit" ? (
+              <ProtectedComponent module="makeDeposit" action="view">
+                <MakeDeposit />
+              </ProtectedComponent>
+            ) : activeItem === "receipt" ? (
+              <ProtectedComponent module="receipt" action="view">
+                <Receipt />
+              </ProtectedComponent>
+            ) : activeItem === "createUtilityBill" ? (
+              <ProtectedComponent module="createUtilityBill" action="view">
+                <UtilityBill />
+              </ProtectedComponent>
+            ) : activeItem === "utilityBillPayment" ? (
+              <ProtectedComponent module="utilityBillPayment" action="view">
+                <UtilityBillPayment />
+              </ProtectedComponent>
+            ) : activeItem === "journalEntry" ? (
+              <ProtectedComponent module="journalEntry" action="view">
+                <JournalEntry />
+              </ProtectedComponent>
+            ) : activeItem === "pettyCash" ? (
+              <ProtectedComponent module="pettyCash" action="view">
+                <PettyCash />
+              </ProtectedComponent>
+            ) : activeItem === "cheque" ? (
+              <ProtectedComponent module="cheque" action="view">
+                <Cheque />
+              </ProtectedComponent>
+            ) : activeItem === "doubleEntry" ? (
+              <ProtectedComponent module="doubleEntry" action="view">
+                <DoubleEntry />
+              </ProtectedComponent>
+            ) : activeItem === "bankReconciliation" ? (
+              <ProtectedComponent module="bankReconciliation" action="view">
+                <BankReconciliation />
+              </ProtectedComponent>
+            ) : activeItem === "supplier" ? (
+              <ProtectedComponent module="supplier" action="view">
+                <Supplier />
+              </ProtectedComponent>
+            )  : activeItem === "chatbot" ? (
+              <ProtectedComponent module="chatbot" action="view">
+                <Chatbot />
               </ProtectedComponent>
             ) : (
               <div className="space-y-8">
