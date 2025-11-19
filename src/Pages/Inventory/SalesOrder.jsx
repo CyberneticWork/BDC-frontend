@@ -4,8 +4,14 @@ import { addSalesOrder, getSalesOrders } from "../../services/AccountingService"
 import { getInventoryDetails as fetchInventoryDetails } from "../../services/Inventory/productListService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const SalesOrder = () => {
+	const { user } = useAuth();
+	const createdById = useMemo(() => {
+		return user?.id ?? user?.userId ?? user?.user_id ?? null;
+	}, [user]);
+
 	const [orders, setOrders] = useState([]);
 	const [nextSONumber, setNextSONumber] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,13 +55,13 @@ const SalesOrder = () => {
 		}
 	};
 
-	const InlinePOForm = ({ nextSONumber }) => {
+	const InlinePOForm = ({ nextSONumber, createdById }) => {
 		const [form, setForm] = useState({
 			orderNumber: "",
 			center: "",
 			customer: "",
 			date: new Date().toISOString().split("T")[0],
-			status: "Draft",
+			status: "pending",
 			refNumber: "",
 		});
 	const [items, setItems] = useState([]);
@@ -233,6 +239,13 @@ const SalesOrder = () => {
 			return Math.min(base, amt);
 		};
 
+		const hasBatchColumn = useMemo(() => {
+			return items.some((it) => {
+				const val = it.batchNumber ?? it.batch_number ?? "";
+				return String(val || "").trim().length > 0;
+			});
+		}, [items]);
+
 		// Aggregate totals based on per-line discounts
 		const { subtotal, discountTotal } = useMemo(() => {
 			let sub = 0;
@@ -248,12 +261,7 @@ const SalesOrder = () => {
 			return { subtotal: sub, discountTotal: disc };
 		}, [items]);
 
-		const tax = useMemo(() => {
-			// Simple 10% tax demo on net subtotal
-			return (subtotal || 0) * 0.1;
-		}, [subtotal]);
-
-		const totalAmount = useMemo(() => Math.max(0, subtotal) + tax, [subtotal, tax]);
+		const totalAmount = useMemo(() => Math.max(0, subtotal), [subtotal]);
 
 
     //*error messages
@@ -336,6 +344,9 @@ const SalesOrder = () => {
 			try {
 				const payload = {
 					...form,
+					createdById,
+					created_by_id: createdById,
+					status: "pending",
 					centerId: selectedCenterId || null,
 					center_id: selectedCenterId || null,
 					items: items.map((it) => {
@@ -354,10 +365,9 @@ const SalesOrder = () => {
 							lineNet: Math.max(0, gross - dAmt),
 						};
 					}),
-						subtotal,
-						discountTotal,
-						tax,
-						totalAmount,
+							subtotal,
+							discountTotal,
+							totalAmount,
 				};
 				console.log("Sales order payload:", payload);
 				const created = addSalesOrder(payload);
@@ -373,7 +383,7 @@ const SalesOrder = () => {
 					setNextSONumber(`SO-${String(nextNum).padStart(4, "0")}`);
 				}
 				// Reset
-				setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
+				setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "pending", refNumber: "" });
 				setSelectedCenterId("");
 				setItems([]);
 				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
@@ -462,7 +472,7 @@ const SalesOrder = () => {
 								</div>
 								<div className="lg:place-self-end pr-65 text-center bg-slate-100 rounded-lg p-4 border border-slate-200">
 									<p className="text-lg font-semibold text-slate-700">Total Amount</p>
-									<p className="text-3xl font-bold text-slate-900">{formatLKR(subtotal)}</p>
+									<p className="text-3xl font-bold text-slate-900">{formatLKR(totalAmount)}</p>
 								</div>
 							</div>
 
@@ -572,7 +582,9 @@ const SalesOrder = () => {
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Current Stock</th>
-															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch Number</th>
+															{hasBatchColumn && (
+																<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch Number</th>
+															)}
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">MRP</th>
 															<th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider" title="Enable per-row discount">Disc On?</th>
@@ -603,7 +615,11 @@ const SalesOrder = () => {
 																		/>
 																	</td>
 																	<td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">{it.currentStock}</td>
-																	<td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">{String(it.batchNumber ?? it.batch_number ?? "").trim() || "—"}</td>
+																	{hasBatchColumn && (
+																		<td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">
+																			{String(it.batchNumber ?? it.batch_number ?? "").trim() || "—"}
+																		</td>
+																	)}
 																	<td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
 																		<input
 																			type="number"
@@ -697,7 +713,7 @@ const SalesOrder = () => {
 		<div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
 			<div className="max-w-7xl mx-auto">
 				<section aria-label="Create new sales order">
-					<InlinePOForm nextSONumber={nextSONumber} />
+					<InlinePOForm nextSONumber={nextSONumber} createdById={createdById} />
 				</section>
 			</div>
 
