@@ -899,8 +899,8 @@ const Dashboard = ({ user, onLogout }) => {
                 <Pending />
               </ProtectedComponent>
             ) : activeItem === "supplier" ? (
-              <ProtectedComponent module="expenses" action="view">
-                <Expenses />
+              <ProtectedComponent module="supplier" action="view">
+                <Supplier />
               </ProtectedComponent>
             ) : activeItem === "accountingReports" ? (
               <ProtectedComponent module="accountingReports" action="view">
