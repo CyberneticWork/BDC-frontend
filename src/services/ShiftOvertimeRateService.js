@@ -1,56 +1,87 @@
 import axios from "@utils/axios";
 
 const ShiftOvertimeRateService = {
-  // List for dropdown
-  getShiftsDropdown: async () => {
-    const res = await axios.get("/shift-overtime-rates/shifts/dropdown");
-    return res.data?.data ?? [];
-  },
-
-  // Get existing rate by shift id (returns 404 if not created yet)
-  getByShiftId: async (shiftId) => {
+  // Get all shift overtime rates
+  list: async () => {
     try {
-      const res = await axios.get(`/shift-overtime-rates/by-shift/${shiftId}`);
-      return res.data?.data ?? null;
-    } catch (err) {
-      if (err?.response?.status === 404) return null;
-      throw err;
+      const response = await axios.get("/shift-overtime-rates");
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching shift overtime rates:", error);
+      throw error;
     }
   },
 
-  // Create
-  create: async (payload) => {
-    const res = await axios.post("/shift-overtime-rates", payload);
-    return res.data?.data;
+  // Create new shift overtime rate
+  create: async (data) => {
+    try {
+      const response = await axios.post("/shift-overtime-rates", data);
+      return response.data.data;
+    } catch (error) {
+      console.error("Error creating shift overtime rate:", error);
+      throw error;
+    }
   },
 
-  // Update
-  update: async (id, payload) => {
-    const res = await axios.put(`/shift-overtime-rates/${id}`, payload);
-    return res.data?.data;
+  // Update existing shift overtime rate
+  update: async (id, data) => {
+    try {
+      const response = await axios.put(`/shift-overtime-rates/${id}`, data);
+      return response.data.data;
+    } catch (error) {
+      console.error("Error updating shift overtime rate:", error);
+      throw error;
+    }
   },
 
-  // Delete (soft delete)
+  // Delete shift overtime rate
   delete: async (id) => {
-    const res = await axios.delete(`/shift-overtime-rates/${id}`);
-    return res.data;
+    try {
+      await axios.delete(`/shift-overtime-rates/${id}`);
+    } catch (error) {
+      console.error("Error deleting shift overtime rate:", error);
+      throw error;
+    }
   },
 
-  // Optional: list everything
-  list: async () => {
-    const res = await axios.get("/shift-overtime-rates");
-    return res.data?.data ?? [];
+  // Get shifts dropdown
+  getShiftsDropdown: async () => {
+    try {
+      const response = await axios.get(
+        "/shift-overtime-rates/shifts/dropdown"
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching shifts dropdown:", error);
+      throw error;
+    }
   },
 
-  // Calculate rates for a specific shift and basic salary
-  calculateRates: async (shiftId, basicSalary) => {
-    const res = await axios.post(
-      `/shift-overtime-rates/${shiftId}/calculate-rates`,
-      {
-        basic_salary: basicSalary,
-      }
-    );
-    return res.data?.data;
+  // Get by shift ID
+  getByShiftId: async (shiftId) => {
+    try {
+      const response = await axios.get(
+        `/shift-overtime-rates/by-shift/${shiftId}`
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching shift overtime rate by shift ID:", error);
+      throw error;
+    }
+  },
+
+  // Calculate rates
+  calculateRates: async (shiftId, data) => {
+    try {
+      const response = await axios.post(
+        `/shift-overtime-rates/${shiftId}/calculate`,
+        data
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error("Error calculating rates:", error);
+      throw error;
+    }
   },
 };
 
