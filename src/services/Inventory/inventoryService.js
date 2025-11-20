@@ -210,7 +210,8 @@ export const getNextInv = async () => {
 //fetch next auto-Generate Sales Order number (Preview only)
 export const getNextSalesOrder = async () => {
   try {
-    const response = await axios.get('/sales-orders/next');
+    // Backend route uses '/salesOrder/next' (singular camel-case)
+    const response = await axios.get('/salesOrder/next');
     return response.data; // { data: { next, year, sequence } }
   } catch (error) {
     console.error('Error fetching next Sales Order number:', error);

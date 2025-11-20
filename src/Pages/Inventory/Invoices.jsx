@@ -437,7 +437,7 @@ const Invoices = () => {
       const { customerEmail: _omitCustomerEmail, ...pendingSansEmail } = pendingInvoice || {};
       const invoicePayload = {
         ...pendingSansEmail,
-        status: null,
+        status: 'completed',
         payment: paymentData,
         created_by: user?.id || user?.user_id || undefined,
       };

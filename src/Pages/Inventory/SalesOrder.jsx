@@ -1,10 +1,19 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { getInventoryDetails as fetchInventoryDetails } from "../../services/Inventory/productListService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
 import { useAuth } from "../../contexts/AuthContext";
-import { fetchSalesOrders, salesOrder } from "../../services/Inventory/inventoryService";
+import { fetchSalesOrders, salesOrder, getNextSalesOrder } from "../../services/Inventory/inventoryService";
+
+const incrementSoCode = (code) => {
+	if (!code) return "";
+	const match = String(code).match(/^(.*?)(\d+)([^0-9]*)$/);
+	if (!match) return String(code);
+	const [, prefix, digits, suffix] = match;
+	const nextDigits = (parseInt(digits, 10) + 1).toString().padStart(digits.length, "0");
+	return `${prefix}${nextDigits}${suffix}`;
+};
 
 const SalesOrder = () => {
 	const { user } = useAuth();
@@ -14,26 +23,57 @@ const SalesOrder = () => {
 
 	const [orders, setOrders] = useState([]);
 	const [nextSONumber, setNextSONumber] = useState("");
+	const [serverProvidedSo, setServerProvidedSo] = useState(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showSuccess, setShowSuccess] = useState(false);
 	const [successText, setSuccessText] = useState("");
+	const ordersMounted = useRef(true);
+	const loadOrders = useCallback(async () => {
+		try {
+			const data = await fetchSalesOrders();
+			if (!ordersMounted.current) return;
+			setOrders(Array.isArray(data) ? data : []);
+		} catch (error) {
+			console.error("Error loading sales orders:", error);
+		}
+	}, []);
 
 	useEffect(() => {
-		let active = true;
-		const loadOrders = async () => {
-			try {
-				const data = await fetchSalesOrders();
-				if (!active) return;
-				setOrders(Array.isArray(data) ? data : []);
-			} catch (error) {
-				console.error("Error loading sales orders:", error);
-			}
-		};
 		loadOrders();
 		return () => {
-			active = false;
+			ordersMounted.current = false;
 		};
+	}, [loadOrders]);
+
+	// Fetch next Sales Order preview from backend (prefer server value when available)
+	const refreshNextSalesOrder = useCallback(async () => {
+		try {
+			const resp = await getNextSalesOrder();
+			const next = resp?.data?.next || resp?.next || "";
+			if (next) {
+				setNextSONumber(next);
+				setServerProvidedSo(next);
+				return next;
+			}
+			// fallback
+			setNextSONumber((prev) => prev || `SO-0001`);
+			return null;
+		} catch (err) {
+			console.warn("Failed to fetch next Sales Order from server; falling back.", err);
+			setNextSONumber((prev) => (prev ? incrementSoCode(prev) : ``));
+			return null;
+		}
 	}, []);
+
+
+
+
+
+
+	  useEffect(() => {
+		// fetch server preview on mount
+		refreshNextSalesOrder();
+	}, [refreshNextSalesOrder]);
 
 	useEffect(() => {
 		// Compute next SO number from existing orders; accept with/without dash and preserve higher current state
@@ -45,12 +85,27 @@ const SalesOrder = () => {
 			.filter((n) => n !== null);
 		const fromOrders = nums.length ? Math.max(...nums) + 1 : 1;
 		setNextSONumber((prev) => {
+			// if server provided a value, prefer it (but keep numeric ordering if orders list shows higher)
 			const pm = String(prev || "").match(/^SO-?(\d+)$/i);
 			const prevNum = pm ? parseInt(pm[1], 10) : 0;
-			const finalNum = Math.max(fromOrders, prevNum || 0);
+			const serverNum = serverProvidedSo ? (String(serverProvidedSo).match(/^SO-?(\d+)$/i) ? parseInt(String(serverProvidedSo).match(/^SO-?(\d+)$/i)[1], 10) : 0) : 0;
+			const finalNum = Math.max(fromOrders, prevNum || 0, serverNum || 0);
 			return `SO-${String(finalNum).padStart(4, "0")}`;
 		});
-	}, [orders]);
+	}, [orders, serverProvidedSo]);
+
+	// Auto-refresh next number and data after success
+	useEffect(() => {
+		if (!showSuccess) return;
+		const timer = setTimeout(() => {
+			setShowSuccess(false);
+			refreshNextSalesOrder().catch((error) => {
+				console.warn("Failed to refresh next sales order", error);
+			});
+			loadOrders();
+		}, 2500);
+		return () => clearTimeout(timer);
+	}, [showSuccess, refreshNextSalesOrder, loadOrders]);
 
     // Success modal stays until user dismisses; no auto-hide
 
@@ -73,7 +128,7 @@ const SalesOrder = () => {
 			center: "",
 			customer: "",
 			date: new Date().toISOString().split("T")[0],
-			status: "pending",
+			status: "completed",
 			refNumber: "",
 		});
 		const [items, setItems] = useState([]);
@@ -358,7 +413,7 @@ const SalesOrder = () => {
 					...form,
 					createdById,
 					created_by_id: createdById,
-					status: "pending",
+					status: "completed",
 					centerId: selectedCenterId || null,
 					center_id: selectedCenterId || null,
 					items: items.map((it) => {
@@ -389,14 +444,20 @@ const SalesOrder = () => {
 				const createdNumber = created?.orderNumber || created?.order_number || nextSONumber;
 				setSuccessText(`Sales order ${createdNumber} created successfully.`);
 				setShowSuccess(true);
-				// Immediately bump displayed next SO number
-				const m = String(createdNumber).match(/^SO-?(\d+)$/i);
-				if (m) {
-					const nextNum = Number(m[1]) + 1;
-					setNextSONumber(`SO-${String(nextNum).padStart(4, "0")}`);
+				// Refresh next SO number from server (preferred). If that fails, fall back to incrementing the created number.
+				try {
+					await refreshNextSalesOrder();
+				} catch {
+					const m = String(createdNumber).match(/^SO-?(\d+)$/i);
+					if (m) {
+						const nextNum = Number(m[1]) + 1;
+						setNextSONumber(`SO-${String(nextNum).padStart(4, "0")}`);
+					} else {
+						setNextSONumber((prev) => incrementSoCode(prev));
+					}
 				}
 				// Reset
-				setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "pending", refNumber: "" });
+				setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "completed", refNumber: "" });
 				setSelectedCenterId("");
 				setItems([]);
 				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });

@@ -17,7 +17,6 @@ const incrementGrnCode = (code) => {
 };
 
 const GRN = () => {
-  const [, setGrns] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Display the next GRN fetched from backend
   const [nextGrnId, setNextGrnId] = useState("");
@@ -40,8 +39,7 @@ const GRN = () => {
   }, []);
 
   // Fetch next GRN from backend on mount
-    useEffect(() => {
-    setGrns([]);
+  useEffect(() => {
     refreshNextGrn();
   }, [refreshNextGrn]);
 
@@ -66,7 +64,7 @@ const GRN = () => {
       fromCenter: null,
       toCenter: null,
       date: new Date().toISOString().split("T")[0],
-      status: "pending",
+      status: "completed",
       refNumber: "",
       amount: 0,
       productName: "",
@@ -395,7 +393,7 @@ const GRN = () => {
           fromCenter: null,
           toCenter: null,
           date: new Date().toISOString().split("T")[0],
-          status: "pending",
+            status: "completed",
           refNumber: "",
           amount: 0,
           productName: "",
