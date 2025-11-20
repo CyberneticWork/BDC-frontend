@@ -6,6 +6,7 @@ import { getCustomers as fetchCustomersService } from '../../services/Account/Cu
 import { createINV, getNextInv, fetchSalesOrders } from '../../services/Inventory/inventoryService';
 import { useAuth } from '../../contexts/AuthContext';
 import Payment from '../../components/Inventory/Payment';
+import InventoryPopup from '../../components/Inventory/inventoryPopup';
 
 const LAST_INVOICE_STORAGE_KEY = "inventory_last_invoice_id";
 
@@ -1193,88 +1194,70 @@ const Invoices = () => {
           </form>
         </div>
 
-        {showSalesOrderModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setShowSalesOrderModal(false)}
-              aria-hidden="true"
-            />
-            <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4">
-              <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-800">Link Sales Order</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    {salesOrderContext.customerName || 'Customer'} • {salesOrderContext.centerName || 'Selected Center'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowSalesOrderModal(false)}
-                  className="text-slate-500 hover:text-slate-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors duration-200"
-                  aria-label="Close sales order modal"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+        {/*popup sales order selected UI*/}
+        <InventoryPopup
+          isOpen={showSalesOrderModal}
+          title="Link Sales Order"
+          subtitle={`${salesOrderContext.customerName || 'Customer'} • ${salesOrderContext.centerName || 'Selected Center'}`}
+          onClose={() => setShowSalesOrderModal(false)}
+          closeOnOverlay={!isSalesOrderLoading}
+        >
+          <div className="space-y-4">
+            {isSalesOrderLoading ? (
+              <div className="flex items-center justify-center gap-3 text-slate-600">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+                Loading sales orders…
               </div>
-              <div className="p-6 space-y-4">
-                {isSalesOrderLoading ? (
-                  <div className="flex items-center justify-center gap-3 text-slate-600">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
-                    Loading sales orders…
-                  </div>
-                ) : salesOrderOptions.length ? (
-                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                    {salesOrderOptions.map((order, idx) => {
-                      const voucher = order.orderNumber ?? order.voucherNumber ?? order.voucher_no ?? order.id;
-                      const total = order.totalAmount ?? order.total ?? order.amount ?? order.subtotal ?? 0;
-                      const itemsCount = Array.isArray(order.items)
-                        ? order.items.length
-                        : (Array.isArray(order.orderItems) ? order.orderItems.length : 0);
-                      const date = order.date ?? order.createdAt ?? order.created_at ?? '';
-                      return (
-                        <button
-                          type="button"
-                          key={voucher || `order-${idx}`}
-                          onClick={() => applySalesOrderToInvoice(order)}
-                          className="w-full text-left border-2 border-slate-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <div>
-                              <p className="text-sm text-slate-500">Voucher</p>
-                              <p className="text-lg font-semibold text-slate-900">{voucher || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-slate-500">Items</p>
-                              <p className="text-lg font-semibold text-slate-900">{itemsCount}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-slate-500">Total</p>
-                              <p className="text-lg font-semibold text-slate-900">{formatLKR(total)}</p>
-                            </div>
-                            {date && (
-                              <div>
-                                <p className="text-sm text-slate-500">Date</p>
-                                <p className="text-lg font-semibold text-slate-900">{date}</p>
-                              </div>
-                            )}
+            ) : salesOrderOptions.length ? (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {salesOrderOptions.map((order, idx) => {
+                  const voucher = order.orderNumber ?? order.voucherNumber ?? order.voucher_no ?? order.id;
+                  const total = order.totalAmount ?? order.total ?? order.amount ?? order.subtotal ?? 0;
+                  const itemsCount = Array.isArray(order.items)
+                    ? order.items.length
+                    : (Array.isArray(order.orderItems) ? order.orderItems.length : 0);
+                  const date = order.date ?? order.createdAt ?? order.created_at ?? '';
+                  return (
+                    <button
+                      type="button"
+                      key={voucher || `order-${idx}`}
+                      onClick={() => applySalesOrderToInvoice(order)}
+                      className="w-full text-left border-2 border-slate-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <p className="text-sm text-slate-500">Voucher</p>
+                          <p className="text-lg font-semibold text-slate-900">{voucher || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-500">Items</p>
+                          <p className="text-lg font-semibold text-slate-900">{itemsCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-500">Total</p>
+                          <p className="text-lg font-semibold text-slate-900">{formatLKR(total)}</p>
+                        </div>
+                        {date && (
+                          <div>
+                            <p className="text-sm text-slate-500">Date</p>
+                            <p className="text-lg font-semibold text-slate-900">{date}</p>
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-600 text-center py-4">
-                    {salesOrderFetchError || 'No matching sales orders found.'}
-                  </p>
-                )}
-                {salesOrderFetchError && salesOrderOptions.length > 0 && (
-                  <p className="text-sm text-red-600 text-center">{salesOrderFetchError}</p>
-                )}
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            ) : (
+              <p className="text-sm text-slate-600 text-center py-4">
+                {salesOrderFetchError || 'No matching sales orders found.'}
+              </p>
+            )}
+            {salesOrderFetchError && salesOrderOptions.length > 0 && (
+              <p className="text-sm text-red-600 text-center">{salesOrderFetchError}</p>
+            )}
           </div>
-        )}
+        </InventoryPopup>
 
         {/* Payment Modal */}
         {showPaymentModal && (
