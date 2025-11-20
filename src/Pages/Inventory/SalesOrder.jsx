@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import { addSalesOrder, getSalesOrders } from "../../services/AccountingService";
 import { getInventoryDetails as fetchInventoryDetails } from "../../services/Inventory/productListService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
 import { useAuth } from "../../contexts/AuthContext";
+import { fetchSalesOrders, salesOrder } from "../../services/Inventory/inventoryService";
 
 const SalesOrder = () => {
 	const { user } = useAuth();
@@ -19,8 +19,20 @@ const SalesOrder = () => {
 	const [successText, setSuccessText] = useState("");
 
 	useEffect(() => {
-		const initial = getSalesOrders();
-		setOrders(initial);
+		let active = true;
+		const loadOrders = async () => {
+			try {
+				const data = await fetchSalesOrders();
+				if (!active) return;
+				setOrders(Array.isArray(data) ? data : []);
+			} catch (error) {
+				console.error("Error loading sales orders:", error);
+			}
+		};
+		loadOrders();
+		return () => {
+			active = false;
+		};
 	}, []);
 
 	useEffect(() => {
@@ -64,8 +76,8 @@ const SalesOrder = () => {
 			status: "pending",
 			refNumber: "",
 		});
-	const [items, setItems] = useState([]);
-	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
+		const [items, setItems] = useState([]);
+		const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
 		const [errors, setErrors] = useState({});
 		const [customers, setCustomers] = useState([]);
 		const [centers, setCenters] = useState([]);
@@ -365,15 +377,16 @@ const SalesOrder = () => {
 							lineNet: Math.max(0, gross - dAmt),
 						};
 					}),
-							subtotal,
-							discountTotal,
-							totalAmount,
+					subtotal,
+					discountTotal,
+					totalAmount,
 				};
 				console.log("Sales order payload:", payload);
-				const created = addSalesOrder(payload);
+				const response = await salesOrder(payload);
+				const created = response?.data ?? response ?? payload;
 				setOrders((prev) => [...prev, created]);
 				// Show success toast
-				const createdNumber = created?.orderNumber || nextSONumber;
+				const createdNumber = created?.orderNumber || created?.order_number || nextSONumber;
 				setSuccessText(`Sales order ${createdNumber} created successfully.`);
 				setShowSuccess(true);
 				// Immediately bump displayed next SO number
@@ -388,6 +401,8 @@ const SalesOrder = () => {
 				setItems([]);
 				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
 				setErrors({});
+			} catch (error) {
+				console.error("Error creating sales order:", error);
 			} finally {
 				setIsSubmitting(false);
 			}

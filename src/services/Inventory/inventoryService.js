@@ -6,48 +6,7 @@
 import axios from '../../utils/axios';
 
 const inventoryData = {
-  centers: [
-  ],
-
-  products: [
-    {
-      id: "1",
-      name: "Laptop 15" ,
-      sku: "LAP-15",
-      unit: "pcs",
-      unitPrice: 1200,
-      mrp: 1400,
-      currentstock: "50"
-    },
-    {
-      id: "2",
-      name: "Wireless Mouse",
-      sku: "MOU-WLS",
-      unit: "pcs",
-      unitPrice: 25,
-      mrp: 35,
-      currentstock: "30"
-    },
-    {
-      id: "3",
-      name: "Mechanical Keyboard",
-      sku: "KEY-MECH",
-      unit: "pcs",
-      unitPrice: 50,
-      mrp: 70,
-      currentstock: "20"
-    },
-    {
-      id: "4",
-      name: "24\" Monitor",
-      sku: "MON-24FHD",
-      unit: "pcs",
-      unitPrice: 180,
-      mrp: 220,
-      currentstock: "15",
-    },
-  ],
-
+  
   // Suppliers used by GRN and Purchase Orders
   suppliers: [
     { id: "SUP-0001", name: "Tech Supplies Ltd" },
@@ -202,6 +161,27 @@ export const createINV = async (invData) => {
   } catch (error) {
     console.error('Error creating INV:', error);
     throw error;
+  }
+};
+
+//salesOrder API functions
+export const salesOrder = async (soData) => {
+  try {
+    const response = await axios.post('/salesOrder', soData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating Sales Order:', error);
+    throw error;
+  }
+};
+
+export const fetchSalesOrders = async () => {
+  try {
+    const response = await axios.get('/sales-orders');
+    return response.data?.data ?? response.data ?? [];
+  } catch (error) {
+    console.error('Error fetching Sales Orders:', error);
+    return [];
   }
 };
 
@@ -364,4 +344,6 @@ export default {
   getNextInv,
   // Sales Order
   getNextSalesOrder,
+  fetchSalesOrders,
+  salesOrder,
 };
