@@ -56,11 +56,11 @@ const SalesOrder = () => {
 				return next;
 			}
 			// fallback
-			setNextSONumber((prev) => prev || `SO-0001`);
+			setNextSONumber((prev) => prev || "");
 			return null;
 		} catch (err) {
 			console.warn("Failed to fetch next Sales Order from server; falling back.", err);
-			setNextSONumber((prev) => (prev ? incrementSoCode(prev) : ``));
+			setNextSONumber((prev) => (prev ? incrementSoCode(prev) : ""));
 			return null;
 		}
 	}, []);
@@ -76,6 +76,9 @@ const SalesOrder = () => {
 	}, [refreshNextSalesOrder]);
 
 	useEffect(() => {
+		if (orders.length === 0 && !serverProvidedSo) {
+			return;
+		}
 		// Compute next SO number from existing orders; accept with/without dash and preserve higher current state
 		const nums = orders
 			.map((o) => {

@@ -3,7 +3,7 @@ import {Plus,Trash2,CheckCircle,X} from "lucide-react";
 import { fetchCenters as fetchCentersService } from '../../services/Inventory/centerService';
 import { getInventoryDetails as fetchInventoryDetails } from '../../services/Inventory/productListService';
 import { getCustomers as fetchCustomersService } from '../../services/Account/CustomerService';
-import { createINV, getNextInv } from '../../services/Inventory/inventoryService';
+import { createINV, getNextInv, fetchSalesOrders } from '../../services/Inventory/inventoryService';
 import { useAuth } from '../../contexts/AuthContext';
 import Payment from '../../components/Inventory/Payment';
 
@@ -130,6 +130,7 @@ const Invoices = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const productInputRef = useRef(null);
+  const pendingSalesOrderRef = useRef(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingInvoice, setPendingInvoice] = useState(null);
   const [customers, setCustomers] = useState([]);
@@ -138,6 +139,98 @@ const Invoices = () => {
   const [inventoryDetails, setInventoryDetails] = useState([]);
   const [loading, setLoading] = useState({ customers: false, centers: false, products: false });
   const [isBatchEnabled, setIsBatchEnabled] = useState(false);
+  const [salesOrderOptions, setSalesOrderOptions] = useState([]);
+  const [showSalesOrderModal, setShowSalesOrderModal] = useState(false);
+  const [isSalesOrderLoading, setIsSalesOrderLoading] = useState(false);
+  const [salesOrderFetchError, setSalesOrderFetchError] = useState('');
+  const [salesOrderInlineNotice, setSalesOrderInlineNotice] = useState('');
+  const [salesOrderContext, setSalesOrderContext] = useState({ centerId: '', centerName: '', customerName: '', customerEmail: '' });
+
+  // Opens the voucher selection modal filtered by the chosen center + customer
+  const openSalesOrderPicker = useCallback(async ({ centerId, centerName, customerName, customerEmail }) => {
+    if (!centerId || !customerName) return;
+    setSalesOrderContext({ centerId, centerName, customerName, customerEmail });
+    setShowSalesOrderModal(true);
+    setIsSalesOrderLoading(true);
+    setSalesOrderFetchError('');
+    setSalesOrderOptions([]);
+    try {
+      const response = await fetchSalesOrders({
+        params: {
+          centerId,
+          center_id: centerId,
+          customer: customerEmail || customerName,
+          customerName,
+          customerEmail,
+        },
+      });
+      const rawList = response?.data ?? response ?? [];
+      const list = Array.isArray(rawList) ? rawList : (Array.isArray(rawList?.rows) ? rawList.rows : []);
+      const centerKey = String(centerId || '').trim().toLowerCase();
+      const centerNameKey = String(centerName || '').trim().toLowerCase();
+      const nameKey = String(customerName || '').trim().toLowerCase();
+      const emailKey = String(customerEmail || '').trim().toLowerCase();
+
+      let filtered = list;
+      let fallbackApplied = false;
+      if (centerKey || centerNameKey || nameKey || emailKey) {
+        filtered = list.filter((order) => {
+          const orderCenters = [
+            order.centerId,
+            order.center_id,
+            order.center,
+            order.centerName,
+            order.center_name,
+            order?.center?.id,
+            order?.center?.center_id,
+            order?.center?.name,
+          ].map((value) => String(value ?? '').trim().toLowerCase()).filter(Boolean);
+
+          const orderCustomers = [
+            order.customer,
+            order.customerName,
+            order.customer_name,
+            order?.customerDetails?.name,
+            order?.customerDetails?.customer_name,
+          ].map((value) => String(value ?? '').trim().toLowerCase()).filter(Boolean);
+
+          const orderEmails = [
+            order.customerEmail,
+            order.customer_email,
+            order?.customerDetails?.email,
+          ].map((value) => String(value ?? '').trim().toLowerCase()).filter(Boolean);
+
+          const centerCriteria = [centerKey, centerNameKey].filter(Boolean);
+          const customerCriteria = nameKey ? [nameKey] : [];
+          const emailCriteria = emailKey ? [emailKey] : [];
+
+          const matchesCenter = !centerCriteria.length || orderCenters.some((value) => centerCriteria.includes(value));
+          const matchesCustomer = !customerCriteria.length || orderCustomers.some((value) => customerCriteria.includes(value));
+          const matchesEmail = !emailCriteria.length || orderEmails.some((value) => emailCriteria.includes(value));
+
+          return matchesCenter && matchesCustomer && matchesEmail;
+        });
+      }
+
+      if (!filtered.length && list.length) {
+        filtered = list;
+        fallbackApplied = true;
+      }
+
+      setSalesOrderOptions(filtered);
+      if (!filtered.length) {
+        setSalesOrderFetchError('No sales orders found for this customer at the selected center.');
+      } else if (fallbackApplied) {
+        setSalesOrderFetchError('No exact matches; showing all sales orders so you can pick manually.');
+      }
+    } catch (error) {
+      console.error('Failed to fetch sales orders for voucher selection', error);
+      setSalesOrderFetchError('Unable to load sales orders. Please try again.');
+      setSalesOrderOptions([]);
+    } finally {
+      setIsSalesOrderLoading(false);
+    }
+  }, []);
 
     // Sync generated invoice id from parent into form
     useEffect(() => {
@@ -246,6 +339,20 @@ const Invoices = () => {
       setProducts(flattenCenterInventory);
     }, [formData.center, inventoryDetails]);
 
+    useEffect(() => {
+      if (!formData.center || !pendingSalesOrderRef.current) return;
+      const context = pendingSalesOrderRef.current;
+      pendingSalesOrderRef.current = null;
+      const centerMeta = centers.find((c) => String(c.id) === String(formData.center));
+      setSalesOrderInlineNotice('');
+      openSalesOrderPicker({
+        centerId: formData.center,
+        centerName: centerMeta?.name || '',
+        customerName: context.customerName,
+        customerEmail: context.customerEmail,
+      }).catch(() => {});
+    }, [formData.center, centers, openSalesOrderPicker]);
+
     // Build customer options from fetched customers
     const availableCustomers = customers.map(c => ({ name: c.name, email: c.email }));
 
@@ -292,6 +399,107 @@ const Invoices = () => {
       if (items.length > 0) {
         setItems([]);
       }
+    };
+
+    // Capture center selection and queue voucher lookup if customer already selected
+    const handleCenterChange = (value) => {
+      setFormData(prev => ({ ...prev, center: value }));
+      setSalesOrderInlineNotice('');
+      if (formData.customer) {
+        pendingSalesOrderRef.current = {
+          customerName: formData.customer,
+          customerEmail: formData.customerEmail,
+        };
+      }
+    };
+
+    // Resolve customer meta and trigger voucher fetch once both center/customer are known
+    const handleCustomerSelection = (value) => {
+      const selected = availableCustomers.find(c => c.email === value);
+      if (selected) {
+        setFormData(prev => ({ ...prev, customer: selected.name, customerEmail: selected.email }));
+        if (formData.center) {
+          setSalesOrderInlineNotice('');
+          pendingSalesOrderRef.current = null;
+          const centerMeta = centers.find((c) => String(c.id) === String(formData.center));
+          openSalesOrderPicker({
+            centerId: formData.center,
+            centerName: centerMeta?.name || '',
+            customerName: selected.name,
+            customerEmail: selected.email,
+          }).catch(() => {});
+        } else {
+          pendingSalesOrderRef.current = {
+            customerName: selected.name,
+            customerEmail: selected.email,
+          };
+          setSalesOrderInlineNotice('Select a center to view matching sales orders.');
+        }
+      } else {
+        setFormData(prev => ({ ...prev, customer: '', customerEmail: '' }));
+        pendingSalesOrderRef.current = null;
+        setSalesOrderInlineNotice('');
+      }
+    };
+
+    // Populate invoice table from a selected sales order (voucher)
+    const applySalesOrderToInvoice = (order) => {
+      if (!order) return;
+      const sourceItems = Array.isArray(order.items)
+        ? order.items
+        : (Array.isArray(order.orderItems) ? order.orderItems : []);
+      if (!sourceItems.length) {
+        setSalesOrderFetchError('Selected sales order does not contain any items.');
+        return;
+      }
+      const baseId = Date.now();
+      const mappedItems = sourceItems
+        .map((item, idx) => {
+          const qty = Math.max(1, Number(item.quantity ?? item.qty ?? 0));
+          if (!qty) return null;
+          const unitPrice = Math.max(0, Number(item.unitPrice ?? item.unit_price ?? item.price ?? item.amount ?? 0));
+          const discountRaw = Number(item.discountPerUnit ?? item.discount ?? item.discountAmount ?? item.lineDiscountAmount ?? 0);
+          const perUnitDiscount = item.discountPerUnit != null
+            ? Math.max(0, Number(item.discountPerUnit) || 0)
+            : (qty > 0 ? Math.max(0, discountRaw / qty) : 0);
+          const normalizedDiscount = Number.isFinite(perUnitDiscount) ? perUnitDiscount : 0;
+          const resolvedName = (
+            item.productName ??
+            item.name ??
+            item.product?.name ??
+            item.product?.product_name ??
+            item.product?.title ??
+            item.inventoryItem?.name ??
+            item.itemName ??
+            item.description ??
+            `Item ${idx + 1}`
+          );
+          return {
+            id: `${baseId}-${idx}`,
+            productId: item.productId ?? item.product_id ?? item.id ?? null,
+            name: resolvedName,
+            productName: resolvedName,
+            quantity: qty,
+            unitPrice,
+            discount: normalizedDiscount,
+            discountEnabled: normalizedDiscount > 0,
+            batchNumber: item.batchNumber ?? item.batch_number ?? null,
+          };
+        })
+        .filter(Boolean);
+      if (!mappedItems.length) {
+        setSalesOrderFetchError('Selected sales order does not contain any valid items.');
+        return;
+      }
+      setItems(mappedItems);
+      setIsBatchEnabled(mappedItems.some((row) => row.batchNumber));
+      setEntry({ productId: '', productName: '', quantity: 1, unitPrice: 0, batchNumber: '' });
+      setFormData(prev => ({
+        ...prev,
+        refNumber: order.orderNumber ?? order.voucherNumber ?? order.voucher_no ?? prev.refNumber,
+      }));
+      setSalesOrderFetchError('');
+      setShowSalesOrderModal(false);
     };
 
   // Products are loaded from service in effect above
@@ -627,7 +835,7 @@ const Invoices = () => {
                 </label>
                 <select
                   value={formData.center}
-                  onChange={(e) => setFormData(prev => ({ ...prev, center: e.target.value }))}
+                  onChange={(e) => handleCenterChange(e.target.value)}
                   disabled={loading.centers}
                   className={`w-full px-4 py-3 border-2 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 bg-white ${errors.center ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'} ${loading.centers ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
@@ -646,14 +854,7 @@ const Invoices = () => {
                 </label>
                 <select
                   value={formData.customerEmail}
-                  onChange={(e) => {
-                    const selected = availableCustomers.find(c => c.email === e.target.value);
-                    if (selected) {
-                      setFormData(prev => ({ ...prev, customer: selected.name, customerEmail: selected.email }));
-                    } else {
-                      setFormData(prev => ({ ...prev, customer: '', customerEmail: '' }));
-                    }
-                  }}
+                  onChange={(e) => handleCustomerSelection(e.target.value)}
                   disabled={loading.customers}
                   aria-invalid={!!(errors.customer || errors.customerEmail)}
                   aria-describedby={(errors.customer || errors.customerEmail) ? 'customer-error' : undefined}
@@ -666,6 +867,9 @@ const Invoices = () => {
                 </select>
                 {(errors.customer || errors.customerEmail) && (
                   <p id="customer-error" className="text-red-600 text-sm mt-2 font-medium">Customer details are required</p>
+                )}
+                {salesOrderInlineNotice && !errors.customer && !errors.customerEmail && (
+                  <p className="text-amber-600 text-xs mt-2 font-semibold">{salesOrderInlineNotice}</p>
                 )}
               </div>
             </div>
@@ -988,6 +1192,89 @@ const Invoices = () => {
             </div>
           </form>
         </div>
+
+        {showSalesOrderModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setShowSalesOrderModal(false)}
+              aria-hidden="true"
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4">
+              <div className="flex items-center justify-between p-6 border-b border-slate-200">
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-800">Link Sales Order</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {salesOrderContext.customerName || 'Customer'} • {salesOrderContext.centerName || 'Selected Center'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSalesOrderModal(false)}
+                  className="text-slate-500 hover:text-slate-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors duration-200"
+                  aria-label="Close sales order modal"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                {isSalesOrderLoading ? (
+                  <div className="flex items-center justify-center gap-3 text-slate-600">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+                    Loading sales orders…
+                  </div>
+                ) : salesOrderOptions.length ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {salesOrderOptions.map((order, idx) => {
+                      const voucher = order.orderNumber ?? order.voucherNumber ?? order.voucher_no ?? order.id;
+                      const total = order.totalAmount ?? order.total ?? order.amount ?? order.subtotal ?? 0;
+                      const itemsCount = Array.isArray(order.items)
+                        ? order.items.length
+                        : (Array.isArray(order.orderItems) ? order.orderItems.length : 0);
+                      const date = order.date ?? order.createdAt ?? order.created_at ?? '';
+                      return (
+                        <button
+                          type="button"
+                          key={voucher || `order-${idx}`}
+                          onClick={() => applySalesOrderToInvoice(order)}
+                          className="w-full text-left border-2 border-slate-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                              <p className="text-sm text-slate-500">Voucher</p>
+                              <p className="text-lg font-semibold text-slate-900">{voucher || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-slate-500">Items</p>
+                              <p className="text-lg font-semibold text-slate-900">{itemsCount}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-slate-500">Total</p>
+                              <p className="text-lg font-semibold text-slate-900">{formatLKR(total)}</p>
+                            </div>
+                            {date && (
+                              <div>
+                                <p className="text-sm text-slate-500">Date</p>
+                                <p className="text-lg font-semibold text-slate-900">{date}</p>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600 text-center py-4">
+                    {salesOrderFetchError || 'No matching sales orders found.'}
+                  </p>
+                )}
+                {salesOrderFetchError && salesOrderOptions.length > 0 && (
+                  <p className="text-sm text-red-600 text-center">{salesOrderFetchError}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Payment Modal */}
         {showPaymentModal && (

@@ -175,14 +175,16 @@ export const salesOrder = async (soData) => {
   }
 };
 
-export const fetchSalesOrders = async () => {
-  try {
-    const response = await axios.get('/sales-orders');
-    return response.data?.data ?? response.data ?? [];
-  } catch (error) {
-    console.error('Error fetching Sales Orders:', error);
-    return [];
+//for fetching sales orders
+export const fetchSalesOrders = async (soData) => {
+  try {               
+    const response = await axios.get('/salesOrder', soData);
+    return response.data;
   }
+  catch (error) {
+    console.error('Error fetching Sales Orders:', error);
+    throw error;
+  } 
 };
 
 // Fetch next auto-generated GRN number (preview only)
@@ -347,4 +349,5 @@ export default {
   getNextSalesOrder,
   fetchSalesOrders,
   salesOrder,
+
 };
