@@ -56,19 +56,17 @@ const Invoices = () => {
       if (rawNext) {
         const normalized = String(rawNext).trim();
         if (normalized) {
-          lastCreatedInvoiceRef.current = normalized;
-          if (typeof window !== "undefined") {
-            try {
-              window.localStorage.setItem(LAST_INVOICE_STORAGE_KEY, normalized);
-            } catch {
-              // ignore storage errors
-            }
+          // Prefer the backend-provided preview value as authoritative for display.
+          // If the server (unexpectedly) returns the same value we have stored as "last created",
+          // increment it once to avoid showing a duplicate id in the UI.
+          if (String(lastCreatedInvoiceRef.current || '').trim() === normalized) {
+            const bumped = incrementInvCode(normalized);
+            setNextInvoiceId(bumped);
+            return bumped;
           }
-          const displayId = incrementInvCode(normalized) || normalized;
-          if (displayId) {
-            setNextInvoiceId(displayId);
-            return displayId;
-          }
+
+          setNextInvoiceId(normalized);
+          return normalized;
         }
       }
 
@@ -458,7 +456,10 @@ const Invoices = () => {
         .map((item, idx) => {
           const qty = Math.max(1, Number(item.quantity ?? item.qty ?? 0));
           if (!qty) return null;
-          const unitPrice = Math.max(0, Number(item.unitPrice ?? item.unit_price ?? item.price ?? item.amount ?? 0));
+          const unitPrice = Math.max(0, Number(
+            item.cost ?? item.costPrice ?? item.unit_cost ?? item.unitCost ?? item.purchaseCost ??
+            item.unitPrice ?? item.unit_price ?? item.price ?? item.amount ?? 0
+          ));
           const discountRaw = Number(item.discountPerUnit ?? item.discount ?? item.discountAmount ?? item.lineDiscountAmount ?? 0);
           const perUnitDiscount = item.discountPerUnit != null
             ? Math.max(0, Number(item.discountPerUnit) || 0)
@@ -623,6 +624,8 @@ const Invoices = () => {
 
       const invoiceData = {
         ...formWithoutLegacyFields,
+        // Ensure backend receives a dedicated center_id field
+        center_id: centerId || (formWithoutLegacyFields.center_id ?? undefined),
         amount: computedAmount || formData.amount,
         items: normalizedItems,
         batchTrackingEnabled: isBatchEnabled,
