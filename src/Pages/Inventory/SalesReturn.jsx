@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 // Sales Orders come from AccountingService; centers/products from Inventory service
 import { addSalesOrder, getSalesOrders } from "../../services/AccountingService";
-import { getCenters, getProducts, getCustomers  } from "../../services/Inventory/inventoryService";  // dummy data inventoryService.js
+import { getProducts, getCustomers, fetchInvoices } from "../../services/Inventory/inventoryService";  // dummy data inventoryService.js
+import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
+import InventoryPopup from "../../components/Inventory/inventoryPopup";
 
 /**
  * SalesReturn Component - Manages sales return creation and management
@@ -76,6 +78,15 @@ const SalesReturn = () => {
     const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 }); // Current item entry
     const [errors, setErrors] = useState({}); // Form validation errors
     const [customers, setCustomers] = useState([]); // Fetched customers from API
+    const [invoiceOptions, setInvoiceOptions] = useState([]); // Invoices fetched for selected center/customer
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [isInvoiceLoading, setIsInvoiceLoading] = useState(false);
+    const [invoiceFetchError, setInvoiceFetchError] = useState("");
+    const [invoiceContext, setInvoiceContext] = useState({ centerId: "", centerName: "", customerName: "" });
+    const [centers, setCenters] = useState([]);
+    const [selectedCenterId, setSelectedCenterId] = useState("");
+    const [centerLoading, setCenterLoading] = useState(false);
+    const [centerFetchError, setCenterFetchError] = useState("");
 
     // ===== TYPEAHEAD STATE =====
     // Product search suggestions state
@@ -102,9 +113,134 @@ const SalesReturn = () => {
       fetchCustomers();
     }, []);
 
+    useEffect(() => {
+      let active = true;
+      const loadCenters = async () => {
+        try {
+          setCenterLoading(true);
+          setCenterFetchError("");
+          const data = await fetchCentersService();
+          if (!active) return;
+          const normalized = Array.isArray(data)
+            ? data.map((center) => ({
+                id: String(center.id ?? center.center_id ?? center.value ?? center.code ?? center.uuid ?? ""),
+                name:
+                  center.name ??
+                  center.centerName ??
+                  center.center_name ??
+                  center.title ??
+                  center.label ??
+                  String(center.id ?? "Unnamed Center"),
+              }))
+            : [];
+          const filtered = normalized.filter((center) => center.id && center.name);
+          setCenters(filtered);
+          if (!filtered.length) {
+            setCenterFetchError("No centers available. Please create a center first.");
+          }
+        } catch (error) {
+          if (active) {
+            console.error("Error fetching centers:", error);
+            setCenterFetchError("Unable to load centers. Please try again.");
+            setCenters([]);
+          }
+        } finally {
+          if (active) {
+            setCenterLoading(false);
+          }
+        }
+      };
+      loadCenters();
+      return () => {
+        active = false;
+      };
+    }, []);
+
+    const openInvoicePicker = useCallback(async ({ centerId, centerName, customerName }) => {
+      if ((!centerId && !centerName) || !customerName) return;
+      setInvoiceContext({ centerId: centerId || "", centerName, customerName });
+      setShowInvoiceModal(true);
+      setIsInvoiceLoading(true);
+      setInvoiceFetchError("");
+      setInvoiceOptions([]);
+      try {
+        const response = await fetchInvoices({
+          params: {
+            centerId,
+            center_id: centerId,
+            center: centerName,
+            centerName,
+            customer: customerName,
+            customerName,
+          },
+        });
+        const raw = response?.data ?? response ?? [];
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.rows) ? raw.rows : []);
+        const centerNameKey = String(centerName || "").trim().toLowerCase();
+        const centerIdKey = String(centerId || "").trim().toLowerCase();
+        const customerKey = String(customerName || "").trim().toLowerCase();
+        let filtered = list;
+        let fallbackApplied = false;
+        if (centerNameKey || centerIdKey || customerKey) {
+          filtered = list.filter((invoice) => {
+            const invoiceCenters = [
+              invoice.center,
+              invoice.centerName,
+              invoice.center_name,
+              invoice.centerId,
+              invoice.center_id,
+              invoice?.center?.name,
+            ]
+              .map((val) => String(val ?? "").trim().toLowerCase())
+              .filter(Boolean);
+            const invoiceCenterIds = [
+              invoice.centerId,
+              invoice.center_id,
+              invoice?.center?.id,
+              invoice?.center?.center_id,
+            ]
+              .map((val) => String(val ?? "").trim().toLowerCase())
+              .filter(Boolean);
+            const invoiceCustomers = [
+              invoice.customer,
+              invoice.customerName,
+              invoice.customer_name,
+              invoice.customerDisplayName,
+              invoice?.customerDetails?.name,
+            ]
+              .map((val) => String(val ?? "").trim().toLowerCase())
+              .filter(Boolean);
+
+            const matchesCenterName = !centerNameKey || invoiceCenters.includes(centerNameKey);
+            const matchesCenterId = !centerIdKey || invoiceCenterIds.includes(centerIdKey);
+            const matchesCenter = matchesCenterName && matchesCenterId;
+            const matchesCustomer = !customerKey || invoiceCustomers.includes(customerKey);
+            return matchesCenter && matchesCustomer;
+          });
+        }
+
+        if (!filtered.length && list.length) {
+          filtered = list;
+          fallbackApplied = true;
+        }
+
+        setInvoiceOptions(filtered);
+        if (!filtered.length) {
+          setInvoiceFetchError("No invoices found for this customer at the selected center.");
+        } else if (fallbackApplied) {
+          setInvoiceFetchError("No exact matches; showing all invoices so you can pick manually.");
+        }
+      } catch (error) {
+        console.error("Failed to fetch invoices for return selection", error);
+        setInvoiceFetchError("Unable to load invoices. Please try again.");
+        setInvoiceOptions([]);
+      } finally {
+        setIsInvoiceLoading(false);
+      }
+    }, []);
+
     // ===== COMPUTED VALUES =====
     // Static data from services
-    const centers = useMemo(() => getCenters() || [], []); // Available centers
     const products = useMemo(() => getProducts() || [], []); // Available products
 
     // Filter products based on search input for typeahead
@@ -175,6 +311,43 @@ const SalesReturn = () => {
       return Object.keys(e).length === 0;
     };
 
+    const handleInvoiceLinkClick = () => {
+      const missing = {};
+      if (!form.center.trim()) missing.center = "Center is required";
+      if (!form.customer.trim()) missing.customer = "Customer is required";
+      const selectedCenter = centers.find((c) => String(c.id) === String(selectedCenterId));
+      if (!selectedCenter) missing.center = "Center is required";
+      if (Object.keys(missing).length) {
+        setErrors((prev) => ({ ...prev, ...missing }));
+        return;
+      }
+      openInvoicePicker({ centerId: selectedCenter?.id, centerName: selectedCenter?.name, customerName: form.customer });
+    };
+
+    // Auto-open invoice picker when both center and customer are selected by the user.
+    // Avoid reopening for the same selection by checking invoiceContext.
+    useEffect(() => {
+      const centerId = selectedCenterId;
+      const customerName = String(form.customer || "").trim();
+      if (!centerId || !customerName) return;
+      // if already opened for same context, don't re-open
+      if (
+        invoiceContext.centerId &&
+        String(invoiceContext.centerId) === String(centerId) &&
+        String(invoiceContext.customerName || "").trim() === customerName
+      ) {
+        return;
+      }
+      // ensure centers list is available to resolve center name
+      const selectedCenter = centers.find((c) => String(c.id) === String(centerId));
+      const centerName = selectedCenter?.name || "";
+      // small debounce to avoid firing while user is still typing/selecting
+      const t = setTimeout(() => {
+        openInvoicePicker({ centerId, centerName, customerName });
+      }, 120);
+      return () => clearTimeout(t);
+    }, [selectedCenterId, form.customer, centers, invoiceContext, openInvoicePicker]);
+
     // ===== ITEM MANAGEMENT =====
     // Add new item to the return list
     const addItem = () => {
@@ -226,6 +399,68 @@ const SalesReturn = () => {
     // Remove item from return list
     const removeItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
 
+    const applyInvoiceToReturn = (invoice) => {
+      if (!invoice) return;
+      const sourceItems = Array.isArray(invoice.items)
+        ? invoice.items
+        : (Array.isArray(invoice.invoiceItems) ? invoice.invoiceItems : []);
+      if (!sourceItems.length) {
+        setInvoiceFetchError("Selected invoice does not contain any items.");
+        return;
+      }
+      const baseId = Date.now();
+      const mapped = sourceItems
+        .map((item, idx) => {
+          const qty = Math.max(1, Number(item.quantity ?? item.qty ?? 0));
+          if (!qty) return null;
+          const unitPrice = Math.max(0, Number(item.unitPrice ?? item.unit_price ?? item.price ?? item.amount ?? 0));
+          const discountAmount = Number(
+            item.discountAmount ??
+            item.discount ??
+            item.lineDiscountAmount ??
+            0
+          );
+          const resolvedName = (
+            item.productName ??
+            item.name ??
+            item.itemName ??
+            item.description ??
+            `Item ${idx + 1}`
+          );
+          return {
+            id: `${baseId}-${idx}`,
+            productId: item.productId ?? item.product_id ?? item.id ?? null,
+            productName: resolvedName,
+            quantity: qty,
+            unitPrice,
+            currentStock: Number(item.currentStock ?? item.availableQty ?? item.stock ?? 0),
+            mrp: Number(item.mrp ?? item.unitPrice ?? item.price ?? 0),
+            discountInput: discountAmount > 0 ? discountAmount.toFixed(2) : "",
+          };
+        })
+        .filter(Boolean);
+
+      if (!mapped.length) {
+        setInvoiceFetchError("Selected invoice does not contain any valid items.");
+        return;
+      }
+
+      setItems(mapped);
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      setErrors((prev) => ({ ...prev, items: undefined }));
+
+      // Prefer voucher number as the reference when available
+      const voucher = invoice.voucherNumber ?? invoice.voucher_no ?? invoice.voucherNo ?? invoice.voucher ?? null;
+      const invoiceRef = voucher ?? invoice.invoiceNumber ?? invoice.invoiceNo ?? invoice.number ?? invoice.id ?? "";
+
+      setForm((prev) => ({
+        ...prev,
+        refNumber: invoiceRef || prev.refNumber,
+      }));
+      setInvoiceFetchError("");
+      setShowInvoiceModal(false);
+    };
+
     // ===== FORM SUBMISSION =====
     // Handle form submission
     const onSubmit = async (e) => {
@@ -268,6 +503,7 @@ const SalesReturn = () => {
         }
         // Reset form after successful submission
         setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
+        setSelectedCenterId("");
         setItems([]);
         setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
         setErrors({});
@@ -311,23 +547,41 @@ const SalesReturn = () => {
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Center *</label>
                   <select
-                    value={form.center}
-                    onChange={(e) => setForm((p) => ({ ...p, center: e.target.value }))}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
+                    value={selectedCenterId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedCenterId(value);
+                      const centerMeta = centers.find((c) => String(c.id) === value);
+                      setForm((p) => ({ ...p, center: centerMeta?.name || "" }));
+                    }}
+                    disabled={centerLoading}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"} ${centerLoading ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
-                    <option value="">Select a center</option>
+                    <option value="">{centerLoading ? "Loading centers…" : "Select a center"}</option>
                     {centers.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
+                  {centerFetchError && <p className="text-red-600 text-sm mt-1 font-medium">{centerFetchError}</p>}
                   {errors.center && <p className="text-red-600 text-sm mt-1 font-medium">{errors.center}</p>}
                 </div>
 
                 {/* Customer Selection */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Customer Information *</label>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700">Customer Information *</label>
+                    <button
+                      type="button"
+                      onClick={handleInvoiceLinkClick}
+                      disabled={!selectedCenterId || !form.customer}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:text-slate-400 disabled:cursor-not-allowed"
+                      title={selectedCenterId && form.customer ? "Load invoices for this customer" : "Select center & customer first"}
+                    >
+                      Link Invoice
+                    </button>
+                  </div>
                   <select
                     value={form.customer}
                     onChange={(e) => setForm((p) => ({ ...p, customer: e.target.value }))}
@@ -556,13 +810,81 @@ const SalesReturn = () => {
             </div>
           </form>
         </div>
+
+        <InventoryPopup
+          isOpen={showInvoiceModal}
+          title="Link Invoice"
+          subtitle={`${invoiceContext.customerName || "Customer"} • ${invoiceContext.centerName || "Center"}`}
+          onClose={() => {
+            if (isInvoiceLoading) return;
+            setShowInvoiceModal(false);
+            setInvoiceFetchError("");
+          }}
+          closeOnOverlay={!isInvoiceLoading}
+        >
+          <div className="space-y-4">
+            {isInvoiceLoading ? (
+              <div className="flex items-center justify-center gap-3 text-slate-600">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+                Loading invoices…
+              </div>
+            ) : invoiceOptions.length ? (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {invoiceOptions.map((invoice, idx) => {
+                  const voucher = invoice.voucherNumber ?? invoice.voucher_no ?? invoice.voucherNo ?? invoice.voucher ?? invoice.invoiceNumber ?? invoice.invoiceNo ?? invoice.number ?? invoice.id ?? `INV-${idx + 1}`;
+                  const total = invoice.totalAmount ?? invoice.amount ?? invoice.subtotal ?? 0;
+                  const itemsCount = Array.isArray(invoice.items)
+                    ? invoice.items.length
+                    : (Array.isArray(invoice.invoiceItems) ? invoice.invoiceItems.length : 0);
+                  const date = invoice.date ?? invoice.invoiceDate ?? invoice.createdAt ?? invoice.created_at ?? "";
+                  return (
+                    <button
+                      type="button"
+                      key={voucher || `invoice-${idx}`}
+                      onClick={() => applyInvoiceToReturn(invoice)}
+                      className="w-full text-left border-2 border-slate-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <p className="text-sm text-slate-500">Voucher</p>
+                          <p className="text-lg font-semibold text-slate-900">{voucher || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-500">Items</p>
+                          <p className="text-lg font-semibold text-slate-900">{itemsCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-500">Total</p>
+                          <p className="text-lg font-semibold text-slate-900">{formatLKR(total)}</p>
+                        </div>
+                        {date && (
+                          <div>
+                            <p className="text-sm text-slate-500">Date</p>
+                            <p className="text-lg font-semibold text-slate-900">{date}</p>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600 text-center py-4">
+                {invoiceFetchError || "No invoices available for this selection."}
+              </p>
+            )}
+            {invoiceFetchError && invoiceOptions.length > 0 && (
+              <p className="text-sm text-red-600 text-center">{invoiceFetchError}</p>
+            )}
+          </div>
+        </InventoryPopup>
       </>
     );
   };
 
   // ===== MAIN COMPONENT RENDER =====
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <section aria-label="Create new sales return">
           <InlinePOForm nextSONumber={nextSONumber} />
@@ -584,7 +906,7 @@ const SalesReturn = () => {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Sales return created">
           <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
             <div className="flex items-start gap-4">
-              <CheckCircle className="h-7 w-7 text-green-600 flex-shrink-0" />
+              <CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-slate-900">Success</h3>
                 <p className="mt-2 text-sm text-slate-700">{successText || "Sales return created successfully."}</p>

@@ -7,13 +7,6 @@ import axios from '../../utils/axios';
 
 const inventoryData = {
   
-  // Suppliers used by GRN and Purchase Orders
-  suppliers: [
-    { id: "SUP-0001", name: "Tech Supplies Ltd" },
-    { id: "SUP-0002", name: "Office Equipment Co" },
-    { id: "SUP-0003", name: "Global Components Pvt" },
-    { id: "SUP-0004", name: "Sri Lanka Trading Co" },
-  ],
   purchaseOrders: [
     {
       id: 1,
@@ -142,7 +135,7 @@ export const getCustomers = async () => {
 };
 export const getSuppliers = () => inventoryData.suppliers;
 
-// GRN API functions
+// GRN API post functions
 export const createGRN = async (grnData) => {
   try {
     const response = await axios.post('/grn', grnData);
@@ -153,7 +146,7 @@ export const createGRN = async (grnData) => {
   }
 };
 
-// INV API functions
+// INV API post functions
 export const createINV = async (invData) => {
   try {
     const response = await axios.post('/invoices', invData);
@@ -164,7 +157,7 @@ export const createINV = async (invData) => {
   }
 };
 
-//salesOrder API functions
+//salesOrder post API functions
 export const salesOrder = async (soData) => {
   try {
     const response = await axios.post('/salesOrder', soData);
@@ -185,6 +178,17 @@ export const fetchSalesOrders = async (soData) => {
     console.error('Error fetching Sales Orders:', error);
     throw error;
   } 
+};
+
+// Fetch invoices with optional filters
+export const fetchInvoices = async (config) => {
+  try {
+    const response = await axios.get('/invoices', config);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    throw error;
+  }
 };
 
 // Fetch next auto-generated GRN number (preview only)
@@ -348,6 +352,7 @@ export default {
   // Sales Order
   getNextSalesOrder,
   fetchSalesOrders,
+  fetchInvoices,
   salesOrder,
 
 };
