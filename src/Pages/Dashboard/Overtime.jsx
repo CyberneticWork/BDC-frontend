@@ -124,6 +124,13 @@ const Overtime = () => {
     return `${sign}${adjHours}h ${String(adjMinutes).padStart(2, "0")}m`;
   };
 
+  const formatCurrency = (val) => {
+    if (val === null || val === undefined) return "-";
+    const num = parseFloat(val);
+    if (isNaN(num)) return "-";
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   // small helper to compute total OT when backend doesn't provide it
   const computeTotalOt = (row) => {
     const a = parseFloat(row.morning_ot || 0) || 0;
@@ -376,6 +383,9 @@ const Overtime = () => {
                         Night OT Rate
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Total OT Amount
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Approve OT
                       </th>
                     </tr>
@@ -458,6 +468,9 @@ const Overtime = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
                             {row.ot_night_rate || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                            {formatCurrency(row.total_ot_amount)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             <div className="flex items-center gap-3">
