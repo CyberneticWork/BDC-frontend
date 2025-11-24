@@ -70,6 +70,7 @@ const SalesReturn = () => {
       orderNumber: "",
       center: "",
       customer: "",
+      customerId: "",
       date: new Date().toISOString().split("T")[0],
       status: "Draft",
       refNumber: "",
@@ -103,13 +104,17 @@ const SalesReturn = () => {
     // Fetch customers from API on component mount
     useEffect(() => {
       const fetchCustomers = async () => {
-        try {
-          const data = await getCustomers();
-          setCustomers(data);
-        } catch (error) {
-          console.error('Error fetching customers:', error);
-        }
-      };
+          try {
+            const data = await getCustomers();
+            // ensure customers have id and name fields
+            const normalized = Array.isArray(data)
+              ? data.map(c => ({ id: String(c.id ?? c.customer_id ?? c.email ?? c.uuid ?? c._id ?? ""), name: c.name ?? c.displayName ?? c.customerName ?? c.customer ?? c.email ?? String(c.id ?? "") }))
+              : [];
+            setCustomers(normalized);
+          } catch (error) {
+            console.error('Error fetching customers:', error);
+          }
+        };
       fetchCustomers();
     }, []);
 
@@ -156,10 +161,9 @@ const SalesReturn = () => {
       };
     }, []);
 
-    const openInvoicePicker = useCallback(async ({ centerId, centerName, customerName }) => {
-      if ((!centerId && !centerName) || !customerName) return;
-      setInvoiceContext({ centerId: centerId || "", centerName, customerName });
-      setShowInvoiceModal(true);
+    const openInvoicePicker = useCallback(async ({ centerId, centerName, customerName, customerId }) => {
+      if ((!centerId && !centerName) || (!customerName && !customerId)) return;
+      setInvoiceContext({ centerId: centerId || "", centerName, customerName: customerName || "" });
       setIsInvoiceLoading(true);
       setInvoiceFetchError("");
       setInvoiceOptions([]);
@@ -172,63 +176,49 @@ const SalesReturn = () => {
             centerName,
             customer: customerName,
             customerName,
+            customerId,
           },
         });
         const raw = response?.data ?? response ?? [];
         const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.rows) ? raw.rows : []);
         const centerNameKey = String(centerName || "").trim().toLowerCase();
         const centerIdKey = String(centerId || "").trim().toLowerCase();
+        // Filter invoices by center and customer_id when available
         const customerKey = String(customerName || "").trim().toLowerCase();
-        let filtered = list;
-        let fallbackApplied = false;
-        if (centerNameKey || centerIdKey || customerKey) {
-          filtered = list.filter((invoice) => {
-            const invoiceCenters = [
-              invoice.center,
-              invoice.centerName,
-              invoice.center_name,
-              invoice.centerId,
-              invoice.center_id,
-              invoice?.center?.name,
-            ]
-              .map((val) => String(val ?? "").trim().toLowerCase())
-              .filter(Boolean);
-            const invoiceCenterIds = [
-              invoice.centerId,
-              invoice.center_id,
-              invoice?.center?.id,
-              invoice?.center?.center_id,
-            ]
-              .map((val) => String(val ?? "").trim().toLowerCase())
-              .filter(Boolean);
-            const invoiceCustomers = [
-              invoice.customer,
-              invoice.customerName,
-              invoice.customer_name,
-              invoice.customerDisplayName,
-              invoice?.customerDetails?.name,
-            ]
-              .map((val) => String(val ?? "").trim().toLowerCase())
-              .filter(Boolean);
+        const customerIdKey = String(customerId || "").trim().toLowerCase();
+        const filtered = list.filter((invoice) => {
+          const invoiceCenters = [invoice.center, invoice.centerName, invoice.center_name, invoice.centerId, invoice.center_id, invoice?.center?.name]
+            .map((v) => String(v ?? "").trim().toLowerCase())
+            .filter(Boolean);
+          const invoiceCenterIds = [invoice.centerId, invoice.center_id, invoice?.center?.id, invoice?.center?.center_id]
+            .map((v) => String(v ?? "").trim().toLowerCase())
+            .filter(Boolean);
 
-            const matchesCenterName = !centerNameKey || invoiceCenters.includes(centerNameKey);
-            const matchesCenterId = !centerIdKey || invoiceCenterIds.includes(centerIdKey);
-            const matchesCenter = matchesCenterName && matchesCenterId;
-            const matchesCustomer = !customerKey || invoiceCustomers.includes(customerKey);
-            return matchesCenter && matchesCustomer;
-          });
-        }
+          // customer id fields on invoice
+          const invoiceCustomerIds = [invoice.customerId, invoice.customer_id, invoice?.customer?.id]
+            .map((v) => String(v ?? "").trim().toLowerCase())
+            .filter(Boolean);
 
-        if (!filtered.length && list.length) {
-          filtered = list;
-          fallbackApplied = true;
-        }
+          // customer name/email/display fields
+          const invoiceCustomers = [invoice.customer, invoice.customerName, invoice.customer_name, invoice.customerDisplayName, invoice?.customerDetails?.name, invoice.customerEmail, invoice?.customer?.email]
+            .map((v) => String(v ?? "").trim().toLowerCase())
+            .filter(Boolean);
+
+          const matchesCenter = (centerIdKey && invoiceCenterIds.includes(centerIdKey)) || (centerNameKey && invoiceCenters.some(v => v.includes(centerNameKey)));
+
+          // Prefer matching by customer id when provided; fallback to name/email only if id not available
+          const matchesCustomer = customerIdKey ? invoiceCustomerIds.includes(customerIdKey) : (customerKey && invoiceCustomers.some(v => v.includes(customerKey)));
+
+          return Boolean(matchesCenter && matchesCustomer);
+        });
 
         setInvoiceOptions(filtered);
-        if (!filtered.length) {
+        if (filtered.length) {
+          // Open modal automatically when matching invoices exist (auto-open flow)
+          setShowInvoiceModal(true);
+          setInvoiceFetchError("");
+        } else {
           setInvoiceFetchError("No invoices found for this customer at the selected center.");
-        } else if (fallbackApplied) {
-          setInvoiceFetchError("No exact matches; showing all invoices so you can pick manually.");
         }
       } catch (error) {
         console.error("Failed to fetch invoices for return selection", error);
@@ -255,10 +245,7 @@ const SalesReturn = () => {
         .slice(0, 8);
     }, [entry.productName, products]);
 
-    // Build customer options from fetched customers
-    const customerOptions = useMemo(() => {
-      return customers.map(c => c.name).filter(Boolean);
-    }, [customers]);
+    // customers are normalized and used directly in the select
 
     // ===== UTILITY FUNCTIONS =====
     // Parse discount input (supports percentage or fixed amount)
@@ -321,7 +308,9 @@ const SalesReturn = () => {
         setErrors((prev) => ({ ...prev, ...missing }));
         return;
       }
-      openInvoicePicker({ centerId: selectedCenter?.id, centerName: selectedCenter?.name, customerName: form.customer });
+      // Explicit user action: always open the modal (even if no invoices found)
+      setShowInvoiceModal(true);
+      openInvoicePicker({ centerId: selectedCenter?.id, centerName: selectedCenter?.name, customerName: form.customer, customerId: form.customerId });
     };
 
     // Auto-open invoice picker when both center and customer are selected by the user.
@@ -343,10 +332,10 @@ const SalesReturn = () => {
       const centerName = selectedCenter?.name || "";
       // small debounce to avoid firing while user is still typing/selecting
       const t = setTimeout(() => {
-        openInvoicePicker({ centerId, centerName, customerName });
+        openInvoicePicker({ centerId, centerName, customerName, customerId: form.customerId });
       }, 120);
       return () => clearTimeout(t);
-    }, [selectedCenterId, form.customer, centers, invoiceContext, openInvoicePicker]);
+    }, [selectedCenterId, form.customer, form.customerId, centers, invoiceContext, openInvoicePicker]);
 
     // ===== ITEM MANAGEMENT =====
     // Add new item to the return list
@@ -413,28 +402,72 @@ const SalesReturn = () => {
         .map((item, idx) => {
           const qty = Math.max(1, Number(item.quantity ?? item.qty ?? 0));
           if (!qty) return null;
-          const unitPrice = Math.max(0, Number(item.unitPrice ?? item.unit_price ?? item.price ?? item.amount ?? 0));
-          const discountAmount = Number(
-            item.discountAmount ??
-            item.discount ??
-            item.lineDiscountAmount ??
-            0
-          );
+
+          // Product name: prefer explicit 'Product Name' column, then common variants
           const resolvedName = (
+            item['Product Name'] ??
             item.productName ??
+            item.product_name ??
             item.name ??
             item.itemName ??
             item.description ??
             `Item ${idx + 1}`
           );
+
+          // Unit price / cost: prefer explicit unit price fields
+          const unitPrice = Math.max(
+            0,
+            Number(
+              item.unitPrice ??
+                item.unit_price ??
+                item['Unit Price'] ??
+                item.price ??
+                item.cost ??
+                item.amount ??
+                0
+            )
+          );
+
+          // MRP: prefer explicit MRP field or many possible variants; parse to number robustly
+          const rawMrp = (
+            item.mrp ??
+            item.MRP ??
+            item.mrp_price ??
+            item.mrpPrice ??
+            item['MRP'] ??
+            item['mrp'] ??
+            item.mrp_value ??
+            item.mrp_amt ??
+            item.mrpAmount ??
+            item.unitPrice ??
+            item.unit_price ??
+            item.price ??
+            item.amount ??
+            0
+          );
+          const mrp = Number(String(rawMrp || "0").replace(/[^0-9.-]+/g, "")) || 0;
+
+          // Discount: prefer explicit discount column names and parse robustly
+          const rawDiscount = (
+            item.discount ??
+            item.discountAmount ??
+            item.lineDiscountAmount ??
+            item.discount_value ??
+            item['Discount'] ??
+            item.discountValue ??
+            0
+          );
+          const discountAmount = Number(String(rawDiscount || "0").replace(/[^0-9.-]+/g, "")) || 0;
+
           return {
             id: `${baseId}-${idx}`,
             productId: item.productId ?? item.product_id ?? item.id ?? null,
             productName: resolvedName,
             quantity: qty,
             unitPrice,
-            currentStock: Number(item.currentStock ?? item.availableQty ?? item.stock ?? 0),
-            mrp: Number(item.mrp ?? item.unitPrice ?? item.price ?? 0),
+            // currentStock intentionally not populated (not needed)
+            currentStock: 0,
+            mrp: mrp,
             discountInput: discountAmount > 0 ? discountAmount.toFixed(2) : "",
           };
         })
@@ -583,18 +616,25 @@ const SalesReturn = () => {
                     </button>
                   </div>
                   <select
-                    value={form.customer}
-                    onChange={(e) => setForm((p) => ({ ...p, customer: e.target.value }))}
+                    value={form.customerId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const meta = customers.find(c => String(c.id) === String(id));
+                      setForm((p) => ({ ...p, customerId: id, customer: meta?.name || "" }));
+                    }}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.customer ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
                   >
                     <option value="">Select customer</option>
-                    {customerOptions.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
                   {errors.customer && <p className="text-red-600 text-sm mt-1 font-medium">{errors.customer}</p>}
+                  {invoiceFetchError && !showInvoiceModal && (
+                    <p className="text-amber-600 text-sm mt-1 font-medium">{invoiceFetchError}</p>
+                  )}
                 </div>
               </div>
 
@@ -760,10 +800,9 @@ const SalesReturn = () => {
                                   <input
                                     type="text"
                                     value={it.discountInput || ""}
-                                    readOnly
-                                    disabled
-                                    placeholder="Not editable"
-                                    className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right bg-slate-100 text-slate-500 cursor-not-allowed" />
+                                    onChange={(e) => updateItem(it.id, "discountInput", e.target.value)}
+                                    placeholder="0 or 5%"
+                                    className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white" />
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-sm font-bold text-slate-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
                                 <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">

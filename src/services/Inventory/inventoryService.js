@@ -225,6 +225,18 @@ export const getNextSalesOrder = async () => {
   }
 };
 
+//fetch next auto-Generate Sales return number (Preview only)
+export const getNextSalesReturn = async () => {
+  try {
+    const response = await axios.get('/salesReturn/next');
+    return response.data; // { data: { next, year, sequence } }
+  } catch (error) {
+    console.error('Error fetching next Sales Return number:', error);
+    throw error;
+  }
+};
+
+// Mutation functions
 export const addPurchaseOrder = (order) => {
   const newOrder = {
     ...order,
