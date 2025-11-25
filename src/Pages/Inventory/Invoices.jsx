@@ -476,6 +476,14 @@ const Invoices = () => {
             item.description ??
             `Item ${idx + 1}`
           );
+          // Prefer explicit batch fields, then look for common 'batches' arrays
+          const batchFromArray = Array.isArray(item.batches) && item.batches.length
+            ? (item.batches[0]?.batch_number ?? item.batches[0]?.batchNumber ?? null)
+            : null;
+          const batchFromProduct = Array.isArray(item.product?.batches) && item.product.batches.length
+            ? (item.product.batches[0]?.batch_number ?? item.product.batches[0]?.batchNumber ?? null)
+            : null;
+
           return {
             id: `${baseId}-${idx}`,
             productId: item.productId ?? item.product_id ?? item.id ?? null,
@@ -485,7 +493,8 @@ const Invoices = () => {
             unitPrice,
             discount: normalizedDiscount,
             discountEnabled: normalizedDiscount > 0,
-            batchNumber: item.batchNumber ?? item.batch_number ?? null,
+            batchNumber: item.batchNumber ?? item.batch_number ?? batchFromArray ?? batchFromProduct ?? null,
+            source: 'order',
           };
         })
         .filter(Boolean);
@@ -1074,14 +1083,18 @@ const Invoices = () => {
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.name}</td>
                                 {isBatchEnabled && (
                                   <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
-                                    <input
-                                      type="text"
-                                      value={it.batchNumber || ''}
-                                      onChange={(e) => updateItemField(it.id, 'batchNumber', e.target.value)}
-                                      aria-label={`Batch number for ${it.name}`}
-                                      className="w-32 px-3 py-2 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
-                                      placeholder="Batch"
-                                    />
+                                    {it.batchNumber ? (
+                                      <div className="text-sm text-slate-700 whitespace-nowrap font-medium">{it.batchNumber}</div>
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        value={it.batchNumber || ''}
+                                        onChange={(e) => updateItemField(it.id, 'batchNumber', e.target.value)}
+                                        aria-label={`Batch number for ${it.name}`}
+                                        className="w-32 px-3 py-2 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
+                                        placeholder="Batch"
+                                      />
+                                    )}
                                   </td>
                                 )}
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
