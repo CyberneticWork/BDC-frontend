@@ -1,51 +1,123 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-// Sales Orders come from AccountingService; centers/products from Inventory service
-import { addSalesOrder, getSalesOrders } from "../../services/AccountingService";
-import { getProducts, getCustomers, fetchInvoices } from "../../services/Inventory/inventoryService";  // dummy data inventoryService.js
+import { useAuth } from "../../contexts/AuthContext";
+
+import { getSalesOrders } from "../../services/AccountingService";
+import { getProducts, getCustomers, fetchInvoices, getNextSalesReturn, createSalesReturn } from "../../services/Inventory/inventoryService";  // dummy data inventoryService.js
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
 
-/**
- * SalesReturn Component - Manages sales return creation and management
- * Handles form submission, item management, and customer/product selection
- */
 const SalesReturn = () => {
-  // ===== STATE MANAGEMENT =====
+
   // Main component state for orders and UI control
-  const [orders, setOrders] = useState([]); // List of existing sales returns
-  const [nextSONumber, setNextSONumber] = useState(""); // Next available return number
+  const [, setOrders] = useState([]); // List of existing sales returns
+  const [nextSONumber, setNextSONumber] = useState(() => {
+    const yy = String(new Date().getFullYear()).slice(-2);
+    return `SRET-${yy}-0001`;
+  }); // Next available return number
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for form submission
   const [showSuccess, setShowSuccess] = useState(false); // Success modal visibility
   const [successText, setSuccessText] = useState(""); // Success message text
 
-  // ===== EFFECTS =====
+
   // Load initial sales returns data on component mount
   useEffect(() => {
     const initial = getSalesOrders();
     setOrders(initial);
   }, []);
-
-  // Generate next sales return number based on existing orders
+  // Persisted last created SRET id (localStorage) key and ref
+  const LAST_SRET_STORAGE_KEY = "inventory_last_sret_id";
+  const lastCreatedSretRef = useRef("");
   useEffect(() => {
-    // Compute next SO number from existing orders; accept with/without dash and preserve higher current state
-    const nums = orders
-      .map((o) => {
-        const m = String(o.orderNumber || "").match(/^SRET-?(\d+)$/i);
-        return m ? parseInt(m[1], 10) : null;
-      })
-      .filter((n) => n !== null);
-    const fromOrders = nums.length ? Math.max(...nums) + 1 : 1;
-    setNextSONumber((prev) => {
-      const pm = String(prev || "").match(/^SRET-?(\d+)$/i);
-      const prevNum = pm ? parseInt(pm[1], 10) : 0;
-      const finalNum = Math.max(fromOrders, prevNum || 0);
-      return `SRET-${String(finalNum).padStart(4, "0")}`;
-    });
-  }, [orders]);
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(LAST_SRET_STORAGE_KEY);
+      if (stored) {
+        const s = String(stored).trim();
+        // Only accept previously persisted values that look like SRET-YY-XXXX
+        if (/^SRET-\d{2}-\d+/i.test(s)) {
+          lastCreatedSretRef.current = s;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+  // Helper: increment a code by the last numeric segment, preserving padding.
+  const incrementSretCode = (code) => {
+    if (!code) return "";
+    const match = String(code).match(/^(.*?)(\d+)([^0-9]*)$/);
+    if (!match) return String(code);
+    const [, prefix, digits, suffix] = match;
+    // Always pad sequence to 4 digits so numbering starts at 0001 and remains consistent
+    const nextDigits = (parseInt(digits, 10) + 1).toString().padStart(4, "0");
+    return `${prefix}${nextDigits}${suffix}`;
+  };
 
-  // ===== UTILITY FUNCTIONS =====
-  // Success modal stays until user dismisses; no auto-hide
+  const refreshNextSret = useCallback(async () => {
+    try {
+      const resp = await getNextSalesReturn();
+      // Prefer the common shape used by GRN: resp?.data?.next
+      const next = resp?.data?.next ?? resp?.data ?? resp?.next ?? resp;
+      if (typeof next === "string" && next.trim()) {
+        // If backend already returned a full SRET string, use it as-is.
+        const s = String(next).trim();
+        if (/^SRET-/i.test(s)) {
+          setNextSONumber(s);
+          return s;
+        }
+        // If backend returned a raw numeric/partial token, try to format it
+        // If it contains digits, attempt to extract sequence and append SRET prefix with year
+        const digits = String(s).match(/(\d+)/);
+        const shortYear = String(new Date().getFullYear()).slice(-2);
+        if (digits) {
+          const seq = String(digits[0]).padStart(4, "0");
+          const formatted = `SRET-${shortYear}-${seq}`;
+          setNextSONumber(formatted);
+          return formatted;
+        }
+        // otherwise accept raw string but ensure SRET prefix
+        const formatted = `SRET-${String(new Date().getFullYear()).slice(-2)}-${s}`;
+        setNextSONumber(formatted);
+        return formatted;
+      }
+
+      // If backend returned an object with year/sequence keys, format accordingly
+      if (next && typeof next === "object") {
+        const yearVal = next.year ?? new Date().getFullYear();
+        const seq = next.sequence ?? next.next ?? next.number ?? null;
+        if (seq != null) {
+          const shortYear = String(yearVal).slice(-2);
+          const formatted = `SRET-${shortYear}-${String(Number(seq)).padStart(4, "0")}`;
+          setNextSONumber(formatted);
+          return formatted;
+        }
+      }
+
+      // Final fallback: always start a fresh SRET sequence for current year on initial load
+      const shortYearNow = String(new Date().getFullYear()).slice(-2);
+      const initial = `SRET-${shortYearNow}-0001`;
+      setNextSONumber(initial);
+      return initial;
+    } catch (e) {
+        console.warn("Failed to fetch next SRET from server; using fallback.", e?.message || String(e));
+      // On failure, show initial SRET sequence for the current year
+      const shortYearNow = String(new Date().getFullYear()).slice(-2);
+      const initial = `SRET-${shortYearNow}-0001`;
+      setNextSONumber(initial);
+      return initial;
+    }
+  }, []);
+
+  // Fetch next sales return number on mount
+  useEffect(() => {
+    refreshNextSret();
+  }, [refreshNextSret]);
+
+  // Note: numbering is now provided by backend or localStorage fallback; do not derive from local `orders` to avoid unexpected sequences
+
+
+  
 
   // Format currency values to Sri Lankan Rupees
   const formatLKR = (value) => {
@@ -60,10 +132,7 @@ const SalesReturn = () => {
     }
   };
 
-  /**
-   * InlinePOForm Component - Inner form component for sales return creation
-   * Contains all form fields, item management, and validation logic
-   */
+  // Contains all form fields, item management, and validation logic
   const InlinePOForm = ({ nextSONumber }) => {
     // ===== FORM STATE =====
     const [form, setForm] = useState({
@@ -76,7 +145,8 @@ const SalesReturn = () => {
       refNumber: "",
     });
     const [items, setItems] = useState([]); // Array of return items
-    const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 }); // Current item entry
+    const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" }); // Current item entry
+    const [isBatchEnabled, setIsBatchEnabled] = useState(false);
     const [errors, setErrors] = useState({}); // Form validation errors
     const [customers, setCustomers] = useState([]); // Fetched customers from API
     const [invoiceOptions, setInvoiceOptions] = useState([]); // Invoices fetched for selected center/customer
@@ -89,13 +159,13 @@ const SalesReturn = () => {
     const [centerLoading, setCenterLoading] = useState(false);
     const [centerFetchError, setCenterFetchError] = useState("");
 
-    // ===== TYPEAHEAD STATE =====
     // Product search suggestions state
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const productInputRef = useRef(null);
+    const auth = useAuth();
 
-    // ===== EFFECTS =====
+
     // Set order number when nextSONumber prop changes
     useEffect(() => {
       setForm((p) => ({ ...p, orderNumber: nextSONumber }));
@@ -213,6 +283,7 @@ const SalesReturn = () => {
         });
 
         setInvoiceOptions(filtered);
+        console.log("openInvoicePicker - filtered invoices:", filtered);
         if (filtered.length) {
           // Open modal automatically when matching invoices exist (auto-open flow)
           setShowInvoiceModal(true);
@@ -229,7 +300,7 @@ const SalesReturn = () => {
       }
     }, []);
 
-    // ===== COMPUTED VALUES =====
+
     // Static data from services
     const products = useMemo(() => getProducts() || [], []); // Available products
 
@@ -245,9 +316,8 @@ const SalesReturn = () => {
         .slice(0, 8);
     }, [entry.productName, products]);
 
-    // customers are normalized and used directly in the select
 
-    // ===== UTILITY FUNCTIONS =====
+  
     // Parse discount input (supports percentage or fixed amount)
     const parseDiscount = (input, base) => {
       const s = String(input || "").trim();
@@ -362,9 +432,10 @@ const SalesReturn = () => {
           currentStock,
           mrp,
           discountInput: "",
+          batchNumber: isBatchEnabled ? (entry.batchNumber || "") : undefined,
         },
       ]);
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
     };
 
     // Update existing item field
@@ -374,6 +445,9 @@ const SalesReturn = () => {
           if (it.id !== id) return it;
           if (field === "discountInput") {
             return { ...it, discountInput: String(rawValue || "") };
+          }
+          if (field === "batchNumber") {
+            return { ...it, batchNumber: String(rawValue || "") };
           }
           const num = typeof rawValue === "number" ? rawValue : Number(rawValue) || 0;
           if (field === "quantity") return { ...it, quantity: Math.max(1, Math.floor(num)) };
@@ -389,6 +463,7 @@ const SalesReturn = () => {
     const removeItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
 
     const applyInvoiceToReturn = (invoice) => {
+      console.log("applyInvoiceToReturn - invoice:", invoice);
       if (!invoice) return;
       const sourceItems = Array.isArray(invoice.items)
         ? invoice.items
@@ -398,7 +473,7 @@ const SalesReturn = () => {
         return;
       }
       const baseId = Date.now();
-      const mapped = sourceItems
+          const mapped = sourceItems
         .map((item, idx) => {
           const qty = Math.max(1, Number(item.quantity ?? item.qty ?? 0));
           if (!qty) return null;
@@ -459,19 +534,85 @@ const SalesReturn = () => {
           );
           const discountAmount = Number(String(rawDiscount || "0").replace(/[^0-9.-]+/g, "")) || 0;
 
+          // Resolve current stock from invoice item fields or fallback to product data.
+          // Use `null` as unknown sentinel so a value of 0 is accepted from the API.
+          let stockVal = null;
+          const stockCandidates = [
+            item.current_stock,
+            item.currentStock,
+            item.currentstock,
+            item.stock,
+            item.available,
+            item.availableQty,
+            item.available_quantity,
+            item.onHand,
+            item.on_hand,
+            item.balance,
+            item.qtyAvailable,
+            item.opening_stock,
+            item.closing_stock,
+            item.qty_on_hand,
+            item.stockQuantity,
+            item.stock_qty,
+            item['Current Stock'],
+          ];
+          for (const v of stockCandidates) {
+            if (v !== undefined && v !== null && String(v).trim() !== "") {
+              const cleaned = String(v).replace(/[^0-9.-]+/g, "");
+              const n = Number(cleaned);
+              if (!Number.isNaN(n)) {
+                stockVal = n;
+                break;
+              }
+            }
+          }
+
+          // If invoice didn't include stock (stockVal === null), try to look up from product master
+          if (stockVal === null) {
+            const lookupId = item.productId ?? item.product_id ?? item.id ?? null;
+            let found = null;
+            if (lookupId) {
+              found = products.find((p) => String(p.id) === String(lookupId));
+            }
+            if (!found) {
+              const nameKey = String(resolvedName || "").toLowerCase();
+              found = products.find((p) => {
+                if (!p) return false;
+                const pName = String(p.name || "").toLowerCase();
+                const pSku = String(p.sku || "").toLowerCase();
+                return (pName && nameKey && pName.includes(nameKey)) || (pSku && String(item.sku || "").toLowerCase() === pSku);
+              });
+            }
+            if (found) {
+              const cand = found.currentstock ?? found.currentStock ?? found.stock ?? found.qty_on_hand ?? found.stock_qty ?? 0;
+              const parsed = Number(String(cand).replace(/[^0-9.-]+/g, ""));
+              stockVal = Number.isNaN(parsed) ? 0 : parsed;
+            }
+          }
+
+          // prefer common batch shapes: item.batches array or product.batches
+          const batchFromArray = Array.isArray(item.batches) && item.batches.length
+            ? (item.batches[0]?.batch_number ?? item.batches[0]?.batchNumber ?? item.batches[0]?.batch ?? null)
+            : null;
+          const batchFromProduct = Array.isArray(item.product?.batches) && item.product.batches.length
+            ? (item.product.batches[0]?.batch_number ?? item.product.batches[0]?.batchNumber ?? item.product.batches[0]?.batch ?? null)
+            : null;
+
           return {
             id: `${baseId}-${idx}`,
             productId: item.productId ?? item.product_id ?? item.id ?? null,
             productName: resolvedName,
             quantity: qty,
             unitPrice,
-            // currentStock intentionally not populated (not needed)
-            currentStock: 0,
+            currentStock: stockVal,
             mrp: mrp,
             discountInput: discountAmount > 0 ? discountAmount.toFixed(2) : "",
+            batchNumber: item.batchNumber ?? item.batch_no ?? item.batch ?? batchFromArray ?? batchFromProduct ?? "",
           };
         })
         .filter(Boolean);
+
+      console.log("applyInvoiceToReturn - mapped items:", mapped);
 
       if (!mapped.length) {
         setInvoiceFetchError("Selected invoice does not contain any valid items.");
@@ -479,7 +620,14 @@ const SalesReturn = () => {
       }
 
       setItems(mapped);
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      // If any mapped item contains a batch number, enable batch mode so the column becomes visible
+      try {
+        const hasBatch = mapped.some((m) => Boolean(m.batchNumber && String(m.batchNumber).trim()));
+        setIsBatchEnabled(Boolean(hasBatch));
+      } catch {
+        // ignore
+      }
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
       setErrors((prev) => ({ ...prev, items: undefined }));
 
       // Prefer voucher number as the reference when available
@@ -504,6 +652,11 @@ const SalesReturn = () => {
         // Prepare payload with calculated values
         const payload = {
           ...form,
+          // Record creator id from auth context (both variants for compatibility)
+          created_by: auth?.user?.id ?? null,
+          createdBy: auth?.user?.id ?? null,
+          // Sales returns should be created with Pending status
+          status: "Pending",
           items: items.map((it) => {
             const qty = Number(it.quantity) || 0;
             const price = Number(it.unitPrice) || 0;
@@ -519,26 +672,97 @@ const SalesReturn = () => {
           }),
           subtotal,
           discountTotal,
-          tax,
-          totalAmount,
+          // No tax should be sent when adding a sales return
+          tax: 0,
+          // Ensure totalAmount does not include tax for sales returns
+          totalAmount: subtotal,
         };
-        const created = addSalesOrder(payload);
-        setOrders((prev) => [...prev, created]);
-        // Show success message
-        const createdNumber = created?.orderNumber || nextSONumber;
+        console.log("Submitting sales return payload:", payload);
+        let created = null;
+        try {
+          const resp = await createSalesReturn(payload);
+          created = resp?.data ?? resp;
+          setOrders((prev) => [...prev, created]);
+        } catch (err) {
+          console.error("Failed to create sales return", err);
+          setSuccessText(`Failed to create sales return: ${err?.message ?? "Unknown error"}`);
+          setShowSuccess(false);
+          return;
+        }
+
+        // Helper: robustly resolve a returned order/receipt/voucher id from various response shapes
+        // This function will also inspect nested `data` objects (depth-limited) because
+        // some services wrap the created resource under `.data`.
+        const resolveCreatedNumber = (obj, depth = 0) => {
+          if (!obj || depth > 3) return "";
+          const cand = [
+            obj.orderNumber,
+            obj.order_number,
+            obj.orderNo,
+            obj.order_no,
+            obj.voucherNumber,
+            obj.voucher_no,
+            obj.voucherNo,
+            obj.voucher,
+            obj.invoiceNumber,
+            obj.invoiceNo,
+            obj.number,
+            obj.id,
+            obj._id,
+            obj.salesReturnNumber,
+            obj.sales_return_number,
+            obj.sretNumber,
+            obj.sret_no,
+          ];
+          for (const c of cand) {
+            if (c !== undefined && c !== null && String(c).trim() !== "") return String(c).trim();
+          }
+          // Check common wrapper shapes
+          if (obj.data) {
+            const inner = resolveCreatedNumber(obj.data, depth + 1);
+            if (inner) return inner;
+          }
+          if (obj.result) {
+            const inner2 = resolveCreatedNumber(obj.result, depth + 1);
+            if (inner2) return inner2;
+          }
+          return "";
+        };
+
+        const resolved = resolveCreatedNumber(created);
+        // Prefer a backend-returned SRET (explicit). If backend returned a different
+        // identifier (e.g. 'SO003'), show the original submitted SRET (`nextSONumber`).
+        const createdNumber = (resolved && /^SRET-/i.test(resolved)) ? resolved : String(nextSONumber || resolved || "").trim();
         setSuccessText(`Sales return ${createdNumber} created successfully.`);
         setShowSuccess(true);
-        // Update next number for display
-        const m = String(createdNumber).match(/^SRET-?(\d+)$/i);
-        if (m) {
-          const nextNum = Number(m[1]) + 1;
-          setNextSONumber(`SRET-${String(nextNum).padStart(4, "0")}`);
+
+        // Persist created number (prefer SRET-formatted value). Use nextSONumber as authoritative
+        // if backend returned a non-SRET order number (e.g. SOxxx).
+        try {
+          const isSret = /^SRET-/i.test(String(createdNumber || ""));
+          const baseForPersist = isSret ? String(createdNumber).trim() : String(nextSONumber || createdNumber || "").trim();
+          if (baseForPersist && typeof window !== "undefined") {
+            try { window.localStorage.setItem(LAST_SRET_STORAGE_KEY, baseForPersist); } catch { /* ignore */ }
+            lastCreatedSretRef.current = baseForPersist;
+          }
+        } catch {
+          // intentionally ignored
         }
+
+        // Optimistic increment locally using the persisted SRET base (or nextSONumber)
+        try {
+          const base = String(lastCreatedSretRef.current || nextSONumber || createdNumber || "").trim();
+          const optimisticNext = base ? incrementSretCode(base) : null;
+          if (optimisticNext) setNextSONumber(optimisticNext);
+        } catch {
+          // intentionally ignored
+        }
+        try { await refreshNextSret(); } catch { /* intentionally ignored */ }
         // Reset form after successful submission
         setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
         setSelectedCenterId("");
         setItems([]);
-        setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+        setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
         setErrors({});
       } finally {
         setIsSubmitting(false);
@@ -553,7 +777,7 @@ const SalesReturn = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h1 className="uppercase text-2xl sm:text-3xl font-bold text-slate-900">Sales Return Management</h1>
-              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">Return ID: {nextSONumber}</div>
+              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">Sales Return Number: {nextSONumber}</div>
               <p className="text-slate-600 mt-2 text-sm sm:text-base">Efficiently manage and track your sales returns across centers</p>
             </div>
           </div>
@@ -654,13 +878,36 @@ const SalesReturn = () => {
                 {/* Total Amount Display */}
                 <div className="lg:place-self-end pr-65 text-center bg-slate-100 rounded-lg p-4 border border-slate-200">
                   <p className="text-lg font-semibold text-slate-700">Total Amount</p>
-                  <p className="text-3xl font-bold text-slate-900">{formatLKR(subtotal)}</p>
+                  <p className="text-3xl font-bold text-slate-900">{formatLKR(totalAmount)}</p>
                 </div>
               </div>
 
               {/* ===== ITEMS ENTRY SECTION ===== */}
               <div className="mb-6 sm:mb-8 bg-slate-50 rounded-lg p-6 border border-slate-200">
-                <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6 border-b border-slate-200 pb-4">Add Items</h4>
+                <div className="flex items-center justify-between mb-6 border-b border-slate-200 pb-4">
+                  <h4 className="text-lg sm:text-xl font-semibold text-slate-900">Add Items</h4>
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm text-slate-700 font-medium">Batch mode</label>
+                    <input
+                      type="checkbox"
+                      checked={isBatchEnabled}
+                      onChange={(e) => {
+                        const enabled = Boolean(e.target.checked);
+                        setIsBatchEnabled(enabled);
+                        if (!enabled) {
+                          // remove batchNumber from existing items when disabling
+                          setItems((prev) => prev.map((it) => {
+                            const copy = { ...it };
+                            if (copy.batchNumber !== undefined) delete copy.batchNumber;
+                            return copy;
+                          }));
+                          setEntry((p) => ({ ...p, batchNumber: "" }));
+                        }
+                      }}
+                      className="h-4 w-4"
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
                   {/* Product Search Input */}
                   <div className="sm:col-span-3 space-y-2">
@@ -681,7 +928,7 @@ const SalesReturn = () => {
                         e.preventDefault();
                         if (activeIndex >= 0 && filteredProducts[activeIndex]) {
                           const p = filteredProducts[activeIndex];
-                          setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                          setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: "" });
                           setShowSuggestions(false);
                           setActiveIndex(-1);
                         }
@@ -697,7 +944,7 @@ const SalesReturn = () => {
                         onFocus={() => setShowSuggestions(true)}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setEntry((p) => ({ ...p, productId: "", productName: val }));
+                          setEntry((p) => ({ ...p, productId: "", productName: val, batchNumber: p.batchNumber || "" }));
                           setShowSuggestions(true);
                           setActiveIndex(-1);
                         } }
@@ -716,7 +963,7 @@ const SalesReturn = () => {
                               onMouseEnter={() => setActiveIndex(idx)}
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
-                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: "" });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
                                 productInputRef.current?.blur();
@@ -731,6 +978,18 @@ const SalesReturn = () => {
                       )}
                     </div>
                     {errors.productName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.productName}</p>}
+                    {isBatchEnabled && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Batch Number</label>
+                        <input
+                          type="text"
+                          value={entry.batchNumber || ""}
+                          onChange={(e) => setEntry((p) => ({ ...p, batchNumber: e.target.value }))}
+                          placeholder="Enter batch number"
+                          className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Add Item Button */}
@@ -756,6 +1015,9 @@ const SalesReturn = () => {
                           <tr>
                             <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
                             <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
+                            {items.some((it) => String(it.batchNumber || "").trim()) && (
+                              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch Number</th>
+                            )}
                             <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
                             <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Current Stock</th>
                             <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
@@ -776,6 +1038,9 @@ const SalesReturn = () => {
                               <tr key={it.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{idx + 1}</td>
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.productName}</td>
+                                {String(it.batchNumber || "").trim() ? (
+                                  <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-medium">{String(it.batchNumber || "")}</td>
+                                ) : null}
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
                                     type="number"

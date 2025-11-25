@@ -157,13 +157,24 @@ export const createINV = async (invData) => {
   }
 };
 
-//salesOrder post API functions
+//salesOrder post API post functions
 export const salesOrder = async (soData) => {
   try {
     const response = await axios.post('/salesOrder', soData);
     return response.data;
   } catch (error) {
     console.error('Error creating Sales Order:', error);
+    throw error;
+  }
+};
+
+//salesReturn API post functions
+export const createSalesReturn = async (data) => {
+  try {
+    const response = await axios.post('/salesreturn', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating sales return:', error);
     throw error;
   }
 };
@@ -227,14 +238,25 @@ export const getNextSalesOrder = async () => {
 
 //fetch next auto-Generate Sales return number (Preview only)
 export const getNextSalesReturn = async () => {
-  try {
-    const response = await axios.get('/salesReturn/next');
-    return response.data; // { data: { next, year, sequence } }
-  } catch (error) {
-    console.error('Error fetching next Sales Return number:', error);
-    throw error;
+  // Try multiple common endpoint variants to be tolerant of backend naming
+  const candidates = ['/salesreturn/next', '/salesReturn/next', '/sales-return/next', '/sales-return/next'];
+  for (const url of candidates) {
+    try {
+      const response = await axios.get(url);
+      return response.data; // expected shapes: string or { data: { next, year, sequence } }
+    } catch (err) {
+      // If 404, try next candidate; otherwise log and continue
+      const status = err?.response?.status;
+      if (status && status !== 404) {
+        console.warn(`getNextSalesReturn: request to ${url} failed with status ${status}`, err?.message || err);
+      }
+      
+    }
   }
+ 
+  return null;
 };
+
 
 // Mutation functions
 export const addPurchaseOrder = (order) => {
@@ -363,6 +385,8 @@ export default {
   getNextInv,
   // Sales Order
   getNextSalesOrder,
+  createSalesReturn,
+  getNextSalesReturn,
   fetchSalesOrders,
   fetchInvoices,
   salesOrder,
