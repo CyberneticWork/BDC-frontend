@@ -97,18 +97,23 @@ const ShiftOvertimeRates = () => {
 
   // When shift changes, fetch any existing rate + hydrate shift meta
   useEffect(() => {
-    if (!selectedShiftId || !shifts.length) return;
+    if (!selectedShiftId || !shifts.length) {
+      setSelectedShift(null);
+      return;
+    }
 
-    const fetchExistingRate = async () => {
+    const shiftMeta = shifts.find((s) => String(s.id) === String(selectedShiftId));
+    setSelectedShift(shiftMeta || null);
+
+    let cancelled = false;
+
+    const loadRate = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/shift-overtime-rates/shift/${selectedShiftId}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          const rate = data.data;
-          
-          // Hydrate form with existing data
+        const rate = await ShiftOvertimeRateService.getByShiftId(selectedShiftId);
+        if (cancelled) return;
+
+        if (rate) {
           setForm({
             shift_id: rate.shift_id?.toString() || "",
             shift_hours_per_day: rate.shift_hours_per_day?.toString() || "",
@@ -117,33 +122,41 @@ const ShiftOvertimeRates = () => {
             holiday_multiplier: rate.holiday_multiplier?.toString() || "",
             ignore_hours_threshold: {
               hours: rate.ignore_hours_threshold?.hours?.toString() || "",
-              minutes: rate.ignore_hours_threshold?.minutes?.toString() || ""
-            }
+              minutes: rate.ignore_hours_threshold?.minutes?.toString() || "",
+            },
           });
           setRecordId(rate.id);
         } else {
-          // No existing rate found, reset form with selected shift defaults
           setForm({
             ...initialForm,
             shift_id: selectedShiftId.toString(),
-            ignore_hours_threshold: { hours: "", minutes: "" }
+            ignore_hours_threshold: { hours: "", minutes: "" },
           });
           setRecordId(null);
         }
       } catch (error) {
-        console.error('Error fetching existing rate:', error);
-        setForm({
-          ...initialForm,
-          shift_id: selectedShiftId.toString(),
-          ignore_hours_threshold: { hours: "", minutes: "" }
-        });
-        setRecordId(null);
+        if (cancelled) return;
+
+        if (error?.response?.status === 404) {
+          setForm({
+            ...initialForm,
+            shift_id: selectedShiftId.toString(),
+            ignore_hours_threshold: { hours: "", minutes: "" },
+          });
+          setRecordId(null);
+        } else {
+          console.error("Failed to fetch shift OT rate:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    fetchExistingRate();
+    loadRate();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedShiftId, shifts]);
 
   const onNumberChange = (key) => (e) => {
