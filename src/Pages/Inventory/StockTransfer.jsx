@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { getStockTransfers, addStockTransfer, getProducts } from "../../services/Inventory/inventoryService";
+import { fetchCenters } from "../../services/Inventory/centerService";
 // Payment component removed
 
 const StockTransfer = () => {
@@ -52,7 +53,29 @@ const StockTransfer = () => {
       setFormData((p) => ({ ...p, id: nextStId }));
     }, [nextStId]);
 
-    const centers = ["Main Center", "Branch A", "Branch B", "Warehouse 01"];
+    const [centers, setCenters] = useState([]);
+    const [centersLoading, setCentersLoading] = useState(false);
+    const [centersError, setCentersError] = useState(null);
+
+    useEffect(() => {
+      let mounted = true;
+      const loadCenters = async () => {
+        try {
+          setCentersLoading(true);
+          const res = await fetchCenters();
+          if (!mounted) return;
+          // res may be array of objects or array of strings
+          setCenters(Array.isArray(res) ? res : []);
+        } catch (err) {
+          console.error('Failed to load centers:', err);
+          setCentersError(err?.message || String(err));
+        } finally {
+          if (mounted) setCentersLoading(false);
+        }
+      };
+      loadCenters();
+      return () => { mounted = false; };
+    }, []);
     // const suppliers = getSuppliers();
     const products = useMemo(() => getProducts?.() || [], []);
 
@@ -82,8 +105,8 @@ const StockTransfer = () => {
     const validateForm = () => {
       const e = {};
       if (!formData.id) e.id = "Invoice number not generated";
-      if (!formData.fromCenter.trim()) e.fromCenter = "From Center is required";
-      if (!formData.toCenter.trim()) e.toCenter = "To Center is required";
+      if (!formData.fromCenter) e.fromCenter = "From Center is required";
+      if (!formData.toCenter) e.toCenter = "To Center is required";
       if (!formData.date) e.date = "Date is required";
       if ((items?.length || 0) === 0) e.items = "Add at least one item";
       setErrors(e);
@@ -220,9 +243,17 @@ const StockTransfer = () => {
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.fromCenter ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
                   >
                     <option value="">Select source center</option>
-                    {centers.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                    {centersLoading ? (
+                      <option value="">Loading centers...</option>
+                    ) : centersError ? (
+                      <option value="">Error loading centers</option>
+                    ) : Array.isArray(centers) && centers.length === 0 ? (
+                      <option value="">No centers available</option>
+                    ) : (
+                      centers.map((c) => (
+                        <option key={c?.id ?? c} value={c?.id ?? c}>{c?.centerName ?? c?.name ?? c?.center_name ?? c}</option>
+                      ))
+                    )}
                   </select>
                   {errors.fromCenter && <p className="text-red-600 text-sm mt-1 font-medium">{errors.fromCenter}</p>}
                 </div>
@@ -235,9 +266,17 @@ const StockTransfer = () => {
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.toCenter ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
                   >
                     <option value="">Select destination center</option>
-                    {centers.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                    {centersLoading ? (
+                      <option value="">Loading centers...</option>
+                    ) : centersError ? (
+                      <option value="">Error loading centers</option>
+                    ) : Array.isArray(centers) && centers.length === 0 ? (
+                      <option value="">No centers available</option>
+                    ) : (
+                      centers.map((c) => (
+                        <option key={c?.id ?? c} value={c?.id ?? c}>{c?.centerName ?? c?.name ?? c?.center_name ?? c}</option>
+                      ))
+                    )}
                   </select>
                   {errors.toCenter && <p className="text-red-600 text-sm mt-1 font-medium">{errors.toCenter}</p>}
                 </div>
