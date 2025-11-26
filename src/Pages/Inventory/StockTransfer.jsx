@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getStockTransfers, addStockTransfer, getProducts } from "../../services/Inventory/inventoryService";
+import { getStockTransfers, addStockTransfer, getProducts, fetchStockTransfers } from "../../services/Inventory/inventoryService";
 import { fetchCenters } from "../../services/Inventory/centerService";
 // Payment component removed
 
@@ -57,6 +57,11 @@ const StockTransfer = () => {
     const [centersLoading, setCentersLoading] = useState(false);
     const [centersError, setCentersError] = useState(null);
 
+    // Products available for the selected center
+    const [centerProducts, setCenterProducts] = useState([]);
+    const [centerProductsLoading, setCenterProductsLoading] = useState(false);
+    const [centerProductsError, setCenterProductsError] = useState(null);
+
     useEffect(() => {
       let mounted = true;
       const loadCenters = async () => {
@@ -77,7 +82,95 @@ const StockTransfer = () => {
       return () => { mounted = false; };
     }, []);
     // const suppliers = getSuppliers();
-    const products = useMemo(() => getProducts?.() || [], []);
+    // Products source: prefer products available for selected center, fallback to static getProducts()
+    const products = useMemo(() => (Array.isArray(centerProducts) && centerProducts.length ? centerProducts : (getProducts?.() || [])), [centerProducts]);
+
+    // Load products for selected center (uses existing service function `fetchStockTransfers`)
+    useEffect(() => {
+      let mounted = true;
+      const loadProductsForCenter = async () => {
+        const centerId = formData.fromCenter;
+        if (!centerId) {
+          // reset to default static products when no center selected
+          setCenterProducts([]);
+          setCenterProductsError(null);
+          return;
+        }
+        try {
+          setCenterProductsLoading(true);
+          const raw = await fetchStockTransfers();
+          const stocks = Array.isArray(raw) ? raw : (raw?.data ?? []);
+
+          const collected = [];
+          stocks.forEach((s) => {
+            const stockCenterId = s.center_id ?? s.centerId ?? s.center?.id ?? s.center;
+            if (String(stockCenterId) !== String(centerId)) return;
+
+            // If entry contains products array
+            if (Array.isArray(s.products) && s.products.length) {
+              s.products.forEach((p) => {
+                collected.push({
+                  id: p.id ?? p.product_id ?? p.productId,
+                  name: p.productName ?? p.name ?? p.product ?? "",
+                  sku: p.sku ?? p.code ?? "",
+                  unitPrice: p.unitPrice ?? p.unit_price ?? p.price ?? 0,
+                  currentstock: p.currentstock ?? p.currentStock ?? p.quantity ?? p.qty ?? 0,
+                });
+              });
+              return;
+            }
+
+            // If entry itself is a product record
+            if (s.product || s.product_id || s.productName || s.name) {
+              const p = s.product ?? s;
+              collected.push({
+                id: p.id ?? p.product_id ?? p.productId ?? s.id,
+                name: p.productName ?? p.name ?? p.product ?? s.productName ?? "",
+                sku: p.sku ?? p.code ?? "",
+                unitPrice: p.unitPrice ?? p.unit_price ?? p.price ?? 0,
+                currentstock: p.currentstock ?? p.currentStock ?? p.quantity ?? p.qty ?? s.currentstock ?? 0,
+              });
+              return;
+            }
+
+            // fallback: top-level product fields
+            if (s.productName || s.name || s.sku) {
+              collected.push({
+                id: s.product_id ?? s.id,
+                name: s.productName ?? s.name ?? "",
+                sku: s.sku ?? "",
+                unitPrice: s.unitPrice ?? s.unit_price ?? 0,
+                currentstock: s.currentstock ?? s.quantity ?? s.qty ?? 0,
+              });
+            }
+          });
+
+          // deduplicate by id or name
+          const seen = new Map();
+          const deduped = [];
+          collected.forEach((p) => {
+            const key = p.id ?? p.name;
+            if (!seen.has(String(key))) {
+              seen.set(String(key), true);
+              deduped.push(p);
+            }
+          });
+
+          if (!mounted) return;
+          setCenterProducts(deduped);
+          setCenterProductsError(null);
+        } catch (err) {
+          console.error('Failed to load center products:', err);
+          if (!mounted) return;
+          setCenterProductsError(err?.message || String(err));
+          setCenterProducts([]);
+        } finally {
+          if (mounted) setCenterProductsLoading(false);
+        }
+      };
+      loadProductsForCenter();
+      return () => { mounted = false; };
+    }, [formData.fromCenter]);
 
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();

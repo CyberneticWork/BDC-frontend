@@ -202,6 +202,17 @@ export const fetchInvoices = async (config) => {
   }
 };
 
+//fetch stock transfer with optional filters
+export const fetchStockTransfers = async (config) => {
+  try {
+    const response = await axios.get('/inventory-stocks/all', config);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching stock transfers:', error);
+    throw error;
+  } 
+};
+
 // Fetch next auto-generated GRN number (preview only)
 export const getNextGrn = async () => {
   try {
