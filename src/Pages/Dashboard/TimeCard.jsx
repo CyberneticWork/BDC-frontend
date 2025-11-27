@@ -116,11 +116,20 @@ const TimeCard = () => {
   );
   const totalAttendancePages = Math.ceil(filteredData.length / attendanceRowsPerPage);
 
+  // ADD: guard to prevent pagination reset when refreshing after edit/save
+  const preventPaginationReset = useRef(false);
+
   useEffect(() => {
     setAbsentPage(1);
   }, [absentees]);
 
+  // CHANGE: only reset to first page when not prevented
   useEffect(() => {
+    if (preventPaginationReset.current) {
+      // keep current page, then clear the guard
+      preventPaginationReset.current = false;
+      return;
+    }
     setAttendancePage(1);
   }, [filteredData]);
 
@@ -390,6 +399,9 @@ const TimeCard = () => {
       
       // Refresh data
       const updated = await fetchTimeCards();
+
+      // PREVENT resetting to page 1 on this refresh
+      preventPaginationReset.current = true;
       setAttendanceData(updated);
       setFilteredData(updated);
       
