@@ -204,6 +204,13 @@ const StockTransfer = () => {
         .slice(0, 8);
     }, [entry.productName, products]);
 
+    const showBatchColumn = useMemo(() => {
+      // show batch if any center product has a batchNumber or any added item has one
+      const hasCenterBatches = Array.isArray(centerProducts) && centerProducts.some((p) => !!(p.batchNumber));
+      const hasItemBatches = Array.isArray(items) && items.some((it) => !!(it.batchNumber));
+      return hasCenterBatches || hasItemBatches;
+    }, [centerProducts, items]);
+
     const tableTotal = useMemo(() => {
       return items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
@@ -263,6 +270,9 @@ const StockTransfer = () => {
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? (selected.currentStock ?? selected.currentstock ?? 0) : 0,
         currentstock: selected ? (selected.currentStock ?? selected.currentstock ?? 0) : 0,
+        batchNumber: selected?.batchNumber ?? "",
+        stockId: selected?.stockId ?? selected?.id ?? null,
+        productId: selected?.productId ?? selected?.id ?? null,
       };
       // mark quantity error if it exceeds available stock or invalid
       if (typeof newItem.currentStock !== "undefined" && newItem.currentStock !== null && newItem.currentStock !== "") {
@@ -554,6 +564,9 @@ const StockTransfer = () => {
                             <tr>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
+                              {showBatchColumn && (
+                                <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch</th>
+                              )}
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Stock</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Quantity</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
@@ -564,6 +577,15 @@ const StockTransfer = () => {
                               <tr key={it.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{idx + 1}</td>
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.name}</td>
+                                {showBatchColumn && (
+                                  <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+                                    {it.batchNumber ? (
+                                      <span className="font-medium">{it.batchNumber}</span>
+                                    ) : (
+                                      <span className="text-slate-400">—</span>
+                                    )}
+                                  </td>
+                                )}
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-right whitespace-nowrap">
                                   {(() => {
                                     const stockVal = it.currentStock ?? it.currentstock;
