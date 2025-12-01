@@ -1,39 +1,72 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getStockTransfers, addStockTransfer, getProducts, fetchStockTransfers } from "../../services/Inventory/inventoryService";
+import { addStockTransfer, getProducts, fetchStockTransfers, getNextStockTransfer } from "../../services/Inventory/inventoryService";
 import { fetchCenters } from "../../services/Inventory/centerService";
+import { useAuth } from "../../contexts/AuthContext";
 // Payment component removed
 
+
+const extractNextTransferNumber = (resp) => {
+  if (!resp) return "";
+  if (typeof resp === "string") return resp;
+
+  const buckets = [resp, resp?.data, resp?.data?.data];
+
+  for (const bucket of buckets) {
+    if (!bucket) continue;
+    if (typeof bucket === "string") return bucket;
+    if (typeof bucket === "object") {
+      if (typeof bucket.next === "string") return bucket.next;
+      if (typeof bucket.data === "string") return bucket.data;
+      if (typeof bucket.data?.next === "string") return bucket.data.next;
+    }
+  }
+
+  return "";
+};
+
 const StockTransfer = () => {
-  const [transfers, setTransfers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextStId, setNextStId] = useState("");
+  const [nextIdError, setNextIdError] = useState("");
+  const [isFetchingNextId, setIsFetchingNextId] = useState(false);
 
-  useEffect(() => {
-    const initial = getStockTransfers();
-    setTransfers(initial);
+  const refreshNextStockTransferId = useCallback(async () => {
+    setIsFetchingNextId(true);
+    setNextIdError("");
+    try {
+      const resp = await getNextStockTransfer();
+      const next = extractNextTransferNumber(resp);
+      if (next) {
+        setNextStId(next);
+        return next;
+      }
+      throw new Error("Missing next stock transfer number in response");
+    } catch (err) {
+      console.warn("Failed to fetch next stock transfer id.", err);
+      setNextStId("");
+      const message = err?.message || "Unable to fetch next stock transfer number.";
+      setNextIdError(message);
+      return "";
+    } finally {
+      setIsFetchingNextId(false);
+    }
   }, []);
 
   useEffect(() => {
-    const nums = transfers
-      .map((t) => {
-        const m = String(t.id || "").match(/^ST-(\d{4})$/i);
-        return m ? parseInt(m[1], 10) : null;
-      })
-      .filter((n) => n !== null);
-    const next = nums.length ? Math.max(...nums) + 1 : 1;
-    setNextStId(`ST-${String(next).padStart(4, "0")}`);
-  }, [transfers]);
+    refreshNextStockTransferId();
+  }, [refreshNextStockTransferId]);
 
   // formatLKR removed — amount display is no longer shown in the form UI
 
-    const InlineNewInvoiceForm = ({ nextStId }) => {
+    const InlineNewInvoiceForm = ({ nextStId, refreshNextId, nextIdError, isFetchingNextId }) => {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
       id: "",
       fromCenter: "",
       toCenter: "",
       date: new Date().toISOString().split("T")[0],
-      status: "pending",
+      status: "completed",
       amount: 0,
       // kept for backward compatibility where needed
       productName: "",
@@ -83,73 +116,64 @@ const StockTransfer = () => {
     }, []);
     // const suppliers = getSuppliers();
     // Products source: prefer products available for selected center, fallback to static getProducts()
-    const products = useMemo(() => (Array.isArray(centerProducts) && centerProducts.length ? centerProducts : (getProducts?.() || [])), [centerProducts]);
+    const products = useMemo(() => {
+      if (formData.fromCenter) {
+        // When a center is selected, only show products loaded for that center
+        return Array.isArray(centerProducts) ? centerProducts : [];
+      }
+      // Without a selected center fall back to any static catalog
+      return getProducts?.() || [];
+    }, [centerProducts, formData.fromCenter]);
 
     // Load products for selected center (uses existing service function `fetchStockTransfers`)
     useEffect(() => {
       let mounted = true;
       const loadProductsForCenter = async () => {
         const centerId = formData.fromCenter;
+        // clear entry so suggestions don't show stale products from previous center
+        setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
         if (!centerId) {
-          // reset to default static products when no center selected
           setCenterProducts([]);
           setCenterProductsError(null);
           return;
         }
         try {
           setCenterProductsLoading(true);
-          const raw = await fetchStockTransfers();
-          const stocks = Array.isArray(raw) ? raw : (raw?.data ?? []);
+          // Ask backend for inventory stocks, include center as query param so backend can filter if supported
+          const raw = await fetchStockTransfers({ params: { center: centerId, center_id: centerId } });
+          const stocks = Array.isArray(raw) ? raw : (raw?.data ?? raw?.data?.data ?? []);
 
           const collected = [];
           stocks.forEach((s) => {
             const stockCenterId = s.center_id ?? s.centerId ?? s.center?.id ?? s.center;
-            if (String(stockCenterId) !== String(centerId)) return;
+            if (stockCenterId && String(stockCenterId) !== String(centerId)) return;
 
-            // If entry contains products array
-            if (Array.isArray(s.products) && s.products.length) {
-              s.products.forEach((p) => {
-                collected.push({
-                  id: p.id ?? p.product_id ?? p.productId,
-                  name: p.productName ?? p.name ?? p.product ?? "",
-                  sku: p.sku ?? p.code ?? "",
-                  unitPrice: p.unitPrice ?? p.unit_price ?? p.price ?? 0,
-                  currentstock: p.currentstock ?? p.currentStock ?? p.quantity ?? p.qty ?? 0,
-                });
-              });
-              return;
-            }
+            const productData = s.product ?? s.productDetails ?? {};
+            const productId = productData.id ?? s.product_id ?? productData.product_id ?? s.productId ?? s.id;
+            const stockQty = Number(s.quantity ?? s.qty ?? productData.quantity ?? productData.currentStock ?? 0) || 0;
+            const price = Number(productData.cost ?? productData.min_price ?? productData.mrp ?? 0) || 0;
+            const sku = productData.code ?? productData.barcode ?? productData.sku ?? s.productCode ?? s.batch_number ?? "";
+            const name = productData.name ?? s.productName ?? s.name ?? `Product ${productId ?? ""}`;
 
-            // If entry itself is a product record
-            if (s.product || s.product_id || s.productName || s.name) {
-              const p = s.product ?? s;
-              collected.push({
-                id: p.id ?? p.product_id ?? p.productId ?? s.id,
-                name: p.productName ?? p.name ?? p.product ?? s.productName ?? "",
-                sku: p.sku ?? p.code ?? "",
-                unitPrice: p.unitPrice ?? p.unit_price ?? p.price ?? 0,
-                currentstock: p.currentstock ?? p.currentStock ?? p.quantity ?? p.qty ?? s.currentstock ?? 0,
-              });
-              return;
-            }
-
-            // fallback: top-level product fields
-            if (s.productName || s.name || s.sku) {
-              collected.push({
-                id: s.product_id ?? s.id,
-                name: s.productName ?? s.name ?? "",
-                sku: s.sku ?? "",
-                unitPrice: s.unitPrice ?? s.unit_price ?? 0,
-                currentstock: s.currentstock ?? s.quantity ?? s.qty ?? 0,
-              });
-            }
+            collected.push({
+              id: s.id ?? productId,
+              stockId: s.id,
+              productId,
+              centerId: stockCenterId ?? centerId,
+              batchNumber: s.batch_number ?? s.batchNumber ?? "",
+              name,
+              sku,
+              unitPrice: price,
+              currentStock: stockQty,
+              currentstock: stockQty,
+            });
           });
 
-          // deduplicate by id or name
+          // deduplicate by stock entry (inventory stock id)
           const seen = new Map();
           const deduped = [];
           collected.forEach((p) => {
-            const key = p.id ?? p.name;
+            const key = p.stockId ?? `${p.productId}-${p.batchNumber ?? ""}-${p.centerId ?? ""}`;
             if (!seen.has(String(key))) {
               seen.set(String(key), true);
               deduped.push(p);
@@ -202,6 +226,18 @@ const StockTransfer = () => {
       if (!formData.toCenter) e.toCenter = "To Center is required";
       if (!formData.date) e.date = "Date is required";
       if ((items?.length || 0) === 0) e.items = "Add at least one item";
+      // Ensure no item quantity errors exist
+      const badItem = (items || []).find((it) => {
+        const qty = Number(it.quantity) || 0;
+        if (qty <= 0) return true;
+        const stockVal = it.currentStock ?? it.currentstock;
+        if (typeof stockVal !== "undefined" && stockVal !== null && stockVal !== "") {
+          const stock = Number(stockVal) || 0;
+          if (qty > stock) return true;
+        }
+        return false;
+      });
+      if (badItem) e.items = "Resolve item quantity errors before submitting";
       setErrors(e);
       return Object.keys(e).length === 0;
     };
@@ -225,8 +261,16 @@ const StockTransfer = () => {
         discount: 0,
         discountEnabled: false,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
-        currentStock: selected ? selected.currentstock || 0 : 0,
+        currentStock: selected ? (selected.currentStock ?? selected.currentstock ?? 0) : 0,
+        currentstock: selected ? (selected.currentStock ?? selected.currentstock ?? 0) : 0,
       };
+      // mark quantity error if it exceeds available stock or invalid
+      if (typeof newItem.currentStock !== "undefined" && newItem.currentStock !== null && newItem.currentStock !== "") {
+        const stock = Number(newItem.currentStock) || 0;
+        if (Number(newItem.quantity) > stock) {
+          newItem.quantityError = `Quantity exceeds available stock (${stock})`;
+        }
+      }
       setItems((prev) => [...prev, newItem]);
       setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
       setShowSuggestions(false);
@@ -235,7 +279,31 @@ const StockTransfer = () => {
     };
 
     const updateItemField = (id, field, value) => {
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.id !== id) return it;
+          const updated = { ...it, [field]: value };
+          if (field === "quantity") {
+            const qty = Number(value) || 0;
+            if (qty <= 0) {
+              updated.quantityError = "Quantity must be at least 1";
+            } else {
+              const stockVal = it.currentStock ?? it.currentstock;
+              if (typeof stockVal !== "undefined" && stockVal !== null && stockVal !== "") {
+                const stock = Number(stockVal) || 0;
+                if (qty > stock) {
+                  updated.quantityError = `Quantity exceeds available stock (${stock})`;
+                } else {
+                  delete updated.quantityError;
+                }
+              } else {
+                delete updated.quantityError;
+              }
+            }
+          }
+          return updated;
+        })
+      );
     };
 
     const deleteItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
@@ -260,32 +328,36 @@ const StockTransfer = () => {
         items,
         productName: firstItem ? firstItem.name : "",
         quantity: firstItem ? firstItem.quantity : 0,
+        status: "completed",
       };
+
+      console.log("Submitting stock transfer", {
+        formData,
+        items,
+        computedAmount,
+        createdBy: user?.id ?? null,
+        payload: invoiceData,
+      });
 
       // Directly add invoice, no payment modal
       setIsSubmitting(true);
       try {
+        addStockTransfer(invoiceData);
         let nextIdForReset = null;
-  const newTransfer = addStockTransfer(invoiceData);
-  setTransfers((prev) => [...prev, newTransfer]);
-        // compute and set next ST id by incrementing current nextStId
-        try {
-          const m = String(nextStId || "").match(/^ST-(\d{4})$/i);
-          const curr = m ? parseInt(m[1], 10) : 0;
-          const nextNum = curr + 1;
-          const nextId = `ST-${String(nextNum).padStart(4, "0")}`;
-          setNextStId(nextId);
-          nextIdForReset = nextId;
-        } catch {
-          // ignore and keep existing nextStId on failure
+        if (typeof refreshNextId === "function") {
+          try {
+            nextIdForReset = await refreshNextId();
+          } catch (err) {
+            console.warn("Failed to refresh next stock transfer id after submit.", err);
+          }
         }
         setErrors({});
         setFormData({
-          id: nextIdForReset || nextStId,
+          id: nextIdForReset || "",
           fromCenter: "",
           toCenter: "",
           date: new Date().toISOString().split("T")[0],
-          status: "pending",
+          status: "completed",
           amount: 0,
           productName: "",
           quantity: 0,
@@ -304,7 +376,14 @@ const StockTransfer = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 uppercase">Stock Transfer Management</h1>
-              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">Transfer ID: {nextStId}</div>
+              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
+                Transfer ID: {isFetchingNextId ? "Fetching..." : nextStId || "—"}
+              </div>
+              {nextIdError && (
+                <p className="text-red-600 text-sm mt-1" role="alert">
+                  {nextIdError}
+                </p>
+              )}
               <p className="text-slate-600 mt-2 text-sm sm:text-base">Efficiently manage and track your stock transfers across centers</p>
             </div>
           </div>
@@ -445,12 +524,17 @@ const StockTransfer = () => {
                             >
                               <span className="text-sm font-medium text-slate-900">{p.name}</span>
                               <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-                              <span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)}{typeof p.currentstock !== "undefined" ? ` • Stock: ${p.currentstock}` : ""}</span>
+                              <span className="ml-auto text-xs text-slate-600 font-semibold">
+                                LKR {Number(p.unitPrice || 0).toFixed(2)}
+                                {typeof (p.currentStock ?? p.currentstock) !== "undefined" && (p.currentStock ?? p.currentstock) !== null && (p.currentStock ?? p.currentstock) !== "" ? ` • Stock: ${p.currentStock ?? p.currentstock}` : ""}
+                              </span>
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
+                    {centerProductsLoading && <p className="text-xs text-slate-500 mt-2">Loading products for the selected center...</p>}
+                    {centerProductsError && <p className="text-xs text-red-600 mt-1">{centerProductsError}</p>}
                     {errors.productName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.productName}</p>}
                   </div>
                   <div className="flex items-end">
@@ -470,6 +554,7 @@ const StockTransfer = () => {
                             <tr>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
+                              <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Stock</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Quantity</th>
                               <th scope="col" className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
                             </tr>
@@ -479,15 +564,27 @@ const StockTransfer = () => {
                               <tr key={it.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{idx + 1}</td>
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.name}</td>
+                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-right whitespace-nowrap">
+                                  {(() => {
+                                    const stockVal = it.currentStock ?? it.currentstock;
+                                    if (typeof stockVal !== "undefined" && stockVal !== null && stockVal !== "") {
+                                      return <span className="font-medium">{Number(stockVal)}</span>;
+                                    }
+                                    return <span className="text-slate-400">—</span>;
+                                  })()}
+                                </td>
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={it.quantity}
-                                    onChange={(e) => updateItemField(it.id, "quantity", parseInt(e.target.value) || 0)}
-                                    aria-label={`Quantity for ${it.name}`}
-                                    className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
-                                  />
+                                  <div className="inline-flex flex-col items-end">
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={it.quantity}
+                                      onChange={(e) => updateItemField(it.id, "quantity", parseInt(e.target.value) || 0)}
+                                      aria-label={`Quantity for ${it.name}`}
+                                      className={`w-24 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 transition-colors ${it.quantityError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 hover:bg-white'}`}
+                                    />
+                                    {it.quantityError && <p className="text-xs text-red-600 mt-1">{it.quantityError}</p>}
+                                  </div>
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">
                                   <button
@@ -512,7 +609,7 @@ const StockTransfer = () => {
               <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 pt-6 border-t border-slate-200">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !formData.id}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-lg flex items-center justify-center gap-3 shadow-lg w-full sm:w-auto"
                 >
                   {isSubmitting ? (
@@ -538,10 +635,15 @@ const StockTransfer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
                 <section aria-label="Create new stock transfer">
-          <InlineNewInvoiceForm nextStId={nextStId} />
+          <InlineNewInvoiceForm
+            nextStId={nextStId}
+            refreshNextId={refreshNextStockTransferId}
+            nextIdError={nextIdError}
+            isFetchingNextId={isFetchingNextId}
+          />
         </section>
       </div>
     </div>

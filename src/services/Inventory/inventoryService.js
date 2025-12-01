@@ -70,37 +70,7 @@ const inventoryData = {
       totalAmount: 1320,
     },
   ],
-  stockTransfers: [],
-  stockVerifications: [
-    {
-      id: 1,
-      verificationNumber: "SV001",
-      location: "Main Warehouse",
-      date: "2024-01-30",
-      status: "Completed",
-      verifiedBy: "Sarah Wilson",
-      items: [
-        {
-          productName: "Laptop",
-          systemQty: 25,
-          physicalQty: 24,
-          variance: -1,
-          unitPrice: 1200,
-          varianceValue: -1200,
-        },
-        {
-          productName: "Mouse",
-          systemQty: 50,
-          physicalQty: 52,
-          variance: 2,
-          unitPrice: 25,
-          varianceValue: 50,
-        },
-      ],
-      totalVarianceValue: -1150,
-      remarks: "Annual stock audit - minor discrepancies found",
-    },
-  ],
+  
 };
 
 // Load persisted stockTransfers from localStorage if available
@@ -175,6 +145,17 @@ export const createSalesReturn = async (data) => {
     return response.data;
   } catch (error) {
     console.error('Error creating sales return:', error);
+    throw error;
+  }
+};
+
+//Stock Transfer API post functions
+export const createStockTransfer = async (data) => {
+  try {
+    const response = await axios.post('/stock-transfer', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating stock transfer:', error);
     throw error;
   }
 };
@@ -266,6 +247,17 @@ export const getNextSalesReturn = async () => {
   }
  
   return null;
+};
+
+// fetch next auto-generated Stock Transfer number (Preview only)
+export const getNextStockTransfer = async () => {
+  try {
+    const response = await axios.get('/stock-transfer/next');
+    return response.data; // expected shapes: string or { data: { next, year, sequence } }
+  } catch (error) {
+    console.error('Error fetching next Stock Transfer number:', error);
+    throw error;
+  }
 };
 
 
@@ -398,8 +390,10 @@ export default {
   getNextSalesOrder,
   createSalesReturn,
   getNextSalesReturn,
+  getNextStockTransfer,
   fetchSalesOrders,
   fetchInvoices,
   salesOrder,
-
+  createStockTransfer,
+  fetchStockTransfers
 };
