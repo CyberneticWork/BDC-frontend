@@ -20,8 +20,11 @@ const GRN = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Display the next GRN fetched from backend
   const [nextGrnId, setNextGrnId] = useState("");
+  // Loading flag while fetching next GRN from backend
+  const [isFetchingNext, setIsFetchingNext] = useState(false);
 
   const refreshNextGrn = useCallback(async () => {
+    setIsFetchingNext(true);
     try {
       const resp = await getNextGrn();
       const next = resp?.data?.next || "";
@@ -35,6 +38,8 @@ const GRN = () => {
       console.warn("Failed to fetch next GRN from server; using fallback.", e);
       setNextGrnId((prev) => (prev ? incrementGrnCode(prev) : "GRN-0001"));
       return null;
+    } finally {
+      setIsFetchingNext(false);
     }
   }, []);
 
@@ -478,7 +483,7 @@ const GRN = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h1 className="uppercase text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Goods Received Note (GRN)</h1>
-              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">GRN Number: {nextGrnId}</div>
+              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">GRN Number: {isFetchingNext ? "Loading…" : nextGrnId || "Unavailable"}</div>
               <p className="text-slate-600 text-sm sm:text-base">Manage and track your goods received notes efficiently</p>
             </div>
           </div>
@@ -676,7 +681,7 @@ const GRN = () => {
                                 }}
                               >
                                 <span className="text-sm font-medium text-slate-900">{p.name}</span>
-                                <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
+                                <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">Product Code: {p.sku || "N/A"}</span>
                                 <span className="ml-auto text-xs text-slate-600 font-medium">
                                   Cost LKR {Number(p.costPrice || 0).toFixed(2)} • MRP LKR {Number(p.mrp || 0).toFixed(2)}{typeof p.currentstock !== "undefined" ? ` • Stock ${p.currentstock}` : ""}
                                 </span>

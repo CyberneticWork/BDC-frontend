@@ -418,7 +418,7 @@ const PurchaseOrder = () => {
 					<div>
 						<h1 className="text-2xl sm:text-3xl font-bold text-slate-900 uppercase">Purchase Order</h1>
 						<div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
-							Purchase Order Number : {isFetchingNext ? "Fetching…" : nextPONumber || "Unavailable"}
+							Purchase Order Number : {isFetchingNext ? "Loading…" : nextPONumber || "Unavailable"}
 						</div>
 						{nextNumberError && <p className="text-sm text-red-600 mt-1">{nextNumberError}</p>}
 						<p className="text-slate-600 mt-2 text-base">Create and manage purchase orders</p>
@@ -558,7 +558,7 @@ const PurchaseOrder = () => {
 															} }
 														>
 															<span className="text-sm font-medium text-slate-900">{p.name}</span>
-															<span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
+															<span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">Product Code: {p.sku || "N/A"}</span>
 															<span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
 														</li>
 													))}
