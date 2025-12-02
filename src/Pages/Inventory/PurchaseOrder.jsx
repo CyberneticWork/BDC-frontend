@@ -1,30 +1,146 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import { addPurchaseOrder, getPurchaseOrders, getCenters, getProducts } from "../../services/Inventory/inventoryService";  //get from dummy data inventoryService.js
+import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
+import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
+import SupplierService from "../../services/Account/SupplierService";
+import { addPurchaseOrder, getNextPurchaseOrder } from "../../services/Inventory/inventoryService";  //get from dummy data inventoryService.js
+
+const defaultPurchaseOrderNumber = () => `PO-${new Date().getFullYear()}-0001`;
+
+const incrementPurchaseOrderNumber = (current) => {
+	if (!current) return defaultPurchaseOrderNumber();
+	const match = String(current).match(/^(.*?)(\d+)([^0-9]*)$/);
+	if (!match) return defaultPurchaseOrderNumber();
+	const [, prefix, digits, suffix] = match;
+	const nextDigits = (parseInt(digits, 10) + 1).toString().padStart(digits.length, "0");
+	return `${prefix}${nextDigits}${suffix}`;
+};
+
+const normalizePurchaseOrderNumber = (payload) => {
+	const currentYear = new Date().getFullYear();
+	if (payload == null) return "";
+
+	const extractParts = (value) => {
+		if (value == null) return null;
+		if (typeof value === "string" || typeof value === "number") {
+			return { raw: value };
+		}
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				const result = extractParts(item);
+				if (result) return result;
+			}
+			return null;
+		}
+		if (typeof value === "object") {
+			const directRaw = value.orderNumber || value.purchaseOrderNumber || value.number || value.nextNumber;
+			if (directRaw != null) {
+				return { raw: directRaw };
+			}
+			const year = value.year ?? value.Year ?? value.fiscalYear ?? value.FiscalYear;
+			const sequence = value.sequence ?? value.Sequence ?? value.seq ?? value.Seq ?? value.next ?? value.Next;
+			if (year != null || sequence != null) {
+				return { year, seq: sequence };
+			}
+			if (value.data != null) {
+				return extractParts(value.data);
+			}
+			if (value.result != null) {
+				return extractParts(value.result);
+			}
+			if (value.payload != null) {
+				return extractParts(value.payload);
+			}
+		}
+		return null;
+	};
+
+	const parts = extractParts(payload);
+	if (!parts) return "";
+
+	const resolveYear = () => {
+		const rawYear = parts.year ?? currentYear;
+		const numeric = Number(String(rawYear).replace(/[^0-9]/g, ""));
+		if (Number.isFinite(numeric) && numeric > 0) {
+			return String(numeric);
+		}
+		return String(currentYear);
+	};
+
+	const formatSequence = (value) => {
+		if (value == null) return "";
+		const digits = String(value).replace(/[^0-9]/g, "");
+		return digits ? digits.padStart(4, "0") : "";
+	};
+
+	const yearPart = resolveYear();
+
+	if (parts.raw != null) {
+		const rawStr = String(parts.raw).trim();
+		if (/^PO-\d{4}-\d+$/i.test(rawStr)) {
+			return rawStr.toUpperCase();
+		}
+		if (/^PO-\d+$/i.test(rawStr)) {
+			const seq = rawStr.replace(/^PO-/i, "");
+			const formattedSeq = formatSequence(seq);
+			if (formattedSeq) {
+				return `PO-${yearPart}-${formattedSeq}`;
+			}
+		}
+		const formattedSeq = formatSequence(rawStr);
+		if (formattedSeq) {
+			return `PO-${yearPart}-${formattedSeq}`;
+		}
+		return rawStr;
+	}
+
+	const seqPart = formatSequence(parts.seq);
+	if (seqPart) {
+		return `PO-${yearPart}-${seqPart}`;
+	}
+
+	return "";
+};
 
 const PurchaseOrder = () => {
-	const [orders, setOrders] = useState([]);
 	const [nextPONumber, setNextPONumber] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showSuccess, setShowSuccess] = useState(false);
 	const [successText, setSuccessText] = useState("");
+	const [isFetchingNext, setIsFetchingNext] = useState(false);
+	const [nextNumberError, setNextNumberError] = useState("");
 
-	useEffect(() => {
-		const initial = getPurchaseOrders();
-		setOrders(initial);
+	const fetchNextPONumber = useCallback(async (options = {}) => {
+		const { fallbackSource } = options;
+		setNextNumberError("");
+		setIsFetchingNext(true);
+		try {
+			const response = await getNextPurchaseOrder();
+			const normalized = normalizePurchaseOrderNumber(response);
+			if (!normalized) {
+				throw new Error("Invalid purchase order number response");
+			}
+			setNextPONumber(normalized);
+		} catch (error) {
+			console.error("Failed to fetch next purchase order number", error);
+			setNextNumberError("Unable to fetch the next purchase order number. Please try again.");
+			setNextPONumber((prev) => {
+				if (fallbackSource) {
+					return prev || fallbackSource;
+				}
+				if (prev) {
+					return incrementPurchaseOrderNumber(prev);
+				}
+				return defaultPurchaseOrderNumber();
+			});
+		} finally {
+			setIsFetchingNext(false);
+		}
 	}, []);
 
 	useEffect(() => {
-		// Compute next PO number from existing orders using pattern PO-0001
-		const nums = orders
-			.map((o) => {
-				const m = String(o.orderNumber || "").match(/^PO-(\d{4})$/i);
-				return m ? parseInt(m[1], 10) : null;
-			})
-			.filter((n) => n !== null);
-		const next = nums.length ? Math.max(...nums) + 1 : 1;
-		setNextPONumber(`PO-${String(next).padStart(4, "0")}`);
-	}, [orders]);
+		fetchNextPONumber();
+	}, [fetchNextPONumber]);
 
 	// LKR formatter
 	const formatLKR = (value) => {
@@ -39,7 +155,7 @@ const PurchaseOrder = () => {
 		}
 	};
 
-	const InlinePOForm = ({ nextPONumber, orders }) => {
+	const InlinePOForm = ({ nextPONumber }) => {
 		const [form, setForm] = useState({
 			orderNumber: "",
 			center: "",
@@ -50,6 +166,10 @@ const PurchaseOrder = () => {
 		});
 	const [items, setItems] = useState([]);
 	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+	const [centers, setCenters] = useState([]);
+	const [suppliers, setSuppliers] = useState([]);
+	const [products, setProducts] = useState([]);
+	const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
 		const [errors, setErrors] = useState({});
 
 		// Typeahead state for products
@@ -62,12 +182,6 @@ const PurchaseOrder = () => {
 		}, [nextPONumber]);
 
 
-			// Centers from service
-			const centers = useMemo(() => getCenters() || [], []);
-
-			// Products for suggestions
-			const products = useMemo(() => getProducts() || [], []);
-
 			const filteredProducts = useMemo(() => {
 				const q = (entry.productName || "").toLowerCase().trim();
 				if (!q) return products.slice(0, 8);
@@ -79,15 +193,8 @@ const PurchaseOrder = () => {
 					.slice(0, 8);
 			}, [entry.productName, products]);
 
-		// Build supplier options from existing orders with fallback defaults
-		const supplierOptions = useMemo(() => {
-			const unique = Array.from(
-				new Set((orders || []).map((o) => (o.supplier || "").trim()).filter(Boolean))
-			);
-			return unique.length
-				? unique
-				: ["Tech Supplies Ltd", "Office Equipment Co", "Acme Traders", "Global Suppliers"];
-		}, [orders]);
+		// Supplier options come from fetched supplier list
+		const supplierOptions = useMemo(() => suppliers, [suppliers]);
 
 		// Helper to parse discount as amount or % against a base
 		const parseDiscount = (input, base) => {
@@ -198,47 +305,111 @@ const PurchaseOrder = () => {
 			if (!validate()) return;
 			setIsSubmitting(true);
 			try {
-							const payload = {
+				const payload = {
 					...form,
-						items: items.map((it) => {
-							const qty = Number(it.quantity) || 0;
-							const price = Number(it.unitPrice) || 0;
-							const gross = qty * price;
-							const dAmt = parseDiscount(it.discountInput, gross);
-							return {
-								...it,
-								lineGross: gross,
-								lineDiscountInput: it.discountInput || "",
-								lineDiscountAmount: dAmt,
-								lineNet: Math.max(0, gross - dAmt),
-							};
-						}),
-						subtotal,
-						discountTotal,
-						tax,
-						totalAmount,
+					items: items.map((it) => {
+						const qty = Number(it.quantity) || 0;
+						const price = Number(it.unitPrice) || 0;
+						const gross = qty * price;
+						const dAmt = parseDiscount(it.discountInput, gross);
+						return {
+							...it,
+							lineGross: gross,
+							lineDiscountInput: it.discountInput || "",
+							lineDiscountAmount: dAmt,
+							lineNet: Math.max(0, gross - dAmt),
+						};
+					}),
+					subtotal,
+					discountTotal,
+					tax,
+					totalAmount,
 				};
 				const created = addPurchaseOrder(payload);
-				setOrders((prev) => [...prev, created]);
-				// Show success toast
-				const createdNumber = created?.orderNumber || nextPONumber;
+				if (!created.orderNumber) {
+					created.orderNumber = form.orderNumber || nextPONumber;
+				}
+				const createdNumber = created?.orderNumber || form.orderNumber || nextPONumber;
 				setSuccessText(`Purchase order ${createdNumber} created successfully.`);
 				setShowSuccess(true);
-				// Immediately bump displayed next SO number
-				const m = String(createdNumber).match(/^PO-(\d+)$/i);
-				if (m) {
-					const nextNum = parseInt(m[1], 10) + 1;
-					setNextPONumber(`PO-${String(nextNum).padStart(4, "0")}`);
-				}
-				// Reset
-				setForm({ orderNumber: "", center: "", supplier: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
+				const optimisticNext = incrementPurchaseOrderNumber(createdNumber);
+				setNextPONumber(optimisticNext);
+				setForm({ orderNumber: optimisticNext, center: "", supplier: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
 				setItems([]);
 				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
 				setErrors({});
+				await fetchNextPONumber({ fallbackSource: optimisticNext });
 			} finally {
 				setIsSubmitting(false);
 			}
 		};
+
+		useEffect(() => {
+			const loadCenters = async () => {
+				try {
+					setLoading((prev) => ({ ...prev, centers: true }));
+					const data = await fetchCentersService();
+					const normalized = Array.isArray(data)
+						? data.map((c) => ({
+							id: c.id ?? c.center_id ?? c.value ?? String(c.name || c.title || c),
+							name: c.name ?? c.center_name ?? c.title ?? String(c.name || c),
+						}))
+						: [];
+					setCenters(normalized);
+				} catch (e) {
+					console.error("error fetching centers", e);
+					setCenters([]);
+				} finally {
+					setLoading((prev) => ({ ...prev, centers: false }));
+				}
+			};
+
+			const loadProducts = async () => {
+				try {
+					setLoading((prev) => ({ ...prev, products: true }));
+					const data = await fetchProductsService();
+					const normalized = Array.isArray(data)
+						? data.map((p) => ({
+							id: p.id ?? p.product_id ?? p.value ?? String(p.name || p.title || p),
+							name: p.name ?? p.product_name ?? p.title ?? String(p.name || p),
+							sku: p.sku ?? p.product_sku ?? p.code ?? String(p.sku || p.code || ""),
+							unitPrice: Number(p.unitPrice || p.unit_price || p.price || 0),
+							mrp: Number(p.mrp || p.MRP || 0),
+							currentstock: Number(p.currentstock || p.stock || 0),
+						}))
+						: [];
+					setProducts(normalized);
+				} catch (e) {
+					console.error("error fetching products", e);
+					setProducts([]);
+				} finally {
+					setLoading((prev) => ({ ...prev, products: false }));
+				}
+			};
+
+			const loadSuppliers = async () => {
+				try {
+					setLoading((prev) => ({ ...prev, suppliers: true }));
+					const data = await SupplierService.list();
+					const normalized = Array.isArray(data)
+						? data.map((s) => ({
+							id: s.id ?? s.supplier_id ?? s.value ?? String(s.name || s.title || s),
+							name: s.name ?? s.supplier_name ?? s.title ?? String(s.name || s),
+						}))
+						: [];
+					setSuppliers(normalized);
+				} catch (e) {
+					console.error("error fetching suppliers", e);
+					setSuppliers([]);
+				} finally {
+					setLoading((prev) => ({ ...prev, suppliers: false }));
+				}
+			};
+
+			loadCenters();
+			loadProducts();
+			loadSuppliers();
+		}, []);
 
 		return (
 			
@@ -246,7 +417,10 @@ const PurchaseOrder = () => {
 				<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
 					<div>
 						<h1 className="text-2xl sm:text-3xl font-bold text-slate-900 uppercase">Purchase Order</h1>
-						<div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">Purchase Order Number : {nextPONumber}</div>
+						<div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
+							Purchase Order Number : {isFetchingNext ? "Fetching…" : nextPONumber || "Unavailable"}
+						</div>
+						{nextNumberError && <p className="text-sm text-red-600 mt-1">{nextNumberError}</p>}
 						<p className="text-slate-600 mt-2 text-base">Create and manage purchase orders</p>
 					</div>
 				</div>
@@ -271,15 +445,17 @@ const PurchaseOrder = () => {
 										value={form.center}
 										onChange={(e) => setForm((p) => ({ ...p, center: e.target.value }))}
 										className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white ${errors.center ? "border-red-500" : "border-slate-300"}`}
+										disabled={loading.centers}
 									>
-										<option value="">Select a center</option>
+										<option value="">{loading.centers ? "Loading centers…" : "Select a center"}</option>
 										{centers.map((c) => (
-											<option key={c} value={c}>
-												{c}
+											<option key={c.id} value={c.id}>
+												{c.name}
 											</option>
 										))}
 									</select>
 									{errors.center && <p className="text-red-500 text-sm mt-2">{errors.center}</p>}
+									{!errors.center && loading.centers && <p className="text-xs text-slate-500 mt-1">Loading centers…</p>}
 								</div>
 								<div className="space-y-2">
 									<label className="block text-sm font-semibold text-slate-700 mb-3">Supplier Name *</label>
@@ -287,15 +463,17 @@ const PurchaseOrder = () => {
 										value={form.supplier}
 										onChange={(e) => setForm((p) => ({ ...p, supplier: e.target.value }))}
 										className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white ${errors.supplier ? "border-red-500" : "border-slate-300"}`}
+										disabled={loading.suppliers}
 									>
-										<option value="">Select supplier</option>
+										<option value="">{loading.suppliers ? "Loading suppliers…" : "Select supplier"}</option>
 										{supplierOptions.map((s) => (
-											<option key={s} value={s}>
-												{s}
+											<option key={s.id} value={s.id}>
+												{s.name}
 											</option>
 										))}
 									</select>
 									{errors.supplier && <p className="text-red-500 text-sm mt-2">{errors.supplier}</p>}
+									{!errors.supplier && loading.suppliers && <p className="text-xs text-slate-500 mt-1">Loading suppliers…</p>}
 								</div>
 							</div>
 
@@ -514,10 +692,10 @@ const PurchaseOrder = () => {
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
+		<div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
 			<div className="max-w-7xl mx-auto">
 				<section aria-label="Create new purchase order">
-					<InlinePOForm nextPONumber={nextPONumber} orders={orders} />
+					<InlinePOForm nextPONumber={nextPONumber} />
 				</section>
 			</div>
 
@@ -532,11 +710,11 @@ const PurchaseOrder = () => {
 			)}
 
 			{/* Success modal popup (visible until dismissed) */}
-			{showSuccess && (
-				<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Purchase order created">
-					<div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
-						<div className="flex items-start gap-4">
-							<CheckCircle className="h-7 w-7 text-green-600 flex-shrink-0" />
+				{showSuccess && (
+					<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Purchase order created">
+						<div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
+							<div className="flex items-start gap-4">
+								<CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
 							<div className="flex-1">
 								<h3 className="text-xl font-semibold text-slate-900">Success</h3>
 								<p className="mt-2 text-sm text-slate-700">{successText || "Purchase order created successfully."}</p>

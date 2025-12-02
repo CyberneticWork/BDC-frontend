@@ -261,6 +261,18 @@ export const getNextStockTransfer = async () => {
 };
 
 
+//fetch next auto-generated purchase order number (Preview only)
+export const getNextPurchaseOrder = async () => {
+  try {
+    const response = await axios.get('/purchaseOrder/next');
+    return response.data; // { data: { next, year, sequence } }
+  }catch (error) {
+    console.error('Error fetching next Purchase Order number:', error);
+    throw error;
+  }
+};
+
+
 // Mutation functions
 export const addPurchaseOrder = (order) => {
   const newOrder = {
