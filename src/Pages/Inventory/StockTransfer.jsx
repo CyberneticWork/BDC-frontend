@@ -341,18 +341,19 @@ const StockTransfer = () => {
         status: "completed",
       };
 
-      console.log("Submitting stock transfer", {
-        formData,
-        items,
-        computedAmount,
-        createdBy: user?.id ?? null,
-        payload: invoiceData,
-      });
-
       // Directly add invoice, no payment modal
       setIsSubmitting(true);
       try {
         addStockTransfer(invoiceData);
+        // Log user action: creation triggered by UI button click (omit amount)
+        const safePayload = { ...invoiceData };
+        if (Object.prototype.hasOwnProperty.call(safePayload, "amount")) delete safePayload.amount;
+        console.log("Stock transfer created via UI", {
+          createdBy: user?.id ?? null,
+          transferId: formData.id,
+          itemsCount: items.length,
+          payload: safePayload,
+        });
         let nextIdForReset = null;
         if (typeof refreshNextId === "function") {
           try {
