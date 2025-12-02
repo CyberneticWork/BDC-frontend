@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { addStockTransfer, getProducts, fetchStockTransfers, getNextStockTransfer } from "../../services/Inventory/inventoryService";
+import { createStockTransfer, getProducts, fetchStockTransfers, getNextStockTransfer } from "../../services/Inventory/inventoryService";
 import { fetchCenters } from "../../services/Inventory/centerService";
 import { useAuth } from "../../contexts/AuthContext";
 // Payment component removed
@@ -73,6 +73,7 @@ const StockTransfer = () => {
       quantity: 0,
     });
     const [errors, setErrors] = useState({});
+    const [submitAlert, setSubmitAlert] = useState({ type: null, message: "" });
     const [items, setItems] = useState([]);
     // Payment modal and pendingInvoice removed
 
@@ -320,6 +321,7 @@ const StockTransfer = () => {
 
     const handleSubmit = async (e) => {
       e.preventDefault();
+      setSubmitAlert({ type: null, message: "" });
       if (!validateForm()) return;
 
       const firstItem = items[0];
@@ -341,10 +343,37 @@ const StockTransfer = () => {
         status: "completed",
       };
 
+      const payload = {
+        transfer_number: invoiceData.id,
+        transfer_no: invoiceData.id,
+        from_center_id: invoiceData.fromCenter,
+        fromCenter: invoiceData.fromCenter,
+        to_center_id: invoiceData.toCenter,
+        toCenter: invoiceData.toCenter,
+        transfer_date: invoiceData.date,
+        date: invoiceData.date,
+        status: invoiceData.status,
+        total_amount: invoiceData.amount,
+        amount: invoiceData.amount,
+        created_by: user?.id ?? null,
+        items: (invoiceData.items || []).map((it) => ({
+          product_id: it.productId ?? it.id ?? null,
+          productId: it.productId ?? it.id ?? null,
+          stock_id: it.stockId ?? null,
+          stockId: it.stockId ?? null,
+          name: it.name,
+          quantity: Number(it.quantity) || 0,
+          unit_price: Number(it.unitPrice) || 0,
+          unitPrice: Number(it.unitPrice) || 0,
+          batch_number: it.batchNumber ?? null,
+        })),
+      };
+
       // Directly add invoice, no payment modal
       setIsSubmitting(true);
       try {
-        addStockTransfer(invoiceData);
+        await createStockTransfer(payload);
+        setSubmitAlert({ type: "success", message: "Stock transfer saved successfully." });
         // Log user action: creation triggered by UI button click (omit amount)
         const safePayload = { ...invoiceData };
         if (Object.prototype.hasOwnProperty.call(safePayload, "amount")) delete safePayload.amount;
@@ -374,6 +403,10 @@ const StockTransfer = () => {
           quantity: 0,
         });
         setItems([]);
+      } catch (err) {
+        console.error("Failed to create stock transfer via API", err);
+        const message = err?.response?.data?.message || err?.message || "Failed to create stock transfer.";
+        setSubmitAlert({ type: "error", message });
       } finally {
         setIsSubmitting(false);
       }
@@ -403,6 +436,14 @@ const StockTransfer = () => {
         <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-slate-900 border-b border-slate-200 pb-4">Create New Stock Transfer</h3>
           <form onSubmit={handleSubmit}>
+            {submitAlert.message && (
+              <div
+                className={`mb-6 rounded-lg border px-4 py-3 text-sm font-semibold ${submitAlert.type === "success" ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}
+                role="alert"
+              >
+                {submitAlert.message}
+              </div>
+            )}
               <div className="grid grid-cols-1 gap-6 mb-6 sm:mb-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
                 <div className="space-y-2">
@@ -489,12 +530,13 @@ const StockTransfer = () => {
                           e.preventDefault();
                           if (activeIndex >= 0 && filteredProducts[activeIndex]) {
                             const p = filteredProducts[activeIndex];
-                            setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                            setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: p.batchNumber ?? "" });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
                           } else {
                             handleAddItem();
                           }
+                        
                         } else if (e.key === "Escape") {
                           setShowSuggestions(false);
                           setActiveIndex(-1);
@@ -526,15 +568,15 @@ const StockTransfer = () => {
                               className={`px-4 py-3 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0 ${idx === activeIndex ? "bg-blue-50 border-blue-200" : "hover:bg-slate-50"}`}
                               onMouseEnter={() => setActiveIndex(idx)}
                               onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
-                                setShowSuggestions(false);
-                                setActiveIndex(-1);
-                                productInputRef.current?.blur();
-                              }}
+                                    onClick={() => {
+                                      setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: p.batchNumber ?? "" });
+                                      setShowSuggestions(false);
+                                      setActiveIndex(-1);
+                                      productInputRef.current?.blur();
+                                    }}
                             >
                               <span className="text-sm font-medium text-slate-900">{p.name}</span>
-                              <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
+                              <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.batchNumber ? ` • Batch: ${p.batchNumber}` : ""}</span>
                               <span className="ml-auto text-xs text-slate-600 font-semibold">
                                 LKR {Number(p.unitPrice || 0).toFixed(2)}
                                 {typeof (p.currentStock ?? p.currentstock) !== "undefined" && (p.currentStock ?? p.currentstock) !== null && (p.currentStock ?? p.currentstock) !== "" ? ` • Stock: ${p.currentStock ?? p.currentstock}` : ""}
