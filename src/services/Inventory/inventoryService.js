@@ -160,6 +160,18 @@ export const createStockTransfer = async (data) => {
   }
 };
 
+//Purchaseorder API post functions
+export const createPurchaseOrder = async (data) => {
+  try {
+    const response = await axios.post('/purchaseOrder', data);
+    return response.data;
+  }
+  catch (error) {
+    console.error('Error creating Purchase Order:', error);
+    throw error;
+  }
+};
+
 //for fetching sales orders
 export const fetchSalesOrders = async (soData) => {
   try {               
@@ -407,5 +419,6 @@ export default {
   fetchInvoices,
   salesOrder,
   createStockTransfer,
-  fetchStockTransfers
+  fetchStockTransfers,
+  createPurchaseOrder,
 };
