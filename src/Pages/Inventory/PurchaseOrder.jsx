@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
-import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
+import { getAll as fetchProductsList, getInventoryDetails as fetchProductDetails } from "../../services/Inventory/productListService";
 import SupplierService from "../../services/Account/SupplierService";
-import { addPurchaseOrder, getNextPurchaseOrder } from "../../services/Inventory/inventoryService";  //get from dummy data inventoryService.js
+import { createPurchaseOrder, getNextPurchaseOrder } from "../../services/Inventory/inventoryService";  //get from dummy data inventoryService.js
+import { useAuth } from "../../contexts/AuthContext.jsx";
 
 const defaultPurchaseOrderNumber = () => `PO-${new Date().getFullYear()}-0001`;
 
@@ -102,6 +103,52 @@ const normalizePurchaseOrderNumber = (payload) => {
 	return "";
 };
 
+const pickNumericValue = (...values) => {
+	for (const value of values) {
+		if (value === undefined || value === null || value === "") continue;
+		const num = Number(value);
+		if (Number.isFinite(num)) return num;
+	}
+	return 0;
+};
+
+const extractProductMinPrice = (product) => {
+	if (!product) return 0;
+	return pickNumericValue(
+		product.minPrice,
+		product.min_price,
+		product.minimumPrice,
+		product.minimum_price,
+		product.min_cost,
+		product.minimumCost,
+		product.minimum_cost,
+		product.price?.minPrice,
+		product.price?.min_price,
+		product.pricing?.minPrice,
+		product.pricing?.min_price,
+		product.product_price?.minPrice,
+		product.product_price?.min_price
+	);
+};
+
+const extractProductUnitPrice = (product) => {
+	if (!product) return 0;
+	return pickNumericValue(
+		product.unitPrice,
+		product.unit_price,
+		product.price,
+		product.cost,
+		product.costPrice,
+		product.cost_price,
+		product.unit_cost,
+		product.purchase_price,
+		product.purchasePrice,
+		product.defaultCost,
+		product.default_cost,
+		product.standard_cost
+	);
+};
+
 const PurchaseOrder = () => {
 	const [nextPONumber, setNextPONumber] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -165,12 +212,16 @@ const PurchaseOrder = () => {
 			refNumber: "",
 		});
 	const [items, setItems] = useState([]);
-	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, minPrice: 0 });
 	const [centers, setCenters] = useState([]);
 	const [suppliers, setSuppliers] = useState([]);
 	const [products, setProducts] = useState([]);
-	const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
+		const [loading, setLoading] = useState({ centers: false, suppliers: false, products: false });
 		const [errors, setErrors] = useState({});
+		const [submitError, setSubmitError] = useState("");
+
+		// Auth user for createdBy
+		const { user } = useAuth();
 
 		// Typeahead state for products
 		const [showSuggestions, setShowSuggestions] = useState(false);
@@ -225,12 +276,6 @@ const PurchaseOrder = () => {
 			return { subtotal: sub, discountTotal: disc };
 		}, [items]);
 
-		const tax = useMemo(() => {
-			// Simple 10% tax demo on net subtotal
-			return (subtotal || 0) * 0.1;
-		}, [subtotal]);
-
-		const totalAmount = useMemo(() => Math.max(0, subtotal) + tax, [subtotal, tax]);
 
 		const validate = () => {
 			const e = {};
@@ -247,9 +292,10 @@ const PurchaseOrder = () => {
 			const name = (entry.productName || "").trim();
 			const selected = entry.productId ? products.find((p) => String(p.id) === String(entry.productId)) : products.find((p) => (p.name || "").toLowerCase() === name.toLowerCase());
 			const qty = Math.max(1, Number(entry.quantity) || 1);
-			const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
-			const currentStock = selected ? Number(selected.currentstock) || 0 : 0;
-			const mrp = selected ? Number(selected.mrp) || 0 : 0;
+			const unitPrice = selected ? extractProductUnitPrice(selected) : pickNumericValue(entry.unitPrice);
+			const currentStock = selected ? pickNumericValue(selected.currentstock, selected.stock, selected.availableQty, selected.available_qty) : 0;
+			const mrp = selected ? pickNumericValue(selected.mrp, selected.MRP, selected.max_price, selected.maximum_price) : 0;
+			const minPrice = selected ? extractProductMinPrice(selected) : pickNumericValue(entry.minPrice);
 			const e = {};
 			if (!name) e.productName = "Product name is required";
 			if (unitPrice < 0) e.unitPrice = "Unit price cannot be negative";
@@ -268,11 +314,12 @@ const PurchaseOrder = () => {
 					unitPrice: clampedUnitPrice,
 					currentStock,
 					mrp,
+					minPrice,
 					discountInput: "",
 					attemptedOverMrp,
 				},
 			]);
-			setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+			setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, minPrice: 0 });
 		};
 
 		const updateItem = (id, field, rawValue) => {
@@ -303,17 +350,33 @@ const PurchaseOrder = () => {
 		const onSubmit = async (e) => {
 			e.preventDefault();
 			if (!validate()) return;
+			setSubmitError("");
 			setIsSubmitting(true);
 			try {
+				const ensuredOrderNumber = form.orderNumber || nextPONumber || defaultPurchaseOrderNumber();
+				const minPrice = items.length
+					? Math.min(
+						...items.map((it) => {
+							const itemMin = pickNumericValue(it.minPrice, it.min_price);
+							return itemMin > 0 ? itemMin : pickNumericValue(it.unitPrice);
+						})
+					)
+					: 0;
 				const payload = {
 					...form,
+					status: "Completed",
+					orderNumber: ensuredOrderNumber,
+					minPrice,
 					items: items.map((it) => {
 						const qty = Number(it.quantity) || 0;
 						const price = Number(it.unitPrice) || 0;
 						const gross = qty * price;
 						const dAmt = parseDiscount(it.discountInput, gross);
+						const itemMinPrice = pickNumericValue(it.minPrice, it.min_price);
 						return {
 							...it,
+							minPrice: itemMinPrice,
+							min_price: itemMinPrice,
 							lineGross: gross,
 							lineDiscountInput: it.discountInput || "",
 							lineDiscountAmount: dAmt,
@@ -322,23 +385,41 @@ const PurchaseOrder = () => {
 					}),
 					subtotal,
 					discountTotal,
-					tax,
-					totalAmount,
 				};
-				const created = addPurchaseOrder(payload);
-				if (!created.orderNumber) {
-					created.orderNumber = form.orderNumber || nextPONumber;
+				// Attach createdBy from auth context if available
+				if (user) {
+					payload.createdBy = {
+						id: user.id ?? user.userId ?? null,
+						name: user.name ?? user.fullName ?? user.username ?? user.email ?? "",
+					};
 				}
-				const createdNumber = created?.orderNumber || form.orderNumber || nextPONumber;
+
+				console.log("Purchase order data:", payload, "createdById:", payload.createdBy?.id ?? null);
+
+				const response = await createPurchaseOrder(payload);
+				const createdData = response?.data ?? response;
+				const createdNumber =
+					normalizePurchaseOrderNumber(createdData) ||
+					createdData?.orderNumber ||
+					createdData?.purchaseOrderNumber ||
+					ensuredOrderNumber;
+				console.log("Purchase order API response:", createdData);
 				setSuccessText(`Purchase order ${createdNumber} created successfully.`);
 				setShowSuccess(true);
 				const optimisticNext = incrementPurchaseOrderNumber(createdNumber);
 				setNextPONumber(optimisticNext);
 				setForm({ orderNumber: optimisticNext, center: "", supplier: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
 				setItems([]);
-				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, minPrice: 0 });
 				setErrors({});
 				await fetchNextPONumber({ fallbackSource: optimisticNext });
+			} catch (error) {
+				console.error("Failed to create purchase order", error);
+				const message =
+					error?.response?.data?.message ||
+					error?.message ||
+					"Failed to create purchase order. Please try again.";
+				setSubmitError(message);
 			} finally {
 				setIsSubmitting(false);
 			}
@@ -367,17 +448,27 @@ const PurchaseOrder = () => {
 			const loadProducts = async () => {
 				try {
 					setLoading((prev) => ({ ...prev, products: true }));
-					const data = await fetchProductsService();
-					const normalized = Array.isArray(data)
-						? data.map((p) => ({
-							id: p.id ?? p.product_id ?? p.value ?? String(p.name || p.title || p),
-							name: p.name ?? p.product_name ?? p.title ?? String(p.name || p),
-							sku: p.sku ?? p.product_sku ?? p.code ?? String(p.sku || p.code || ""),
-							unitPrice: Number(p.unitPrice || p.unit_price || p.price || 0),
-							mrp: Number(p.mrp || p.MRP || 0),
-							currentstock: Number(p.currentstock || p.stock || 0),
-						}))
-						: [];
+					let data;
+					try {
+						data = await fetchProductDetails();
+					} catch (detailError) {
+						console.warn("Falling back to basic product list", detailError);
+						data = await fetchProductsList();
+					}
+					const flatData = Array.isArray(data)
+						? data
+						: Array.isArray(data?.data)
+							? data.data
+							: [];
+					const normalized = flatData.map((p) => ({
+						id: p.id ?? p.product_id ?? p.value ?? String(p.name || p.title || p),
+						name: p.name ?? p.product_name ?? p.title ?? String(p.name || p),
+						sku: p.sku ?? p.product_sku ?? p.code ?? String(p.sku || p.code || ""),
+						unitPrice: extractProductUnitPrice(p),
+						mrp: pickNumericValue(p.mrp, p.MRP, p.max_price, p.maximum_price, p.maximumPrice),
+						currentstock: pickNumericValue(p.currentstock, p.stock, p.availableQty, p.available_qty, p.quantity_on_hand, p.qty_on_hand),
+						minPrice: extractProductMinPrice(p),
+					}));
 					setProducts(normalized);
 				} catch (e) {
 					console.error("error fetching products", e);
@@ -516,7 +607,13 @@ const PurchaseOrder = () => {
 												e.preventDefault();
 												if (activeIndex >= 0 && filteredProducts[activeIndex]) {
 													const p = filteredProducts[activeIndex];
-													setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+													setEntry({
+														productId: p.id,
+														productName: p.name,
+														quantity: 1,
+														unitPrice: extractProductUnitPrice(p),
+														minPrice: extractProductMinPrice(p),
+													});
 													setShowSuggestions(false);
 													setActiveIndex(-1);
 												}
@@ -532,7 +629,7 @@ const PurchaseOrder = () => {
 												onFocus={() => setShowSuggestions(true)}
 												onChange={(e) => {
 													const val = e.target.value;
-													setEntry((p) => ({ ...p, productId: "", productName: val }));
+													setEntry((p) => ({ ...p, productId: "", productName: val, minPrice: 0 }));
 													setShowSuggestions(true);
 													setActiveIndex(-1);
 												} }
@@ -551,7 +648,13 @@ const PurchaseOrder = () => {
 															onMouseEnter={() => setActiveIndex(idx)}
 															onMouseDown={(e) => e.preventDefault()}
 															onClick={() => {
-																setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+															setEntry({
+																productId: p.id,
+																productName: p.name,
+																quantity: 1,
+																unitPrice: extractProductUnitPrice(p),
+																minPrice: extractProductMinPrice(p),
+															});
 																setShowSuggestions(false);
 																setActiveIndex(-1);
 																productInputRef.current?.blur();
@@ -559,7 +662,7 @@ const PurchaseOrder = () => {
 														>
 															<span className="text-sm font-medium text-slate-900">{p.name}</span>
 															<span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">Product Code: {p.sku || "N/A"}</span>
-															<span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
+														<span className="ml-auto text-xs text-slate-600 font-semibold">Cost: {formatLKR(p.unitPrice)} • Min {formatLKR(p.minPrice)} • MRP {formatLKR(p.mrp)}</span>
 														</li>
 													))}
 												</ul>
@@ -591,8 +694,7 @@ const PurchaseOrder = () => {
 														<tr>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
-															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
-															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Current Stock</th>
+															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Cost Price</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">MRP</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Discount</th>
@@ -621,12 +723,15 @@ const PurchaseOrder = () => {
 																				value={it.unitPrice}
 																				onChange={(e) => updateItem(it.id, "unitPrice", e.target.value)}
 																				className={`w-28 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 transition-colors bg-slate-50 hover:bg-white ${it?.attemptedOverMrp ? "border-red-500 focus:ring-red-500" : "border-slate-300 focus:ring-blue-500 focus:border-blue-500"}`} />
+																			{Number(it.minPrice) > 0 && (
+																				<p className="mt-1 text-xs text-slate-500">Min price: {formatLKR(it.minPrice)}</p>
+																			)}
 																			{it?.attemptedOverMrp && (
 																				<p className="mt-1 text-xs text-red-600">Unit price cannot exceed MRP ({formatLKR(it.mrp || 0)})</p>
 																			)}
 																		</div>
 																	</td>
-																	<td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">{it.currentStock}</td>
+
 																	<td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
 																		<input
 																			type="number"
@@ -667,6 +772,11 @@ const PurchaseOrder = () => {
 								)}
 
 							<div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 pt-6 border-t border-slate-200">
+								{submitError && (
+									<p className="w-full sm:w-auto text-red-600 text-sm font-semibold" role="alert">
+										{submitError}
+									</p>
+								)}
 								<button
 									type="submit"
 									disabled={isSubmitting}
