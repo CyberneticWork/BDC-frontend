@@ -212,7 +212,7 @@ const PurchaseOrder = () => {
 			refNumber: "",
 		});
 	const [items, setItems] = useState([]);
-	const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, minPrice: 0 });
+	const [entry, setEntry] = useState({ productId: "", productName: "", batchNumber: "", quantity: 1, unitPrice: 0, minPrice: 0 });
 	const [centers, setCenters] = useState([]);
 	const [suppliers, setSuppliers] = useState([]);
 	const [products, setProducts] = useState([]);
@@ -310,6 +310,7 @@ const PurchaseOrder = () => {
 					id: Date.now() + Math.floor(Math.random() * 1000),
 					productId: selected ? selected.id : undefined,
 					productName: name,
+					batchNumber: (entry.batchNumber || "").trim(),
 					quantity: qty,
 					unitPrice: clampedUnitPrice,
 					currentStock,
@@ -319,13 +320,16 @@ const PurchaseOrder = () => {
 					attemptedOverMrp,
 				},
 			]);
-			setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, minPrice: 0 });
+			setEntry({ productId: "", productName: "", batchNumber: "", quantity: 1, unitPrice: 0, minPrice: 0 });
 		};
 
 		const updateItem = (id, field, rawValue) => {
 			setItems((prev) =>
 				prev.map((it) => {
 					if (it.id !== id) return it;
+					if (field === "batchNumber") {
+						return { ...it, batchNumber: String(rawValue || "") };
+					}
 					if (field === "discountInput") {
 						return { ...it, discountInput: String(rawValue || "") };
 					}
@@ -375,6 +379,7 @@ const PurchaseOrder = () => {
 						const itemMinPrice = pickNumericValue(it.minPrice, it.min_price);
 						return {
 							...it,
+							batchNumber: it.batchNumber || "",
 							minPrice: itemMinPrice,
 							min_price: itemMinPrice,
 							lineGross: gross,
@@ -410,7 +415,7 @@ const PurchaseOrder = () => {
 				setNextPONumber(optimisticNext);
 				setForm({ orderNumber: optimisticNext, center: "", supplier: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
 				setItems([]);
-				setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, minPrice: 0 });
+				setEntry({ productId: "", productName: "", batchNumber: "", quantity: 1, unitPrice: 0, minPrice: 0 });
 				setErrors({});
 				await fetchNextPONumber({ fallbackSource: optimisticNext });
 			} catch (error) {
@@ -589,7 +594,7 @@ const PurchaseOrder = () => {
 							<div className="mb-6 bg-slate-50 rounded-lg p-6 border border-slate-200">
 								<h4 className="text-lg font-semibold text-slate-900 mb-4"> Add Items</h4>
 								<div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-									<div className="sm:col-span-3 space-y-2">
+									<div className="sm:col-span-2 space-y-2">
 										<label className="block text-sm font-semibold text-slate-700 mb-3">Product Name *</label>
 										<div className="relative" onKeyDown={(e) => {
 											if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
@@ -610,6 +615,7 @@ const PurchaseOrder = () => {
 													setEntry({
 														productId: p.id,
 														productName: p.name,
+														batchNumber: "",
 														quantity: 1,
 														unitPrice: extractProductUnitPrice(p),
 														minPrice: extractProductMinPrice(p),
@@ -651,6 +657,7 @@ const PurchaseOrder = () => {
 															setEntry({
 																productId: p.id,
 																productName: p.name,
+																batchNumber: "",
 																quantity: 1,
 																unitPrice: extractProductUnitPrice(p),
 																minPrice: extractProductMinPrice(p),
@@ -671,6 +678,16 @@ const PurchaseOrder = () => {
 										{errors.productName && <p className="text-red-500 text-sm mt-2">{errors.productName}</p>}
 									</div>
 
+										<div className="space-y-2">
+											<label className="block text-sm font-semibold text-slate-700 mb-3">Batch Number</label>
+											<input
+												type="text"
+												value={entry.batchNumber}
+												onChange={(e) => setEntry((p) => ({ ...p, batchNumber: e.target.value }))}
+												placeholder="Enter batch number"
+												className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white hover:border-slate-400" />
+										</div>
+
 									{/* Add Item Button */}
 									<div className="flex items-end">
 										<button
@@ -689,11 +706,12 @@ const PurchaseOrder = () => {
 									<div className="mt-6 overflow-x-auto">
 										<div className="inline-block min-w-full align-middle">
 											<div className="overflow-hidden rounded-lg border-2 border-slate-200 shadow-sm">
-												<table className="min-w-[880px] w-full divide-y divide-slate-200">
+												<table className="min-w-[980px] w-full divide-y divide-slate-200">
 													<thead className="bg-slate-100 sticky top-0 z-10">
 														<tr>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
+															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch No</th>
 															<th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Cost Price</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
 															<th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">MRP</th>
@@ -713,6 +731,14 @@ const PurchaseOrder = () => {
 																<tr key={it.id} className="hover:bg-slate-50 transition-colors">
 																	<td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{idx + 1}</td>
 																	<td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.productName}</td>
+																	<td className="px-4 sm:px-6 py-4 text-sm text-slate-900 whitespace-nowrap">
+																		<input
+																			type="text"
+																			value={it.batchNumber || ""}
+																			onChange={(e) => updateItem(it.id, "batchNumber", e.target.value)}
+																			placeholder="Optional"
+																			className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white" />
+																	</td>
 																	<td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
 																		{/*unit price cannot exceep MRP message */}
 																		<div className="flex flex-col items-end">
@@ -723,9 +749,6 @@ const PurchaseOrder = () => {
 																				value={it.unitPrice}
 																				onChange={(e) => updateItem(it.id, "unitPrice", e.target.value)}
 																				className={`w-28 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 transition-colors bg-slate-50 hover:bg-white ${it?.attemptedOverMrp ? "border-red-500 focus:ring-red-500" : "border-slate-300 focus:ring-blue-500 focus:border-blue-500"}`} />
-																			{Number(it.minPrice) > 0 && (
-																				<p className="mt-1 text-xs text-slate-500">Min price: {formatLKR(it.minPrice)}</p>
-																			)}
 																			{it?.attemptedOverMrp && (
 																				<p className="mt-1 text-xs text-red-600">Unit price cannot exceed MRP ({formatLKR(it.mrp || 0)})</p>
 																			)}
