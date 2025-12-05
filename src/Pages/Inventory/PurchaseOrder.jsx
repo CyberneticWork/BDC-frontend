@@ -1,21 +1,9 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, {useCallback,useEffect,useMemo,useRef,useState,} from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
-import {
-  getAll as fetchProductsList,
-  getInventoryDetails as fetchProductDetails,
-} from "../../services/Inventory/productListService";
+import {getAll as fetchProductsList,getInventoryDetails as fetchProductDetails,} from "../../services/Inventory/productListService";
 import SupplierService from "../../services/Account/SupplierService";
-import {
-  createPurchaseOrder,
-  getNextPurchaseOrder,
-} from "../../services/Inventory/inventoryService"; //get from dummy data inventoryService.js
+import {createPurchaseOrder,getNextPurchaseOrder,} from "../../services/Inventory/inventoryService"; //get from dummy data inventoryService.js
 import { useAuth } from "../../contexts/AuthContext.jsx";
 
 const defaultPurchaseOrderNumber = () => `PO-${new Date().getFullYear()}-0001`;

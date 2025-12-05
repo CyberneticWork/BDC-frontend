@@ -1,17 +1,6 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, {useCallback,useEffect,useMemo,useRef,useState,} from "react";
 import { Plus, Trash2 } from "lucide-react";
-import {
-  createStockTransfer,
-  getProducts,
-  fetchStockTransfers,
-  getNextStockTransfer,
-} from "../../services/Inventory/inventoryService";
+import {createStockTransfer,getProducts,fetchStockTransfers,getNextStockTransfer,} from "../../services/Inventory/inventoryService";
 import { fetchCenters } from "../../services/Inventory/centerService";
 import { useAuth } from "../../contexts/AuthContext";
 // Payment component removed

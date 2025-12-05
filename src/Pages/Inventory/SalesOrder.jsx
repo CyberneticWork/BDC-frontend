@@ -1,20 +1,10 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, {useCallback,useEffect,useMemo,useRef,useState,} from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { getInventoryDetails as fetchInventoryDetails } from "../../services/Inventory/productListService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  fetchSalesOrders,
-  salesOrder,
-  getNextSalesOrder,
-} from "../../services/Inventory/inventoryService";
+import {fetchSalesOrders,salesOrder,getNextSalesOrder,} from "../../services/Inventory/inventoryService";
 
 const incrementSoCode = (code) => {
   if (!code) return "";

@@ -1,9 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  getPendingInvoices,
-  approveInvoice,
-  rejectInvoice,
-} from "../../services/Inventory/pendingService";
+import {getPendingInvoices,approveInvoice,rejectInvoice,} from "../../services/Inventory/pendingService";
 
 const Pending = () => {
   const [pendingInvoices, setPendingInvoices] = useState([]);

@@ -1,10 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import {
-  getProducts,
-  getStockVerifications,
-  addStockVerification,
-} from "../../services/Inventory/inventoryService";
+import {getProducts,getStockVerifications,addStockVerification,} from "../../services/Inventory/inventoryService";
 // Payment component removed
 
 const StockVerification = () => {

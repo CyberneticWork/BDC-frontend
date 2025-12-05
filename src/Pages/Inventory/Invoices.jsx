@@ -1,19 +1,9 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-  useCallback,
-} from "react";
+import React, {useState, useEffect,useMemo,useRef,useCallback,} from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getInventoryDetails as fetchInventoryDetails } from "../../services/Inventory/productListService";
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
-import {
-  createINV,
-  getNextInv,
-  fetchSalesOrders,
-} from "../../services/Inventory/inventoryService";
+import {createINV,getNextInv,fetchSalesOrders,} from "../../services/Inventory/inventoryService";
 import { useAuth } from "../../contexts/AuthContext";
 import Payment from "../../components/Inventory/Payment";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";

@@ -1,10 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import {
-  getSuppliers,
-  getProducts,
-  getPurchaseReturns,
-} from "../../services/Inventory/inventoryService";
+import {getSuppliers,getProducts,getPurchaseReturns,} from "../../services/Inventory/inventoryService";
 import Payment from "../../components/Inventory/Payment";
 
 const Invoices = () => {
