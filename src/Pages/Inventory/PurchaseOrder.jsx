@@ -399,7 +399,17 @@ const PurchaseOrder = () => {
 					};
 				}
 
-				console.log("Purchase order data:", payload, "createdById:", payload.createdBy?.id ?? null);
+				// Detailed logging for debugging: payload, JSON, batch numbers and each item
+				try {
+					console.log("Purchase order payload:", payload);
+					const batchNumbers = (payload.items || []).map((it) => it.batchNumber || "");
+					console.log("Batch numbers:", batchNumbers);
+					(payload.items || []).forEach((it, idx) => console.log(`Item ${idx + 1}:`, it));
+					console.log("createdById:", payload.createdBy?.id ?? null);
+				} catch (logError) {
+					console.warn("Failed to stringify purchase order payload for logging", logError);
+					console.log("Purchase order payload (fallback):", payload);
+				}
 
 				const response = await createPurchaseOrder(payload);
 				const createdData = response?.data ?? response;
