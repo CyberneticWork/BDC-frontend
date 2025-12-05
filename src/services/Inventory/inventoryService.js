@@ -195,6 +195,17 @@ export const fetchInvoices = async (config) => {
   }
 };
 
+//fetch purchaseOrder with optional filters
+export const fetchPurchaseOrders = async (config) => {
+  try {
+    const response = await axios.get('/purchaseOrder', config);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching purchase orders:', error);
+    throw error;
+  }
+};
+
 //fetch stock transfer with optional filters
 export const fetchStockTransfers = async (config) => {
   try {
@@ -421,4 +432,5 @@ export default {
   createStockTransfer,
   fetchStockTransfers,
   createPurchaseOrder,
+  fetchPurchaseOrders,
 };
