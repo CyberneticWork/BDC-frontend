@@ -1,14 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
 import { getSalesOrders } from "../../services/AccountingService";
-import { getProducts, getCustomers, fetchInvoices, getNextSalesReturn, createSalesReturn } from "../../services/Inventory/inventoryService";  // dummy data inventoryService.js
+import {
+  getProducts,
+  getCustomers,
+  fetchInvoices,
+  getNextSalesReturn,
+  createSalesReturn,
+} from "../../services/Inventory/inventoryService"; // dummy data inventoryService.js
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
 
 const SalesReturn = () => {
-
   // Main component state for orders and UI control
   const [, setOrders] = useState([]); // List of existing sales returns
   const [nextSONumber, setNextSONumber] = useState(() => {
@@ -18,7 +29,6 @@ const SalesReturn = () => {
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for form submission
   const [showSuccess, setShowSuccess] = useState(false); // Success modal visibility
   const [successText, setSuccessText] = useState(""); // Success message text
-
 
   // Load initial sales returns data on component mount
   useEffect(() => {
@@ -77,7 +87,9 @@ const SalesReturn = () => {
           return formatted;
         }
         // otherwise accept raw string but ensure SRET prefix
-        const formatted = `SRET-${String(new Date().getFullYear()).slice(-2)}-${s}`;
+        const formatted = `SRET-${String(new Date().getFullYear()).slice(
+          -2
+        )}-${s}`;
         setNextSONumber(formatted);
         return formatted;
       }
@@ -88,7 +100,10 @@ const SalesReturn = () => {
         const seq = next.sequence ?? next.next ?? next.number ?? null;
         if (seq != null) {
           const shortYear = String(yearVal).slice(-2);
-          const formatted = `SRET-${shortYear}-${String(Number(seq)).padStart(4, "0")}`;
+          const formatted = `SRET-${shortYear}-${String(Number(seq)).padStart(
+            4,
+            "0"
+          )}`;
           setNextSONumber(formatted);
           return formatted;
         }
@@ -100,7 +115,10 @@ const SalesReturn = () => {
       setNextSONumber(initial);
       return initial;
     } catch (e) {
-        console.warn("Failed to fetch next SRET from server; using fallback.", e?.message || String(e));
+      console.warn(
+        "Failed to fetch next SRET from server; using fallback.",
+        e?.message || String(e)
+      );
       // On failure, show initial SRET sequence for the current year
       const shortYearNow = String(new Date().getFullYear()).slice(-2);
       const initial = `SRET-${shortYearNow}-0001`;
@@ -115,9 +133,6 @@ const SalesReturn = () => {
   }, [refreshNextSret]);
 
   // Note: numbering is now provided by backend or localStorage fallback; do not derive from local `orders` to avoid unexpected sequences
-
-
-  
 
   // Format currency values to Sri Lankan Rupees
   const formatLKR = (value) => {
@@ -145,7 +160,13 @@ const SalesReturn = () => {
       refNumber: "",
     });
     const [items, setItems] = useState([]); // Array of return items
-    const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" }); // Current item entry
+    const [entry, setEntry] = useState({
+      productId: "",
+      productName: "",
+      quantity: 1,
+      unitPrice: 0,
+      batchNumber: "",
+    }); // Current item entry
     const [isBatchEnabled, setIsBatchEnabled] = useState(false);
     const [errors, setErrors] = useState({}); // Form validation errors
     const [customers, setCustomers] = useState([]); // Fetched customers from API
@@ -153,7 +174,11 @@ const SalesReturn = () => {
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [isInvoiceLoading, setIsInvoiceLoading] = useState(false);
     const [invoiceFetchError, setInvoiceFetchError] = useState("");
-    const [invoiceContext, setInvoiceContext] = useState({ centerId: "", centerName: "", customerName: "" });
+    const [invoiceContext, setInvoiceContext] = useState({
+      centerId: "",
+      centerName: "",
+      customerName: "",
+    });
     const [centers, setCenters] = useState([]);
     const [selectedCenterId, setSelectedCenterId] = useState("");
     const [centerLoading, setCenterLoading] = useState(false);
@@ -165,7 +190,6 @@ const SalesReturn = () => {
     const productInputRef = useRef(null);
     const auth = useAuth();
 
-
     // Set order number when nextSONumber prop changes
     useEffect(() => {
       setForm((p) => ({ ...p, orderNumber: nextSONumber }));
@@ -174,17 +198,28 @@ const SalesReturn = () => {
     // Fetch customers from API on component mount
     useEffect(() => {
       const fetchCustomers = async () => {
-          try {
-            const data = await getCustomers();
-            // ensure customers have id and name fields
-            const normalized = Array.isArray(data)
-              ? data.map(c => ({ id: String(c.id ?? c.customer_id ?? c.email ?? c.uuid ?? c._id ?? ""), name: c.name ?? c.displayName ?? c.customerName ?? c.customer ?? c.email ?? String(c.id ?? "") }))
-              : [];
-            setCustomers(normalized);
-          } catch (error) {
-            console.error('Error fetching customers:', error);
-          }
-        };
+        try {
+          const data = await getCustomers();
+          // ensure customers have id and name fields
+          const normalized = Array.isArray(data)
+            ? data.map((c) => ({
+                id: String(
+                  c.id ?? c.customer_id ?? c.email ?? c.uuid ?? c._id ?? ""
+                ),
+                name:
+                  c.name ??
+                  c.displayName ??
+                  c.customerName ??
+                  c.customer ??
+                  c.email ??
+                  String(c.id ?? ""),
+              }))
+            : [];
+          setCustomers(normalized);
+        } catch (error) {
+          console.error("Error fetching customers:", error);
+        }
+      };
       fetchCustomers();
     }, []);
 
@@ -198,7 +233,14 @@ const SalesReturn = () => {
           if (!active) return;
           const normalized = Array.isArray(data)
             ? data.map((center) => ({
-                id: String(center.id ?? center.center_id ?? center.value ?? center.code ?? center.uuid ?? ""),
+                id: String(
+                  center.id ??
+                    center.center_id ??
+                    center.value ??
+                    center.code ??
+                    center.uuid ??
+                    ""
+                ),
                 name:
                   center.name ??
                   center.centerName ??
@@ -208,10 +250,14 @@ const SalesReturn = () => {
                   String(center.id ?? "Unnamed Center"),
               }))
             : [];
-          const filtered = normalized.filter((center) => center.id && center.name);
+          const filtered = normalized.filter(
+            (center) => center.id && center.name
+          );
           setCenters(filtered);
           if (!filtered.length) {
-            setCenterFetchError("No centers available. Please create a center first.");
+            setCenterFetchError(
+              "No centers available. Please create a center first."
+            );
           }
         } catch (error) {
           if (active) {
@@ -231,75 +277,142 @@ const SalesReturn = () => {
       };
     }, []);
 
-    const openInvoicePicker = useCallback(async ({ centerId, centerName, customerName, customerId }) => {
-      if ((!centerId && !centerName) || (!customerName && !customerId)) return;
-      setInvoiceContext({ centerId: centerId || "", centerName, customerName: customerName || "" });
-      setIsInvoiceLoading(true);
-      setInvoiceFetchError("");
-      setInvoiceOptions([]);
-      try {
-        const response = await fetchInvoices({
-          params: {
-            centerId,
-            center_id: centerId,
-            center: centerName,
-            centerName,
-            customer: customerName,
-            customerName,
-            customerId,
-          },
+    const openInvoicePicker = useCallback(
+      async ({ centerId, centerName, customerName, customerId }) => {
+        if ((!centerId && !centerName) || (!customerName && !customerId))
+          return;
+        setInvoiceContext({
+          centerId: centerId || "",
+          centerName,
+          customerName: customerName || "",
         });
-        const raw = response?.data ?? response ?? [];
-        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.rows) ? raw.rows : []);
-        const centerNameKey = String(centerName || "").trim().toLowerCase();
-        const centerIdKey = String(centerId || "").trim().toLowerCase();
-        // Filter invoices by center and customer_id when available
-        const customerKey = String(customerName || "").trim().toLowerCase();
-        const customerIdKey = String(customerId || "").trim().toLowerCase();
-        const filtered = list.filter((invoice) => {
-          const invoiceCenters = [invoice.center, invoice.centerName, invoice.center_name, invoice.centerId, invoice.center_id, invoice?.center?.name]
-            .map((v) => String(v ?? "").trim().toLowerCase())
-            .filter(Boolean);
-          const invoiceCenterIds = [invoice.centerId, invoice.center_id, invoice?.center?.id, invoice?.center?.center_id]
-            .map((v) => String(v ?? "").trim().toLowerCase())
-            .filter(Boolean);
-
-          // customer id fields on invoice
-          const invoiceCustomerIds = [invoice.customerId, invoice.customer_id, invoice?.customer?.id]
-            .map((v) => String(v ?? "").trim().toLowerCase())
-            .filter(Boolean);
-
-          // customer name/email/display fields
-          const invoiceCustomers = [invoice.customer, invoice.customerName, invoice.customer_name, invoice.customerDisplayName, invoice?.customerDetails?.name, invoice.customerEmail, invoice?.customer?.email]
-            .map((v) => String(v ?? "").trim().toLowerCase())
-            .filter(Boolean);
-
-          const matchesCenter = (centerIdKey && invoiceCenterIds.includes(centerIdKey)) || (centerNameKey && invoiceCenters.some(v => v.includes(centerNameKey)));
-
-          // Prefer matching by customer id when provided; fallback to name/email only if id not available
-          const matchesCustomer = customerIdKey ? invoiceCustomerIds.includes(customerIdKey) : (customerKey && invoiceCustomers.some(v => v.includes(customerKey)));
-
-          return Boolean(matchesCenter && matchesCustomer);
-        });
-
-        setInvoiceOptions(filtered);
-        console.log("openInvoicePicker - filtered invoices:", filtered);
-        if (filtered.length) {
-          // Open modal automatically when matching invoices exist (auto-open flow)
-          setShowInvoiceModal(true);
-          setInvoiceFetchError("");
-        } else {
-          setInvoiceFetchError("No invoices found for this customer at the selected center.");
-        }
-      } catch (error) {
-        console.error("Failed to fetch invoices for return selection", error);
-        setInvoiceFetchError("Unable to load invoices. Please try again.");
+        setIsInvoiceLoading(true);
+        setInvoiceFetchError("");
         setInvoiceOptions([]);
-      } finally {
-        setIsInvoiceLoading(false);
-      }
-    }, []);
+        try {
+          const response = await fetchInvoices({
+            params: {
+              centerId,
+              center_id: centerId,
+              center: centerName,
+              centerName,
+              customer: customerName,
+              customerName,
+              customerId,
+            },
+          });
+          const raw = response?.data ?? response ?? [];
+          const list = Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw?.rows)
+            ? raw.rows
+            : [];
+          const centerNameKey = String(centerName || "")
+            .trim()
+            .toLowerCase();
+          const centerIdKey = String(centerId || "")
+            .trim()
+            .toLowerCase();
+          // Filter invoices by center and customer_id when available
+          const customerKey = String(customerName || "")
+            .trim()
+            .toLowerCase();
+          const customerIdKey = String(customerId || "")
+            .trim()
+            .toLowerCase();
+          const filtered = list.filter((invoice) => {
+            const invoiceCenters = [
+              invoice.center,
+              invoice.centerName,
+              invoice.center_name,
+              invoice.centerId,
+              invoice.center_id,
+              invoice?.center?.name,
+            ]
+              .map((v) =>
+                String(v ?? "")
+                  .trim()
+                  .toLowerCase()
+              )
+              .filter(Boolean);
+            const invoiceCenterIds = [
+              invoice.centerId,
+              invoice.center_id,
+              invoice?.center?.id,
+              invoice?.center?.center_id,
+            ]
+              .map((v) =>
+                String(v ?? "")
+                  .trim()
+                  .toLowerCase()
+              )
+              .filter(Boolean);
 
+            // customer id fields on invoice
+            const invoiceCustomerIds = [
+              invoice.customerId,
+              invoice.customer_id,
+              invoice?.customer?.id,
+            ]
+              .map((v) =>
+                String(v ?? "")
+                  .trim()
+                  .toLowerCase()
+              )
+              .filter(Boolean);
+
+            // customer name/email/display fields
+            const invoiceCustomers = [
+              invoice.customer,
+              invoice.customerName,
+              invoice.customer_name,
+              invoice.customerDisplayName,
+              invoice?.customerDetails?.name,
+              invoice.customerEmail,
+              invoice?.customer?.email,
+            ]
+              .map((v) =>
+                String(v ?? "")
+                  .trim()
+                  .toLowerCase()
+              )
+              .filter(Boolean);
+
+            const matchesCenter =
+              (centerIdKey && invoiceCenterIds.includes(centerIdKey)) ||
+              (centerNameKey &&
+                invoiceCenters.some((v) => v.includes(centerNameKey)));
+
+            // Prefer matching by customer id when provided; fallback to name/email only if id not available
+            const matchesCustomer = customerIdKey
+              ? invoiceCustomerIds.includes(customerIdKey)
+              : customerKey &&
+                invoiceCustomers.some((v) => v.includes(customerKey));
+
+            return Boolean(matchesCenter && matchesCustomer);
+          });
+
+          setInvoiceOptions(filtered);
+          console.log("openInvoicePicker - filtered invoices:", filtered);
+          if (filtered.length) {
+            // Open modal automatically when matching invoices exist (auto-open flow)
+            setShowInvoiceModal(true);
+            setInvoiceFetchError("");
+          } else {
+            setInvoiceFetchError(
+              "No invoices found for this customer at the selected center."
+            );
+          }
+        } catch (error) {
+          console.error("Failed to fetch invoices for return selection", error);
+          setInvoiceFetchError("Unable to load invoices. Please try again.");
+          setInvoiceOptions([]);
+        } finally {
+          setIsInvoiceLoading(false);
+        }
+      },
+      []
+    );
 
     // Static data from services
     const products = useMemo(() => getProducts() || [], []); // Available products
@@ -309,15 +422,14 @@ const SalesReturn = () => {
       const q = (entry.productName || "").toLowerCase().trim();
       if (!q) return products.slice(0, 8);
       return products
-        .filter((p) =>
-          (p.name || "").toLowerCase().includes(q) ||
-          (p.sku || "").toLowerCase().includes(q)
+        .filter(
+          (p) =>
+            (p.name || "").toLowerCase().includes(q) ||
+            (p.sku || "").toLowerCase().includes(q)
         )
         .slice(0, 8);
     }, [entry.productName, products]);
 
-
-  
     // Parse discount input (supports percentage or fixed amount)
     const parseDiscount = (input, base) => {
       const s = String(input || "").trim();
@@ -353,7 +465,10 @@ const SalesReturn = () => {
     }, [subtotal]);
 
     // Calculate final total amount
-    const totalAmount = useMemo(() => Math.max(0, subtotal) + tax, [subtotal, tax]);
+    const totalAmount = useMemo(
+      () => Math.max(0, subtotal) + tax,
+      [subtotal, tax]
+    );
 
     // ===== VALIDATION =====
     // Validate form before submission
@@ -372,7 +487,9 @@ const SalesReturn = () => {
       const missing = {};
       if (!form.center.trim()) missing.center = "Center is required";
       if (!form.customer.trim()) missing.customer = "Customer is required";
-      const selectedCenter = centers.find((c) => String(c.id) === String(selectedCenterId));
+      const selectedCenter = centers.find(
+        (c) => String(c.id) === String(selectedCenterId)
+      );
       if (!selectedCenter) missing.center = "Center is required";
       if (Object.keys(missing).length) {
         setErrors((prev) => ({ ...prev, ...missing }));
@@ -380,7 +497,12 @@ const SalesReturn = () => {
       }
       // Explicit user action: always open the modal (even if no invoices found)
       setShowInvoiceModal(true);
-      openInvoicePicker({ centerId: selectedCenter?.id, centerName: selectedCenter?.name, customerName: form.customer, customerId: form.customerId });
+      openInvoicePicker({
+        centerId: selectedCenter?.id,
+        centerName: selectedCenter?.name,
+        customerName: form.customer,
+        customerId: form.customerId,
+      });
     };
 
     // Auto-open invoice picker when both center and customer are selected by the user.
@@ -398,22 +520,42 @@ const SalesReturn = () => {
         return;
       }
       // ensure centers list is available to resolve center name
-      const selectedCenter = centers.find((c) => String(c.id) === String(centerId));
+      const selectedCenter = centers.find(
+        (c) => String(c.id) === String(centerId)
+      );
       const centerName = selectedCenter?.name || "";
       // small debounce to avoid firing while user is still typing/selecting
       const t = setTimeout(() => {
-        openInvoicePicker({ centerId, centerName, customerName, customerId: form.customerId });
+        openInvoicePicker({
+          centerId,
+          centerName,
+          customerName,
+          customerId: form.customerId,
+        });
       }, 120);
       return () => clearTimeout(t);
-    }, [selectedCenterId, form.customer, form.customerId, centers, invoiceContext, openInvoicePicker]);
+    }, [
+      selectedCenterId,
+      form.customer,
+      form.customerId,
+      centers,
+      invoiceContext,
+      openInvoicePicker,
+    ]);
 
     // ===== ITEM MANAGEMENT =====
     // Add new item to the return list
     const addItem = () => {
       const name = (entry.productName || "").trim();
-      const selected = entry.productId ? products.find((p) => String(p.id) === String(entry.productId)) : products.find((p) => (p.name || "").toLowerCase() === name.toLowerCase());
+      const selected = entry.productId
+        ? products.find((p) => String(p.id) === String(entry.productId))
+        : products.find(
+            (p) => (p.name || "").toLowerCase() === name.toLowerCase()
+          );
       const qty = Math.max(1, Number(entry.quantity) || 1);
-      const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
+      const unitPrice = selected
+        ? Number(selected.unitPrice) || 0
+        : Number(entry.unitPrice) || 0;
       const currentStock = selected ? Number(selected.currentstock) || 0 : 0;
       const mrp = selected ? Number(selected.mrp) || 0 : 0;
       const e = {};
@@ -432,10 +574,16 @@ const SalesReturn = () => {
           currentStock,
           mrp,
           discountInput: "",
-          batchNumber: isBatchEnabled ? (entry.batchNumber || "") : undefined,
+          batchNumber: isBatchEnabled ? entry.batchNumber || "" : undefined,
         },
       ]);
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
+      setEntry({
+        productId: "",
+        productName: "",
+        quantity: 1,
+        unitPrice: 0,
+        batchNumber: "",
+      });
     };
 
     // Update existing item field
@@ -449,45 +597,49 @@ const SalesReturn = () => {
           if (field === "batchNumber") {
             return { ...it, batchNumber: String(rawValue || "") };
           }
-          const num = typeof rawValue === "number" ? rawValue : Number(rawValue) || 0;
-          if (field === "quantity") return { ...it, quantity: Math.max(1, Math.floor(num)) };
+          const num =
+            typeof rawValue === "number" ? rawValue : Number(rawValue) || 0;
+          if (field === "quantity")
+            return { ...it, quantity: Math.max(1, Math.floor(num)) };
           if (field === "unitPrice") {
             return { ...it, unitPrice: Math.max(0, num) };
           }
           return it;
         })
-      )
+      );
     };
 
     // Remove item from return list
-    const removeItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
+    const removeItem = (id) =>
+      setItems((prev) => prev.filter((it) => it.id !== id));
 
     const applyInvoiceToReturn = (invoice) => {
       console.log("applyInvoiceToReturn - invoice:", invoice);
       if (!invoice) return;
       const sourceItems = Array.isArray(invoice.items)
         ? invoice.items
-        : (Array.isArray(invoice.invoiceItems) ? invoice.invoiceItems : []);
+        : Array.isArray(invoice.invoiceItems)
+        ? invoice.invoiceItems
+        : [];
       if (!sourceItems.length) {
         setInvoiceFetchError("Selected invoice does not contain any items.");
         return;
       }
       const baseId = Date.now();
-          const mapped = sourceItems
+      const mapped = sourceItems
         .map((item, idx) => {
           const qty = Math.max(1, Number(item.quantity ?? item.qty ?? 0));
           if (!qty) return null;
 
           // Product name: prefer explicit 'Product Name' column, then common variants
-          const resolvedName = (
-            item['Product Name'] ??
+          const resolvedName =
+            item["Product Name"] ??
             item.productName ??
             item.product_name ??
             item.name ??
             item.itemName ??
             item.description ??
-            `Item ${idx + 1}`
-          );
+            `Item ${idx + 1}`;
 
           // Unit price / cost: prefer explicit unit price fields
           const unitPrice = Math.max(
@@ -495,7 +647,7 @@ const SalesReturn = () => {
             Number(
               item.unitPrice ??
                 item.unit_price ??
-                item['Unit Price'] ??
+                item["Unit Price"] ??
                 item.price ??
                 item.cost ??
                 item.amount ??
@@ -504,13 +656,13 @@ const SalesReturn = () => {
           );
 
           // MRP: prefer explicit MRP field or many possible variants; parse to number robustly
-          const rawMrp = (
+          const rawMrp =
             item.mrp ??
             item.MRP ??
             item.mrp_price ??
             item.mrpPrice ??
-            item['MRP'] ??
-            item['mrp'] ??
+            item["MRP"] ??
+            item["mrp"] ??
             item.mrp_value ??
             item.mrp_amt ??
             item.mrpAmount ??
@@ -518,21 +670,21 @@ const SalesReturn = () => {
             item.unit_price ??
             item.price ??
             item.amount ??
-            0
-          );
-          const mrp = Number(String(rawMrp || "0").replace(/[^0-9.-]+/g, "")) || 0;
+            0;
+          const mrp =
+            Number(String(rawMrp || "0").replace(/[^0-9.-]+/g, "")) || 0;
 
           // Discount: prefer explicit discount column names and parse robustly
-          const rawDiscount = (
+          const rawDiscount =
             item.discount ??
             item.discountAmount ??
             item.lineDiscountAmount ??
             item.discount_value ??
-            item['Discount'] ??
+            item["Discount"] ??
             item.discountValue ??
-            0
-          );
-          const discountAmount = Number(String(rawDiscount || "0").replace(/[^0-9.-]+/g, "")) || 0;
+            0;
+          const discountAmount =
+            Number(String(rawDiscount || "0").replace(/[^0-9.-]+/g, "")) || 0;
 
           // Resolve current stock from invoice item fields or fallback to product data.
           // Use `null` as unknown sentinel so a value of 0 is accepted from the API.
@@ -554,7 +706,7 @@ const SalesReturn = () => {
             item.qty_on_hand,
             item.stockQuantity,
             item.stock_qty,
-            item['Current Stock'],
+            item["Current Stock"],
           ];
           for (const v of stockCandidates) {
             if (v !== undefined && v !== null && String(v).trim() !== "") {
@@ -569,7 +721,8 @@ const SalesReturn = () => {
 
           // If invoice didn't include stock (stockVal === null), try to look up from product master
           if (stockVal === null) {
-            const lookupId = item.productId ?? item.product_id ?? item.id ?? null;
+            const lookupId =
+              item.productId ?? item.product_id ?? item.id ?? null;
             let found = null;
             if (lookupId) {
               found = products.find((p) => String(p.id) === String(lookupId));
@@ -580,23 +733,40 @@ const SalesReturn = () => {
                 if (!p) return false;
                 const pName = String(p.name || "").toLowerCase();
                 const pSku = String(p.sku || "").toLowerCase();
-                return (pName && nameKey && pName.includes(nameKey)) || (pSku && String(item.sku || "").toLowerCase() === pSku);
+                return (
+                  (pName && nameKey && pName.includes(nameKey)) ||
+                  (pSku && String(item.sku || "").toLowerCase() === pSku)
+                );
               });
             }
             if (found) {
-              const cand = found.currentstock ?? found.currentStock ?? found.stock ?? found.qty_on_hand ?? found.stock_qty ?? 0;
+              const cand =
+                found.currentstock ??
+                found.currentStock ??
+                found.stock ??
+                found.qty_on_hand ??
+                found.stock_qty ??
+                0;
               const parsed = Number(String(cand).replace(/[^0-9.-]+/g, ""));
               stockVal = Number.isNaN(parsed) ? 0 : parsed;
             }
           }
 
           // prefer common batch shapes: item.batches array or product.batches
-          const batchFromArray = Array.isArray(item.batches) && item.batches.length
-            ? (item.batches[0]?.batch_number ?? item.batches[0]?.batchNumber ?? item.batches[0]?.batch ?? null)
-            : null;
-          const batchFromProduct = Array.isArray(item.product?.batches) && item.product.batches.length
-            ? (item.product.batches[0]?.batch_number ?? item.product.batches[0]?.batchNumber ?? item.product.batches[0]?.batch ?? null)
-            : null;
+          const batchFromArray =
+            Array.isArray(item.batches) && item.batches.length
+              ? item.batches[0]?.batch_number ??
+                item.batches[0]?.batchNumber ??
+                item.batches[0]?.batch ??
+                null
+              : null;
+          const batchFromProduct =
+            Array.isArray(item.product?.batches) && item.product.batches.length
+              ? item.product.batches[0]?.batch_number ??
+                item.product.batches[0]?.batchNumber ??
+                item.product.batches[0]?.batch ??
+                null
+              : null;
 
           return {
             id: `${baseId}-${idx}`,
@@ -607,7 +777,13 @@ const SalesReturn = () => {
             currentStock: stockVal,
             mrp: mrp,
             discountInput: discountAmount > 0 ? discountAmount.toFixed(2) : "",
-            batchNumber: item.batchNumber ?? item.batch_no ?? item.batch ?? batchFromArray ?? batchFromProduct ?? "",
+            batchNumber:
+              item.batchNumber ??
+              item.batch_no ??
+              item.batch ??
+              batchFromArray ??
+              batchFromProduct ??
+              "",
           };
         })
         .filter(Boolean);
@@ -615,24 +791,45 @@ const SalesReturn = () => {
       console.log("applyInvoiceToReturn - mapped items:", mapped);
 
       if (!mapped.length) {
-        setInvoiceFetchError("Selected invoice does not contain any valid items.");
+        setInvoiceFetchError(
+          "Selected invoice does not contain any valid items."
+        );
         return;
       }
 
       setItems(mapped);
       // If any mapped item contains a batch number, enable batch mode so the column becomes visible
       try {
-        const hasBatch = mapped.some((m) => Boolean(m.batchNumber && String(m.batchNumber).trim()));
+        const hasBatch = mapped.some((m) =>
+          Boolean(m.batchNumber && String(m.batchNumber).trim())
+        );
         setIsBatchEnabled(Boolean(hasBatch));
       } catch {
         // ignore
       }
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
+      setEntry({
+        productId: "",
+        productName: "",
+        quantity: 1,
+        unitPrice: 0,
+        batchNumber: "",
+      });
       setErrors((prev) => ({ ...prev, items: undefined }));
 
       // Prefer voucher number as the reference when available
-      const voucher = invoice.voucherNumber ?? invoice.voucher_no ?? invoice.voucherNo ?? invoice.voucher ?? null;
-      const invoiceRef = voucher ?? invoice.invoiceNumber ?? invoice.invoiceNo ?? invoice.number ?? invoice.id ?? "";
+      const voucher =
+        invoice.voucherNumber ??
+        invoice.voucher_no ??
+        invoice.voucherNo ??
+        invoice.voucher ??
+        null;
+      const invoiceRef =
+        voucher ??
+        invoice.invoiceNumber ??
+        invoice.invoiceNo ??
+        invoice.number ??
+        invoice.id ??
+        "";
 
       setForm((prev) => ({
         ...prev,
@@ -685,7 +882,9 @@ const SalesReturn = () => {
           setOrders((prev) => [...prev, created]);
         } catch (err) {
           console.error("Failed to create sales return", err);
-          setSuccessText(`Failed to create sales return: ${err?.message ?? "Unknown error"}`);
+          setSuccessText(
+            `Failed to create sales return: ${err?.message ?? "Unknown error"}`
+          );
           setShowSuccess(false);
           return;
         }
@@ -715,7 +914,8 @@ const SalesReturn = () => {
             obj.sret_no,
           ];
           for (const c of cand) {
-            if (c !== undefined && c !== null && String(c).trim() !== "") return String(c).trim();
+            if (c !== undefined && c !== null && String(c).trim() !== "")
+              return String(c).trim();
           }
           // Check common wrapper shapes
           if (obj.data) {
@@ -732,7 +932,10 @@ const SalesReturn = () => {
         const resolved = resolveCreatedNumber(created);
         // Prefer a backend-returned SRET (explicit). If backend returned a different
         // identifier (e.g. 'SO003'), show the original submitted SRET (`nextSONumber`).
-        const createdNumber = (resolved && /^SRET-/i.test(resolved)) ? resolved : String(nextSONumber || resolved || "").trim();
+        const createdNumber =
+          resolved && /^SRET-/i.test(resolved)
+            ? resolved
+            : String(nextSONumber || resolved || "").trim();
         setSuccessText(`Sales return ${createdNumber} created successfully.`);
         setShowSuccess(true);
 
@@ -740,9 +943,18 @@ const SalesReturn = () => {
         // if backend returned a non-SRET order number (e.g. SOxxx).
         try {
           const isSret = /^SRET-/i.test(String(createdNumber || ""));
-          const baseForPersist = isSret ? String(createdNumber).trim() : String(nextSONumber || createdNumber || "").trim();
+          const baseForPersist = isSret
+            ? String(createdNumber).trim()
+            : String(nextSONumber || createdNumber || "").trim();
           if (baseForPersist && typeof window !== "undefined") {
-            try { window.localStorage.setItem(LAST_SRET_STORAGE_KEY, baseForPersist); } catch { /* ignore */ }
+            try {
+              window.localStorage.setItem(
+                LAST_SRET_STORAGE_KEY,
+                baseForPersist
+              );
+            } catch {
+              /* ignore */
+            }
             lastCreatedSretRef.current = baseForPersist;
           }
         } catch {
@@ -751,18 +963,37 @@ const SalesReturn = () => {
 
         // Optimistic increment locally using the persisted SRET base (or nextSONumber)
         try {
-          const base = String(lastCreatedSretRef.current || nextSONumber || createdNumber || "").trim();
+          const base = String(
+            lastCreatedSretRef.current || nextSONumber || createdNumber || ""
+          ).trim();
           const optimisticNext = base ? incrementSretCode(base) : null;
           if (optimisticNext) setNextSONumber(optimisticNext);
         } catch {
           // intentionally ignored
         }
-        try { await refreshNextSret(); } catch { /* intentionally ignored */ }
+        try {
+          await refreshNextSret();
+        } catch {
+          /* intentionally ignored */
+        }
         // Reset form after successful submission
-        setForm({ orderNumber: "", center: "", customer: "", date: new Date().toISOString().split("T")[0], status: "Draft", refNumber: "" });
+        setForm({
+          orderNumber: "",
+          center: "",
+          customer: "",
+          date: new Date().toISOString().split("T")[0],
+          status: "Draft",
+          refNumber: "",
+        });
         setSelectedCenterId("");
         setItems([]);
-        setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
+        setEntry({
+          productId: "",
+          productName: "",
+          quantity: 1,
+          unitPrice: 0,
+          batchNumber: "",
+        });
         setErrors({});
       } finally {
         setIsSubmitting(false);
@@ -776,9 +1007,15 @@ const SalesReturn = () => {
         <div className="bg-slate-50 rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
-              <h1 className="uppercase text-2xl sm:text-3xl font-bold text-slate-900">Sales Return Management</h1>
-              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">Sales Return Number: {nextSONumber}</div>
-              <p className="text-slate-600 mt-2 text-sm sm:text-base">Efficiently manage and track your sales returns across centers</p>
+              <h1 className="uppercase text-2xl sm:text-3xl font-bold text-slate-900">
+                Sales Return Management
+              </h1>
+              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
+                Sales Return Number: {nextSONumber}
+              </div>
+              <p className="text-slate-600 mt-2 text-sm sm:text-base">
+                Efficiently manage and track your sales returns across centers
+              </p>
             </div>
           </div>
         </div>
@@ -791,50 +1028,90 @@ const SalesReturn = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
                 {/* Return Date Field */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Return Date *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Return Date *
+                  </label>
                   <input
                     type="date"
                     value={form.date}
-                    onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.date ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`} />
-                  {errors.date && <p className="text-red-600 text-sm mt-1 font-medium">{errors.date}</p>}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, date: e.target.value }))
+                    }
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      errors.date
+                        ? "border-red-300 bg-red-50"
+                        : "border-slate-300 bg-slate-50 hover:border-slate-400"
+                    }`}
+                  />
+                  {errors.date && (
+                    <p className="text-red-600 text-sm mt-1 font-medium">
+                      {errors.date}
+                    </p>
+                  )}
                 </div>
 
                 {/* Center Selection */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Center *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Center *
+                  </label>
                   <select
                     value={selectedCenterId}
                     onChange={(e) => {
                       const value = e.target.value;
                       setSelectedCenterId(value);
-                      const centerMeta = centers.find((c) => String(c.id) === value);
-                      setForm((p) => ({ ...p, center: centerMeta?.name || "" }));
+                      const centerMeta = centers.find(
+                        (c) => String(c.id) === value
+                      );
+                      setForm((p) => ({
+                        ...p,
+                        center: centerMeta?.name || "",
+                      }));
                     }}
                     disabled={centerLoading}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.center ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"} ${centerLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      errors.center
+                        ? "border-red-300 bg-red-50"
+                        : "border-slate-300 bg-slate-50 hover:border-slate-400"
+                    } ${centerLoading ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
-                    <option value="">{centerLoading ? "Loading centers…" : "Select a center"}</option>
+                    <option value="">
+                      {centerLoading ? "Loading centers…" : "Select a center"}
+                    </option>
                     {centers.map((c) => (
                       <option key={c.id} value={String(c.id)}>
                         {c.name}
                       </option>
                     ))}
                   </select>
-                  {centerFetchError && <p className="text-red-600 text-sm mt-1 font-medium">{centerFetchError}</p>}
-                  {errors.center && <p className="text-red-600 text-sm mt-1 font-medium">{errors.center}</p>}
+                  {centerFetchError && (
+                    <p className="text-red-600 text-sm mt-1 font-medium">
+                      {centerFetchError}
+                    </p>
+                  )}
+                  {errors.center && (
+                    <p className="text-red-600 text-sm mt-1 font-medium">
+                      {errors.center}
+                    </p>
+                  )}
                 </div>
 
                 {/* Customer Selection */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <label className="block text-sm font-semibold text-slate-700">Customer Information *</label>
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Customer Information *
+                    </label>
                     <button
                       type="button"
                       onClick={handleInvoiceLinkClick}
                       disabled={!selectedCenterId || !form.customer}
                       className="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:text-slate-400 disabled:cursor-not-allowed"
-                      title={selectedCenterId && form.customer ? "Load invoices for this customer" : "Select center & customer first"}
+                      title={
+                        selectedCenterId && form.customer
+                          ? "Load invoices for this customer"
+                          : "Select center & customer first"
+                      }
                     >
                       Link Invoice
                     </button>
@@ -843,10 +1120,20 @@ const SalesReturn = () => {
                     value={form.customerId}
                     onChange={(e) => {
                       const id = e.target.value;
-                      const meta = customers.find(c => String(c.id) === String(id));
-                      setForm((p) => ({ ...p, customerId: id, customer: meta?.name || "" }));
+                      const meta = customers.find(
+                        (c) => String(c.id) === String(id)
+                      );
+                      setForm((p) => ({
+                        ...p,
+                        customerId: id,
+                        customer: meta?.name || "",
+                      }));
                     }}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.customer ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      errors.customer
+                        ? "border-red-300 bg-red-50"
+                        : "border-slate-300 bg-slate-50 hover:border-slate-400"
+                    }`}
                   >
                     <option value="">Select customer</option>
                     {customers.map((c) => (
@@ -855,9 +1142,15 @@ const SalesReturn = () => {
                       </option>
                     ))}
                   </select>
-                  {errors.customer && <p className="text-red-600 text-sm mt-1 font-medium">{errors.customer}</p>}
+                  {errors.customer && (
+                    <p className="text-red-600 text-sm mt-1 font-medium">
+                      {errors.customer}
+                    </p>
+                  )}
                   {invoiceFetchError && !showInvoiceModal && (
-                    <p className="text-amber-600 text-sm mt-1 font-medium">{invoiceFetchError}</p>
+                    <p className="text-amber-600 text-sm mt-1 font-medium">
+                      {invoiceFetchError}
+                    </p>
                   )}
                 </div>
               </div>
@@ -866,28 +1159,41 @@ const SalesReturn = () => {
               <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
                 {/* Reference Number */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Reference Number</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Reference Number
+                  </label>
                   <input
                     type="text"
                     value={form.refNumber}
-                    onChange={(e) => setForm((p) => ({ ...p, refNumber: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, refNumber: e.target.value }))
+                    }
                     placeholder="Enter reference number"
-                    className="w-full px-4 py-3 border-2 border-slate-300 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-colors" />
+                    className="w-full px-4 py-3 border-2 border-slate-300 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-colors"
+                  />
                 </div>
 
                 {/* Total Amount Display */}
                 <div className="lg:place-self-end pr-65 text-center bg-slate-100 rounded-lg p-4 border border-slate-200">
-                  <p className="text-lg font-semibold text-slate-700">Total Amount</p>
-                  <p className="text-3xl font-bold text-slate-900">{formatLKR(totalAmount)}</p>
+                  <p className="text-lg font-semibold text-slate-700">
+                    Total Amount
+                  </p>
+                  <p className="text-3xl font-bold text-slate-900">
+                    {formatLKR(totalAmount)}
+                  </p>
                 </div>
               </div>
 
               {/* ===== ITEMS ENTRY SECTION ===== */}
               <div className="mb-6 sm:mb-8 bg-slate-50 rounded-lg p-6 border border-slate-200">
                 <div className="flex items-center justify-between mb-6 border-b border-slate-200 pb-4">
-                  <h4 className="text-lg sm:text-xl font-semibold text-slate-900">Add Items</h4>
+                  <h4 className="text-lg sm:text-xl font-semibold text-slate-900">
+                    Add Items
+                  </h4>
                   <div className="flex items-center gap-3">
-                    <label className="text-sm text-slate-700 font-medium">Batch mode</label>
+                    <label className="text-sm text-slate-700 font-medium">
+                      Batch mode
+                    </label>
                     <input
                       type="checkbox"
                       checked={isBatchEnabled}
@@ -896,11 +1202,14 @@ const SalesReturn = () => {
                         setIsBatchEnabled(enabled);
                         if (!enabled) {
                           // remove batchNumber from existing items when disabling
-                          setItems((prev) => prev.map((it) => {
-                            const copy = { ...it };
-                            if (copy.batchNumber !== undefined) delete copy.batchNumber;
-                            return copy;
-                          }));
+                          setItems((prev) =>
+                            prev.map((it) => {
+                              const copy = { ...it };
+                              if (copy.batchNumber !== undefined)
+                                delete copy.batchNumber;
+                              return copy;
+                            })
+                          );
                           setEntry((p) => ({ ...p, batchNumber: "" }));
                         }
                       }}
@@ -911,32 +1220,51 @@ const SalesReturn = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
                   {/* Product Search Input */}
                   <div className="sm:col-span-3 space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Product Name *</label>
-                    <div className="relative" onKeyDown={(e) => {
-                      if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-                        setShowSuggestions(true);
-                        return;
-                      }
-                      if (!showSuggestions) return;
-                      if (e.key === "ArrowDown") {
-                        e.preventDefault();
-                        setActiveIndex((prev) => Math.min(prev + 1, filteredProducts.length - 1));
-                      } else if (e.key === "ArrowUp") {
-                        e.preventDefault();
-                        setActiveIndex((prev) => Math.max(prev - 1, 0));
-                      } else if (e.key === "Enter") {
-                        e.preventDefault();
-                        if (activeIndex >= 0 && filteredProducts[activeIndex]) {
-                          const p = filteredProducts[activeIndex];
-                          setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: "" });
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Product Name *
+                    </label>
+                    <div
+                      className="relative"
+                      onKeyDown={(e) => {
+                        if (
+                          !showSuggestions &&
+                          (e.key === "ArrowDown" || e.key === "ArrowUp")
+                        ) {
+                          setShowSuggestions(true);
+                          return;
+                        }
+                        if (!showSuggestions) return;
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setActiveIndex((prev) =>
+                            Math.min(prev + 1, filteredProducts.length - 1)
+                          );
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setActiveIndex((prev) => Math.max(prev - 1, 0));
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (
+                            activeIndex >= 0 &&
+                            filteredProducts[activeIndex]
+                          ) {
+                            const p = filteredProducts[activeIndex];
+                            setEntry({
+                              productId: p.id,
+                              productName: p.name,
+                              quantity: 1,
+                              unitPrice: Number(p.unitPrice) || 0,
+                              batchNumber: "",
+                            });
+                            setShowSuggestions(false);
+                            setActiveIndex(-1);
+                          }
+                        } else if (e.key === "Escape") {
                           setShowSuggestions(false);
                           setActiveIndex(-1);
                         }
-                      } else if (e.key === "Escape") {
-                        setShowSuggestions(false);
-                        setActiveIndex(-1);
-                      }
-                    } }>
+                      }}
+                    >
                       <input
                         ref={productInputRef}
                         type="text"
@@ -944,47 +1272,86 @@ const SalesReturn = () => {
                         onFocus={() => setShowSuggestions(true)}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setEntry((p) => ({ ...p, productId: "", productName: val, batchNumber: p.batchNumber || "" }));
+                          setEntry((p) => ({
+                            ...p,
+                            productId: "",
+                            productName: val,
+                            batchNumber: p.batchNumber || "",
+                          }));
                           setShowSuggestions(true);
                           setActiveIndex(-1);
-                        } }
+                        }}
                         onBlur={() => {
                           // Delay hiding to allow click selection
                           setTimeout(() => setShowSuggestions(false), 150);
-                        } }
-                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
-                        placeholder="Search product by name or SKU" />
+                        }}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                          errors.productName
+                            ? "border-red-300 bg-red-50"
+                            : "border-slate-300 bg-white hover:border-slate-400"
+                        }`}
+                        placeholder="Search product by name or SKU"
+                      />
                       {showSuggestions && filteredProducts.length > 0 && (
                         <ul className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-lg border-2 border-slate-200 bg-white shadow-xl">
                           {filteredProducts.map((p, idx) => (
                             <li
                               key={p.id}
-                              className={`px-4 py-3 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0 ${idx === activeIndex ? "bg-blue-50 border-blue-200" : "hover:bg-slate-50"}`}
+                              className={`px-4 py-3 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0 ${
+                                idx === activeIndex
+                                  ? "bg-blue-50 border-blue-200"
+                                  : "hover:bg-slate-50"
+                              }`}
                               onMouseEnter={() => setActiveIndex(idx)}
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
-                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0, batchNumber: "" });
+                                setEntry({
+                                  productId: p.id,
+                                  productName: p.name,
+                                  quantity: 1,
+                                  unitPrice: Number(p.unitPrice) || 0,
+                                  batchNumber: "",
+                                });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
                                 productInputRef.current?.blur();
-                              } }
+                              }}
                             >
-                              <span className="text-sm font-medium text-slate-900">{p.name}</span>
-                              <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-                              <span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP {Number(p.mrp || 0).toFixed(2)} • Stock {p.currentstock}</span>
+                              <span className="text-sm font-medium text-slate-900">
+                                {p.name}
+                              </span>
+                              <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                {p.sku}
+                              </span>
+                              <span className="ml-auto text-xs text-slate-600 font-semibold">
+                                LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP{" "}
+                                {Number(p.mrp || 0).toFixed(2)} • Stock{" "}
+                                {p.currentstock}
+                              </span>
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
-                    {errors.productName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.productName}</p>}
+                    {errors.productName && (
+                      <p className="text-red-600 text-sm mt-1 font-medium">
+                        {errors.productName}
+                      </p>
+                    )}
                     {isBatchEnabled && (
                       <div className="mt-3">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Batch Number</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Batch Number
+                        </label>
                         <input
                           type="text"
                           value={entry.batchNumber || ""}
-                          onChange={(e) => setEntry((p) => ({ ...p, batchNumber: e.target.value }))}
+                          onChange={(e) =>
+                            setEntry((p) => ({
+                              ...p,
+                              batchNumber: e.target.value,
+                            }))
+                          }
                           placeholder="Enter batch number"
                           className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         />
@@ -997,7 +1364,8 @@ const SalesReturn = () => {
                     <button
                       type="button"
                       onClick={addItem}
-                      className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md">
+                      className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md"
+                    >
                       <Plus className="h-5 w-5" />
                       Add Item
                     </button>
@@ -1013,18 +1381,40 @@ const SalesReturn = () => {
                       <table className="min-w-[880px] w-full divide-y divide-slate-200">
                         <thead className="bg-slate-100 sticky top-0 z-10">
                           <tr>
-                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
-                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
-                            {items.some((it) => String(it.batchNumber || "").trim()) && (
-                              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Batch Number</th>
+                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              No
+                            </th>
+                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Product Name
+                            </th>
+                            {items.some((it) =>
+                              String(it.batchNumber || "").trim()
+                            ) && (
+                              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                Batch Number
+                              </th>
                             )}
-                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Unit Price</th>
-                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Current Stock</th>
-                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
-                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">MRP</th>
-                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Discount</th>
-                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Total</th>
-                            <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
+                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Unit Price
+                            </th>
+                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Current Stock
+                            </th>
+                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Qty
+                            </th>
+                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              MRP
+                            </th>
+                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Discount
+                            </th>
+                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Total
+                            </th>
+                            <th className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-100">
@@ -1032,14 +1422,29 @@ const SalesReturn = () => {
                             const rowQty = Number(it.quantity) || 0;
                             const rowPrice = Number(it.unitPrice) || 0;
                             const rowGross = rowQty * rowPrice;
-                            const rowDiscount = parseDiscount(it.discountInput, rowGross);
-                            const rowTotal = Math.max(0, rowGross - rowDiscount);
+                            const rowDiscount = parseDiscount(
+                              it.discountInput,
+                              rowGross
+                            );
+                            const rowTotal = Math.max(
+                              0,
+                              rowGross - rowDiscount
+                            );
                             return (
-                              <tr key={it.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{idx + 1}</td>
-                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.productName}</td>
+                              <tr
+                                key={it.id}
+                                className="hover:bg-slate-50 transition-colors"
+                              >
+                                <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
+                                  {idx + 1}
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">
+                                  {it.productName}
+                                </td>
                                 {String(it.batchNumber || "").trim() ? (
-                                  <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-medium">{String(it.batchNumber || "")}</td>
+                                  <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-medium">
+                                    {String(it.batchNumber || "")}
+                                  </td>
                                 ) : null}
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
@@ -1049,27 +1454,48 @@ const SalesReturn = () => {
                                     value={it.unitPrice}
                                     readOnly
                                     disabled
-                                    className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50" />
+                                    className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50"
+                                  />
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">{it.currentStock}</td>
+                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap font-medium">
+                                  {it.currentStock}
+                                </td>
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
                                     type="number"
                                     min="1"
                                     value={it.quantity}
-                                    onChange={(e) => updateItem(it.id, "quantity", e.target.value)}
-                                    className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white" />
+                                    onChange={(e) =>
+                                      updateItem(
+                                        it.id,
+                                        "quantity",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
+                                  />
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 text-sm font-semibold text-slate-900 text-right whitespace-nowrap">{formatLKR(it.mrp || 0)}</td>
+                                <td className="px-4 sm:px-6 py-4 text-sm font-semibold text-slate-900 text-right whitespace-nowrap">
+                                  {formatLKR(it.mrp || 0)}
+                                </td>
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
                                     type="text"
                                     value={it.discountInput || ""}
-                                    onChange={(e) => updateItem(it.id, "discountInput", e.target.value)}
+                                    onChange={(e) =>
+                                      updateItem(
+                                        it.id,
+                                        "discountInput",
+                                        e.target.value
+                                      )
+                                    }
                                     placeholder="0 or 5%"
-                                    className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white" />
+                                    className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                                  />
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 text-sm font-bold text-slate-900 text-right whitespace-nowrap">{formatLKR(rowTotal)}</td>
+                                <td className="px-4 sm:px-6 py-4 text-sm font-bold text-slate-900 text-right whitespace-nowrap">
+                                  {formatLKR(rowTotal)}
+                                </td>
                                 <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">
                                   <button
                                     type="button"
@@ -1118,7 +1544,9 @@ const SalesReturn = () => {
         <InventoryPopup
           isOpen={showInvoiceModal}
           title="Link Invoice"
-          subtitle={`${invoiceContext.customerName || "Customer"} • ${invoiceContext.centerName || "Center"}`}
+          subtitle={`${invoiceContext.customerName || "Customer"} • ${
+            invoiceContext.centerName || "Center"
+          }`}
           onClose={() => {
             if (isInvoiceLoading) return;
             setShowInvoiceModal(false);
@@ -1135,12 +1563,32 @@ const SalesReturn = () => {
             ) : invoiceOptions.length ? (
               <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                 {invoiceOptions.map((invoice, idx) => {
-                  const voucher = invoice.voucherNumber ?? invoice.voucher_no ?? invoice.voucherNo ?? invoice.voucher ?? invoice.invoiceNumber ?? invoice.invoiceNo ?? invoice.number ?? invoice.id ?? `INV-${idx + 1}`;
-                  const total = invoice.totalAmount ?? invoice.amount ?? invoice.subtotal ?? 0;
+                  const voucher =
+                    invoice.voucherNumber ??
+                    invoice.voucher_no ??
+                    invoice.voucherNo ??
+                    invoice.voucher ??
+                    invoice.invoiceNumber ??
+                    invoice.invoiceNo ??
+                    invoice.number ??
+                    invoice.id ??
+                    `INV-${idx + 1}`;
+                  const total =
+                    invoice.totalAmount ??
+                    invoice.amount ??
+                    invoice.subtotal ??
+                    0;
                   const itemsCount = Array.isArray(invoice.items)
                     ? invoice.items.length
-                    : (Array.isArray(invoice.invoiceItems) ? invoice.invoiceItems.length : 0);
-                  const date = invoice.date ?? invoice.invoiceDate ?? invoice.createdAt ?? invoice.created_at ?? "";
+                    : Array.isArray(invoice.invoiceItems)
+                    ? invoice.invoiceItems.length
+                    : 0;
+                  const date =
+                    invoice.date ??
+                    invoice.invoiceDate ??
+                    invoice.createdAt ??
+                    invoice.created_at ??
+                    "";
                   return (
                     <button
                       type="button"
@@ -1151,20 +1599,28 @@ const SalesReturn = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div>
                           <p className="text-sm text-slate-500">Voucher</p>
-                          <p className="text-lg font-semibold text-slate-900">{voucher || "N/A"}</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {voucher || "N/A"}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-slate-500">Items</p>
-                          <p className="text-lg font-semibold text-slate-900">{itemsCount}</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {itemsCount}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-slate-500">Total</p>
-                          <p className="text-lg font-semibold text-slate-900">{formatLKR(total)}</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {formatLKR(total)}
+                          </p>
                         </div>
                         {date && (
                           <div>
                             <p className="text-sm text-slate-500">Date</p>
-                            <p className="text-lg font-semibold text-slate-900">{date}</p>
+                            <p className="text-lg font-semibold text-slate-900">
+                              {date}
+                            </p>
                           </div>
                         )}
                       </div>
@@ -1174,11 +1630,14 @@ const SalesReturn = () => {
               </div>
             ) : (
               <p className="text-sm text-slate-600 text-center py-4">
-                {invoiceFetchError || "No invoices available for this selection."}
+                {invoiceFetchError ||
+                  "No invoices available for this selection."}
               </p>
             )}
             {invoiceFetchError && invoiceOptions.length > 0 && (
-              <p className="text-sm text-red-600 text-center">{invoiceFetchError}</p>
+              <p className="text-sm text-red-600 text-center">
+                {invoiceFetchError}
+              </p>
             )}
           </div>
         </InventoryPopup>
@@ -1197,23 +1656,38 @@ const SalesReturn = () => {
 
       {/* ===== LOADING OVERLAY ===== */}
       {isSubmitting && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" role="status" aria-live="polite">
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          role="status"
+          aria-live="polite"
+        >
           <div className="bg-white rounded-xl shadow-xl p-6 flex items-center gap-4 border border-slate-200">
             <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
-            <span className="text-slate-800 font-medium">Creating sales return…</span>
+            <span className="text-slate-800 font-medium">
+              Creating sales return…
+            </span>
           </div>
         </div>
       )}
 
       {/* ===== SUCCESS MODAL ===== */}
       {showSuccess && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Sales return created">
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sales return created"
+        >
           <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
             <div className="flex items-start gap-4">
               <CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
               <div className="flex-1">
-                <h3 className="text-xl font-semibold text-slate-900">Success</h3>
-                <p className="mt-2 text-sm text-slate-700">{successText || "Sales return created successfully."}</p>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Success
+                </h3>
+                <p className="mt-2 text-sm text-slate-700">
+                  {successText || "Sales return created successfully."}
+                </p>
               </div>
               <button
                 type="button"
@@ -1241,4 +1715,3 @@ const SalesReturn = () => {
 };
 
 export default SalesReturn;
-

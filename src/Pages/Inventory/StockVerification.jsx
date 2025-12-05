@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { getProducts, getStockVerifications, addStockVerification } from "../../services/Inventory/inventoryService";
+import {
+  getProducts,
+  getStockVerifications,
+  addStockVerification,
+} from "../../services/Inventory/inventoryService";
 // Payment component removed
 
 const StockVerification = () => {
@@ -18,7 +22,9 @@ const StockVerification = () => {
     // Derive next STV sequence from existing verifications (STV-XXXX)
     const stvNums = transfers
       .map((t) => {
-        const m = String(t.verificationNumber || t.id || "").match(/^STV-(\d{4})$/i);
+        const m = String(t.verificationNumber || t.id || "").match(
+          /^STV-(\d{4})$/i
+        );
         return m ? parseInt(m[1], 10) : null;
       })
       .filter((n) => n !== null);
@@ -28,7 +34,7 @@ const StockVerification = () => {
 
   // formatLKR removed — amount display is no longer shown in the form UI
 
-    const InlineNewInvoiceForm = ({ nextStId }) => {
+  const InlineNewInvoiceForm = ({ nextStId }) => {
     const [formData, setFormData] = useState({
       id: "",
       fromCenter: "",
@@ -45,7 +51,12 @@ const StockVerification = () => {
     // Payment modal and pendingInvoice removed
 
     // Entry state and typeahead like SalesOrder page
-    const [entry, setEntry] = useState({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+    const [entry, setEntry] = useState({
+      productId: "",
+      productName: "",
+      quantity: 1,
+      unitPrice: 0,
+    });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const productInputRef = useRef(null);
@@ -62,7 +73,11 @@ const StockVerification = () => {
       const q = (entry.productName || "").toLowerCase().trim();
       if (!q) return products.slice(0, 8);
       return products
-        .filter((p) => (p.name || "").toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q))
+        .filter(
+          (p) =>
+            (p.name || "").toLowerCase().includes(q) ||
+            (p.sku || "").toLowerCase().includes(q)
+        )
         .slice(0, 8);
     }, [entry.productName, products]);
 
@@ -84,7 +99,7 @@ const StockVerification = () => {
     const validateForm = () => {
       const e = {};
       if (!formData.id) e.id = "Invoice number not generated";
-      if (!formData.fromCenter.trim()) e.fromCenter = "Center is required"
+      if (!formData.fromCenter.trim()) e.fromCenter = "Center is required";
       if (!formData.date) e.date = "Date is required";
       if ((items?.length || 0) === 0) e.items = "Add at least one item";
       setErrors(e);
@@ -95,11 +110,18 @@ const StockVerification = () => {
       const name = (entry.productName || "").trim();
       const selected = entry.productId
         ? products.find((p) => String(p.id) === String(entry.productId))
-        : products.find((p) => (p.name || "").toLowerCase() === name.toLowerCase());
+        : products.find(
+            (p) => (p.name || "").toLowerCase() === name.toLowerCase()
+          );
       const qty = Math.max(1, Number(entry.quantity) || 1);
-      const unitPrice = selected ? Number(selected.unitPrice) || 0 : Number(entry.unitPrice) || 0;
+      const unitPrice = selected
+        ? Number(selected.unitPrice) || 0
+        : Number(entry.unitPrice) || 0;
       if (!name) {
-        setErrors((prev) => ({ ...prev, productName: "Product name is required" }));
+        setErrors((prev) => ({
+          ...prev,
+          productName: "Product name is required",
+        }));
         return;
       }
       const newItem = {
@@ -120,10 +142,13 @@ const StockVerification = () => {
     };
 
     const updateItemField = (id, field, value) => {
-      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
+      setItems((prev) =>
+        prev.map((it) => (it.id === id ? { ...it, [field]: value } : it))
+      );
     };
 
-    const deleteItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
+    const deleteItem = (id) =>
+      setItems((prev) => prev.filter((it) => it.id !== id));
 
     const handleSubmit = async (e) => {
       e.preventDefault();
@@ -151,20 +176,23 @@ const StockVerification = () => {
       setIsSubmitting(true);
       try {
         let nextIdForReset = null;
-      // create a Stock Verification entry and persist
-      const newVerification = addStockVerification({ ...invoiceData, verificationNumber: nextStId });
-      setTransfers((prev) => [...prev, newVerification]);
-      // after adding, nextStId effect will run because transfers changed — but increment locally too
-      try {
-        const m = String(nextStId || "").match(/^STV-(\d{4})$/i);
-        const curr = m ? parseInt(m[1], 10) : 0;
-        const nextNum = curr + 1;
-        const nextId = `STV-${String(nextNum).padStart(4, "0")}`;
-        setNextStId(nextId);
-        nextIdForReset = nextId;
-      } catch {
-        // ignore
-      }
+        // create a Stock Verification entry and persist
+        const newVerification = addStockVerification({
+          ...invoiceData,
+          verificationNumber: nextStId,
+        });
+        setTransfers((prev) => [...prev, newVerification]);
+        // after adding, nextStId effect will run because transfers changed — but increment locally too
+        try {
+          const m = String(nextStId || "").match(/^STV-(\d{4})$/i);
+          const curr = m ? parseInt(m[1], 10) : 0;
+          const nextNum = curr + 1;
+          const nextId = `STV-${String(nextNum).padStart(4, "0")}`;
+          setNextStId(nextId);
+          nextIdForReset = nextId;
+        } catch {
+          // ignore
+        }
         setErrors({});
         setFormData({
           id: nextIdForReset || nextStId,
@@ -189,72 +217,131 @@ const StockVerification = () => {
         <div className="bg-slate-50 rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 uppercase">Stock Verification Management</h1>
-              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">Verification ID: {nextStId}</div>
-              <p className="text-slate-600 mt-2 text-sm sm:text-base">Efficiently manage and track your stock verifications across centers</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 uppercase">
+                Stock Verification Management
+              </h1>
+              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
+                Verification ID: {nextStId}
+              </div>
+              <p className="text-slate-600 mt-2 text-sm sm:text-base">
+                Efficiently manage and track your stock verifications across
+                centers
+              </p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
-          <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-slate-900 border-b border-slate-200 pb-4">Create New Stock Verification</h3>
+          <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-slate-900 border-b border-slate-200 pb-4">
+            Create New Stock Verification
+          </h3>
           <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 gap-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-1 gap-6 mb-6 sm:mb-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Verification Date *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Verification Date *
+                  </label>
                   <input
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, date: e.target.value }))
+                    }
                     aria-invalid={!!errors.date}
                     aria-describedby={errors.date ? "date-error" : undefined}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.date ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}/>
-                  
-                  {errors.date && <p id="date-error" className="text-red-600 text-sm mt-1 font-medium">{errors.date}</p>}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      errors.date
+                        ? "border-red-300 bg-red-50"
+                        : "border-slate-300 bg-slate-50 hover:border-slate-400"
+                    }`}
+                  />
+
+                  {errors.date && (
+                    <p
+                      id="date-error"
+                      className="text-red-600 text-sm mt-1 font-medium"
+                    >
+                      {errors.date}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Center *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Center *
+                  </label>
                   <select
                     value={formData.fromCenter}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, fromCenter: e.target.value }))}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.fromCenter ? "border-red-300 bg-red-50" : "border-slate-300 bg-slate-50 hover:border-slate-400"}`}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        fromCenter: e.target.value,
+                      }))
+                    }
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      errors.fromCenter
+                        ? "border-red-300 bg-red-50"
+                        : "border-slate-300 bg-slate-50 hover:border-slate-400"
+                    }`}
                   >
                     <option value="">Select a center</option>
                     {centers.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </select>
-                  {errors.fromCenter && <p className="text-red-600 text-sm mt-1 font-medium">{errors.fromCenter}</p>}
+                  {errors.fromCenter && (
+                    <p className="text-red-600 text-sm mt-1 font-medium">
+                      {errors.fromCenter}
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Product Section - SalesOrder-like entry */}
               <div className="mb-6 sm:mb-8 bg-slate-50 rounded-lg p-6 border border-slate-200">
-                <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6 border-b border-slate-200 pb-4">Product Details</h4>
+                <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6 border-b border-slate-200 pb-4">
+                  Product Details
+                </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
                   <div className="sm:col-span-3 space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Product Name *</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Product Name *
+                    </label>
                     <div
                       className="relative"
                       onKeyDown={(e) => {
-                        if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                        if (
+                          !showSuggestions &&
+                          (e.key === "ArrowDown" || e.key === "ArrowUp")
+                        ) {
                           setShowSuggestions(true);
                           return;
                         }
                         if (!showSuggestions) return;
                         if (e.key === "ArrowDown") {
                           e.preventDefault();
-                          setActiveIndex((prev) => Math.min(prev + 1, filteredProducts.length - 1));
+                          setActiveIndex((prev) =>
+                            Math.min(prev + 1, filteredProducts.length - 1)
+                          );
                         } else if (e.key === "ArrowUp") {
                           e.preventDefault();
                           setActiveIndex((prev) => Math.max(prev - 1, 0));
                         } else if (e.key === "Enter") {
                           e.preventDefault();
-                          if (activeIndex >= 0 && filteredProducts[activeIndex]) {
+                          if (
+                            activeIndex >= 0 &&
+                            filteredProducts[activeIndex]
+                          ) {
                             const p = filteredProducts[activeIndex];
-                            setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                            setEntry({
+                              productId: p.id,
+                              productName: p.name,
+                              quantity: 1,
+                              unitPrice: Number(p.unitPrice) || 0,
+                            });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
                           } else {
@@ -273,14 +360,22 @@ const StockVerification = () => {
                         onFocus={() => setShowSuggestions(true)}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setEntry((p) => ({ ...p, productId: "", productName: val }));
+                          setEntry((p) => ({
+                            ...p,
+                            productId: "",
+                            productName: val,
+                          }));
                           setShowSuggestions(true);
                           setActiveIndex(-1);
                         }}
                         onBlur={() => {
                           setTimeout(() => setShowSuggestions(false), 150);
                         }}
-                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productName ? "border-red-300 bg-red-50" : "border-slate-300 bg-white hover:border-slate-400"}`}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                          errors.productName
+                            ? "border-red-300 bg-red-50"
+                            : "border-slate-300 bg-white hover:border-slate-400"
+                        }`}
                         placeholder="Search product by name or SKU"
                       />
                       {showSuggestions && filteredProducts.length > 0 && (
@@ -288,28 +383,54 @@ const StockVerification = () => {
                           {filteredProducts.map((p, idx) => (
                             <li
                               key={p.id}
-                              className={`px-4 py-3 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0 ${idx === activeIndex ? "bg-blue-50 border-blue-200" : "hover:bg-slate-50"}`}
+                              className={`px-4 py-3 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0 ${
+                                idx === activeIndex
+                                  ? "bg-blue-50 border-blue-200"
+                                  : "hover:bg-slate-50"
+                              }`}
                               onMouseEnter={() => setActiveIndex(idx)}
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
-                                setEntry({ productId: p.id, productName: p.name, quantity: 1, unitPrice: Number(p.unitPrice) || 0 });
+                                setEntry({
+                                  productId: p.id,
+                                  productName: p.name,
+                                  quantity: 1,
+                                  unitPrice: Number(p.unitPrice) || 0,
+                                });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
                                 productInputRef.current?.blur();
                               }}
                             >
-                              <span className="text-sm font-medium text-slate-900">{p.name}</span>
-                              <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{p.sku}</span>
-                              <span className="ml-auto text-xs text-slate-600 font-semibold">LKR {Number(p.unitPrice || 0).toFixed(2)}{typeof p.currentstock !== "undefined" ? ` • Stock: ${p.currentstock}` : ""}</span>
+                              <span className="text-sm font-medium text-slate-900">
+                                {p.name}
+                              </span>
+                              <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                {p.sku}
+                              </span>
+                              <span className="ml-auto text-xs text-slate-600 font-semibold">
+                                LKR {Number(p.unitPrice || 0).toFixed(2)}
+                                {typeof p.currentstock !== "undefined"
+                                  ? ` • Stock: ${p.currentstock}`
+                                  : ""}
+                              </span>
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
-                    {errors.productName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.productName}</p>}
+                    {errors.productName && (
+                      <p className="text-red-600 text-sm mt-1 font-medium">
+                        {errors.productName}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-end">
-                    <button type="button" onClick={handleAddItem} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md">
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold flex items-center justify-center gap-2 shadow-md"
+                    >
                       <Plus className="h-5 w-5" />
                       Add Item
                     </button>
@@ -323,23 +444,56 @@ const StockVerification = () => {
                         <table className="min-w-[400px] w-full divide-y divide-slate-200">
                           <thead className="bg-slate-100 sticky top-0 z-10">
                             <tr>
-                              <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">No</th>
-                              <th scope="col" className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product Name</th>
-                              <th scope="col" className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Quantity</th>
-                              <th scope="col" className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
+                              <th
+                                scope="col"
+                                className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider"
+                              >
+                                No
+                              </th>
+                              <th
+                                scope="col"
+                                className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider"
+                              >
+                                Product Name
+                              </th>
+                              <th
+                                scope="col"
+                                className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider"
+                              >
+                                Quantity
+                              </th>
+                              <th
+                                scope="col"
+                                className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider"
+                              >
+                                Actions
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-slate-100">
                             {items.map((it, idx) => (
-                              <tr key={it.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{idx + 1}</td>
-                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">{it.name}</td>
+                              <tr
+                                key={it.id}
+                                className="hover:bg-slate-50 transition-colors"
+                              >
+                                <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
+                                  {idx + 1}
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">
+                                  {it.name}
+                                </td>
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
                                     type="number"
                                     min="1"
                                     value={it.quantity}
-                                    onChange={(e) => updateItemField(it.id, "quantity", parseInt(e.target.value) || 0)}
+                                    onChange={(e) =>
+                                      updateItemField(
+                                        it.id,
+                                        "quantity",
+                                        parseInt(e.target.value) || 0
+                                      )
+                                    }
                                     aria-label={`Quantity for ${it.name}`}
                                     className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
                                   />
@@ -370,7 +524,7 @@ const StockVerification = () => {
                   disabled={isSubmitting}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-lg flex items-center justify-center gap-3 shadow-lg w-full sm:w-auto"
                 >
-                      {isSubmitting ? (
+                  {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                       Processing Verification...

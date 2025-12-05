@@ -11,8 +11,6 @@ const fetchAllInventoryDetails = async (params = {}) => {
   }
 };
 
-
-
 const fetchProductLists = async (params = {}) => {
   try {
     const response = await axios.get("/products", { params });

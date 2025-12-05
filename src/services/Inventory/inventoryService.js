@@ -3,10 +3,9 @@
 // This service centralizes all Inventory-related dummy data and operations.
 // Pages: GRN, PurchaseOrder, PurchaseReturn, SalesReturn, StockTransfer, StockVerification, Invoices (if inventory invoices)
 
-import axios from '../../utils/axios';
+import axios from "../../utils/axios";
 
 const inventoryData = {
-  
   purchaseOrders: [
     {
       id: 1,
@@ -41,7 +40,7 @@ const inventoryData = {
       totalAmount: 4400,
     },
   ],
-  
+
   purchaseReturns: [
     {
       id: 1,
@@ -51,7 +50,9 @@ const inventoryData = {
       date: "2024-01-16",
       reason: "Damaged in transit",
       status: "Approved",
-      items: [{ productName: "Laptop", quantity: 1, unitPrice: 1000, total: 1000 }],
+      items: [
+        { productName: "Laptop", quantity: 1, unitPrice: 1000, total: 1000 },
+      ],
       totalAmount: 1000,
     },
   ],
@@ -64,13 +65,14 @@ const inventoryData = {
       date: "2024-01-25",
       reason: "Defective product",
       status: "Approved",
-      items: [{ productName: "Laptop", quantity: 1, unitPrice: 1200, total: 1200 }],
+      items: [
+        { productName: "Laptop", quantity: 1, unitPrice: 1200, total: 1200 },
+      ],
       subtotal: 1200,
       tax: 120,
       totalAmount: 1320,
     },
   ],
-  
 };
 
 // Load persisted stockTransfers from localStorage if available
@@ -96,10 +98,10 @@ export const getCenters = () => inventoryData.centers;
 export const getProducts = () => inventoryData.products;
 export const getCustomers = async () => {
   try {
-    const response = await axios.get('/customers');
+    const response = await axios.get("/customers");
     return response.data;
   } catch (error) {
-    console.error('Error fetching customers:', error);
+    console.error("Error fetching customers:", error);
     return [];
   }
 };
@@ -108,10 +110,10 @@ export const getSuppliers = () => inventoryData.suppliers;
 // GRN API post functions
 export const createGRN = async (grnData) => {
   try {
-    const response = await axios.post('/grn', grnData);
+    const response = await axios.post("/grn", grnData);
     return response.data;
   } catch (error) {
-    console.error('Error creating GRN:', error);
+    console.error("Error creating GRN:", error);
     throw error;
   }
 };
@@ -119,10 +121,10 @@ export const createGRN = async (grnData) => {
 // INV API post functions
 export const createINV = async (invData) => {
   try {
-    const response = await axios.post('/invoices', invData);
+    const response = await axios.post("/invoices", invData);
     return response.data;
   } catch (error) {
-    console.error('Error creating INV:', error);
+    console.error("Error creating INV:", error);
     throw error;
   }
 };
@@ -130,10 +132,10 @@ export const createINV = async (invData) => {
 //salesOrder post API post functions
 export const salesOrder = async (soData) => {
   try {
-    const response = await axios.post('/salesOrder', soData);
+    const response = await axios.post("/salesOrder", soData);
     return response.data;
   } catch (error) {
-    console.error('Error creating Sales Order:', error);
+    console.error("Error creating Sales Order:", error);
     throw error;
   }
 };
@@ -141,10 +143,10 @@ export const salesOrder = async (soData) => {
 //salesReturn API post functions
 export const createSalesReturn = async (data) => {
   try {
-    const response = await axios.post('/salesreturn', data);
+    const response = await axios.post("/salesreturn", data);
     return response.data;
   } catch (error) {
-    console.error('Error creating sales return:', error);
+    console.error("Error creating sales return:", error);
     throw error;
   }
 };
@@ -152,10 +154,10 @@ export const createSalesReturn = async (data) => {
 //Stock Transfer API post functions
 export const createStockTransfer = async (data) => {
   try {
-    const response = await axios.post('/stock-transfer', data);
+    const response = await axios.post("/stock-transfer", data);
     return response.data;
   } catch (error) {
-    console.error('Error creating stock transfer:', error);
+    console.error("Error creating stock transfer:", error);
     throw error;
   }
 };
@@ -163,34 +165,32 @@ export const createStockTransfer = async (data) => {
 //Purchaseorder API post functions
 export const createPurchaseOrder = async (data) => {
   try {
-    const response = await axios.post('/purchaseOrder', data);
+    const response = await axios.post("/purchaseOrder", data);
     return response.data;
-  }
-  catch (error) {
-    console.error('Error creating Purchase Order:', error);
+  } catch (error) {
+    console.error("Error creating Purchase Order:", error);
     throw error;
   }
 };
 
 //for fetching sales orders
 export const fetchSalesOrders = async (soData) => {
-  try {               
-    const response = await axios.get('/salesOrder', soData);
+  try {
+    const response = await axios.get("/salesOrder", soData);
     return response.data;
-  }
-  catch (error) {
-    console.error('Error fetching Sales Orders:', error);
+  } catch (error) {
+    console.error("Error fetching Sales Orders:", error);
     throw error;
-  } 
+  }
 };
 
 // Fetch invoices with optional filters
 export const fetchInvoices = async (config) => {
   try {
-    const response = await axios.get('/invoices', config);
+    const response = await axios.get("/invoices", config);
     return response.data;
   } catch (error) {
-    console.error('Error fetching invoices:', error);
+    console.error("Error fetching invoices:", error);
     throw error;
   }
 };
@@ -198,10 +198,10 @@ export const fetchInvoices = async (config) => {
 //fetch purchaseOrder with optional filters
 export const fetchPurchaseOrders = async (config) => {
   try {
-    const response = await axios.get('/purchaseOrder', config);
+    const response = await axios.get("/purchaseOrder", config);
     return response.data;
   } catch (error) {
-    console.error('Error fetching purchase orders:', error);
+    console.error("Error fetching purchase orders:", error);
     throw error;
   }
 };
@@ -209,21 +209,21 @@ export const fetchPurchaseOrders = async (config) => {
 //fetch stock transfer with optional filters
 export const fetchStockTransfers = async (config) => {
   try {
-    const response = await axios.get('/inventory-stocks/all', config);
+    const response = await axios.get("/inventory-stocks/all", config);
     return response.data;
   } catch (error) {
-    console.error('Error fetching stock transfers:', error);
+    console.error("Error fetching stock transfers:", error);
     throw error;
-  } 
+  }
 };
 
 // Fetch next auto-generated GRN number (preview only)
 export const getNextGrn = async () => {
   try {
-    const response = await axios.get('/grn/next');
+    const response = await axios.get("/grn/next");
     return response.data; // { data: { next, year, sequence } }
   } catch (error) {
-    console.error('Error fetching next GRN number:', error);
+    console.error("Error fetching next GRN number:", error);
     throw error;
   }
 };
@@ -231,10 +231,10 @@ export const getNextGrn = async () => {
 //fetch next auto-Generate INV number (Preview only)
 export const getNextInv = async () => {
   try {
-    const response = await axios.get('/invoices/next');
+    const response = await axios.get("/invoices/next");
     return response.data; // { data: { next, year, sequence } }
   } catch (error) {
-    console.error('Error fetching next INV number:', error);
+    console.error("Error fetching next INV number:", error);
     throw error;
   }
 };
@@ -243,10 +243,10 @@ export const getNextInv = async () => {
 export const getNextSalesOrder = async () => {
   try {
     // Backend route uses '/salesOrder/next' (singular camel-case)
-    const response = await axios.get('/salesOrder/next');
+    const response = await axios.get("/salesOrder/next");
     return response.data; // { data: { next, year, sequence } }
   } catch (error) {
-    console.error('Error fetching next Sales Order number:', error);
+    console.error("Error fetching next Sales Order number:", error);
     throw error;
   }
 };
@@ -254,7 +254,12 @@ export const getNextSalesOrder = async () => {
 //fetch next auto-Generate Sales return number (Preview only)
 export const getNextSalesReturn = async () => {
   // Try multiple common endpoint variants to be tolerant of backend naming
-  const candidates = ['/salesreturn/next', '/salesReturn/next', '/sales-return/next', '/sales-return/next'];
+  const candidates = [
+    "/salesreturn/next",
+    "/salesReturn/next",
+    "/sales-return/next",
+    "/sales-return/next",
+  ];
   for (const url of candidates) {
     try {
       const response = await axios.get(url);
@@ -263,45 +268,48 @@ export const getNextSalesReturn = async () => {
       // If 404, try next candidate; otherwise log and continue
       const status = err?.response?.status;
       if (status && status !== 404) {
-        console.warn(`getNextSalesReturn: request to ${url} failed with status ${status}`, err?.message || err);
+        console.warn(
+          `getNextSalesReturn: request to ${url} failed with status ${status}`,
+          err?.message || err
+        );
       }
-      
     }
   }
- 
+
   return null;
 };
 
 // fetch next auto-generated Stock Transfer number (Preview only)
 export const getNextStockTransfer = async () => {
   try {
-    const response = await axios.get('/stock-transfer/next');
+    const response = await axios.get("/stock-transfer/next");
     return response.data; // expected shapes: string or { data: { next, year, sequence } }
   } catch (error) {
-    console.error('Error fetching next Stock Transfer number:', error);
+    console.error("Error fetching next Stock Transfer number:", error);
     throw error;
   }
 };
-
 
 //fetch next auto-generated purchase order number (Preview only)
 export const getNextPurchaseOrder = async () => {
   try {
-    const response = await axios.get('/purchaseOrder/next');
+    const response = await axios.get("/purchaseOrder/next");
     return response.data; // { data: { next, year, sequence } }
-  }catch (error) {
-    console.error('Error fetching next Purchase Order number:', error);
+  } catch (error) {
+    console.error("Error fetching next Purchase Order number:", error);
     throw error;
   }
 };
-
 
 // Mutation functions
 export const addPurchaseOrder = (order) => {
   const newOrder = {
     ...order,
     id: Date.now(),
-    orderNumber: `PO-${String(inventoryData.purchaseOrders.length + 1).padStart(4, "0")}`,
+    orderNumber: `PO-${String(inventoryData.purchaseOrders.length + 1).padStart(
+      4,
+      "0"
+    )}`,
   };
   inventoryData.purchaseOrders.push(newOrder);
   return newOrder;
@@ -310,7 +318,10 @@ export const addPurchaseOrder = (order) => {
 export const updatePurchaseOrder = (id, updated) => {
   const idx = inventoryData.purchaseOrders.findIndex((o) => o.id === id);
   if (idx !== -1) {
-    inventoryData.purchaseOrders[idx] = { ...inventoryData.purchaseOrders[idx], ...updated };
+    inventoryData.purchaseOrders[idx] = {
+      ...inventoryData.purchaseOrders[idx],
+      ...updated,
+    };
     return inventoryData.purchaseOrders[idx];
   }
   return null;
@@ -320,7 +331,9 @@ export const addPurchaseReturn = (ret) => {
   const newReturn = {
     ...ret,
     id: Date.now(),
-    returnNumber: `PR${String(inventoryData.purchaseReturns.length + 1).padStart(3, "0")}`,
+    returnNumber: `PR${String(
+      inventoryData.purchaseReturns.length + 1
+    ).padStart(3, "0")}`,
   };
   inventoryData.purchaseReturns.push(newReturn);
   return newReturn;
@@ -330,7 +343,10 @@ export const addSalesReturn = (ret) => {
   const newReturn = {
     ...ret,
     id: Date.now(),
-    returnNumber: `SR${String(inventoryData.salesReturns.length + 1).padStart(3, "0")}`,
+    returnNumber: `SR${String(inventoryData.salesReturns.length + 1).padStart(
+      3,
+      "0"
+    )}`,
   };
   inventoryData.salesReturns.push(newReturn);
   return newReturn;
@@ -352,15 +368,32 @@ export const addStockTransfer = (transfer) => {
     transferNumber: stId,
   };
   inventoryData.stockTransfers.push(newTransfer);
-  try { localStorage.setItem("inventory_stockTransfers", JSON.stringify(inventoryData.stockTransfers)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(
+      "inventory_stockTransfers",
+      JSON.stringify(inventoryData.stockTransfers)
+    );
+  } catch {
+    /* ignore */
+  }
   return newTransfer;
 };
 
 export const updateStockTransfer = (id, updated) => {
   const idx = inventoryData.stockTransfers.findIndex((t) => t.id === id);
   if (idx !== -1) {
-    inventoryData.stockTransfers[idx] = { ...inventoryData.stockTransfers[idx], ...updated };
-  try { localStorage.setItem("inventory_stockTransfers", JSON.stringify(inventoryData.stockTransfers)); } catch { /* ignore */ }
+    inventoryData.stockTransfers[idx] = {
+      ...inventoryData.stockTransfers[idx],
+      ...updated,
+    };
+    try {
+      localStorage.setItem(
+        "inventory_stockTransfers",
+        JSON.stringify(inventoryData.stockTransfers)
+      );
+    } catch {
+      /* ignore */
+    }
     return inventoryData.stockTransfers[idx];
   }
   return null;
@@ -370,7 +403,9 @@ export const addStockVerification = (verification) => {
   // Determine next STV sequence by scanning existing verification numbers
   const nums = inventoryData.stockVerifications
     .map((v) => {
-      const m = String(v.verificationNumber || v.id || "").match(/^STV-(\d{4})$/i);
+      const m = String(v.verificationNumber || v.id || "").match(
+        /^STV-(\d{4})$/i
+      );
       return m ? parseInt(m[1], 10) : null;
     })
     .filter((n) => n !== null);
@@ -382,14 +417,24 @@ export const addStockVerification = (verification) => {
     verificationNumber: stv,
   };
   inventoryData.stockVerifications.push(newVerification);
-  try { localStorage.setItem('inventory_stockVerifications', JSON.stringify(inventoryData.stockVerifications)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(
+      "inventory_stockVerifications",
+      JSON.stringify(inventoryData.stockVerifications)
+    );
+  } catch {
+    /* ignore */
+  }
   return newVerification;
 };
 
 export const updateStockVerification = (id, updated) => {
   const idx = inventoryData.stockVerifications.findIndex((v) => v.id === id);
   if (idx !== -1) {
-    inventoryData.stockVerifications[idx] = { ...inventoryData.stockVerifications[idx], ...updated };
+    inventoryData.stockVerifications[idx] = {
+      ...inventoryData.stockVerifications[idx],
+      ...updated,
+    };
     return inventoryData.stockVerifications[idx];
   }
   return null;
