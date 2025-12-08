@@ -206,6 +206,18 @@ export const fetchPurchaseOrders = async (config) => {
   }
 };
 
+//fetch pending Sales return from backend
+export const fetchPendingSalesReturns = async (config) => {
+  try {
+    const response = await axios.get("/salesreturn", config);
+    return response.data;
+  } 
+  catch (error) {
+    console.error("Error fetching pending sales returns:", error);
+    throw error;
+  }
+};
+
 //fetch stock transfer with optional filters
 export const fetchStockTransfers = async (config) => {
   try {
@@ -478,4 +490,5 @@ export default {
   fetchStockTransfers,
   createPurchaseOrder,
   fetchPurchaseOrders,
+  fetchPendingSalesReturns,
 };
