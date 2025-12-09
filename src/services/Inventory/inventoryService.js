@@ -7,71 +7,12 @@ import axios from "../../utils/axios";
 
 const inventoryData = {
   purchaseOrders: [
-    {
-      id: 1,
-      orderNumber: "PO-0001",
-      supplier: "Tech Supplies Ltd",
-      center: "Main Center",
-      refNumber: "REF-PO-0001",
-      date: "2024-01-10",
-      status: "Received",
-      items: [
-        { productName: "Laptop", quantity: 10, unitPrice: 1000, total: 10000 },
-        { productName: "Mouse", quantity: 20, unitPrice: 20, total: 400 },
-      ],
-      subtotal: 10400,
-      tax: 1040,
-      totalAmount: 11440,
-    },
-    {
-      id: 2,
-      orderNumber: "PO-0002",
-      supplier: "Office Equipment Co",
-      center: "Branch A",
-      refNumber: "REF-PO-0002",
-      date: "2024-01-15",
-      status: "Partial",
-      items: [
-        { productName: "Desktop PC", quantity: 5, unitPrice: 750, total: 3750 },
-        { productName: "Keyboard", quantity: 5, unitPrice: 50, total: 250 },
-      ],
-      subtotal: 4000,
-      tax: 400,
-      totalAmount: 4400,
-    },
   ],
 
   purchaseReturns: [
-    {
-      id: 1,
-      returnNumber: "PR001",
-      supplier: "Tech Supplies Ltd",
-      originalGRN: "GRN001",
-      date: "2024-01-16",
-      reason: "Damaged in transit",
-      status: "Approved",
-      items: [
-        { productName: "Laptop", quantity: 1, unitPrice: 1000, total: 1000 },
-      ],
-      totalAmount: 1000,
-    },
+   
   ],
   salesReturns: [
-    {
-      id: 1,
-      returnNumber: "SR001",
-      customer: "ABC Company",
-      originalInvoice: "INV-0001",
-      date: "2024-01-25",
-      reason: "Defective product",
-      status: "Approved",
-      items: [
-        { productName: "Laptop", quantity: 1, unitPrice: 1200, total: 1200 },
-      ],
-      subtotal: 1200,
-      tax: 120,
-      totalAmount: 1320,
-    },
   ],
 };
 
@@ -229,6 +170,18 @@ export const fetchStockTransfers = async (config) => {
   }
 };
 
+//fetch GRN with optional filters
+export const fetchGRNs = async (config) => {
+  try {
+    const response = await axios.get("/grn", config);
+    return response.data;
+  }
+  catch (error) {
+    console.error("Error fetching GRNs:", error);
+    throw error;
+  } 
+};
+
 // Fetch next auto-generated GRN number (preview only)
 export const getNextGrn = async () => {
   try {
@@ -306,9 +259,20 @@ export const getNextStockTransfer = async () => {
 export const getNextPurchaseOrder = async () => {
   try {
     const response = await axios.get("/purchaseOrder/next");
-    return response.data; // { data: { next, year, sequence } }
+    return response.data;
   } catch (error) {
     console.error("Error fetching next Purchase Order number:", error);
+    throw error;
+  }
+};
+
+//fetch next auto-generated purchase return number (Preview only)
+export const getNextPurchaseReturn = async () => {
+  try { 
+    const response = await axios.get("/purchaseReturn/next");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching next Purchase Return number:", error);
     throw error;
   }
 };
@@ -491,4 +455,6 @@ export default {
   createPurchaseOrder,
   fetchPurchaseOrders,
   fetchPendingSalesReturns,
+  getNextPurchaseReturn,
+  fetchGRNs,
 };

@@ -1,42 +1,110 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import {getSuppliers,getProducts,getPurchaseReturns,} from "../../services/Inventory/inventoryService";
+import {getProducts,getNextPurchaseReturn,fetchGRNs,} from "../../services/Inventory/inventoryService";
+import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
+import SupplierService from "../../services/Account/SupplierService";
 import Payment from "../../components/Inventory/Payment";
+import InventoryPopup from "../../components/Inventory/inventoryPopup";
+
+const LAST_PURCHASE_RETURN_KEY = "inventory_last_prt_id";
+
+const incrementPrtCode = (code) => {
+  const match = String(code).match(/^(.*?)(\d+)([^0-9]*)$/);
+  if (!match) return String(code);
+  const [, prefix, digits, suffix] = match;
+  const nextDigits = (parseInt(digits, 10) + 1)
+    .toString()
+    .padStart(digits.length, "0");
+  return `${prefix}${nextDigits}${suffix}`;
+};
 
 const Invoices = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextPrtId, setNextPrtId] = useState("");
+  const lastCreatedPrtRef = useRef("");
 
-  // Initialize next PRT id from existing purchase returns (run once on mount)
-  useEffect(() => {
+  const refreshNextPrtId = useCallback(async () => {
+    const applyStoredFallback = () => {
+      const storedLast = (lastCreatedPrtRef.current || "").trim();
+      if (!storedLast) return null;
+      const nextFromStored = incrementPrtCode(storedLast);
+      if (nextFromStored) {
+        setNextPrtId(nextFromStored);
+        return nextFromStored;
+      }
+      return null;
+    };
+
     try {
-      // Prefer a persisted next PRT stored in localStorage so refresh doesn't change it
-      const saved = localStorage.getItem("inventory_nextPrtId");
-      if (saved && /^PRT-\d{4}$/i.test(saved)) {
-        setNextPrtId(saved);
-        return;
+      const resp = await getNextPurchaseReturn();
+      const rawNext =
+        resp?.data?.next ??
+        resp?.next ??
+        resp?.data?.voucher ??
+        resp?.voucher ??
+        resp?.data?.current ??
+        resp?.current ??
+        "";
+      if (rawNext) {
+        const normalized = String(rawNext).trim();
+        if (normalized) {
+          if (
+            String(lastCreatedPrtRef.current || "").trim() === normalized
+          ) {
+            const bumped = incrementPrtCode(normalized);
+            setNextPrtId(bumped);
+            return bumped;
+          }
+
+          setNextPrtId(normalized);
+          return normalized;
+        }
       }
-      const prs = getPurchaseReturns?.() || [];
-      const nums = prs
-        .map((r) => {
-          // purchaseReturns currently use returnNumber like 'PR001' - extract numeric part
-          const m = String(r.returnNumber || "").match(/(\d+)/);
-          return m ? parseInt(m[1], 10) : null;
-        })
-        .filter((n) => n !== null);
-      const next = nums.length ? Math.max(...nums) + 1 : 1;
-      const id = `PRT-${String(next).padStart(4, "0")}`;
-      setNextPrtId(id);
-      try {
-        localStorage.setItem("inventory_nextPrtId", id);
-      } catch {
-        /* ignore localStorage errors */
-      }
-    } catch {
-      setNextPrtId(`PRT-0001`);
+
+      const fallbackFromStored = applyStoredFallback();
+      if (fallbackFromStored) return fallbackFromStored;
+
+      const year = new Date().getFullYear().toString().slice(-2);
+      const fallbackNext = `PRT-${year}-0001`;
+      setNextPrtId(fallbackNext);
+      return fallbackNext;
+    } catch (error) {
+      console.warn("Failed to fetch next Purchase Return number", error);
+      const fallbackFromStored = applyStoredFallback();
+      if (fallbackFromStored) return fallbackFromStored;
+
+      const year = new Date().getFullYear().toString().slice(-2);
+      const fallbackNext = `PRT-${year}-0001`;
+      setNextPrtId((prev) => prev || fallbackNext);
+      return null;
     }
-    // intentionally run only once on mount
   }, []);
+
+  const handlePurchaseReturnCreated = useCallback(
+    (createdId) => {
+      const normalized = String(createdId || nextPrtId || "").trim();
+      if (normalized) {
+        lastCreatedPrtRef.current = normalized;
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(LAST_PURCHASE_RETURN_KEY, normalized);
+        }
+      }
+      refreshNextPrtId();
+    },
+    [nextPrtId, refreshNextPrtId]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(LAST_PURCHASE_RETURN_KEY);
+    if (stored) {
+      lastCreatedPrtRef.current = stored.trim();
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshNextPrtId();
+  }, [refreshNextPrtId]);
 
   const formatLKR = (value) => {
     try {
@@ -50,7 +118,7 @@ const Invoices = () => {
     }
   };
 
-  const InlineNewInvoiceForm = ({ nextPrtId }) => {
+  const InlineNewInvoiceForm = ({ nextPrtId, onPurchaseReturnCreated }) => {
     const [formData, setFormData] = useState({
       id: "",
       center: "",
@@ -69,6 +137,14 @@ const Invoices = () => {
     const [pendingInvoice, setPendingInvoice] = useState(null);
     const [showSuccess, setShowSuccess] = useState(false);
     const [successText, setSuccessText] = useState("");
+    const [centerOptions, setCenterOptions] = useState([]);
+    const [supplierOptions, setSupplierOptions] = useState([]);
+    const [loading, setLoading] = useState({ centers: false, suppliers: false });
+    const [grnOptions, setGrnOptions] = useState([]);
+    const [isGrnModalOpen, setIsGrnModalOpen] = useState(false);
+    const [isGrnLoading, setIsGrnLoading] = useState(false);
+    const [grnError, setGrnError] = useState("");
+    const grnQueryRef = useRef({ center: "", supplier: "" });
 
     // Entry state and typeahead like SalesOrder page
     const [entry, setEntry] = useState({
@@ -85,9 +161,88 @@ const Invoices = () => {
       setFormData((p) => ({ ...p, id: nextPrtId }));
     }, [nextPrtId]);
 
-    const centers = ["Main Center", "Branch A", "Branch B", "Warehouse 01"];
-    const suppliers = getSuppliers();
     const products = useMemo(() => getProducts?.() || [], []);
+    useEffect(() => {
+      let active = true;
+      const loadCenters = async () => {
+        try {
+          setLoading((prev) => ({ ...prev, centers: true }));
+          const data = await fetchCentersService();
+          if (!active) return;
+          const list = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.data)
+            ? data.data
+            : [];
+          const normalized = list.map((item) => ({
+            id: item.id ?? item.center_id ?? item.value ?? item.name,
+            name:
+              item.name ??
+              item.center_name ??
+              item.title ??
+              item.value ??
+              String(item.name || ""),
+          }));
+          if (active) {
+            setCenterOptions(normalized.filter((c) => c.id && c.name));
+          }
+        } catch (error) {
+          console.error("Error fetching centers:", error);
+          if (active) {
+            setCenterOptions([]);
+          }
+        } finally {
+          if (active) {
+            setLoading((prev) => ({ ...prev, centers: false }));
+          }
+        }
+      };
+      loadCenters();
+      return () => {
+        active = false;
+      };
+    }, []);
+
+    useEffect(() => {
+      let active = true;
+      const loadSuppliers = async () => {
+        try {
+          setLoading((prev) => ({ ...prev, suppliers: true }));
+          const data = await SupplierService.list();
+          if (!active) return;
+          const list = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.data)
+            ? data.data
+            : [];
+          const normalized = list.map((item) => ({
+            id: item.id ?? item.supplier_id ?? item.value ?? item.name,
+            name:
+              item.name ??
+              item.supplier_name ??
+              item.display_name ??
+              item.business_name ??
+              String(item.name || ""),
+          }));
+          if (active) {
+            setSupplierOptions(normalized.filter((s) => s.id && s.name));
+          }
+        } catch (error) {
+          console.error("Error fetching suppliers:", error);
+          if (active) {
+            setSupplierOptions([]);
+          }
+        } finally {
+          if (active) {
+            setLoading((prev) => ({ ...prev, suppliers: false }));
+          }
+        }
+      };
+      loadSuppliers();
+      return () => {
+        active = false;
+      };
+    }, []);
 
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
@@ -105,7 +260,7 @@ const Invoices = () => {
       return items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
+        const disc = Number(it.discount) || 0;
         const lineTotal = unit * qty;
         const lineDiscount = disc * qty;
         return acc + (lineTotal - lineDiscount);
@@ -115,6 +270,162 @@ const Invoices = () => {
     useEffect(() => {
       setFormData((p) => ({ ...p, amount: tableTotal }));
     }, [tableTotal]);
+
+    const loadGrnsForSelection = useCallback(
+      async ({ centerName, supplierName }) => {
+        if (!centerName || !supplierName) return;
+        setIsGrnLoading(true);
+        setGrnError("");
+        try {
+          const center = centerOptions.find((c) => c.name === centerName);
+          const supplier = supplierOptions.find((s) => s.name === supplierName);
+          const response = await fetchGRNs({
+            params: {
+              center: centerName,
+              centerName,
+              centerId: center?.id,
+              center_id: center?.id,
+              supplier: supplierName,
+              supplierName,
+              supplierId: supplier?.id,
+              supplier_id: supplier?.id,
+            },
+          });
+          const rawList = Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(response?.rows)
+            ? response.rows
+            : Array.isArray(response)
+            ? response
+            : [];
+          setGrnOptions(rawList);
+          setIsGrnModalOpen(true);
+        } catch (error) {
+          console.error("Error fetching GRNs:", error);
+          setGrnOptions([]);
+          setGrnError("Unable to load GRNs for this supplier.");
+          setIsGrnModalOpen(true);
+        } finally {
+          setIsGrnLoading(false);
+        }
+      },
+      [centerOptions, supplierOptions]
+    );
+
+    const resolveGrnUnitPrice = (item, qty) => {
+      const numeric = (value) => {
+        const num = Number(value);
+        return Number.isFinite(num) ? num : null;
+      };
+      const qtySafe = qty && qty > 0 ? qty : 1;
+      const aggregateSources = [
+        item.total,
+        item.totalAmount,
+        item.lineTotal,
+        item.line_total,
+        item.subtotal,
+        item.amount,
+        item.grossAmount,
+        item.gross_amount,
+      ];
+      for (const aggregate of aggregateSources) {
+        const num = numeric(aggregate);
+        if (num != null && num > 0) {
+          return num / qtySafe;
+        }
+      }
+      const directSources = [
+        item.unitPrice,
+        item.unit_price,
+        item.costPrice,
+        item.cost_price,
+        item.price,
+      ];
+      for (const direct of directSources) {
+        const num = numeric(direct);
+        if (num != null && num >= 0) return num;
+      }
+      return 0;
+    };
+
+    useEffect(() => {
+      const centerName = (formData.center || "").trim();
+      const supplierName = (formData.supplier || "").trim();
+      if (!centerName || !supplierName) return;
+      const last = grnQueryRef.current;
+      if (last.center === centerName && last.supplier === supplierName) return;
+      grnQueryRef.current = { center: centerName, supplier: supplierName };
+      loadGrnsForSelection({ centerName, supplierName });
+    }, [formData.center, formData.supplier, loadGrnsForSelection]);
+
+    const applyGrnToReturn = (grn) => {
+      if (!grn) return;
+      const sourceItems = Array.isArray(grn.items)
+        ? grn.items
+        : Array.isArray(grn.grnItems)
+        ? grn.grnItems
+        : [];
+      if (!sourceItems.length) {
+        setGrnError("Selected GRN does not contain any items.");
+        return;
+      }
+
+      const baseId = Date.now();
+      const mappedItems = sourceItems
+        .map((item, idx) => {
+          const qty = Math.max(
+            1,
+            Number(
+              item.receivedQty ??
+                item.receivedQuantity ??
+                item.quantity ??
+                item.qty ??
+                0
+            )
+          );
+          const unitPrice = Math.max(0, resolveGrnUnitPrice(item, qty));
+          const discount = Number(
+            item.discountPerUnit ?? item.discount ?? item.discountAmount ?? 0
+          );
+          const name =
+            item.product?.name ??
+            item.name ??
+            item.productName ??
+            `Item ${idx + 1}`;
+          return {
+            id: `${baseId}-${idx}`,
+            name,
+            quantity: qty,
+            unitPrice,
+            discount: Math.max(0, discount),
+            discountEnabled: true,
+            mrp: Number(item.mrp ?? item.maximumRetailPrice ?? 0),
+            currentStock: Number(
+              item.currentStock ?? item.current_stock ?? item.stock ?? 0
+            ),
+          };
+        })
+        .filter(Boolean);
+
+      if (!mappedItems.length) {
+        setGrnError("Selected GRN does not contain any valid items.");
+        return;
+      }
+
+      setItems(mappedItems);
+      setErrors((prev) => ({ ...prev, items: undefined }));
+      setIsGrnModalOpen(false);
+      setGrnError("");
+      setFormData((prev) => ({
+        ...prev,
+        refNumber:
+          grn.grnNumber ??
+          grn.voucherNumber ??
+          grn.refNumber ??
+          grn.id ??
+          prev.refNumber,
+      }));
+    };
 
     const validateForm = () => {
       const e = {};
@@ -151,7 +462,7 @@ const Invoices = () => {
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
-        discountEnabled: false,
+        discountEnabled: true,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
       };
@@ -217,35 +528,10 @@ const Invoices = () => {
         setItems([]);
         setPendingInvoice(null);
         setShowPaymentModal(false);
-        // Move PRT sequence forward so nextPrtId changes immediately after submit
-        try {
-          const m = String(nextPrtId).match(/^PRT-(\d{4})$/i);
-          const curr = m ? parseInt(m[1], 10) : 0;
-          const next = curr + 1;
-          const newId = `PRT-${String(next).padStart(4, "0")}`;
-          setNextPrtId(newId);
-          try {
-            localStorage.setItem("inventory_nextPrtId", newId);
-          } catch {
-            /* ignore */
-          }
-        } catch {
-          setNextPrtId((p) => {
-            const m = String(p).match(/^PRT-(\d{4})$/i);
-            const curr = m ? parseInt(m[1], 10) : 0;
-            const next = curr + 1;
-            const newId = `PRT-${String(next).padStart(4, "0")}`;
-            try {
-              localStorage.setItem("inventory_nextPrtId", newId);
-            } catch {
-              /* ignore */
-            }
-            return newId;
-          });
-        }
+        onPurchaseReturnCreated?.(completedInvoice.id || nextPrtId);
         // Show success modal
         setSuccessText(
-          `Purchase Return ${completedInvoice.id} has been created successfully!`
+          `Purchase Return ${completedInvoice.id || nextPrtId} has been created successfully!`
         );
         setShowSuccess(true);
       } finally {
@@ -255,14 +541,24 @@ const Invoices = () => {
 
     return (
       <>
-        <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
+        <div className="bg-linear-to-r from-slate-50 to-slate-100 rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold uppercase text-slate-900 mb-2">
                 Purchase Return
               </h1>
-              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
-                Purchase Return Number: {nextPrtId}
+              <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl min-h-7 flex items-center gap-2">
+                {nextPrtId ? (
+                  <>
+                    <span>Purchase Return Number:</span>
+                    <span>{nextPrtId}</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+                    <span>Loading number…</span>
+                  </>
+                )}
               </div>
               <p className="text-slate-600 text-sm sm:text-base">
                 Manage and track your purchase returns efficiently
@@ -308,7 +604,7 @@ const Invoices = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Center *
+                    {loading.centers ? "Center (loading…)" : "Center *"}
                   </label>
                   <select
                     value={formData.center}
@@ -318,16 +614,17 @@ const Invoices = () => {
                         center: e.target.value,
                       }))
                     }
+                    disabled={loading.centers}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.center
                         ? "border-red-300 bg-red-50"
                         : "border-slate-300 bg-white hover:border-slate-400"
-                    }`}
+                    } ${loading.centers ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
-                    <option value="">Select a center</option>
-                    {centers.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    <option value="">{loading.centers ? "Loading centers…" : "Select a center"}</option>
+                    {centerOptions.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
@@ -340,7 +637,7 @@ const Invoices = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Supplier Name *
+                    {loading.suppliers ? "Supplier (loading…)" : "Supplier Name *"}
                   </label>
                   <select
                     value={formData.supplier}
@@ -354,14 +651,15 @@ const Invoices = () => {
                     aria-describedby={
                       errors.supplier ? "supplier-error" : undefined
                     }
+                    disabled={loading.suppliers}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.supplier
                         ? "border-red-300 bg-red-50"
                         : "border-slate-300 bg-white hover:border-slate-400"
-                    }`}
+                    } ${loading.suppliers ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
-                    <option value="">Select supplier</option>
-                    {suppliers.map((s) => (
+                    <option value="">{loading.suppliers ? "Loading suppliers…" : "Select supplier"}</option>
+                    {supplierOptions.map((s) => (
                       <option key={s.id} value={s.name}>
                         {s.name}
                       </option>
@@ -397,7 +695,7 @@ const Invoices = () => {
                   />
                 </div>
 
-                <div className="lg:place-self-end text-center bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg p-6 border border-slate-200">
+                <div className="lg:place-self-end text-center bg-linear-to-r from-slate-50 to-slate-100 rounded-lg p-6 border border-slate-200">
                   <p className="text-slate-600 font-medium mb-2">
                     Total Amount
                   </p>
@@ -549,7 +847,7 @@ const Invoices = () => {
                     <div className="inline-block min-w-full align-middle">
                       <div className="overflow-hidden rounded-xl border border-slate-200 shadow-lg">
                         <table className="min-w-[900px] w-full divide-y divide-slate-200">
-                          <thead className="bg-gradient-to-r from-slate-50 to-slate-100 sticky top-0 z-10">
+                          <thead className="bg-linear-to-r from-slate-50 to-slate-100 sticky top-0 z-10">
                             <tr>
                               <th
                                 scope="col"
@@ -714,7 +1012,9 @@ const Invoices = () => {
               <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 mt-8">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={
+                    isSubmitting || loading.centers || loading.suppliers
+                  }
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-2 font-semibold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                 >
                   {isSubmitting ? (
@@ -724,8 +1024,15 @@ const Invoices = () => {
                     </>
                   ) : (
                     <>
-                      <Plus className="h-5 w-5" />
-                      Create Purchase Return
+                      {(loading.centers || loading.suppliers) && (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                      )}
+                      {!loading.centers && !loading.suppliers && (
+                        <Plus className="h-5 w-5" />
+                      )}
+                      {loading.centers || loading.suppliers
+                        ? "Loading..."
+                        : "Create Purchase Return"}
                     </>
                   )}
                 </button>
@@ -767,6 +1074,92 @@ const Invoices = () => {
             </div>
           </div>
         )}
+
+        <InventoryPopup
+          isOpen={isGrnModalOpen}
+          title="Select GRN"
+          subtitle={`${formData.supplier || "Supplier"} • ${
+            formData.center || "Center"
+          }`}
+          onClose={() => {
+            if (!isGrnLoading) {
+              setIsGrnModalOpen(false);
+            }
+          }}
+          closeOnOverlay={!isGrnLoading}
+        >
+          <div className="space-y-4">
+            {isGrnLoading ? (
+              <div className="flex items-center justify-center gap-3 text-slate-600">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+                Loading GRNs…
+              </div>
+            ) : grnOptions.length ? (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {grnOptions.map((grn, idx) => {
+                  const grnNumber =
+                    grn.grnNumber ??
+                    grn.voucherNumber ??
+                    grn.id ??
+                    `GRN-${idx + 1}`;
+                  const total = Number(
+                    grn.totalAmount ?? grn.total ?? grn.amount ?? 0
+                  );
+                  const date = grn.date ?? grn.createdAt ?? grn.created_at ?? "";
+                  const itemsCount = Array.isArray(grn.items)
+                    ? grn.items.length
+                    : Array.isArray(grn.grnItems)
+                    ? grn.grnItems.length
+                    : 0;
+                  return (
+                    <button
+                      type="button"
+                      key={grnNumber || `grn-${idx}`}
+                      onClick={() => applyGrnToReturn(grn)}
+                      className="w-full text-left border-2 border-slate-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                          <p className="text-xs text-slate-500">GRN Number</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {grnNumber}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500">Items</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {itemsCount}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500">Total</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {formatLKR(total)}
+                          </p>
+                        </div>
+                        {date && (
+                          <div>
+                            <p className="text-xs text-slate-500">Date</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {date}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600 text-center py-4">
+                {grnError || "No GRNs available for this supplier."}
+              </p>
+            )}
+            {grnError && grnOptions.length > 0 && (
+              <p className="text-sm text-red-600 text-center">{grnError}</p>
+            )}
+          </div>
+        </InventoryPopup>
 
         {/* Success Modal */}
         {showSuccess && (
@@ -818,10 +1211,13 @@ const Invoices = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <section aria-label="Create new purchase return">
-          <InlineNewInvoiceForm nextPrtId={nextPrtId} />
+          <InlineNewInvoiceForm
+            nextPrtId={nextPrtId}
+            onPurchaseReturnCreated={handlePurchaseReturnCreated}
+          />
         </section>
       </div>
     </div>
