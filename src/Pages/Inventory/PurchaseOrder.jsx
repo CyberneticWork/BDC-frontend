@@ -243,6 +243,7 @@ const PurchaseOrder = () => {
       suppliers: false,
       products: false,
     });
+    const [isBatchEnabled, setIsBatchEnabled] = useState(false);
     const [errors, setErrors] = useState({});
     const [submitError, setSubmitError] = useState("");
 
@@ -346,6 +347,9 @@ const PurchaseOrder = () => {
       const e = {};
       if (!name) e.productName = "Product name is required";
       if (unitPrice < 0) e.unitPrice = "Unit price cannot be negative";
+      if (isBatchEnabled && !String(entry.batchNumber || "").trim()) {
+        e.batchNumber = "Batch number is required";
+      }
       setErrors((prev) => ({ ...prev, ...e }));
       if (Object.keys(e).length) return;
       // Ensure unit price does not exceed MRP at the time of adding
@@ -358,7 +362,7 @@ const PurchaseOrder = () => {
           id: Date.now() + Math.floor(Math.random() * 1000),
           productId: selected ? selected.id : undefined,
           productName: name,
-          batchNumber: (entry.batchNumber || "").trim(),
+          batchNumber: isBatchEnabled ? (entry.batchNumber || "").trim() : "",
           quantity: qty,
           unitPrice: clampedUnitPrice,
           currentStock,
@@ -376,6 +380,15 @@ const PurchaseOrder = () => {
         unitPrice: 0,
         minPrice: 0,
       });
+    };
+
+    const handleBatchModeChange = (checked) => {
+      setIsBatchEnabled(checked);
+      setEntry((prev) => ({ ...prev, batchNumber: "" }));
+      setErrors((prev) => ({ ...prev, batchNumber: undefined }));
+      if (items.length > 0) {
+        setItems([]);
+      }
     };
 
     const updateItem = (id, field, rawValue) => {
@@ -763,12 +776,25 @@ const PurchaseOrder = () => {
               {/* Items entry section */}
 
               <div className="mb-6 bg-slate-50 rounded-lg p-6 border border-slate-200">
-                <h4 className="text-lg font-semibold text-slate-900 mb-4">
-                  {" "}
-                  Add Items
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-                  <div className="sm:col-span-2 space-y-2">
+                <div className="flex items-start justify-between mb-4">
+                  <h4 className="text-lg font-semibold text-slate-900">
+                    Add Items
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-blue-600 border-slate-300 rounded"
+                        checked={isBatchEnabled}
+                        onChange={(e) => handleBatchModeChange(e.target.checked)}
+                      />
+                      <span>Enable batch numbers per item</span>
+                    </label>
+
+                  </div>
+                </div>
+                <div className={`grid grid-cols-1 ${isBatchEnabled ? "sm:grid-cols-5" : "sm:grid-cols-4"} gap-6`}>
+                  <div className={isBatchEnabled ? "sm:col-span-3 space-y-2" : "sm:col-span-2 space-y-2"}>
                     <label className="block text-sm font-semibold text-slate-700 mb-3">
                       Product Name *
                     </label>
@@ -890,20 +916,22 @@ const PurchaseOrder = () => {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-3">
-                      Batch Number
-                    </label>
-                    <input
-                      type="text"
-                      value={entry.batchNumber}
-                      onChange={(e) =>
-                        setEntry((p) => ({ ...p, batchNumber: e.target.value }))
-                      }
-                      placeholder="Enter batch number"
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white hover:border-slate-400"
-                    />
-                  </div>
+                  {isBatchEnabled && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700 mb-3">
+                        Batch Number
+                      </label>
+                      <input
+                        type="text"
+                        value={entry.batchNumber}
+                        onChange={(e) =>
+                          setEntry((p) => ({ ...p, batchNumber: e.target.value }))
+                        }
+                        placeholder={"Enter batch number (required)"}
+                        className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white hover:border-slate-400"
+                      />
+                    </div>
+                  )}
 
                   {/* Add Item Button */}
                   <div className="flex items-end">
@@ -932,9 +960,11 @@ const PurchaseOrder = () => {
                             <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                               Product Name
                             </th>
-                            <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                              Batch No
-                            </th>
+                            {isBatchEnabled && (
+                              <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                Batch No
+                              </th>
+                            )}
                             <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                               Cost Price
                             </th>
@@ -979,21 +1009,23 @@ const PurchaseOrder = () => {
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">
                                   {it.productName}
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 whitespace-nowrap">
-                                  <input
-                                    type="text"
-                                    value={it.batchNumber || ""}
-                                    onChange={(e) =>
-                                      updateItem(
-                                        it.id,
-                                        "batchNumber",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="Optional"
-                                    className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
-                                  />
-                                </td>
+                                {isBatchEnabled && (
+                                  <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 whitespace-nowrap">
+                                    <input
+                                      type="text"
+                                      value={it.batchNumber || ""}
+                                      onChange={(e) =>
+                                        updateItem(
+                                          it.id,
+                                          "batchNumber",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder={"Required"}
+                                      className="w-28 px-3 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
+                                    />
+                                  </td>
+                                )}
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   {/*unit price cannot exceep MRP message */}
                                   <div className="flex flex-col items-end">

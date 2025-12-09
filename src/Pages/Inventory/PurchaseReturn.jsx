@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, CheckCircle, X } from "lucide-react";
-import {getProducts,getNextPurchaseReturn,fetchGRNs,} from "../../services/Inventory/inventoryService";
+import { Plus, Trash2, CheckCircle } from "lucide-react";
+import {
+  getProducts,
+  getNextPurchaseReturn,
+  fetchGRNs,
+  createPurchaseReturn,
+} from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import SupplierService from "../../services/Account/SupplierService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
@@ -151,6 +156,7 @@ const Invoices = () => {
       productName: "",
       quantity: 1,
       unitPrice: 0,
+      batchNumber: "",
     });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
@@ -376,6 +382,13 @@ const Invoices = () => {
       const baseId = Date.now();
       const mappedItems = sourceItems
         .map((item, idx) => {
+          const productId =
+            item.productId ??
+            item.product_id ??
+            item.product?.id ??
+            item.product?.product_id ??
+            item.product?.productId ??
+            null;
           const qty = Math.max(
             1,
             Number(
@@ -410,11 +423,11 @@ const Invoices = () => {
             null;
           return {
             id: `${baseId}-${idx}`,
+            productId,
             name,
             quantity: qty,
             unitPrice,
             discount: Math.max(0, discount),
-            discountEnabled: true,
             mrp: Number(item.mrp ?? item.maximumRetailPrice ?? 0),
             currentStock: Number(
               item.currentStock ?? item.current_stock ?? item.stock ?? 0
@@ -483,17 +496,16 @@ const Invoices = () => {
       }
       const newItem = {
         id: Date.now() + Math.floor(Math.random() * 1000),
+        productId: selected?.id || entry.productId || null,
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
-        discountEnabled: true,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
-        batchNumber: "",
+        batchNumber: (isBatchEnabled && (entry.batchNumber || selected?.batchNumber)) ? (entry.batchNumber || selected?.batchNumber || "") : "",
       };
       setItems((prev) => [...prev, newItem]);
-      setIsBatchEnabled((prev) => prev || false);
       setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
       setShowSuggestions(false);
       setActiveIndex(-1);
@@ -517,7 +529,7 @@ const Invoices = () => {
       const computedAmount = items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
+        const disc = Number(it.discount) || 0;
         const lineTotal = unit * qty;
         const lineDiscount = disc * qty;
         return acc + (lineTotal - lineDiscount);
@@ -550,11 +562,103 @@ const Invoices = () => {
         createdBy: createdById,
       };
 
-      console.log("Finalized Purchase Return data:", completedInvoice);
+      const centerMatch = centerOptions.find(
+        (c) => c.name === formData.center || String(c.id) === String(formData.center)
+      );
+      const supplierMatch = supplierOptions.find(
+        (s) => s.name === formData.supplier || String(s.id) === String(formData.supplier)
+      );
+
+      const centerId =
+        centerMatch?.id ?? formData.centerId ?? formData.center_id ?? null;
+      const centerName =
+        centerMatch?.name ?? formData.centerName ?? formData.center ?? "";
+      const supplierId =
+        supplierMatch?.id ?? formData.supplierId ?? formData.supplier_id ?? null;
+      const supplierName =
+        supplierMatch?.name ?? formData.supplierName ?? formData.supplier ?? "";
+
+      const normalizedItems = (completedInvoice.items || []).map((it) => {
+        const productId =
+          it.productId ??
+          it.product_id ??
+          it.id ??
+          it.product?.id ??
+          it.product?.product_id ??
+          null;
+        const qty = Number(it.quantity) || 0;
+        const unitPrice = Number(it.unitPrice) || 0;
+        const discount = Number(it.discount) || 0;
+        const lineTotal = qty * unitPrice;
+        return {
+          ...it,
+          productId,
+          product_id: productId,
+          productName: it.name ?? it.productName ?? "",
+          name: it.name ?? it.productName ?? "",
+          quantity: qty,
+          qty,
+          unitPrice,
+          unit_price: unitPrice,
+          price: unitPrice,
+          rate: unitPrice,
+          discount,
+          discountPerUnit: discount,
+          discount_per_unit: discount,
+          discountAmount: discount,
+          batchNumber: it.batchNumber || "",
+          batch_number: it.batchNumber || "",
+          mrp: Number(it.mrp) || 0,
+          currentStock: Number(it.currentStock) || 0,
+          current_stock: Number(it.currentStock) || 0,
+          lineTotal,
+          total: lineTotal,
+        };
+      });
+
+      const payload = {
+        ...completedInvoice,
+        purchaseReturnNumber: completedInvoice.id,
+        voucherNumber: completedInvoice.id,
+        referenceNumber: completedInvoice.refNumber,
+        refNumber: completedInvoice.refNumber,
+        centerId,
+        center_id: centerId,
+        center: centerName,
+        centerName,
+        supplierId,
+        supplier_id: supplierId,
+        supplier: supplierName,
+        supplierName,
+        returnDate: completedInvoice.date,
+        status: completedInvoice.status || "Pending",
+        totalAmount: completedInvoice.amount,
+        subtotal: completedInvoice.amount,
+        amount: completedInvoice.amount,
+        itemCount: normalizedItems.length,
+        items: normalizedItems,
+      };
+
+      console.log("Finalized Purchase Return data:", payload);
 
       setIsSubmitting(true);
+      setErrors((prev) => ({ ...prev, submit: undefined }));
+
       try {
-        setErrors({});
+        const response = await createPurchaseReturn(payload);
+        const createdId =
+          response?.data?.id ??
+          response?.data?.purchaseReturnNumber ??
+          response?.data?.voucherNumber ??
+          response?.id ??
+          completedInvoice.id ??
+          nextPrtId;
+
+        const successMessage =
+          response?.data?.message ??
+          response?.message ??
+          `Purchase Return ${createdId || nextPrtId} has been created successfully!`;
+
         setFormData({
           id: "",
           center: "",
@@ -566,11 +670,16 @@ const Invoices = () => {
           quantity: 0,
         });
         setItems([]);
-        onPurchaseReturnCreated?.(completedInvoice.id || nextPrtId);
-        setSuccessText(
-          `Purchase Return ${completedInvoice.id || nextPrtId} has been created successfully!`
-        );
+        onPurchaseReturnCreated?.(createdId || nextPrtId);
+        setSuccessText(successMessage);
         setShowSuccess(true);
+      } catch (error) {
+        console.error("Error creating Purchase Return:", error);
+        const apiMessage =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to create purchase return. Please try again.";
+        setErrors((prev) => ({ ...prev, submit: apiMessage }));
       } finally {
         setIsSubmitting(false);
       }
@@ -641,7 +750,7 @@ const Invoices = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    {loading.centers ? "Center (loading…)" : "Center *"}
+                    {"Center *"}
                   </label>
                   <select
                     value={formData.center}
@@ -674,7 +783,7 @@ const Invoices = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    {loading.suppliers ? "Supplier (loading…)" : "Supplier Name *"}
+                    { "Supplier Name *"}
                   </label>
                   <select
                     value={formData.supplier}
@@ -752,7 +861,19 @@ const Invoices = () => {
                     <label className="block text-sm font-semibold text-slate-700 mb-3">
                       Product Name *
                     </label>
-                    <div
+                    <div className="flex items-center gap-3 mb-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={isBatchEnabled}
+                          onChange={(e) => setIsBatchEnabled(!!e.target.checked)}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm font-medium">Enable batch numbers per item</span>
+                      </label>
+          
+                    </div>
+                  <div
                       className="relative"
                       onKeyDown={(e) => {
                         if (
@@ -783,11 +904,10 @@ const Invoices = () => {
                               productName: p.name,
                               quantity: 1,
                               unitPrice: Number(p.unitPrice) || 0,
+                              batchNumber: "",
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
-                          } else {
-                            handleAddItem();
                           }
                         } else if (e.key === "Escape") {
                           setShowSuggestions(false);
@@ -806,6 +926,7 @@ const Invoices = () => {
                             ...p,
                             productId: "",
                             productName: val,
+                            batchNumber: "",
                           }));
                           setShowSuggestions(true);
                           setActiveIndex(-1);
@@ -838,6 +959,7 @@ const Invoices = () => {
                                   productName: p.name,
                                   quantity: 1,
                                   unitPrice: Number(p.unitPrice) || 0,
+                                  batchNumber: p.batchNumber ?? "",
                                 });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
@@ -859,6 +981,20 @@ const Invoices = () => {
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {isBatchEnabled && (
+                        <div className="mt-3">
+                          <label className="block text-xs text-slate-600 mb-1">Batch Number</label>
+                          <input
+                            type="text"
+                            value={entry.batchNumber}
+                            onChange={(e) =>
+                              setEntry((p) => ({ ...p, batchNumber: e.target.value }))
+                            }
+                            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg bg-white"
+                            placeholder="Enter batch number"
+                          />
+                        </div>
                       )}
                     </div>
                     {errors.productName && (
@@ -976,7 +1112,14 @@ const Invoices = () => {
                                   </td>
                                   {isBatchEnabled && (
                                     <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-left whitespace-nowrap">
-                                      {it.batchNumber || ""}
+                                      <input
+                                        type="text"
+                                        value={it.batchNumber || ""}
+                                        onChange={(e) =>
+                                          updateItemField(it.id, "batchNumber", e.target.value)
+                                        }
+                                        className="w-36 px-2 py-1 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
+                                      />
                                     </td>
                                   )}
                                   <td className="px-4 sm:px-6 py-4 text-left whitespace-nowrap">
@@ -1060,6 +1203,11 @@ const Invoices = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 mt-8">
+                {errors.submit && (
+                  <p className="text-red-600 text-sm font-semibold sm:mr-auto">
+                    {errors.submit}
+                  </p>
+                )}
                 <button
                   type="submit"
                   disabled={
