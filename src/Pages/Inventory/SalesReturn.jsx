@@ -309,6 +309,10 @@ const SalesReturn = () => {
             .trim()
             .toLowerCase();
           const filtered = list.filter((invoice) => {
+            // Exclude invoices marked as a reference (is_ref === 1)
+            // Some APIs return '1' as string or 1 as number; use == to coerce both.
+            if (invoice?.is_ref == 1) return false;
+
             const invoiceCenters = [
               invoice.center,
               invoice.centerName,

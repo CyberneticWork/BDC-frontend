@@ -348,7 +348,7 @@ const SalesOrder = () => {
               name: product.name ?? product.product_name ?? "Unnamed product",
               sku: product.code ?? product.sku ?? product.barcode ?? "",
               unitPrice: Number(
-                product.min_price ?? product.cost ?? product.price ?? 0
+                product.cost ?? product.min_price ?? product.price ?? 0
               ),
               mrp: Number(
                 product.mrp ?? product.price ?? product.min_price ?? 0

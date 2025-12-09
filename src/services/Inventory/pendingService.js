@@ -1,56 +1,74 @@
 // pendingService.js - Service for managing pending approvals
+import axios from "../../utils/axios";
 
-const pendingInvoices = [
-  {
-    id: "INV-25-0001",
-    center: "2",
-    customer: "Sumedha",
-    date: "2025-11-11",
-    status: null,
-    refNumber: "",
-    amount: 80,
-    productName: "Rubber Seal 125",
-    quantity: 1,
-    items: [
-      {
-        id: 1762844201493,
-        productId: 2,
-        name: "Rubber Seal 125",
-        quantity: 1,
-        unitPrice: 80,
-        discount: 0,
-        discountEnabled: false,
-      },
-    ],
-    payment: {
-      mode: "cash",
-      amount: 80,
-    },
-    created_by: 4,
-  },
-];
-
-// Getter function
-export const getPendingInvoices = () => pendingInvoices;
-
-// Approve invoice
-export const approveInvoice = (id) => {
-  const idx = pendingInvoices.findIndex((inv) => inv.id === id);
-  if (idx !== -1) {
-    pendingInvoices[idx].status = "approved";
-    return pendingInvoices[idx];
-  }
-  return null;
+const parseInvoicePayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.invoices)) return payload.invoices;
+  if (Array.isArray(payload?.records)) return payload.records;
+  return [];
 };
 
-// Reject invoice
-export const rejectInvoice = (id) => {
-  const idx = pendingInvoices.findIndex((inv) => inv.id === id);
-  if (idx !== -1) {
-    pendingInvoices[idx].status = "rejected";
-    return pendingInvoices[idx];
+const normalizeInvoice = (inv) => {
+  if (!inv) return inv;
+  const id = inv.id || inv.voucher_number || inv.invoice_number || inv.number || inv.invoice_no || inv.inv_no || inv.code || String(inv.id || "");
+  const voucherNumber =
+    inv.voucherNumber ||
+    inv.voucher_number ||
+    inv.voucher_no ||
+    inv.voucherId ||
+    inv.reference_number ||
+    inv.reference ||
+    inv.refNumber ||
+    null;
+  const invoiceNumber = voucherNumber || inv.invoice_number || inv.number || inv.invoice_no || inv.inv_no || inv.code || id;
+  const customer =
+    (typeof inv.customer === "string" && inv.customer) ||
+    inv.customer?.name ||
+    inv.customer_name ||
+    inv.customer?.company ||
+    (inv.customer?.first_name ? `${inv.customer.first_name} ${inv.customer.last_name || ""}` : "") ||
+    "";
+  const amount = inv.amount ?? inv.total ?? inv.grand_total ?? inv.total_amount ?? inv.payable ?? 0;
+  const discount = inv.discount ?? inv.discountValue ?? inv.discount_value ?? inv.total_discount ?? inv.discount_amount ?? 0;
+  const date = inv.date || inv.invoice_date || inv.created_at || inv.createdAt || null;
+  const centerName = inv.center?.name || inv.center_name || inv.center || inv.center_id || "";
+  const status = inv.status ?? inv.approval_status ?? inv.state ?? null;
+  const refNumber = inv.refNumber || inv.ref_number || inv.reference || inv.ref || "";
+  const payment = inv.payment || (inv.payment_mode || inv.payment_amount ? { mode: inv.payment_mode, amount: inv.payment_amount } : null);
+  const items = inv.items || inv.invoice_items || inv.line_items || inv.products || [];
+  const supplier = inv.supplier || inv.supplier_name || inv.vendor || inv.supplier?.name || inv.supplier_name || "";
+  const created_by = 
+  (typeof inv.creator === "string" && inv.creator) ||
+    inv.creator?.name ||
+    inv.creator_name ||
+    inv.creator?.company ||
+    (inv.creator?.first_name ? `${inv.creator.first_name} ${inv.creator.last_name || ""}` : "") ||
+    "";
+
+  return { ...inv, id, voucherNumber, invoiceNumber, customer, amount, discount, date, center: centerName, centerName, status, refNumber, payment, items, supplier, created_by };
+};
+
+export const getPendingInvoices = async () => {
+  try {
+    const response = await axios.get("/inventory-pending");
+    const raw = parseInvoicePayload(response.data);
+    return raw.map(normalizeInvoice);
+  } catch (error) {
+    console.error("Error fetching pending invoices:", error);
+    return [];
   }
-  return null;
+};
+
+// Approve invoice (placeholder - backend approve endpoint not present yet)
+export const approveInvoice = (id) => {
+  return { id, status: "approved" };
+};
+
+// Reject invoice (placeholder)
+export const rejectInvoice = (id) => {
+  return { id, status: "rejected" };
 };
 
 export default {
