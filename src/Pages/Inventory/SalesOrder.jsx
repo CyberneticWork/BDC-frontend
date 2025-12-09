@@ -5,6 +5,7 @@ import { fetchCenters as fetchCentersService } from "../../services/Inventory/ce
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
 import { useAuth } from "../../contexts/AuthContext";
 import {fetchSalesOrders,salesOrder,getNextSalesOrder,} from "../../services/Inventory/inventoryService";
+import { getAll as fetchDiscountLevels } from "../../services/Inventory/discountLevelService";
 
 const incrementSoCode = (code) => {
   if (!code) return "";
@@ -25,6 +26,7 @@ const SalesOrder = () => {
 
   const [orders, setOrders] = useState([]);
   const [nextSONumber, setNextSONumber] = useState("");
+  const [nextLoading, setNextLoading] = useState(false);
   const [serverProvidedSo, setServerProvidedSo] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -49,16 +51,19 @@ const SalesOrder = () => {
 
   // Fetch next Sales Order preview from backend (prefer server value when available)
   const refreshNextSalesOrder = useCallback(async () => {
+    setNextLoading(true);
     try {
       const resp = await getNextSalesOrder();
       const next = resp?.data?.next || resp?.next || "";
       if (next) {
         setNextSONumber(next);
         setServerProvidedSo(next);
+        setNextLoading(false);
         return next;
       }
       // fallback
       setNextSONumber((prev) => prev || "");
+      setNextLoading(false);
       return null;
     } catch (err) {
       console.warn(
@@ -66,6 +71,7 @@ const SalesOrder = () => {
         err
       );
       setNextSONumber((prev) => (prev ? incrementSoCode(prev) : ""));
+      setNextLoading(false);
       return null;
     }
   }, []);
@@ -135,10 +141,12 @@ const SalesOrder = () => {
       center: "",
       customer: "",
       date: new Date().toISOString().split("T")[0],
-      status: "completed",
+      status: "pending",
       refNumber: "",
     });
     const [items, setItems] = useState([]);
+    const [discountLevels, setDiscountLevels] = useState([]);
+    const [selectedDiscountLevel, setSelectedDiscountLevel] = useState(null);
     const [entry, setEntry] = useState({
       productId: "",
       productName: "",
@@ -164,11 +172,24 @@ const SalesOrder = () => {
     const productInputRef = useRef(null);
 
     useEffect(() => {
-      setForm((p) => ({ ...p, orderNumber: nextSONumber }));
+      if (!nextLoading) {
+        setForm((p) => ({ ...p, orderNumber: nextSONumber }));
+      }
     }, [nextSONumber]);
 
     useEffect(() => {
       let active = true;
+      const loadDiscountLevels = async () => {
+        try {
+          const data = await fetchDiscountLevels();
+          const list = Array.isArray(data) ? data : data?.data ?? [];
+          if (!active) return;
+          setDiscountLevels(list);
+        } catch (err) {
+          console.error("Error loading discount levels:", err);
+        }
+      };
+      loadDiscountLevels();
       const loadCustomers = async () => {
         try {
           setLoading((prev) => ({ ...prev, customers: true }));
@@ -198,6 +219,38 @@ const SalesOrder = () => {
         active = false;
       };
     }, []);
+
+    // Helper: derive a discount input string (e.g. "10%" or "50") from a level object
+    const computeDiscountInputFromLevel = (level) => {
+      if (!level) return "";
+      const raw =
+        level.percentage ?? level.percent ?? level.rate ?? level.value ?? level.amount ?? level.discount ?? null;
+      if (raw == null) return "";
+      if (typeof raw === "number") {
+        // treat 0-100 as percentage
+        if (raw > 0 && raw <= 100) return `${raw}%`;
+        return String(raw);
+      }
+      const s = String(raw).trim();
+      if (!s) return "";
+      return s;
+    };
+
+    const onDiscountLevelChange = (e) => {
+      const id = String(e.target.value || "");
+      if (!id) {
+        setSelectedDiscountLevel(null);
+        // clear discounts on rows
+        setItems((prev) => prev.map((it) => ({ ...it, discountEnabled: false, discountInput: "" })));
+        return;
+      }
+      const lev = discountLevels.find((l) => String(l.id) === id) || null;
+      setSelectedDiscountLevel(lev);
+      const input = computeDiscountInputFromLevel(lev);
+      if (lev) {
+        setItems((prev) => prev.map((it) => ({ ...it, discountEnabled: true, discountInput: input })));
+      }
+    };
 
     useEffect(() => {
       let active = true;
@@ -330,18 +383,19 @@ const SalesOrder = () => {
       return customers.map((c) => c.name).filter(Boolean);
     }, [customers]);
 
-    // Helper to parse discount as amount or % against a base
-    const parseDiscount = (input, base) => {
+    // (e.g. "10%") are applied against the unit price.
+    const parseDiscount = (input, unitPrice, qty) => {
       const s = String(input || "").trim();
       if (!s) return 0;
       if (s.endsWith("%")) {
         const pct = parseFloat(s.slice(0, -1));
         if (!isFinite(pct) || pct <= 0) return 0;
-        return Math.min(base, (base * pct) / 100);
+        const perUnit = (unitPrice * pct) / 100;
+        return Math.min(unitPrice * qty, perUnit * qty);
       }
-      const amt = parseFloat(s);
-      if (!isFinite(amt) || amt <= 0) return 0;
-      return Math.min(base, amt);
+      const perUnit = parseFloat(s);
+      if (!isFinite(perUnit) || perUnit <= 0) return 0;
+      return Math.min(unitPrice * qty, perUnit * qty);
     };
 
     const hasBatchColumn = useMemo(() => {
@@ -351,7 +405,8 @@ const SalesOrder = () => {
       });
     }, [items]);
 
-    // Aggregate totals based on per-line discounts
+    
+    // per-unit when numeric; total discount = qty * perUnitDiscount)
     const { subtotal, discountTotal } = useMemo(() => {
       let sub = 0;
       let disc = 0;
@@ -360,7 +415,7 @@ const SalesOrder = () => {
         const price = Number(it.unitPrice) || 0;
         const gross = qty * price;
         const dAmt = it.discountEnabled
-          ? parseDiscount(it.discountInput, gross)
+          ? parseDiscount(it.discountInput, price, qty)
           : 0;
         disc += dAmt;
         sub += Math.max(0, gross - dAmt);
@@ -409,6 +464,10 @@ const SalesOrder = () => {
       }
       setErrors((prev) => ({ ...prev, ...e }));
       if (Object.keys(e).length) return;
+      const defaultDiscountInput = selectedDiscountLevel
+        ? computeDiscountInputFromLevel(selectedDiscountLevel)
+        : "";
+      const defaultDiscountEnabled = !!selectedDiscountLevel;
       setItems((prev) => [
         ...prev,
         {
@@ -421,8 +480,8 @@ const SalesOrder = () => {
           currentStock,
           mrp,
           batchNumber: batchNumber || null,
-          discountEnabled: false,
-          discountInput: "",
+          discountEnabled: defaultDiscountEnabled,
+          discountInput: defaultDiscountInput,
         },
       ]);
       setEntry({
@@ -470,15 +529,15 @@ const SalesOrder = () => {
           ...form,
           createdById,
           created_by_id: createdById,
-          status: "completed",
+          status: form.status || "pending",
           centerId: selectedCenterId || null,
           center_id: selectedCenterId || null,
-          items: items.map((it) => {
+            items: items.map((it) => {
             const qty = Number(it.quantity) || 0;
             const price = Number(it.unitPrice) || 0;
             const gross = qty * price;
             const dAmt = it.discountEnabled
-              ? parseDiscount(it.discountInput, gross)
+              ? parseDiscount(it.discountInput, price, qty)
               : 0;
             const normalizedBatch = it.batchNumber ?? it.batch_number ?? null;
             return {
@@ -522,7 +581,7 @@ const SalesOrder = () => {
           center: "",
           customer: "",
           date: new Date().toISOString().split("T")[0],
-          status: "completed",
+          status: "pending",
           refNumber: "",
         });
         setSelectedCenterId("");
@@ -551,7 +610,7 @@ const SalesOrder = () => {
                 Sales Order Management
               </h1>
               <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
-                Order ID: {nextSONumber}
+                Order ID: {nextLoading ? "Loading..." : nextSONumber || "—"}
               </div>
               <p className="text-slate-600 mt-2 text-sm sm:text-base">
                 Efficiently manage and track your sales orders across centers
@@ -679,6 +738,36 @@ const SalesOrder = () => {
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(totalAmount)}
                   </p>
+                </div>
+              </div>
+
+              {/* Discount level selector */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Discount Level
+                </label>
+                <div className="flex items-center gap-4">
+                  <select
+                    value={selectedDiscountLevel?.id ?? ""}
+                    onChange={onDiscountLevelChange}
+                    className="px-4 py-3 border-2 border-slate-300 bg-slate-50 transition-colors w-80 rounded-lg "
+                  >
+                    <option value="">No discount</option>
+                    {discountLevels.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name ?? d.title ?? d.label ?? `Level ${d.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedDiscountLevel && (
+                    <div className="text-sm text-slate-600">
+                      {selectedDiscountLevel.percentage || selectedDiscountLevel.percent
+                        ? `${selectedDiscountLevel.percentage ?? selectedDiscountLevel.percent}%`
+                        : selectedDiscountLevel.amount || selectedDiscountLevel.value
+                        ? `LKR ${selectedDiscountLevel.amount ?? selectedDiscountLevel.value}`
+                        : null}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -877,12 +966,7 @@ const SalesOrder = () => {
                             <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
                               MRP
                             </th>
-                            <th
-                              className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider"
-                              title="Enable per-row discount"
-                            >
-                              Disc On?
-                            </th>
+                            
                             <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
                               Discount
                             </th>
@@ -900,12 +984,9 @@ const SalesOrder = () => {
                             const rowPrice = Number(it.unitPrice) || 0;
                             const rowGross = rowQty * rowPrice;
                             const rowDiscount = it.discountEnabled
-                              ? parseDiscount(it.discountInput, rowGross)
+                              ? parseDiscount(it.discountInput, rowPrice, rowQty)
                               : 0;
-                            const rowTotal = Math.max(
-                              0,
-                              rowGross - rowDiscount
-                            );
+                            const rowTotal = Math.max(0, rowGross - rowDiscount);  //total amount section
                             return (
                               <tr
                                 key={it.id}
@@ -961,46 +1042,7 @@ const SalesOrder = () => {
                                 <td className="px-4 sm:px-6 py-4 text-sm font-semibold text-slate-900 text-right whitespace-nowrap">
                                   {formatLKR(it.mrp || 0)}
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">
-                                  <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={!!it.discountEnabled}
-                                    aria-disabled={it.discountEnabled}
-                                    disabled={it.discountEnabled}
-                                    onClick={() => {
-                                      if (it.discountEnabled) return; // one-time enable only
-                                      setItems((prev) =>
-                                        prev.map((row) =>
-                                          row.id === it.id
-                                            ? { ...row, discountEnabled: true }
-                                            : row
-                                        )
-                                      );
-                                    }}
-                                    className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                      it.discountEnabled
-                                        ? "bg-blue-600 opacity-60 cursor-not-allowed"
-                                        : "bg-slate-300 hover:bg-slate-400"
-                                    }`}
-                                    title={
-                                      it.discountEnabled
-                                        ? "Discount enabled (locked)"
-                                        : "Enable discount for this row"
-                                    }
-                                  >
-                                    <span
-                                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                                        it.discountEnabled
-                                          ? "translate-x-6"
-                                          : "translate-x-1"
-                                      }`}
-                                    />
-                                    <span className="sr-only">
-                                      Toggle discount
-                                    </span>
-                                  </button>
-                                </td>
+                                
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
                                     type="text"

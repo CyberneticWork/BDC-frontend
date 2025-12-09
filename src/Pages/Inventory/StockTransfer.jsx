@@ -366,6 +366,9 @@ const StockTransfer = () => {
     };
 
     const updateItemField = (id, field, value) => {
+      // Prevent changing batchNumber via this updater to keep batches immutable here
+      if (field === "batchNumber") return;
+
       setItems((prev) =>
         prev.map((it) => {
           if (it.id !== id) return it;

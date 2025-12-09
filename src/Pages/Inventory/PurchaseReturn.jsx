@@ -137,7 +137,6 @@ const Invoices = () => {
     });
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
-    const [isBatchEnabled, setIsBatchEnabled] = useState(false);
     // Payment popup removed; no payment state needed
     const [showSuccess, setShowSuccess] = useState(false);
     const [successText, setSuccessText] = useState("");
@@ -270,6 +269,16 @@ const Invoices = () => {
         const lineDiscount = disc * qty;
         return acc + (lineTotal - lineDiscount);
       }, 0);
+    }, [items]);
+
+    const showBatchColumn = useMemo(() => {
+      try {
+        return (items || []).some(
+          (it) => it && (it.batchNumber || "").toString().trim().length > 0
+        );
+      } catch {
+        return false;
+      }
     }, [items]);
 
     useEffect(() => {
@@ -421,6 +430,7 @@ const Invoices = () => {
             batchFromArrays ??
             batchFromProduct ??
             null;
+
           return {
             id: `${baseId}-${idx}`,
             productId,
@@ -432,7 +442,7 @@ const Invoices = () => {
             currentStock: Number(
               item.currentStock ?? item.current_stock ?? item.stock ?? 0
             ),
-            batchNumber,
+            batchNumber: batchNumber ? String(batchNumber) : "",
           };
         })
         .filter(Boolean);
@@ -443,14 +453,6 @@ const Invoices = () => {
       }
 
       setItems(mappedItems);
-      try {
-        const hasBatch = mappedItems.some(
-          (m) => m.batchNumber && String(m.batchNumber).trim().length > 0
-        );
-        setIsBatchEnabled(hasBatch);
-      } catch {
-        setIsBatchEnabled(false);
-      }
       setErrors((prev) => ({ ...prev, items: undefined }));
       setIsGrnModalOpen(false);
       setGrnError("");
@@ -503,7 +505,7 @@ const Invoices = () => {
         discount: 0,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
-        batchNumber: (isBatchEnabled && (entry.batchNumber || selected?.batchNumber)) ? (entry.batchNumber || selected?.batchNumber || "") : "",
+        batchNumber: "",
       };
       setItems((prev) => [...prev, newItem]);
       setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
@@ -861,18 +863,7 @@ const Invoices = () => {
                     <label className="block text-sm font-semibold text-slate-700 mb-3">
                       Product Name *
                     </label>
-                    <div className="flex items-center gap-3 mb-3">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={isBatchEnabled}
-                          onChange={(e) => setIsBatchEnabled(!!e.target.checked)}
-                          className="h-4 w-4"
-                        />
-                        <span className="text-sm font-medium">Enable batch numbers per item</span>
-                      </label>
-          
-                    </div>
+                    
                   <div
                       className="relative"
                       onKeyDown={(e) => {
@@ -982,20 +973,7 @@ const Invoices = () => {
                           ))}
                         </ul>
                       )}
-                      {isBatchEnabled && (
-                        <div className="mt-3">
-                          <label className="block text-xs text-slate-600 mb-1">Batch Number</label>
-                          <input
-                            type="text"
-                            value={entry.batchNumber}
-                            onChange={(e) =>
-                              setEntry((p) => ({ ...p, batchNumber: e.target.value }))
-                            }
-                            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg bg-white"
-                            placeholder="Enter batch number"
-                          />
-                        </div>
-                      )}
+                      {/* batch number entry removed per requirements */}
                     </div>
                     {errors.productName && (
                       <p className="text-red-500 text-sm mt-2 font-medium">
@@ -1040,7 +1018,7 @@ const Invoices = () => {
                               >
                                 Current Stock
                               </th>
-                              {isBatchEnabled && (
+                              {showBatchColumn && (
                                 <th
                                   scope="col"
                                   className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider"
@@ -1110,16 +1088,13 @@ const Invoices = () => {
                                   <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-left whitespace-nowrap">
                                     {it.currentStock}
                                   </td>
-                                  {isBatchEnabled && (
+                                  {showBatchColumn && (
                                     <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-left whitespace-nowrap">
-                                      <input
-                                        type="text"
-                                        value={it.batchNumber || ""}
-                                        onChange={(e) =>
-                                          updateItemField(it.id, "batchNumber", e.target.value)
-                                        }
-                                        className="w-36 px-2 py-1 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
-                                      />
+                                      {it.batchNumber ? (
+                                        <span className="text-sm text-slate-800">{it.batchNumber}</span>
+                                      ) : (
+                                        <span className="text-sm text-slate-400">—</span>
+                                      )}
                                     </td>
                                   )}
                                   <td className="px-4 sm:px-6 py-4 text-left whitespace-nowrap">
