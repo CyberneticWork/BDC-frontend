@@ -31,6 +31,8 @@ export const permissions = {
     noPayManagement: { view: true, edit: true },
     leavecalendar: { view: true },
     reports: { view: true },
+    timecardReports: { view: true },
+    singleEntryReport: { view: true },
     utilities: { view: true },
     // pms: { view: true },
     pmsDashboard: { view: true },
