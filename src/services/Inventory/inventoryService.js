@@ -114,6 +114,18 @@ export const createPurchaseOrder = async (data) => {
   }
 };
 
+//PurchaseReturn API post functions
+export const createPurchaseReturn = async (data) => {
+  try {
+    const response = await axios.post("/purchaseReturn", data);
+    return response.data;
+  }
+  catch (error) {
+    console.error("Error creating Purchase Return:", error);
+    throw error;
+  }
+};
+
 //for fetching sales orders
 export const fetchSalesOrders = async (soData) => {
   try {

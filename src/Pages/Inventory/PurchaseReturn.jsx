@@ -3,8 +3,8 @@ import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import {getProducts,getNextPurchaseReturn,fetchGRNs,} from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import SupplierService from "../../services/Account/SupplierService";
-import Payment from "../../components/Inventory/Payment";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
+import { getUser } from "../../services/UserService";
 
 const LAST_PURCHASE_RETURN_KEY = "inventory_last_prt_id";
 
@@ -124,7 +124,6 @@ const Invoices = () => {
       center: "",
       supplier: "",
       date: new Date().toISOString().split("T")[0],
-      status: "pending",
       refNumber: "",
       amount: 0,
       // kept for backward compatibility where needed
@@ -133,8 +132,8 @@ const Invoices = () => {
     });
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [pendingInvoice, setPendingInvoice] = useState(null);
+    const [isBatchEnabled, setIsBatchEnabled] = useState(false);
+    // Payment popup removed; no payment state needed
     const [showSuccess, setShowSuccess] = useState(false);
     const [successText, setSuccessText] = useState("");
     const [centerOptions, setCenterOptions] = useState([]);
@@ -298,7 +297,11 @@ const Invoices = () => {
             : Array.isArray(response)
             ? response
             : [];
-          setGrnOptions(rawList);
+          const filtered = rawList.filter((grn) => {
+            const flag = grn?.is_ref;
+            return !(flag === 1 || flag === "1" || flag === true);
+          });
+          setGrnOptions(filtered);
           setIsGrnModalOpen(true);
         } catch (error) {
           console.error("Error fetching GRNs:", error);
@@ -392,6 +395,19 @@ const Invoices = () => {
             item.name ??
             item.productName ??
             `Item ${idx + 1}`;
+          const batchFromArrays = Array.isArray(item.batches) && item.batches.length
+            ? item.batches[0]?.batch_number ?? item.batches[0]?.batchNumber ?? item.batches[0]?.batch ?? null
+            : null;
+          const batchFromProduct = Array.isArray(item.product?.batches) && item.product.batches.length
+            ? item.product.batches[0]?.batch_number ?? item.product.batches[0]?.batchNumber ?? item.product.batches[0]?.batch ?? null
+            : null;
+          const batchNumber =
+            item.batchNumber ??
+            item.batch_no ??
+            item.batch ??
+            batchFromArrays ??
+            batchFromProduct ??
+            null;
           return {
             id: `${baseId}-${idx}`,
             name,
@@ -403,6 +419,7 @@ const Invoices = () => {
             currentStock: Number(
               item.currentStock ?? item.current_stock ?? item.stock ?? 0
             ),
+            batchNumber,
           };
         })
         .filter(Boolean);
@@ -413,6 +430,14 @@ const Invoices = () => {
       }
 
       setItems(mappedItems);
+      try {
+        const hasBatch = mappedItems.some(
+          (m) => m.batchNumber && String(m.batchNumber).trim().length > 0
+        );
+        setIsBatchEnabled(hasBatch);
+      } catch {
+        setIsBatchEnabled(false);
+      }
       setErrors((prev) => ({ ...prev, items: undefined }));
       setIsGrnModalOpen(false);
       setGrnError("");
@@ -465,8 +490,10 @@ const Invoices = () => {
         discountEnabled: true,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
+        batchNumber: "",
       };
       setItems((prev) => [...prev, newItem]);
+      setIsBatchEnabled((prev) => prev || false);
       setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
       setShowSuggestions(false);
       setActiveIndex(-1);
@@ -504,13 +531,27 @@ const Invoices = () => {
         quantity: firstItem ? firstItem.quantity : 0,
       };
 
-      setPendingInvoice(invoiceData);
-      setShowPaymentModal(true);
-    };
+      const user = getUser?.() || (() => {
+        try {
+          const raw = window?.localStorage?.getItem("user");
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      })();
+      const createdById = user?.id ?? user?.user_id ?? null;
 
-    const finalizeInvoiceWithPayment = async (paymentData) => {
-      if (!pendingInvoice) return;
-      const completedInvoice = { ...pendingInvoice, payment: paymentData };
+      // Immediately finalize (no payment popup)
+      const completedInvoice = {
+        ...invoiceData,
+        id: invoiceData.id || nextPrtId,
+        status: "completed",
+        created_by: createdById,
+        createdBy: createdById,
+      };
+
+      console.log("Finalized Purchase Return data:", completedInvoice);
+
       setIsSubmitting(true);
       try {
         setErrors({});
@@ -519,17 +560,13 @@ const Invoices = () => {
           center: "",
           supplier: "",
           date: new Date().toISOString().split("T")[0],
-          status: "pending",
           refNumber: "",
           amount: 0,
           productName: "",
           quantity: 0,
         });
         setItems([]);
-        setPendingInvoice(null);
-        setShowPaymentModal(false);
         onPurchaseReturnCreated?.(completedInvoice.id || nextPrtId);
-        // Show success modal
         setSuccessText(
           `Purchase Return ${completedInvoice.id || nextPrtId} has been created successfully!`
         );
@@ -867,6 +904,14 @@ const Invoices = () => {
                               >
                                 Current Stock
                               </th>
+                              {isBatchEnabled && (
+                                <th
+                                  scope="col"
+                                  className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider"
+                                >
+                                  Batch
+                                </th>
+                              )}
                               <th
                                 scope="col"
                                 className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider"
@@ -929,6 +974,11 @@ const Invoices = () => {
                                   <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-left whitespace-nowrap">
                                     {it.currentStock}
                                   </td>
+                                  {isBatchEnabled && (
+                                    <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 text-left whitespace-nowrap">
+                                      {it.batchNumber || ""}
+                                    </td>
+                                  )}
                                   <td className="px-4 sm:px-6 py-4 text-left whitespace-nowrap">
                                     <input
                                       type="number"
@@ -1040,40 +1090,6 @@ const Invoices = () => {
             </div>
           </form>
         </div>
-
-        {showPaymentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setShowPaymentModal(false)}
-              aria-hidden="true"
-            />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 border border-slate-200">
-              <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  Set Payment
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="text-slate-500 hover:text-slate-700 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-                  aria-label="Close payment modal"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-6">
-                <div className="mb-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  Total Payable:{" "}
-                  <span className="font-bold text-slate-900 text-lg">
-                    {formatLKR(pendingInvoice?.amount || tableTotal)}
-                  </span>
-                </div>
-                <Payment onSetPayment={finalizeInvoiceWithPayment} />
-              </div>
-            </div>
-          </div>
-        )}
 
         <InventoryPopup
           isOpen={isGrnModalOpen}
