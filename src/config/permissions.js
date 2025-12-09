@@ -33,6 +33,7 @@ export const permissions = {
     reports: { view: true },
     timecardReports: { view: true },
     singleEntryReport: { view: true },
+    attendanceReport: { view: true },
     utilities: { view: true },
     // pms: { view: true },
     pmsDashboard: { view: true },
@@ -92,6 +93,7 @@ export const permissions = {
     productList: { view: true, edit: true },
     discountLevel: { view: true, edit: true },
     productType: { view: true, edit: true },
+    
   },
   hr: {
     chatbot: { view: true },
@@ -124,6 +126,8 @@ export const permissions = {
     noPayManagement: { view: true, edit: true },
     leavecalendar: { view: true },
     reports: { view: true },
+    singleEntryReport: { view: true },
+    attendanceReport: { view: true },
     utilities: { view: true },
     // pms: { view: true },
     pmsDashboard: { view: true },
@@ -227,6 +231,7 @@ export const permissions = {
     expenses: { view: true },
     accountingReports: { view: true },
     inventory: { view: true, edit: true },
+    // attendanceReport: { view: true },
   },
   user: {
     chatbot: { view: true },

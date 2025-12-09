@@ -257,6 +257,7 @@ const Sidebar = ({
           name: "Timecard Reports",
           icon: FileText,
           subItems: [
+            { id: "attendanceReport", name: "Attendance Report" },
             { id: "singleEntryReport", name: "Single Entry Report" },
           ],
         },
@@ -344,7 +345,7 @@ const Sidebar = ({
       timecardReports:
         path.includes("timecardReports") ||
         activeItem === "timecardReports" ||
-        ["singleEntryReport"].includes(activeItem),
+        ["attendanceReport", "singleEntryReport"].includes(activeItem),
     });
   }, [activeItem, menuItems]);
 
