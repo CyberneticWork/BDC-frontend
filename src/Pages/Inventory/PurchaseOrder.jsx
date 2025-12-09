@@ -704,11 +704,7 @@ const PurchaseOrder = () => {
                   {errors.center && (
                     <p className="text-red-500 text-sm mt-2">{errors.center}</p>
                   )}
-                  {!errors.center && loading.centers && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      Loading centers…
-                    </p>
-                  )}
+                 
                 </div>
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-3">
@@ -740,11 +736,7 @@ const PurchaseOrder = () => {
                       {errors.supplier}
                     </p>
                   )}
-                  {!errors.supplier && loading.suppliers && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      Loading suppliers…
-                    </p>
-                  )}
+                 
                 </div>
               </div>
 
@@ -776,11 +768,11 @@ const PurchaseOrder = () => {
               {/* Items entry section */}
 
               <div className="mb-6 bg-slate-50 rounded-lg p-6 border border-slate-200">
-                <div className="flex items-start justify-between mb-4">
+                <div className="mb-4">
                   <h4 className="text-lg font-semibold text-slate-900">
                     Add Items
                   </h4>
-                  <div className="flex items-center gap-3">
+                  <div className="mt-2 flex items-center gap-3">
                     <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
                       <input
                         type="checkbox"
@@ -790,7 +782,6 @@ const PurchaseOrder = () => {
                       />
                       <span>Enable batch numbers per item</span>
                     </label>
-
                   </div>
                 </div>
                 <div className={`grid grid-cols-1 ${isBatchEnabled ? "sm:grid-cols-5" : "sm:grid-cols-4"} gap-6`}>
@@ -927,7 +918,7 @@ const PurchaseOrder = () => {
                         onChange={(e) =>
                           setEntry((p) => ({ ...p, batchNumber: e.target.value }))
                         }
-                        placeholder={"Enter batch number (required)"}
+                        placeholder={"Enter batch number"}
                         className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white hover:border-slate-400"
                       />
                     </div>
