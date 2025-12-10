@@ -98,6 +98,17 @@ export const createStockTransfer = async (data) => {
   }
 };
 
+//Stock Verification API post functions
+export const createStockVerification = async (data) => {
+  try {
+    const response = await axios.post("/stockVerification", data);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating Stock Verification:", error);
+    throw error;
+  }
+};
+
 //Purchaseorder API post functions
 export const createPurchaseOrder = async (data) => {
   try {
@@ -436,7 +447,6 @@ export const updateStockVerification = (id, updated) => {
 };
 
 export default {
-  // getters
   getPurchaseOrders,
   getPurchaseReturns,
   getSalesReturns,
@@ -446,7 +456,6 @@ export default {
   getProducts,
   getCustomers,
   getSuppliers,
-  // mutations
   addPurchaseOrder,
   updatePurchaseOrder,
   addPurchaseReturn,
@@ -455,13 +464,10 @@ export default {
   updateStockTransfer,
   addStockVerification,
   updateStockVerification,
-  // GRN
   createGRN,
   getNextGrn,
-  // INV
   createINV,
   getNextInv,
-  // Sales Order
   getNextSalesOrder,
   createSalesReturn,
   getNextSalesReturn,
@@ -476,4 +482,9 @@ export default {
   fetchPendingSalesReturns,
   getNextPurchaseReturn,
   fetchGRNs,
+  createPurchaseReturn,
+  getNextPurchaseOrder,
+  createStockVerification,
+  getNextStockVerification,
+
 };

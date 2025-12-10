@@ -1,129 +1,196 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, {useCallback,useEffect,useMemo,useRef,useState,} from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { fetchCenters } from "../../services/Inventory/centerService";
-import {
-  getProducts,
-  getStockVerifications,
-  addStockVerification,
-  fetchStockTransfers,
-  getNextStockVerification,
-} from "../../services/Inventory/inventoryService";
+import {getProducts, createStockVerification, fetchStockTransfers, getNextStockVerification,} from "../../services/Inventory/inventoryService";
+import { useAuth } from "../../contexts/AuthContext";
 
-const makeDefaultStvNumber = () => {
-  const year = new Date().getFullYear();
-  return `STV-${year}-0001`;
+const LAST_STV_STORAGE_KEY = "inventory_last_stv_id";
+
+// Helpers for generating and normalizing STV codes
+const getYearFragment = (input) => {
+  const fallback = new Date().getFullYear().toString().slice(-2);
+  if (!input && input !== 0) return fallback;
+  const str = String(input);
+  return str.length === 2 ? str : str.slice(-2);
 };
 
-const normalizeStvNumber = (value) => {
+const buildStvCode = (yearFragment, sequence) => {
+  const year = getYearFragment(yearFragment);
+  const seq = Math.max(1, parseInt(sequence ?? 1, 10) || 1);
+  return `STV-${year}-${String(seq).padStart(4, "0")}`;
+};
+
+const defaultStvCode = () => buildStvCode(undefined, 1);
+
+const incrementStvCode = (code) => {
+  const match = String(code || "").match(/^(.*?)(\d+)([^0-9]*)$/);
+  if (!match) return code || defaultStvCode();
+  const [, prefix, digits, suffix] = match;
+  const bumped = (parseInt(digits, 10) + 1)
+    .toString()
+    .padStart(digits.length, "0");
+  return `${prefix}${bumped}${suffix}`;
+};
+
+const normalizeStvCode = (value) => {
   const str = String(value ?? "").trim();
   if (!str) return null;
-  const yearSequenceMatch = str.match(/^STV-(\d{4})-(\d{1,})$/i);
-  if (yearSequenceMatch) {
-    return `STV-${yearSequenceMatch[1]}-${String(yearSequenceMatch[2]).padStart(
-      4,
-      "0"
-    )}`;
+  const exact = str.match(/^STV-(\d{2})-(\d{1,})$/i);
+  if (exact) {
+    return buildStvCode(exact[1], exact[2]);
   }
-  const sequenceOnlyMatch = str.match(/^STV-(\d+)$/i);
-  if (sequenceOnlyMatch) {
-    const year = new Date().getFullYear();
-    return `STV-${year}-${String(sequenceOnlyMatch[1]).padStart(4, "0")}`;
+  const digitsOnly = str.match(/^\d+$/);
+  if (digitsOnly) {
+    return buildStvCode(undefined, digitsOnly[0]);
   }
-  const digitsMatch = str.match(/^\d+$/);
-  if (digitsMatch) {
-    const year = new Date().getFullYear();
-    return `STV-${year}-${String(digitsMatch[0]).padStart(4, "0")}`;
+  const tailDigits = str.match(/(\d{1,})$/);
+  if (tailDigits) {
+    return buildStvCode(undefined, tailDigits[1]);
   }
-  if (str.toUpperCase().startsWith("STV-")) {
-    return str;
-  }
-  return null;
+  return str.toUpperCase().startsWith("STV-") ? str : null;
 };
 
-const extractNextVerificationNumber = (response) => {
-  if (!response) return null;
-  const buckets = [response, response?.data, response?.data?.data];
-  for (const bucket of buckets) {
-    if (!bucket) continue;
-    if (typeof bucket === "string") {
-      const normalized = normalizeStvNumber(bucket);
-      if (normalized) return normalized;
-    }
-    if (typeof bucket === "object") {
-      const candidates = [
-        bucket.next,
-        bucket.data,
-        bucket.data?.next,
-        bucket.number,
-        bucket.code,
-      ];
-      for (const candidate of candidates) {
-        const normalized = normalizeStvNumber(candidate);
-        if (normalized) return normalized;
-      }
-    }
-  }
-  return null;
-};
-// Payment component removed
 
 const StockVerification = () => {
-  const [transfers, setTransfers] = useState([]);
+  // Component-level state and refs
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextStId, setNextStId] = useState("");
   const [isFetchingNextId, setIsFetchingNextId] = useState(false);
   const [nextIdError, setNextIdError] = useState("");
+  const lastCreatedStvRef = useRef("");
 
+  // Hydrate last-created code from localStorage so we can increment when needed
   useEffect(() => {
-    // load verifications (we'll still keep transfers array name for compatibility with existing UI code)
-    const verifs = getStockVerifications?.() || [];
-    setTransfers(verifs);
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(LAST_STV_STORAGE_KEY);
+      if (stored && /^STV-\d{2}-\d+/i.test(stored.trim())) {
+        lastCreatedStvRef.current = stored.trim();
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  // fetch next STV id on mount
-  useEffect(() => {
-    // attempt to fetch next id; errors are handled inside the function
-    refreshNextStockVerificationId().catch(() => {});
-  }, [refreshNextStockVerificationId]);
 
+  // Fetches the next STV code from the backend or falls back to stored/derived sequence
   const refreshNextStockVerificationId = useCallback(async () => {
+    const applyStoredFallback = () => {
+      const stored = String(lastCreatedStvRef.current || "").trim();
+      if (!stored) return null;
+      const bumped = incrementStvCode(stored);
+      setNextStId(bumped);
+      return bumped;
+    };
+
+    const tryExtractNormalized = (payload) => {
+      if (!payload) return null;
+      const buckets = [payload, payload?.data, payload?.data?.data];
+      for (const bucket of buckets) {
+        if (bucket === null || bucket === undefined) continue;
+        if (
+          typeof bucket === "string" ||
+          typeof bucket === "number"
+        ) {
+          const normalized = normalizeStvCode(bucket);
+          if (normalized) return normalized;
+        }
+        if (typeof bucket === "object") {
+          if (
+            (bucket.year || bucket.year === 0) &&
+            (bucket.sequence || bucket.next || bucket.number)
+          ) {
+            const combined = buildStvCode(
+              bucket.year,
+              bucket.sequence ?? bucket.next ?? bucket.number
+            );
+            if (combined) return combined;
+          }
+          const candidates = [
+            bucket.next,
+            bucket.current,
+            bucket.voucher,
+            bucket.code,
+            bucket.number,
+            bucket.sequence,
+            bucket.data,
+            bucket.data?.next,
+          ];
+          for (const candidate of candidates) {
+            if (
+              typeof candidate === "string" ||
+              typeof candidate === "number"
+            ) {
+              const normalized = normalizeStvCode(candidate);
+              if (normalized) return normalized;
+            }
+            if (candidate && typeof candidate === "object") {
+              const nested = tryExtractNormalized(candidate);
+              if (nested) return nested;
+            }
+          }
+        }
+      }
+      return null;
+    };
+
     setIsFetchingNextId(true);
     setNextIdError("");
     try {
       const response = await getNextStockVerification();
-      const next = extractNextVerificationNumber(response);
-      const finalNext = next || makeDefaultStvNumber();
-      setNextStId(finalNext);
-      return finalNext;
+      let normalized = tryExtractNormalized(response);
+      if (normalized) {
+        if (
+          normalized === String(lastCreatedStvRef.current || "").trim()
+        ) {
+          normalized = incrementStvCode(normalized);
+        }
+        setNextStId(normalized);
+        return normalized;
+      }
+      const fallbackFromStored = applyStoredFallback();
+      if (fallbackFromStored) return fallbackFromStored;
+      const fallback = defaultStvCode();
+      setNextStId(fallback);
+      return fallback;
     } catch (err) {
       console.warn("Failed to fetch next stock verification number.", err);
-      setNextIdError(
-        err?.message || "Unable to fetch next stock verification number."
-      );
-      const fallback = makeDefaultStvNumber();
+      const status = err?.response?.status;
+      if (status !== 404) {
+        setNextIdError(
+          err?.message || "Unable to fetch next stock verification number."
+        );
+      } else {
+        setNextIdError("");
+      }
+      const fallbackFromStored = applyStoredFallback();
+      if (fallbackFromStored) return fallbackFromStored;
+      const fallback = defaultStvCode();
       setNextStId(fallback);
       return fallback;
     } finally {
       setIsFetchingNextId(false);
     }
   }, []);
-    // kept for backward compatibility where needed
+
+  useEffect(() => {
+    refreshNextStockVerificationId();
+  }, [refreshNextStockVerificationId]);
+
+  // Inline form used to capture verification details without leaving the page
+  const InlineNewInvoiceForm = ({ nextStId }) => {
+    const { user } = useAuth();
+    // Primary form inputs
     const [formData, setFormData] = useState({
       id: nextStId || "",
-      fromCenter: "",
-      toCenter: "",
+      centerId: "",
+      centerName: "",
       date: new Date().toISOString().split("T")[0],
-      status: "pending",
-      amount: 0,
+      status: "completed",
       productName: "",
       quantity: 0,
     });
+    // Supporting UI state for validation, listed items, and fetched center/product data
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
     const [centers, setCenters] = useState([]);
@@ -132,23 +199,25 @@ const StockVerification = () => {
     const [centerProducts, setCenterProducts] = useState([]);
     const [centerProductsLoading, setCenterProductsLoading] = useState(false);
     const [centerProductsError, setCenterProductsError] = useState(null);
-    // Payment modal and pendingInvoice removed
 
-    // Entry state and typeahead like SalesOrder page
+    // Autocomplete entry state for the product selector
     const [entry, setEntry] = useState({
       productId: "",
       productName: "",
       quantity: 1,
       unitPrice: 0,
+      batchNumber: "",
     });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const productInputRef = useRef(null);
 
+    // Refresh the available stock list for the selected center
     useEffect(() => {
       setFormData((p) => ({ ...p, id: nextStId }));
     }, [nextStId]);
 
+    // Load centers once and cache their normalized IDs/names
     useEffect(() => {
       let mounted = true;
       const loadCenters = async () => {
@@ -187,10 +256,19 @@ const StockVerification = () => {
             : [];
           if (!mounted) return;
           setCenters(normalized);
+          if (normalized.length > 0) {
+            setFormData((prev) => {
+              if (prev.centerId) return prev;
+              return {
+                ...prev,
+                centerId: normalized[0].id,
+                centerName: normalized[0].name,
+              };
+            });
+          }
           setCentersError(null);
         } catch (err) {
           console.error("Failed to load centers:", err);
-          if (!mounted) return;
           setCentersError(err?.message || String(err));
           setCenters([]);
         } finally {
@@ -206,7 +284,7 @@ const StockVerification = () => {
     useEffect(() => {
       let mounted = true;
       const loadCenterProducts = async () => {
-        const centerId = formData.fromCenter;
+        const centerId = formData.centerId;
         if (!centerId) {
           setCenterProducts([]);
           setCenterProductsError(null);
@@ -251,9 +329,25 @@ const StockVerification = () => {
             const price =
               Number(
                 productData.cost ??
-                  productData.min_price ??
-                  productData.mrp ??
                   productData.unitPrice ??
+                  productData.mrp ??
+                  productData.min_price ??
+                  0
+              ) || 0;
+            const minPrice =
+              Number(
+                productData.min_price ??
+                  productData.minPrice ??
+                  stock.min_price ??
+                  stock.minPrice ??
+                  0
+              ) || 0;
+            const mrp =
+              Number(
+                productData.mrp ??
+                  stock.mrp ??
+                  productData.MRP ??
+                  stock.MRP ??
                   0
               ) || 0;
             const sku =
@@ -278,6 +372,8 @@ const StockVerification = () => {
               name,
               sku,
               unitPrice: price,
+              minPrice,
+              mrp,
               currentStock: stockQty,
               currentstock: stockQty,
               batchNumber:
@@ -315,20 +411,19 @@ const StockVerification = () => {
       return () => {
         mounted = false;
       };
-    }, [formData.fromCenter]);
+    }, [formData.centerId]);
 
+    // Memoized product lists: static catalog or stock-specific entries
     const staticProducts = useMemo(() => getProducts?.() || [], []);
     const products = useMemo(() => {
-      if (formData.fromCenter) {
+      if (formData.centerId) {
         return centerProducts || [];
       }
       return staticProducts;
-    }, [centerProducts, formData.fromCenter, staticProducts]);
-    const selectedCenterLabel = centers.find(
-      (c) => String(c.id) === String(formData.fromCenter)
-    )?.name;
-    // const suppliers = getSuppliers();
-
+    }, [centerProducts, formData.centerId, staticProducts]);
+    const selectedCenterLabel = formData.centerName ||
+      centers.find((c) => String(c.id) === String(formData.centerId))?.name;
+    // Visible suggestions for the product typeahead
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
       if (!q) return products.slice(0, 8);
@@ -341,27 +436,24 @@ const StockVerification = () => {
         .slice(0, 8);
     }, [entry.productName, products]);
 
-    const tableTotal = useMemo(() => {
-      return items.reduce((acc, it) => {
-        const qty = Number(it.quantity) || 0;
-        const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
-        const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
-      }, 0);
-    }, [items]);
-
-    useEffect(() => {
-      setFormData((p) => ({ ...p, amount: tableTotal }));
-    }, [tableTotal]);
-
     const validateForm = () => {
       const e = {};
       if (!formData.id) e.id = "Invoice number not generated";
-      if (!formData.fromCenter.trim()) e.fromCenter = "Center is required";
-      if (!formData.date) e.date = "Date is required";
-      if ((items?.length || 0) === 0) e.items = "Add at least one item";
+      if (!formData.centerId.trim()) e.fromCenter = "Center is required";
+      if (!formData.date) {
+        e.date = "Date is required";
+      }
+      if ((items?.length || 0) === 0) {
+        e.items = "Add at least one item";
+      } else {
+        const invalidItem = items.find((it) => {
+          const qty = Number(it.quantity);
+          return !it.name?.trim() || Number.isNaN(qty) || qty < 1;
+        });
+        if (invalidItem) {
+          e.items = "Each item must have a name and a quantity of at least 1";
+        }
+      }
       setErrors(e);
       return Object.keys(e).length === 0;
     };
@@ -373,10 +465,21 @@ const StockVerification = () => {
         : products.find(
             (p) => (p.name || "").toLowerCase() === name.toLowerCase()
           );
+      const catalogProduct = staticProducts.find((p) => {
+        if (entry.productId) return String(p.id) === String(entry.productId);
+        if (selected?.id) return String(p.id) === String(selected.id);
+        return (p.name || "").toLowerCase() === name.toLowerCase();
+      });
       const qty = Math.max(1, Number(entry.quantity) || 1);
       const unitPrice = selected
-        ? Number(selected.unitPrice) || 0
-        : Number(entry.unitPrice) || 0;
+        ? Number(selected.unitPrice) || Number(catalogProduct?.unitPrice) || 0
+        : Number(entry.unitPrice) || Number(catalogProduct?.unitPrice) || 0;
+      const minPrice = selected
+        ? Number(selected.min_price ?? selected.minPrice ?? catalogProduct?.min_price ?? catalogProduct?.minPrice ?? 0) || 0
+        : Number(catalogProduct?.min_price ?? catalogProduct?.minPrice ?? 0) || 0;
+      const mrp = selected
+        ? Number(selected.mrp ?? catalogProduct?.mrp ?? catalogProduct?.MRP ?? 0) || 0
+        : Number(catalogProduct?.mrp ?? catalogProduct?.MRP ?? 0) || 0;
       if (!name) {
         setErrors((prev) => ({
           ...prev,
@@ -389,13 +492,15 @@ const StockVerification = () => {
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
-        discount: 0,
-        discountEnabled: false,
-        mrp: selected ? Number(selected.mrp) || 0 : 0,
+        mrp,
+        minPrice,
         currentStock: selected ? selected.currentstock || 0 : 0,
+        batchNumber: selected
+          ? selected.batchNumber || selected.batch_number || selected.batch || ""
+          : entry.batchNumber || "",
       };
       setItems((prev) => [...prev, newItem]);
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, batchNumber: "" });
       setShowSuggestions(false);
       setActiveIndex(-1);
       setErrors((prev) => ({ ...prev, productName: undefined }));
@@ -415,41 +520,63 @@ const StockVerification = () => {
       if (!validateForm()) return;
 
       const firstItem = items[0];
-      const computedAmount = items.reduce((acc, it) => {
-        const qty = Number(it.quantity) || 0;
-        const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
-        const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
-      }, 0);
 
       const invoiceData = {
         ...formData,
-        amount: computedAmount || formData.amount,
         items,
         productName: firstItem ? firstItem.name : "",
         quantity: firstItem ? firstItem.quantity : 0,
       };
 
-      // Directly add invoice, no payment modal
+     //for submitting
       setIsSubmitting(true);
       try {
-        // create a Stock Verification entry and persist
-        const newVerification = addStockVerification({
+        // Build the exact payload we'll send, include createdBy fallback
+        const payload = {
           ...invoiceData,
           verificationNumber: nextStId,
-        });
-        setTransfers((prev) => [...prev, newVerification]);
+          // include user details (full object) and user id for backend
+          createdBy: user ?? (formData.createdBy ?? ""),
+          created_by: user?.id ?? (formData.createdBy ?? ""),
+        };
+
+        // Snapshot the payload for reliable console logging (avoids DevTools live-object confusion)
+        try {
+          console.log("Stock Verification Payload", JSON.parse(JSON.stringify(payload)));
+        } catch (err) {
+          // fallback if serialization fails
+          console.warn("Failed to stringify payload", err);
+          console.log("Stock Verification Payload", payload);
+        }
+
+        // send the payload to backend using the service function
+        try {
+          await createStockVerification(payload);
+        } catch (err) {
+          console.error("Failed to create stock verification on server:", err);
+          // surface a generic error to the user
+          setErrors((prev) => ({
+            ...prev,
+            submit: err?.message || "Failed to create stock verification",
+          }));
+          return;
+        }
+        lastCreatedStvRef.current = nextStId;
+        if (typeof window !== "undefined") {
+          try {
+            window.localStorage.setItem(LAST_STV_STORAGE_KEY, nextStId);
+          } catch {
+            /* ignore */
+          }
+        }
         const nextIdForReset = await refreshNextStockVerificationId();
         setErrors({});
         setFormData({
           id: nextIdForReset || nextStId || "",
-          fromCenter: "",
-          toCenter: "",
+          centerId: "",
+          centerName: "",
           date: new Date().toISOString().split("T")[0],
-          status: "pending",
-          amount: 0,
+          status: "completed",
           productName: "",
           quantity: 0,
         });
@@ -459,10 +586,11 @@ const StockVerification = () => {
       }
     };
 
-    // finalizeInvoiceWithPayment removed
+  
 
     return (
       <>
+        {/* Header area describing the verification workflow */}
         <div className="bg-slate-50 rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
@@ -473,29 +601,30 @@ const StockVerification = () => {
                 Verification ID:{" "}
                 <span>
                   {isFetchingNextId
-                    ? "Generating ID..."
-                    : nextStId || "Fetching next ID..."}
+                    ? "Loading Number..."
+                    : nextStId || "Loading Number..."}
                 </span>
               </div>
+              <p className="text-slate-600 mt-2 text-sm sm:text-base">
+                Efficiently manage and track your stock verifications across centers.
+              </p>
               {nextIdError && (
                 <p className="text-red-600 text-sm mt-1 font-medium">
                   {nextIdError}
                 </p>
               )}
-              <p className="text-slate-600 mt-2 text-sm sm:text-base">
-                Efficiently manage and track your stock verifications across
-                centers ({transfers.length} recorded)
-              </p>
             </div>
           </div>
         </div>
 
+        {/* Main form surface */}
         <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-slate-900 border-b border-slate-200 pb-4">
             Create New Stock Verification
           </h3>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-6 mb-6 sm:mb-8">
+              {/* Date/center selectors */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -531,13 +660,16 @@ const StockVerification = () => {
                     Center *
                   </label>
                   <select
-                    value={formData.fromCenter}
-                    onChange={(e) =>
+                    value={formData.centerId}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      const match = centers.find((c) => String(c.id) === String(nextId));
                       setFormData((prev) => ({
                         ...prev,
-                        fromCenter: e.target.value,
-                      }))
-                    }
+                        centerId: nextId,
+                        centerName: match?.name || "",
+                      }));
+                    }}
                     disabled={centersLoading}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                       errors.fromCenter
@@ -545,15 +677,16 @@ const StockVerification = () => {
                         : "border-slate-300 bg-slate-50 hover:border-slate-400"
                     }`}
                   >
-                    <option value="">
-                      {centersLoading ? "Loading centers..." : "Select a center"}
-                    </option>
+                    <option value="">{centersLoading ? "Loading centers..." : "Select a center"}</option>
                     {centers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </select>
+                  {formData.centerName && (
+                    <p className="text-sm text-slate-600">Center Name: {formData.centerName}</p>
+                  )}
                   {errors.fromCenter && (
                     <p className="text-red-600 text-sm mt-1 font-medium">
                       {errors.fromCenter}
@@ -568,6 +701,7 @@ const StockVerification = () => {
               </div>
 
               {/* Product Section - SalesOrder-like entry */}
+              {/* Product picker and item table */}
               <div className="mb-6 sm:mb-8 bg-slate-50 rounded-lg p-6 border border-slate-200">
                 <h4 className="text-lg sm:text-xl font-semibold text-slate-900 mb-6 border-b border-slate-200 pb-4">
                   Product Details
@@ -608,6 +742,7 @@ const StockVerification = () => {
                               productName: p.name,
                               quantity: 1,
                               unitPrice: Number(p.unitPrice) || 0,
+                              batchNumber: p.batchNumber || p.batch_number || p.batch || "",
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
@@ -631,6 +766,7 @@ const StockVerification = () => {
                             ...p,
                             productId: "",
                             productName: val,
+                            batchNumber: "",
                           }));
                           setShowSuggestions(true);
                           setActiveIndex(-1);
@@ -663,6 +799,7 @@ const StockVerification = () => {
                                   productName: p.name,
                                   quantity: 1,
                                   unitPrice: Number(p.unitPrice) || 0,
+                                  batchNumber: p.batchNumber || p.batch_number || p.batch || "",
                                 });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
@@ -691,7 +828,7 @@ const StockVerification = () => {
                         {errors.productName}
                       </p>
                     )}
-                    {formData.fromCenter && centerProductsLoading && (
+                    {formData.centerId && centerProductsLoading && (
                       <p className="text-sm text-slate-500 mt-2">
                         Loading stock for {selectedCenterLabel || "selected center"}...
                       </p>
@@ -735,6 +872,18 @@ const StockVerification = () => {
                               </th>
                               <th
                                 scope="col"
+                                className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider"
+                              >
+                                Batch No
+                              </th>
+                              <th
+                                scope="col"
+                                className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider"
+                              >
+                                Unit Price
+                              </th>
+                              <th
+                                scope="col"
                                 className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider"
                               >
                                 Quantity
@@ -758,6 +907,12 @@ const StockVerification = () => {
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-sm text-slate-900 font-semibold">
                                   {it.name}
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+                                  {it.batchNumber ? it.batchNumber : "-"}
+                                </td>
+                                <td className="px-4 sm:px-6 py-4 text-right text-sm text-slate-700 whitespace-nowrap font-semibold">
+                                  {`LKR ${Number(it.unitPrice || 0).toFixed(2)}`}
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                   <input
@@ -795,6 +950,7 @@ const StockVerification = () => {
                 )}
               </div>
 
+              {/* Submit action */}
               <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 pt-6 border-t border-slate-200">
                 <button
                   type="submit"
@@ -822,5 +978,17 @@ const StockVerification = () => {
       </>
     );
   };
+
+  return (
+    <div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <section aria-label="Create new stock verification">
+          <InlineNewInvoiceForm nextStId={nextStId} />
+        </section>
+      </div>
+    </div>
+  );
+};
+
 
 export default StockVerification;

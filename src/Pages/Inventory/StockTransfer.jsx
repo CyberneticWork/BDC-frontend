@@ -3,7 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import {createStockTransfer,getProducts,fetchStockTransfers,getNextStockTransfer,} from "../../services/Inventory/inventoryService";
 import { fetchCenters } from "../../services/Inventory/centerService";
 import { useAuth } from "../../contexts/AuthContext";
-// Payment component removed
+
 
 const extractNextTransferNumber = (resp) => {
   if (!resp) return "";
@@ -518,7 +518,7 @@ const StockTransfer = () => {
               </h1>
               <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
                 Transfer ID:{" "}
-                {isFetchingNextId ? "Fetching..." : nextStId || "—"}
+                {isFetchingNextId ? "Loading Number..." : nextStId || "—"}
               </div>
               {nextIdError && (
                 <p className="text-red-600 text-sm mt-1" role="alert">
