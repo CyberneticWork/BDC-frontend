@@ -627,10 +627,15 @@ const SalesReturn = () => {
           const resolvedName =
             item["Product Name"] ??
             item.productName ??
-            item.product_name ??
+            item.product?.name ??
+            item.product?.product_name ??
+            item.product?.title ??
+            item.product?.productName ??
+            item.product?.productTitle ??
             item.name ??
             item.itemName ??
             item.description ??
+            item.inventoryItem?.name ??
             `Item ${idx + 1}`;
 
           // Unit price / cost: prefer explicit unit price fields
@@ -762,7 +767,12 @@ const SalesReturn = () => {
 
           return {
             id: `${baseId}-${idx}`,
-            productId: item.productId ?? item.product_id ?? item.id ?? null,
+            productId:
+              item.productId ??
+              item.product_id ??
+              item.product?.id ??
+              item.id ??
+              null,
             productName: resolvedName,
             quantity: qty,
             unitPrice,

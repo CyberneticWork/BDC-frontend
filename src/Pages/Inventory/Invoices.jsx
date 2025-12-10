@@ -246,8 +246,21 @@ const Invoices = () => {
             );
           };
 
+          const isReferenceOrder = (order) => {
+            const refFlag =
+              order.is_ref ??
+              order.isRef ??
+              order?.isReference ??
+              order?.is_reference ??
+              null;
+            return String(refFlag ?? "").trim() === "1";
+          };
+
           if (centerKey || centerNameKey || nameKey || emailKey) {
             filtered = list.filter((order) => {
+              // Exclude any orders marked as a reference (is_ref === 1)
+              if (isReferenceOrder(order)) return false;
+              // Only include completed orders
               if (!isCompletedOrder(order)) return false;
               const orderCenters = [
                 order.centerId,
@@ -752,8 +765,6 @@ const Invoices = () => {
         return;
       }
       // If the sales order carries an overall discount value, distribute it
-      // across mapped items. Prefer proportional distribution by line total;
-      // fallback to equal-per-quantity distribution when totals are zero.
       try {
         const rawOrderDiscount =
           order.discountValue ??
