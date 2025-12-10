@@ -1,7 +1,6 @@
 import React, {useCallback,useEffect,useMemo,useRef,useState,} from "react";
 import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-
 import { getSalesOrders } from "../../services/AccountingService";
 import {getProducts,getCustomers,fetchInvoices,getNextSalesReturn,createSalesReturn,} from "../../services/Inventory/inventoryService"; // dummy data inventoryService.js
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
@@ -423,7 +422,7 @@ const SalesReturn = () => {
     }, [entry.productName, products]);
 
     // Parse discount input (supports percentage or fixed amount)
-    const parseDiscount = (input, base) => {
+    const parseDiscount = useCallback((input, base) => {
       const s = String(input || "").trim();
       if (!s) return 0;
       if (s.endsWith("%")) {
@@ -434,7 +433,33 @@ const SalesReturn = () => {
       const amt = parseFloat(s);
       if (!isFinite(amt) || amt <= 0) return 0;
       return Math.min(base, amt);
-    };
+    }, []);
+
+    const parseAbsoluteValue = useCallback((value) => {
+      const num = Number(String(value ?? "").replace(/[^0-9.-]+/g, ""));
+      return Number.isFinite(num) ? num : 0;
+    }, []);
+
+    const resolveFirstPositiveValue = useCallback(
+      (values) => {
+        for (const candidate of values || []) {
+          const parsed = Math.max(0, parseAbsoluteValue(candidate));
+          if (parsed > 0) return parsed;
+        }
+        return 0;
+      },
+      [parseAbsoluteValue]
+    );
+
+    const computeLineDiscountAmount = useCallback(
+      (it) => {
+        const qty = Number(it.quantity) || 0;
+        const unit = Number(it.unitPrice) || 0;
+        const gross = qty * unit;
+        return parseDiscount(it.discountInput, gross);
+      },
+      [parseDiscount]
+    );
 
     // Calculate totals from items
     const { subtotal, discountTotal } = useMemo(() => {
@@ -444,23 +469,15 @@ const SalesReturn = () => {
         const qty = Number(it.quantity) || 0;
         const price = Number(it.unitPrice) || 0;
         const gross = qty * price;
-        const dAmt = parseDiscount(it.discountInput, gross);
+        const dAmt = computeLineDiscountAmount(it);
         disc += dAmt;
         sub += Math.max(0, gross - dAmt);
       }
       return { subtotal: sub, discountTotal: disc };
-    }, [items]);
+    }, [items, computeLineDiscountAmount]);
 
-    // Calculate tax (10% of subtotal)
-    const tax = useMemo(() => {
-      return (subtotal || 0) * 0.1;
-    }, [subtotal]);
-
-    // Calculate final total amount
-    const totalAmount = useMemo(
-      () => Math.max(0, subtotal) + tax,
-      [subtotal, tax]
-    );
+    // Visible total should match table subtotal (no tax)
+    const totalAmount = Math.max(0, subtotal);
 
     // ===== VALIDATION =====
     // Validate form before submission
@@ -549,7 +566,28 @@ const SalesReturn = () => {
         ? Number(selected.unitPrice) || 0
         : Number(entry.unitPrice) || 0;
       const currentStock = selected ? Number(selected.currentstock) || 0 : 0;
-      const mrp = selected ? Number(selected.mrp) || 0 : 0;
+      const candidateMrp =
+        (selected?.mrp ??
+          selected?.MRP ??
+          selected?.mrpPrice ??
+          selected?.mrp_price ??
+          selected?.unitPrice ??
+          selected?.price ??
+          selected?.amount ??
+          entry.unitPrice ??
+          0);
+      const mrpCandidate = Math.max(0, parseAbsoluteValue(candidateMrp));
+      const mrp = mrpCandidate || unitPrice;
+      const minPrice =
+        resolveFirstPositiveValue([
+          selected?.min_price,
+          selected?.minPrice,
+          selected?.min_price_value,
+          selected?.minPriceValue,
+          selected?.minPriceAmount,
+          entry.unitPrice,
+          selected?.min_price_amount,
+        ]) || unitPrice;
       const e = {};
       if (!name) e.productName = "Product is required";
       if (unitPrice < 0) e.unitPrice = "Unit price cannot be negative";
@@ -565,7 +603,9 @@ const SalesReturn = () => {
           unitPrice: Math.max(0, unitPrice),
           currentStock,
           mrp,
+          minPrice,
           discountInput: "",
+          discountEditable: true,
           batchNumber: isBatchEnabled ? entry.batchNumber || "" : undefined,
         },
       ]);
@@ -584,7 +624,8 @@ const SalesReturn = () => {
         prev.map((it) => {
           if (it.id !== id) return it;
           if (field === "discountInput") {
-            return { ...it, discountInput: String(rawValue || "") };
+            if (it.discountEditable === false) return it;
+            return { ...it, discountInput: String(rawValue || ""), discount: undefined };
           }
           if (field === "batchNumber") {
             return { ...it, batchNumber: String(rawValue || "") };
@@ -653,35 +694,57 @@ const SalesReturn = () => {
           );
 
           // MRP: prefer explicit MRP field or many possible variants; parse to number robustly
-          const rawMrp =
-            item.mrp ??
-            item.MRP ??
-            item.mrp_price ??
-            item.mrpPrice ??
-            item["MRP"] ??
-            item["mrp"] ??
-            item.mrp_value ??
-            item.mrp_amt ??
-            item.mrpAmount ??
-            item.unitPrice ??
-            item.unit_price ??
-            item.price ??
-            item.amount ??
-            0;
-          const mrp =
-            Number(String(rawMrp || "0").replace(/[^0-9.-]+/g, "")) || 0;
-
-          // Discount: prefer explicit discount column names and parse robustly
-          const rawDiscount =
-            item.discount ??
-            item.discountAmount ??
-            item.lineDiscountAmount ??
-            item.discount_value ??
-            item["Discount"] ??
-            item.discountValue ??
-            0;
-          const discountAmount =
-            Number(String(rawDiscount || "0").replace(/[^0-9.-]+/g, "")) || 0;
+          const mrpSources = [
+            item.mrp,
+            item.MRP,
+            item.mrp_price,
+            item.mrpPrice,
+            item["MRP"],
+            item["mrp"],
+            item.mrp_value,
+            item.mrp_amt,
+            item.mrpAmount,
+            item.product?.mrp,
+            item.product?.MRP,
+            item.product?.mrpPrice,
+            item.product?.mrp_price,
+            item.product?.mrpAmount,
+            item.product?.price,
+            item.product?.amount,
+            item.unitPrice,
+            item.unit_price,
+            item.price,
+            item.amount,
+          ];
+          let mrpValue = 0;
+          for (const candidate of mrpSources) {
+            const parsed = Math.max(0, parseAbsoluteValue(candidate));
+            if (parsed > 0) {
+              mrpValue = parsed;
+              break;
+            }
+          }
+          const mrp = mrpValue || Number(unitPrice) || 0;
+          const minPriceSources = [
+            item.min_price,
+            item.minPrice,
+            item["min_price"],
+            item["minPrice"],
+            item.min_price_value,
+            item.minPriceValue,
+            item.min_price_amount,
+            item.minPriceAmount,
+            item.product?.min_price,
+            item.product?.minPrice,
+          ];
+          const minPrice =
+            resolveFirstPositiveValue([
+              ...minPriceSources,
+              item.unitPrice,
+              item.unit_price,
+              item.price,
+              item.amount,
+            ]) || Number(unitPrice) || 0;
 
           // Resolve current stock from invoice item fields or fallback to product data.
           // Use `null` as unknown sentinel so a value of 0 is accepted from the API.
@@ -765,6 +828,44 @@ const SalesReturn = () => {
                 null
               : null;
 
+          const discountFields = [
+            "discount",
+            "discountAmount",
+            "discountVale",
+            "discount_amt",
+            "discount_amount",
+            "discountValue",
+            "discount_value",
+            "discountPercent",
+            "discount_pct",
+            "discount_percentage",
+            "discountRate",
+            "discount_rate",
+            "disc",
+            "disc_amt",
+            "discountAmt",
+          ];
+
+          let rawDisc = null;
+          for (const k of discountFields) {
+            if (item[k] != null) {
+              rawDisc = item[k];
+              break;
+            }
+          }
+          if (rawDisc == null) {
+            for (const k of Object.keys(item || {})) {
+              if (/disc|discount/i.test(k)) {
+                rawDisc = item[k];
+                break;
+              }
+            }
+          }
+
+          const lineDiscount = parseAbsoluteValue(rawDisc);
+          const formattedDiscountInput =
+            lineDiscount > 0 ? String(Number(lineDiscount.toFixed(2))) : "";
+
           return {
             id: `${baseId}-${idx}`,
             productId:
@@ -778,7 +879,9 @@ const SalesReturn = () => {
             unitPrice,
             currentStock: stockVal,
             mrp: mrp,
-            discountInput: discountAmount > 0 ? discountAmount.toFixed(2) : "",
+            minPrice,
+            discountInput: formattedDiscountInput,
+            discountEditable: false,
             batchNumber:
               item.batchNumber ??
               item.batch_no ??
@@ -791,6 +894,52 @@ const SalesReturn = () => {
         .filter(Boolean);
 
       console.log("applyInvoiceToReturn - mapped items:", mapped);
+      // Apply invoice-level discount proportionally to each line item
+      try {
+        const rawInvoiceDiscount =
+          invoice.discountValue ??
+          invoice.discount_value ??
+          invoice.discountAmount ??
+          invoice.discount_amount ??
+          invoice.totalDiscount ??
+          invoice.total_discount ??
+          invoice.discountTotal ??
+          invoice.discount_total ??
+          invoice.discount ??
+          null;
+        const totalInvoiceDiscount =
+          rawInvoiceDiscount != null && isFinite(Number(rawInvoiceDiscount))
+            ? Math.max(0, Number(rawInvoiceDiscount))
+            : 0;
+        if (totalInvoiceDiscount > 0) {
+          const preTotal = mapped.reduce(
+            (s, r) => s + (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0),
+            0
+          );
+          const totalQty = mapped.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+          if (preTotal > 0) {
+            mapped.forEach((r) => {
+              const lineGross = (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0);
+              const lineShare = lineGross / preTotal;
+              const lineDiscountTotal = totalInvoiceDiscount * lineShare;
+              r.discountInput = lineDiscountTotal
+                ? String(Number(lineDiscountTotal.toFixed(2)))
+                : "";
+            });
+          } else if (totalQty > 0) {
+            mapped.forEach((r) => {
+              const qty = Number(r.quantity) || 0;
+              const lineShare = qty / totalQty;
+              const lineDiscountTotal = totalInvoiceDiscount * lineShare;
+              r.discountInput = lineDiscountTotal
+                ? String(Number(lineDiscountTotal.toFixed(2)))
+                : "";
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to apply invoice-level discount to return items:", err);
+      }
 
       if (!mapped.length) {
         setInvoiceFetchError(
@@ -860,13 +1009,15 @@ const SalesReturn = () => {
             const qty = Number(it.quantity) || 0;
             const price = Number(it.unitPrice) || 0;
             const gross = qty * price;
-            const dAmt = parseDiscount(it.discountInput, gross);
+            const lineDiscountAmount = computeLineDiscountAmount(it);
+            const sanitizedItem = { ...it };
+            delete sanitizedItem.discountEditable;
             return {
-              ...it,
+              ...sanitizedItem,
               lineGross: gross,
               lineDiscountInput: it.discountInput || "",
-              lineDiscountAmount: dAmt,
-              lineNet: Math.max(0, gross - dAmt),
+              lineDiscountAmount,
+              lineNet: Math.max(0, gross - lineDiscountAmount),
             };
           }),
           subtotal,
@@ -1326,9 +1477,7 @@ const SalesReturn = () => {
                                 {p.sku}
                               </span>
                               <span className="ml-auto text-xs text-slate-600 font-semibold">
-                                LKR {Number(p.unitPrice || 0).toFixed(2)} • MRP{" "}
-                                {Number(p.mrp || 0).toFixed(2)} • Stock{" "}
-                                {p.currentstock}
+                                LKR {Number(p.unitPrice || 0).toFixed(2)} • Stock {p.currentstock}
                               </span>
                             </li>
                           ))}
@@ -1406,9 +1555,6 @@ const SalesReturn = () => {
                               Qty
                             </th>
                             <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
-                              MRP
-                            </th>
-                            <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
                               Discount
                             </th>
                             <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -1424,10 +1570,7 @@ const SalesReturn = () => {
                             const rowQty = Number(it.quantity) || 0;
                             const rowPrice = Number(it.unitPrice) || 0;
                             const rowGross = rowQty * rowPrice;
-                            const rowDiscount = parseDiscount(
-                              it.discountInput,
-                              rowGross
-                            );
+                            const rowDiscount = computeLineDiscountAmount(it);
                             const rowTotal = Math.max(
                               0,
                               rowGross - rowDiscount
@@ -1477,11 +1620,8 @@ const SalesReturn = () => {
                                     className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-slate-50 hover:bg-white"
                                   />
                                 </td>
-                                <td className="px-4 sm:px-6 py-4 text-sm font-semibold text-slate-900 text-right whitespace-nowrap">
-                                  {formatLKR(it.mrp || 0)}
-                                </td>
-                                <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
-                                  <input
+                                  <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
+                                    <input
                                     type="text"
                                     value={it.discountInput || ""}
                                     onChange={(e) =>
@@ -1492,6 +1632,8 @@ const SalesReturn = () => {
                                       )
                                     }
                                     placeholder="0 or 5%"
+                                      readOnly={it.discountEditable === false}
+                                      disabled={it.discountEditable === false}
                                     className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
                                   />
                                 </td>

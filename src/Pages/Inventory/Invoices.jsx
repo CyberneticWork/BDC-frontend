@@ -573,15 +573,21 @@ const Invoices = () => {
       return 0;
     };
 
-    // Compute table total (includes discount per unit * quantity)
+    // Compute table totals using the stored line-level discount amount
     const tableTotal = React.useMemo(() => {
       return items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0; // per unit discount when enabled
+        const lineDiscount = (it.discountEnabled ? Number(it.discount) : 0) || 0;
         const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
+        return acc + Math.max(0, lineTotal - lineDiscount);
+      }, 0);
+    }, [items]);
+
+    const discountTotal = React.useMemo(() => {
+      return items.reduce((acc, it) => {
+        const lineDiscount = (it.discountEnabled ? Number(it.discount) : 0) || 0;
+        return acc + Math.max(0, lineDiscount);
       }, 0);
     }, [items]);
 
@@ -795,15 +801,15 @@ const Invoices = () => {
               const lineTotal = (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0);
               const lineShare = lineTotal / preTotal;
               const lineDiscountTotal = totalOrderDiscount * lineShare;
-              const perUnit = lineDiscountTotal / Math.max(1, Number(r.quantity) || 1);
-              r.discount = (Number(r.discount) || 0) + Number(perUnit.toFixed(2));
-              r.discountEnabled = (Number(r.discount) || 0) > 0;
+              r.discount = Number(lineDiscountTotal.toFixed(2));
+              r.discountEnabled = Number(lineDiscountTotal) > 0;
             });
           } else if (totalQty > 0) {
-            const perUnit = Number((totalOrderDiscount / totalQty).toFixed(2));
+            const perRow = Number((totalOrderDiscount / totalQty).toFixed(2));
             mappedItems.forEach((r) => {
-              r.discount = (Number(r.discount) || 0) + perUnit;
-              r.discountEnabled = (Number(r.discount) || 0) > 0;
+              const lineDiscountTotal = perRow * (Number(r.quantity) || 0);
+              r.discount = Number(lineDiscountTotal.toFixed(2));
+              r.discountEnabled = lineDiscountTotal > 0;
             });
           }
         }
@@ -921,7 +927,8 @@ const Invoices = () => {
       const defaultPerUnitDiscount = selectedDiscountLevel
         ? computePerUnitDiscountFromLevel(selectedDiscountLevel, unitPrice)
         : 0;
-      const defaultDiscountEnabled = !!selectedDiscountLevel && defaultPerUnitDiscount > 0;
+      const defaultLineDiscount = defaultPerUnitDiscount * qty;
+      const defaultDiscountEnabled = !!selectedDiscountLevel && defaultLineDiscount > 0;
 
       const newItem = {
         id: Date.now(),
@@ -929,7 +936,7 @@ const Invoices = () => {
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
-        discount: defaultPerUnitDiscount,
+        discount: Math.max(0, defaultLineDiscount),
         discountEnabled: defaultDiscountEnabled,
         batchNumber: isBatchEnabled
           ? String(entry.batchNumber || "").trim()
@@ -975,10 +982,9 @@ const Invoices = () => {
       const computedAmount = items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0; // per unit discount when enabled
+        const lineDiscount = (it.discountEnabled ? Number(it.discount) : 0) || 0;
         const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
+        return acc + Math.max(0, lineTotal - lineDiscount);
       }, 0);
 
       const {
@@ -1005,7 +1011,7 @@ const Invoices = () => {
           batch_number: batchNumber,
           lineNumber: index + 1,
           line_number: index + 1,
-          line_total: (unitPrice - discountValue) * quantity,
+          line_total: Math.max(0, unitPrice * quantity - discountValue),
         };
         return base;
       });
@@ -1029,9 +1035,10 @@ const Invoices = () => {
 
       const invoiceData = {
         ...formWithoutLegacyFields,
-        // Ensure backend receives a dedicated center_id field
         center_id: centerId || (formWithoutLegacyFields.center_id ?? undefined),
         amount: computedAmount || formData.amount,
+        discountTotal: discountTotal,
+        discount_total: discountTotal,
         items: normalizedItems,
         batchTrackingEnabled: isBatchEnabled,
         batch_tracking_enabled: isBatchEnabled,
@@ -1066,17 +1073,18 @@ const Invoices = () => {
         const itemsWithTotals = (invoicePayload.items || []).map((it) => {
           const qty = Number(it.quantity) || 0;
           const unit = Number(it.unitPrice) || 0;
-          const disc = (it.discountEnabled ? Number(it.discount) : 0) || 0;
+          const lineDiscount = (it.discountEnabled ? Number(it.discount) : 0) || 0;
           const lineTotal = unit * qty;
-          const lineDiscount = disc * qty;
-          const rowTotal = lineTotal - lineDiscount;
+          const rowTotal = Math.max(0, lineTotal - lineDiscount);
+          const discountPerUnit = qty ? lineDiscount / qty : 0;
           return {
             name: it.name,
             productId: it.productId ?? "",
             quantity: qty,
             unitPrice: unit,
             discountEnabled: !!it.discountEnabled,
-            discountPerUnit: disc,
+            discountPerUnit,
+            discountAmount: lineDiscount,
             batchNumber: it.batchNumber ?? "",
             lineTotal,
             lineDiscount,
@@ -1391,6 +1399,9 @@ const Invoices = () => {
                   </p>
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(tableTotal)}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Discount: {formatLKR(discountTotal)}
                   </p>
                 </div>
               </div>
@@ -1720,7 +1731,7 @@ const Invoices = () => {
                               <th
                                 scope="col"
                                 className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider"
-                                title="Per unit discount when enabled"
+                                title="Line discount total when enabled"
                               >
                                 Discount
                               </th>
@@ -1739,13 +1750,11 @@ const Invoices = () => {
 
                           <tbody className="bg-white divide-y divide-slate-100">
                             {items.map((it, idx) => {
-                              const Discount =
-                                (Number(it.discount) || 0) *
-                                (Number(it.quantity) || 0);
-                              const Total =
-                                (Number(it.unitPrice) || 0) *
-                                (Number(it.quantity) || 0);
-                              const rowTotal = Total - Discount;
+                              const lineDiscount = Number(it.discount) || 0;
+                              const unitPrice = Number(it.unitPrice) || 0;
+                              const qty = Number(it.quantity) || 0;
+                              const lineTotal = unitPrice * qty;
+                              const rowTotal = Math.max(0, lineTotal - lineDiscount);
 
                               return (
                                 <tr
@@ -1819,31 +1828,31 @@ const Invoices = () => {
                                   {/* per-row discount toggle removed */}
 
                                   <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={it.discount}
-                                      onChange={(e) =>
-                                        updateItemField(
-                                          it.id,
-                                          "discount",
-                                          parseFloat(e.target.value) || 0
-                                        )
-                                      }
-                                      disabled={!it.discountEnabled}
-                                      aria-label={`Per-unit discount for ${it.name}`}
-                                      title={
-                                        !it.discountEnabled
-                                          ? "Enable discount in this row to edit"
-                                          : undefined
-                                      }
-                                      className={`w-24 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-60 ${
-                                        !it.discountEnabled
-                                          ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200"
-                                          : "border-slate-300 bg-slate-50 hover:bg-white"
-                                      }`}
-                                    />
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={it.discount}
+                                        onChange={(e) =>
+                                          updateItemField(
+                                            it.id,
+                                            "discount",
+                                            parseFloat(e.target.value) || 0
+                                          )
+                                        }
+                                        disabled={!it.discountEnabled}
+                                        aria-label={`Line discount amount for ${it.name}`}
+                                        title={
+                                          !it.discountEnabled
+                                            ? "Enable discount in this row to edit"
+                                            : undefined
+                                        }
+                                        className={`w-24 px-3 py-2 border-2 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-60 ${
+                                          !it.discountEnabled
+                                            ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200"
+                                            : "border-slate-300 bg-slate-50 hover:bg-white"
+                                        }`}
+                                      />
                                   </td>
 
                                   {/*total amount*/}

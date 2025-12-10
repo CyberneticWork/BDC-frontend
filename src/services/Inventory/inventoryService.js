@@ -1,10 +1,5 @@
-// inventoryService.js - Static data and functions for Inventory module
-
-// This service centralizes all Inventory-related dummy data and operations.
-// Pages: GRN, PurchaseOrder, PurchaseReturn, SalesReturn, StockTransfer, StockVerification, Invoices (if inventory invoices)
 
 import axios from "../../utils/axios";
-
 const inventoryData = {
   purchaseOrders: [
   ],
@@ -285,6 +280,18 @@ export const getNextPurchaseReturn = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching next Purchase Return number:", error);
+    throw error;
+  }
+};
+
+//fetch next auto-generate stock verification number (Preview only)
+export const getNextStockVerification = async () => {
+  try {
+    const response = await axios.get("/stockVerification/next");
+    return response.data;
+  }
+  catch (error) {
+    console.error("Error fetching next Stock Verification number:", error);
     throw error;
   }
 };

@@ -1,12 +1,84 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Plus, Trash2 } from "lucide-react";
-import {getProducts,getStockVerifications,addStockVerification,} from "../../services/Inventory/inventoryService";
+import { fetchCenters } from "../../services/Inventory/centerService";
+import {
+  getProducts,
+  getStockVerifications,
+  addStockVerification,
+  fetchStockTransfers,
+  getNextStockVerification,
+} from "../../services/Inventory/inventoryService";
+
+const makeDefaultStvNumber = () => {
+  const year = new Date().getFullYear();
+  return `STV-${year}-0001`;
+};
+
+const normalizeStvNumber = (value) => {
+  const str = String(value ?? "").trim();
+  if (!str) return null;
+  const yearSequenceMatch = str.match(/^STV-(\d{4})-(\d{1,})$/i);
+  if (yearSequenceMatch) {
+    return `STV-${yearSequenceMatch[1]}-${String(yearSequenceMatch[2]).padStart(
+      4,
+      "0"
+    )}`;
+  }
+  const sequenceOnlyMatch = str.match(/^STV-(\d+)$/i);
+  if (sequenceOnlyMatch) {
+    const year = new Date().getFullYear();
+    return `STV-${year}-${String(sequenceOnlyMatch[1]).padStart(4, "0")}`;
+  }
+  const digitsMatch = str.match(/^\d+$/);
+  if (digitsMatch) {
+    const year = new Date().getFullYear();
+    return `STV-${year}-${String(digitsMatch[0]).padStart(4, "0")}`;
+  }
+  if (str.toUpperCase().startsWith("STV-")) {
+    return str;
+  }
+  return null;
+};
+
+const extractNextVerificationNumber = (response) => {
+  if (!response) return null;
+  const buckets = [response, response?.data, response?.data?.data];
+  for (const bucket of buckets) {
+    if (!bucket) continue;
+    if (typeof bucket === "string") {
+      const normalized = normalizeStvNumber(bucket);
+      if (normalized) return normalized;
+    }
+    if (typeof bucket === "object") {
+      const candidates = [
+        bucket.next,
+        bucket.data,
+        bucket.data?.next,
+        bucket.number,
+        bucket.code,
+      ];
+      for (const candidate of candidates) {
+        const normalized = normalizeStvNumber(candidate);
+        if (normalized) return normalized;
+      }
+    }
+  }
+  return null;
+};
 // Payment component removed
 
 const StockVerification = () => {
   const [transfers, setTransfers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextStId, setNextStId] = useState("");
+  const [isFetchingNextId, setIsFetchingNextId] = useState(false);
+  const [nextIdError, setNextIdError] = useState("");
 
   useEffect(() => {
     // load verifications (we'll still keep transfers array name for compatibility with existing UI code)
@@ -14,36 +86,39 @@ const StockVerification = () => {
     setTransfers(verifs);
   }, []);
 
-  useEffect(() => {
-    // Derive next STV sequence from existing verifications (STV-XXXX)
-    const stvNums = transfers
-      .map((t) => {
-        const m = String(t.verificationNumber || t.id || "").match(
-          /^STV-(\d{4})$/i
-        );
-        return m ? parseInt(m[1], 10) : null;
-      })
-      .filter((n) => n !== null);
-    const next = stvNums.length ? Math.max(...stvNums) + 1 : 1;
-    setNextStId(`STV-${String(next).padStart(4, "0")}`);
-  }, [transfers]);
-
-  // formatLKR removed — amount display is no longer shown in the form UI
-
-  const InlineNewInvoiceForm = ({ nextStId }) => {
-    const [formData, setFormData] = useState({
-      id: "",
-      fromCenter: "",
-      toCenter: "",
-      date: new Date().toISOString().split("T")[0],
-      status: "pending",
-      amount: 0,
+  const refreshNextStockVerificationId = useCallback(async () => {
+    setIsFetchingNextId(true);
+    setNextIdError("");
+    try {
+      const response = await getNextStockVerification();
+      const next = extractNextVerificationNumber(response);
+      const finalNext = next || makeDefaultStvNumber();
+      setNextStId(finalNext);
+      return finalNext;
+    } catch (err) {
+      console.warn("Failed to fetch next stock verification number.", err);
+      setNextIdError(
+        err?.message || "Unable to fetch next stock verification number."
+      );
+      const fallback = makeDefaultStvNumber();
+      setNextStId(fallback);
+      return fallback;
+    } finally {
+      setIsFetchingNextId(false);
+    }
+  }, []);
       // kept for backward compatibility where needed
       productName: "",
       quantity: 0,
     });
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
+    const [centers, setCenters] = useState([]);
+    const [centersLoading, setCentersLoading] = useState(false);
+    const [centersError, setCentersError] = useState(null);
+    const [centerProducts, setCenterProducts] = useState([]);
+    const [centerProductsLoading, setCenterProductsLoading] = useState(false);
+    const [centerProductsError, setCenterProductsError] = useState(null);
     // Payment modal and pendingInvoice removed
 
     // Entry state and typeahead like SalesOrder page
@@ -61,9 +136,185 @@ const StockVerification = () => {
       setFormData((p) => ({ ...p, id: nextStId }));
     }, [nextStId]);
 
-    const centers = ["Main Center", "Branch A", "Branch B", "Warehouse 01"];
+    useEffect(() => {
+      let mounted = true;
+      const loadCenters = async () => {
+        setCentersLoading(true);
+        try {
+          const data = await fetchCenters();
+          if (!mounted) return;
+          const normalized = Array.isArray(data)
+            ? data
+                .map((center) => {
+                  if (!center) return null;
+                  if (typeof center === "string") {
+                    return { id: center, name: center };
+                  }
+                  const idValue =
+                    center.id ??
+                    center.center_id ??
+                    center.value ??
+                    center.centerId ??
+                    center.code ??
+                    center.name ??
+                    center.center?.id ??
+                    "";
+                  if (!idValue) return null;
+                  const nameValue =
+                    center.name ??
+                    center.center_name ??
+                    center.title ??
+                    center.value ??
+                    center.center?.name ??
+                    center.centerName ??
+                    String(idValue);
+                  return { id: String(idValue), name: nameValue };
+                })
+                .filter(Boolean)
+            : [];
+          if (!mounted) return;
+          setCenters(normalized);
+          setCentersError(null);
+        } catch (err) {
+          console.error("Failed to load centers:", err);
+          if (!mounted) return;
+          setCentersError(err?.message || String(err));
+          setCenters([]);
+        } finally {
+          if (mounted) setCentersLoading(false);
+        }
+      };
+      loadCenters();
+      return () => {
+        mounted = false;
+      };
+    }, []);
+
+    useEffect(() => {
+      let mounted = true;
+      const loadCenterProducts = async () => {
+        const centerId = formData.fromCenter;
+        if (!centerId) {
+          setCenterProducts([]);
+          setCenterProductsError(null);
+          setCenterProductsLoading(false);
+          return;
+        }
+        setCenterProductsLoading(true);
+        try {
+          const raw = await fetchStockTransfers({
+            params: { center: centerId, center_id: centerId },
+          });
+          const stocks = Array.isArray(raw)
+            ? raw
+            : raw?.data ?? raw?.data?.data ?? [];
+          const collected = [];
+          stocks.forEach((stock) => {
+            const stockCenterId =
+              stock.center_id ??
+              stock.centerId ??
+              stock.center?.id ??
+              stock.center ??
+              "";
+            if (!stockCenterId) return;
+            if (String(stockCenterId) !== String(centerId)) return;
+            const productData = stock.product ?? stock.productDetails ?? {};
+            const productId =
+              productData.id ??
+              stock.product_id ??
+              productData.product_id ??
+              stock.productId ??
+              stock.id ??
+              "";
+            const stockQty =
+              Number(
+                stock.quantity ??
+                  stock.qty ??
+                  productData.quantity ??
+                  productData.currentStock ??
+                  productData.currentstock ??
+                  0
+              ) || 0;
+            const price =
+              Number(
+                productData.cost ??
+                  productData.min_price ??
+                  productData.mrp ??
+                  productData.unitPrice ??
+                  0
+              ) || 0;
+            const sku =
+              productData.code ??
+              productData.barcode ??
+              productData.sku ??
+              stock.productCode ??
+              stock.batch_number ??
+              "";
+            const name =
+              productData.name ??
+              stock.productName ??
+              stock.name ??
+              `Product ${productId || ""}`;
+            collected.push({
+              id:
+                stock.id ??
+                `${productId}-${centerId}-${stock.batch_number ?? ""}`,
+              stockId: stock.id,
+              productId,
+              centerId: stockCenterId,
+              name,
+              sku,
+              unitPrice: price,
+              currentStock: stockQty,
+              currentstock: stockQty,
+              batchNumber:
+                stock.batch_number ??
+                stock.batchNumber ??
+                productData.batch_number ??
+                productData.batchNumber ??
+                "",
+            });
+          });
+          const seen = new Map();
+          const deduped = [];
+          collected.forEach((product) => {
+            const key =
+              product.stockId ??
+              `${product.productId}-${product.batchNumber ?? ""}-${product.centerId ?? ""}`;
+            if (!seen.has(String(key))) {
+              seen.set(String(key), true);
+              deduped.push(product);
+            }
+          });
+          if (!mounted) return;
+          setCenterProducts(deduped);
+          setCenterProductsError(null);
+        } catch (err) {
+          console.error("Failed to load center products:", err);
+          if (!mounted) return;
+          setCenterProductsError(err?.message || String(err));
+          setCenterProducts([]);
+        } finally {
+          if (mounted) setCenterProductsLoading(false);
+        }
+      };
+      loadCenterProducts();
+      return () => {
+        mounted = false;
+      };
+    }, [formData.fromCenter]);
+
+    const staticProducts = useMemo(() => getProducts?.() || [], []);
+    const products = useMemo(() => {
+      if (formData.fromCenter) {
+        return centerProducts || [];
+      }
+      return staticProducts;
+    }, [centerProducts, formData.fromCenter, staticProducts]);
+    const selectedCenterLabel = centers.find(
+      (c) => String(c.id) === String(formData.fromCenter)
+    )?.name;
     // const suppliers = getSuppliers();
-    const products = useMemo(() => getProducts?.() || [], []);
 
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
@@ -171,27 +422,16 @@ const StockVerification = () => {
       // Directly add invoice, no payment modal
       setIsSubmitting(true);
       try {
-        let nextIdForReset = null;
         // create a Stock Verification entry and persist
         const newVerification = addStockVerification({
           ...invoiceData,
           verificationNumber: nextStId,
         });
         setTransfers((prev) => [...prev, newVerification]);
-        // after adding, nextStId effect will run because transfers changed — but increment locally too
-        try {
-          const m = String(nextStId || "").match(/^STV-(\d{4})$/i);
-          const curr = m ? parseInt(m[1], 10) : 0;
-          const nextNum = curr + 1;
-          const nextId = `STV-${String(nextNum).padStart(4, "0")}`;
-          setNextStId(nextId);
-          nextIdForReset = nextId;
-        } catch {
-          // ignore
-        }
+        const nextIdForReset = await refreshNextStockVerificationId();
         setErrors({});
         setFormData({
-          id: nextIdForReset || nextStId,
+          id: nextIdForReset || nextStId || "",
           fromCenter: "",
           toCenter: "",
           date: new Date().toISOString().split("T")[0],
@@ -217,11 +457,21 @@ const StockVerification = () => {
                 Stock Verification Management
               </h1>
               <div className="text-blue-600 font-semibold mt-2 text-lg sm:text-xl">
-                Verification ID: {nextStId}
+                Verification ID:{" "}
+                <span>
+                  {isFetchingNextId
+                    ? "Generating ID..."
+                    : nextStId || "Fetching next ID..."}
+                </span>
               </div>
+              {nextIdError && (
+                <p className="text-red-600 text-sm mt-1 font-medium">
+                  {nextIdError}
+                </p>
+              )}
               <p className="text-slate-600 mt-2 text-sm sm:text-base">
                 Efficiently manage and track your stock verifications across
-                centers
+                centers ({transfers.length} recorded)
               </p>
             </div>
           </div>
@@ -275,22 +525,30 @@ const StockVerification = () => {
                         fromCenter: e.target.value,
                       }))
                     }
+                    disabled={centersLoading}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                       errors.fromCenter
                         ? "border-red-300 bg-red-50"
                         : "border-slate-300 bg-slate-50 hover:border-slate-400"
                     }`}
                   >
-                    <option value="">Select a center</option>
+                    <option value="">
+                      {centersLoading ? "Loading centers..." : "Select a center"}
+                    </option>
                     {centers.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                      <option key={c.id} value={c.id}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
                   {errors.fromCenter && (
                     <p className="text-red-600 text-sm mt-1 font-medium">
                       {errors.fromCenter}
+                    </p>
+                  )}
+                  {centersError && (
+                    <p className="text-red-600 text-sm mt-1 font-medium">
+                      Unable to load centers: {centersError}
                     </p>
                   )}
                 </div>
@@ -420,6 +678,16 @@ const StockVerification = () => {
                         {errors.productName}
                       </p>
                     )}
+                    {formData.fromCenter && centerProductsLoading && (
+                      <p className="text-sm text-slate-500 mt-2">
+                        Loading stock for {selectedCenterLabel || "selected center"}...
+                      </p>
+                    )}
+                    {centerProductsError && (
+                      <p className="text-red-600 text-sm mt-2">
+                        Unable to load stock for {selectedCenterLabel || "selected center"}: {centerProductsError}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-end">
                     <button
@@ -517,7 +785,7 @@ const StockVerification = () => {
               <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 pt-6 border-t border-slate-200">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isFetchingNextId || !nextStId}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-lg flex items-center justify-center gap-3 shadow-lg w-full sm:w-auto"
                 >
                   {isSubmitting ? (
@@ -543,7 +811,7 @@ const StockVerification = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <section aria-label="Create new stock verification">
           <InlineNewInvoiceForm nextStId={nextStId} />
