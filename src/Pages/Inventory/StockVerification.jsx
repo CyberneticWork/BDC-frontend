@@ -86,6 +86,12 @@ const StockVerification = () => {
     setTransfers(verifs);
   }, []);
 
+  // fetch next STV id on mount
+  useEffect(() => {
+    // attempt to fetch next id; errors are handled inside the function
+    refreshNextStockVerificationId().catch(() => {});
+  }, [refreshNextStockVerificationId]);
+
   const refreshNextStockVerificationId = useCallback(async () => {
     setIsFetchingNextId(true);
     setNextIdError("");
@@ -107,7 +113,14 @@ const StockVerification = () => {
       setIsFetchingNextId(false);
     }
   }, []);
-      // kept for backward compatibility where needed
+    // kept for backward compatibility where needed
+    const [formData, setFormData] = useState({
+      id: nextStId || "",
+      fromCenter: "",
+      toCenter: "",
+      date: new Date().toISOString().split("T")[0],
+      status: "pending",
+      amount: 0,
       productName: "",
       quantity: 0,
     });
@@ -809,16 +822,5 @@ const StockVerification = () => {
       </>
     );
   };
-
-  return (
-    <div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <section aria-label="Create new stock verification">
-          <InlineNewInvoiceForm nextStId={nextStId} />
-        </section>
-      </div>
-    </div>
-  );
-};
 
 export default StockVerification;
