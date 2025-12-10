@@ -751,6 +751,55 @@ const Invoices = () => {
         );
         return;
       }
+      // If the sales order carries an overall discount value, distribute it
+      // across mapped items. Prefer proportional distribution by line total;
+      // fallback to equal-per-quantity distribution when totals are zero.
+      try {
+        const rawOrderDiscount =
+          order.discountValue ??
+          order.discount_value ??
+          order.discountAmount ??
+          order.discount_amount ??
+          order.totalDiscount ??
+          order.total_discount ??
+          order.discountTotal ??
+          order.discount_total ??
+          order.discount ??
+          null;
+        const totalOrderDiscount =
+          rawOrderDiscount != null && isFinite(Number(rawOrderDiscount))
+            ? Math.max(0, Number(rawOrderDiscount))
+            : 0;
+        if (totalOrderDiscount > 0) {
+          const preTotal = mappedItems.reduce(
+            (s, r) => s + (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0),
+            0
+          );
+          const totalQty = mappedItems.reduce(
+            (s, r) => s + (Number(r.quantity) || 0),
+            0
+          );
+          if (preTotal > 0) {
+            mappedItems.forEach((r) => {
+              const lineTotal = (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0);
+              const lineShare = lineTotal / preTotal;
+              const lineDiscountTotal = totalOrderDiscount * lineShare;
+              const perUnit = lineDiscountTotal / Math.max(1, Number(r.quantity) || 1);
+              r.discount = (Number(r.discount) || 0) + Number(perUnit.toFixed(2));
+              r.discountEnabled = (Number(r.discount) || 0) > 0;
+            });
+          } else if (totalQty > 0) {
+            const perUnit = Number((totalOrderDiscount / totalQty).toFixed(2));
+            mappedItems.forEach((r) => {
+              r.discount = (Number(r.discount) || 0) + perUnit;
+              r.discountEnabled = (Number(r.discount) || 0) > 0;
+            });
+          }
+        }
+      } catch (err) {
+        // ignore and proceed without applying order-level discount
+        console.warn("Failed to apply order-level discount:", err);
+      }
       setItems(mappedItems);
       setIsBatchEnabled(mappedItems.some((row) => row.batchNumber));
       setEntry({
@@ -1656,13 +1705,7 @@ const Invoices = () => {
                               >
                                 Unit Price
                               </th>
-                              <th
-                                scope="col"
-                                className="px-4 sm:px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider"
-                                title="Enable per-row discount"
-                              >
-                                Disc On?
-                              </th>
+                              {/* Per-row discount toggle removed */}
                               <th
                                 scope="col"
                                 className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider"
@@ -1762,50 +1805,7 @@ const Invoices = () => {
                                     />
                                   </td>
 
-                                  {/*toggle button for discount enable*/}
-                                  <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      role="switch"
-                                      aria-checked={!!it.discountEnabled}
-                                      aria-disabled={it.discountEnabled}
-                                      disabled={it.discountEnabled}
-                                      onClick={() => {
-                                        if (it.discountEnabled) return; // one-time enable only
-                                        setItems((prev) =>
-                                          prev.map((row) =>
-                                            row.id === it.id
-                                              ? {
-                                                  ...row,
-                                                  discountEnabled: true,
-                                                }
-                                              : row
-                                          )
-                                        );
-                                      }}
-                                      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 ${
-                                        it.discountEnabled
-                                          ? "bg-slate-600 opacity-70 cursor-not-allowed"
-                                          : "bg-slate-300 hover:bg-slate-400"
-                                      }`}
-                                      title={
-                                        it.discountEnabled
-                                          ? "Discount enabled (locked)"
-                                          : "Enable discount for this row"
-                                      }
-                                    >
-                                      <span
-                                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${
-                                          it.discountEnabled
-                                            ? "translate-x-6"
-                                            : "translate-x-1"
-                                        }`}
-                                      />
-                                      <span className="sr-only">
-                                        Toggle discount
-                                      </span>
-                                    </button>
-                                  </td>
+                                  {/* per-row discount toggle removed */}
 
                                   <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                     <input
