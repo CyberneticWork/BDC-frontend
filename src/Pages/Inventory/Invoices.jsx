@@ -7,6 +7,7 @@ import {createINV,getNextInv,fetchSalesOrders,} from "../../services/Inventory/i
 import { useAuth } from "../../contexts/AuthContext";
 import Payment from "../../components/Inventory/Payment";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
+import discountLevelService from "../../services/Inventory/discountLevelService";
 
 const LAST_INVOICE_STORAGE_KEY = "inventory_last_invoice_id";
 
@@ -128,6 +129,7 @@ const Invoices = () => {
       center: "",
       customer: "",
       customerEmail: "",
+      customerId: "",
       date: new Date().toISOString().split("T")[0],
       status: "",
       refNumber: "",
@@ -162,6 +164,8 @@ const Invoices = () => {
     });
     const [isBatchEnabled, setIsBatchEnabled] = useState(false);
     const [salesOrderOptions, setSalesOrderOptions] = useState([]);
+    const [discountLevels, setDiscountLevels] = useState([]);
+    const [selectedDiscountLevel, setSelectedDiscountLevel] = useState(null);
     const [showSalesOrderModal, setShowSalesOrderModal] = useState(false);
     const [isSalesOrderLoading, setIsSalesOrderLoading] = useState(false);
     const [salesOrderFetchError, setSalesOrderFetchError] = useState("");
@@ -175,8 +179,8 @@ const Invoices = () => {
 
     // Opens the voucher selection modal filtered by the chosen center + customer
     const openSalesOrderPicker = useCallback(
-      async ({ centerId, centerName, customerName, customerEmail }) => {
-        if (!centerId || !customerName) return;
+      async ({ centerId, centerName, customerName, customerEmail, customerId }) => {
+        if (!centerId || !(customerName || customerId)) return;
         setSalesOrderContext({
           centerId,
           centerName,
@@ -215,11 +219,36 @@ const Invoices = () => {
           const emailKey = String(customerEmail || "")
             .trim()
             .toLowerCase();
+          const idCustomerKey = String(customerId || "").trim();
 
           let filtered = list;
           let fallbackApplied = false;
+
+          const orderStatusValue = (order) => {
+            const rawStatus =
+              order.status ??
+              order.orderStatus ??
+              order.order_status ??
+              order.state ??
+              order.approval_status ??
+              order.status?.name ??
+              "";
+            return String(rawStatus).trim().toLowerCase();
+          };
+
+          const isCompletedOrder = (order) => {
+            const status = orderStatusValue(order);
+            return (
+              status === "completed" ||
+              status === "complete" ||
+              status.includes("complete") ||
+              status === "done"
+            );
+          };
+
           if (centerKey || centerNameKey || nameKey || emailKey) {
             filtered = list.filter((order) => {
+              if (!isCompletedOrder(order)) return false;
               const orderCenters = [
                 order.centerId,
                 order.center_id,
@@ -267,25 +296,46 @@ const Invoices = () => {
               const customerCriteria = nameKey ? [nameKey] : [];
               const emailCriteria = emailKey ? [emailKey] : [];
 
+              const orderCustomerIds = [
+                order.customerId,
+                order.customer_id,
+                order.customer?.id,
+                order.customerDetails?.id,
+                order.customerDetails?.customer_id,
+                order?.customer?.customer_id,
+              ]
+                .map((v) => String(v ?? "").trim())
+                .filter(Boolean);
+
+              // If customerId is provided, require ID match. Otherwise require name/email match
+              const shouldMatchById = Boolean(idCustomerKey);
+
               const matchesCenter =
-                !centerCriteria.length ||
+                centerCriteria.length > 0 &&
                 orderCenters.some((value) => centerCriteria.includes(value));
+
+              if (shouldMatchById) {
+                const byId =
+                  orderCustomerIds.length > 0 && orderCustomerIds.includes(idCustomerKey);
+                return matchesCenter && byId;
+              }
+
               const matchesCustomer =
-                !customerCriteria.length ||
-                orderCustomers.some((value) =>
-                  customerCriteria.includes(value)
-                );
+                customerCriteria.length > 0 &&
+                orderCustomers.some((value) => customerCriteria.includes(value));
               const matchesEmail =
-                !emailCriteria.length ||
+                emailCriteria.length > 0 &&
                 orderEmails.some((value) => emailCriteria.includes(value));
 
-              return matchesCenter && matchesCustomer && matchesEmail;
+              // require both center and customer (by name or email)
+              const customerMatch = matchesCustomer || matchesEmail;
+              return matchesCenter && customerMatch;
             });
           }
 
           if (!filtered.length && list.length) {
-            filtered = list;
-            fallbackApplied = true;
+            // Do not fall back to showing other customers' orders.
+            filtered = [];
           }
 
           setSalesOrderOptions(filtered);
@@ -321,6 +371,19 @@ const Invoices = () => {
 
     useEffect(() => {
       // Load customers, centers, and products from services
+      let active = true;
+      const loadDiscountLevels = async () => {
+        try {
+          const list = await discountLevelService.getAll();
+          if (!active) return;
+          setDiscountLevels(Array.isArray(list) ? list : []);
+        } catch (err) {
+          console.debug("No discount levels available or failed to load", err);
+          if (!active) return;
+          setDiscountLevels([]);
+        }
+      };
+      loadDiscountLevels();
       const loadCustomers = async () => {
         try {
           setLoading((prev) => ({ ...prev, customers: true }));
@@ -391,7 +454,12 @@ const Invoices = () => {
       loadCustomers();
       loadCenters();
       loadInventory();
+      return () => {
+        active = false;
+      };
     }, []);
+
+    // When adding items, derive default per-unit discount from selected discount level
 
     useEffect(() => {
       // Recalculate the available product list whenever the selected center changes
@@ -466,14 +534,31 @@ const Invoices = () => {
         centerName: centerMeta?.name || "",
         customerName: context.customerName,
         customerEmail: context.customerEmail,
+        customerId: context.customerId,
       }).catch(() => {});
     }, [formData.center, centers, openSalesOrderPicker]);
 
     // Build customer options from fetched customers
     const availableCustomers = customers.map((c) => ({
+      id: c.id,
       name: c.name,
       email: c.email,
     }));
+
+    // Helper: compute per-unit discount from a discount level and unit price
+    const computePerUnitDiscountFromLevel = (level, unitPrice) => {
+      if (!level) return 0;
+      const rawPerc = level.percentage ?? level.percent ?? level.rate ?? null;
+      const rawAmt = level.amount ?? level.value ?? level.discount ?? null;
+      if (rawPerc != null && isFinite(Number(rawPerc))) {
+        return Math.round((Number(unitPrice || 0) * Number(rawPerc) / 100) * 100) / 100;
+      }
+      if (rawAmt != null && isFinite(Number(rawAmt))) {
+        // Treat numeric value as per-unit amount when sensible
+        return Math.round(Number(rawAmt) * 100) / 100;
+      }
+      return 0;
+    };
 
     // Compute table total (includes discount per unit * quantity)
     const tableTotal = React.useMemo(() => {
@@ -534,6 +619,7 @@ const Invoices = () => {
         pendingSalesOrderRef.current = {
           customerName: formData.customer,
           customerEmail: formData.customerEmail,
+          customerId: formData.customerId,
         };
       }
     };
@@ -546,6 +632,7 @@ const Invoices = () => {
           ...prev,
           customer: selected.name,
           customerEmail: selected.email,
+          customerId: selected.id,
         }));
         if (formData.center) {
           setSalesOrderInlineNotice("");
@@ -558,11 +645,13 @@ const Invoices = () => {
             centerName: centerMeta?.name || "",
             customerName: selected.name,
             customerEmail: selected.email,
+            customerId: selected.id,
           }).catch(() => {});
         } else {
           pendingSalesOrderRef.current = {
             customerName: selected.name,
             customerEmail: selected.email,
+            customerId: selected.id,
           };
           setSalesOrderInlineNotice(
             "Select a center to view matching sales orders."
@@ -609,22 +698,10 @@ const Invoices = () => {
                 0
             )
           );
-          const discountRaw = Number(
-            item.discountPerUnit ??
-              item.discount ??
-              item.discountAmount ??
-              item.lineDiscountAmount ??
-              0
-          );
-          const perUnitDiscount =
-            item.discountPerUnit != null
-              ? Math.max(0, Number(item.discountPerUnit) || 0)
-              : qty > 0
-              ? Math.max(0, discountRaw / qty)
-              : 0;
-          const normalizedDiscount = Number.isFinite(perUnitDiscount)
-            ? perUnitDiscount
-            : 0;
+          // When applying a sales order to an invoice we DO NOT inject
+          // per-row numeric discounts into the invoice table. Instead,
+          // prefer to set a discount level for the invoice (if provided
+          // on the sales order) and keep line discounts off.
           const resolvedName =
             item.productName ??
             item.name ??
@@ -656,8 +733,8 @@ const Invoices = () => {
             productName: resolvedName,
             quantity: qty,
             unitPrice,
-            discount: normalizedDiscount,
-            discountEnabled: normalizedDiscount > 0,
+            discount: 0,
+            discountEnabled: false,
             batchNumber:
               item.batchNumber ??
               item.batch_number ??
@@ -693,6 +770,32 @@ const Invoices = () => {
       }));
       setSalesOrderFetchError("");
       setShowSalesOrderModal(false);
+      // If the sales order carries a reference to a discount level, try to apply it
+      try {
+        const dlId =
+          order.discountLevelId ?? order.discount_level_id ?? order.discountLevel ?? order.discount_level ?? order.discount_level_id ?? null;
+        const dlCandidate =
+          (dlId && discountLevels.find((d) => String(d.id) === String(dlId))) ||
+          // fallback: try matching by name/title if order contains a level name
+          (order.discountLevelName || order.discount_level_name
+            ? discountLevels.find((d) => {
+                const n = String(d.name ?? d.title ?? d.label ?? "").toLowerCase();
+                return (
+                  n &&
+                  [order.discountLevelName, order.discount_level_name]
+                    .filter(Boolean)
+                    .map((s) => String(s).toLowerCase())
+                    .includes(n)
+                );
+              })
+            : null);
+
+        if (dlCandidate) {
+          setSelectedDiscountLevel(dlCandidate);
+        }
+      } catch {
+        // ignore matching errors
+      }
     };
 
     // Products are loaded from service in effect above
@@ -754,14 +857,20 @@ const Invoices = () => {
         return;
       }
 
+      // compute default discount per-unit from selected discount level (if any)
+      const defaultPerUnitDiscount = selectedDiscountLevel
+        ? computePerUnitDiscountFromLevel(selectedDiscountLevel, unitPrice)
+        : 0;
+      const defaultDiscountEnabled = !!selectedDiscountLevel && defaultPerUnitDiscount > 0;
+
       const newItem = {
         id: Date.now(),
         productId: selected ? selected.id : undefined,
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
-        discount: 0,
-        discountEnabled: false,
+        discount: defaultPerUnitDiscount,
+        discountEnabled: defaultDiscountEnabled,
         batchNumber: isBatchEnabled
           ? String(entry.batchNumber || "").trim()
           : null,
@@ -1223,6 +1332,44 @@ const Invoices = () => {
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(tableTotal)}
                   </p>
+                </div>
+              </div>
+
+              {/* Discount Level Selector */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Discount Level
+                </label>
+                <div className="flex items-center gap-4">
+                  <select
+                    value={selectedDiscountLevel?.id ?? ""}
+                    onChange={(e) => {
+                      const id = String(e.target.value || "");
+                      if (!id) {
+                        setSelectedDiscountLevel(null);
+                        return;
+                      }
+                      const found = discountLevels.find((d) => String(d.id) === id) || null;
+                      setSelectedDiscountLevel(found);
+                    }}
+                    className="px-4 py-3 border-2 border-slate-300 bg-slate-50 rounded-lg transition-colors w-72"
+                  >
+                    <option value="">No discount</option>
+                    {discountLevels.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name ?? d.title ?? d.label ?? `Level ${d.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedDiscountLevel && (
+                    <div className="text-sm text-slate-600">
+                      {selectedDiscountLevel.percentage || selectedDiscountLevel.percent
+                        ? `${selectedDiscountLevel.percentage ?? selectedDiscountLevel.percent}%`
+                        : selectedDiscountLevel.amount || selectedDiscountLevel.value
+                        ? `LKR ${selectedDiscountLevel.amount ?? selectedDiscountLevel.value}`
+                        : null}
+                    </div>
+                  )}
                 </div>
               </div>
 

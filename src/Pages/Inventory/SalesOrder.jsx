@@ -82,27 +82,25 @@ const SalesOrder = () => {
   }, [refreshNextSalesOrder]);
 
   useEffect(() => {
-    if (orders.length === 0 && !serverProvidedSo) {
+    if (serverProvidedSo) {
+      setNextSONumber(serverProvidedSo);
+      return;
+    }
+    if (orders.length === 0) {
       return;
     }
     // Compute next SO number from existing orders; accept with/without dash and preserve higher current state
     const nums = orders
       .map((o) => {
-        const m = String(o.orderNumber || "").match(/^SO-?(\d+)$/i);
-        return m ? parseInt(m[1], 10) : null;
+        const digits = String(o.orderNumber || "").replace(/[^0-9]/g, "");
+        return digits ? parseInt(digits, 10) : null;
       })
       .filter((n) => n !== null);
     const fromOrders = nums.length ? Math.max(...nums) + 1 : 1;
     setNextSONumber((prev) => {
-      // if server provided a value, prefer it (but keep numeric ordering if orders list shows higher)
-      const pm = String(prev || "").match(/^SO-?(\d+)$/i);
-      const prevNum = pm ? parseInt(pm[1], 10) : 0;
-      const serverNum = serverProvidedSo
-        ? String(serverProvidedSo).match(/^SO-?(\d+)$/i)
-          ? parseInt(String(serverProvidedSo).match(/^SO-?(\d+)$/i)[1], 10)
-          : 0
-        : 0;
-      const finalNum = Math.max(fromOrders, prevNum || 0, serverNum || 0);
+      const pm = String(prev || "").replace(/[^0-9]/g, "");
+      const prevNum = pm ? parseInt(pm, 10) : 0;
+      const finalNum = Math.max(fromOrders, prevNum || 0);
       return `SO-${String(finalNum).padStart(4, "0")}`;
     });
   }, [orders, serverProvidedSo]);
@@ -738,6 +736,9 @@ const SalesOrder = () => {
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(totalAmount)}
                   </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Discount: {formatLKR(discountTotal)}
+                  </p>
                 </div>
               </div>
 
@@ -1119,7 +1120,7 @@ const SalesOrder = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         <section aria-label="Create new sales order">
           <InlinePOForm nextSONumber={nextSONumber} createdById={createdById} />
@@ -1152,7 +1153,7 @@ const SalesOrder = () => {
         >
           <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
             <div className="flex items-start gap-4">
-              <CheckCircle className="h-7 w-7 text-green-600 flex-shrink-0" />
+              <CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-slate-900">
                   Success
