@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getPendingInvoices, approveInvoice, rejectInvoice } from "../../services/Inventory/pendingService";
+import { getPendingInvoices, postPendingInvoice } from "../../services/Inventory/pendingService";
 import { useAuth } from "../../contexts/AuthContext";
 
 const Pending = () => {
   const [pendingInvoices, setPendingInvoices] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedItems, setExpandedItems] = useState(new Set());
+  const [viewedDetails, setViewedDetails] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ action: null, invoice: null });
@@ -16,7 +17,7 @@ const Pending = () => {
   const confirmAction = () => {
     if (!confirmModal.action || !confirmModal.invoice) return;
     if (confirmModal.action === "approve") handleApprove(confirmModal.invoice);
-    if (confirmModal.action === "reject") handleReject(confirmModal.invoice.id);
+    if (confirmModal.action === "reject") handleReject(confirmModal.invoice);
     closeConfirmModal();
   };
 
@@ -37,7 +38,7 @@ const Pending = () => {
     load();
   }, []);
 
-  const handleApprove = (invoice) => {
+  const handleApprove = async (invoice) => {
     if (!invoice) return;
     const approverName =
       user?.name || user?.fullName || user?.username || user?.email || "Inventory Approver";
@@ -49,20 +50,67 @@ const Pending = () => {
       approved_by: approverName,
     };
     console.log("Approving invoice details:", updatedInvoice);
-    approveInvoice(invoice.id);
-    setPendingInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? updatedInvoice : inv)));
+    try {
+      await postPendingInvoice(updatedInvoice);
+      setPendingInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id));
+      setExpandedItems((prev) => {
+        const next = new Set(prev);
+        next.delete(invoice.id);
+        return next;
+      });
+      setViewedDetails((prev) => {
+        const next = new Set(prev);
+        next.delete(invoice.id);
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to submit approved invoice", err);
+    }
   };
 
-  const handleReject = (id) => {
-    rejectInvoice(id);
-    setPendingInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status: "rejected" } : inv)));
+  const handleReject = async (invoice) => {
+    if (!invoice) return;
+    const approverName =
+      user?.name || user?.fullName || user?.username || user?.email || "Inventory Approver";
+    const updatedInvoice = {
+      ...invoice,
+      status: "rejected",
+      is_confirmed: 1,
+      approvedBy: approverName,
+      approved_by: approverName,
+    };
+    console.log("Rejecting invoice details:", updatedInvoice);
+    try {
+      await postPendingInvoice(updatedInvoice);
+      setPendingInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id));
+      setExpandedItems((prev) => {
+        const next = new Set(prev);
+        next.delete(invoice.id);
+        return next;
+      });
+      setViewedDetails((prev) => {
+        const next = new Set(prev);
+        next.delete(invoice.id);
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to submit rejected invoice", err);
+    }
   };
 
   const toggleExpanded = (id) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        setViewedDetails((prevViewed) => {
+          const viewed = new Set(prevViewed);
+          viewed.add(id);
+          return viewed;
+        });
+      }
       return next;
     });
   };
@@ -231,20 +279,24 @@ const Pending = () => {
 
     
                 <div className="flex flex-wrap gap-2 mt-4">
-                  <button
-                    onClick={() => openConfirmModal("approve", inv)}
-                    disabled={inv.status && inv.status !== "pending"}
-                    className="flex-1 whitespace-nowrap rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => openConfirmModal("reject", inv)}
-                    disabled={inv.status && inv.status !== "pending"}
-                    className="flex-1 whitespace-nowrap rounded-2xl bg-rose-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-rose-500 disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
+                  {expandedItems.has(inv.id) && (
+                    <>
+                      <button
+                        onClick={() => openConfirmModal("approve", inv)}
+                        disabled={!(inv.status === null || inv.status === undefined || inv.status === "pending")}
+                        className="flex-1 whitespace-nowrap rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => openConfirmModal("reject", inv)}
+                        disabled={!(inv.status === null || inv.status === undefined || inv.status === "pending")}
+                        className="flex-1 whitespace-nowrap rounded-2xl bg-rose-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-rose-500 disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => toggleExpanded(inv.id)}
                     className="flex-1 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-900"
@@ -252,6 +304,11 @@ const Pending = () => {
                     {expandedItems.has(inv.id) ? "Hide Details" : "View Details"}
                   </button>
                 </div>
+                {!viewedDetails.has(inv.id) && (
+                  <p className="mt-2 text-[11px] text-amber-600 uppercase tracking-widest">
+                    View details before approving or rejecting
+                  </p>
+                )}
 
                 {expandedItems.has(inv.id) && (
                   <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">

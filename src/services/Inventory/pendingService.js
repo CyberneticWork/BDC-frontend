@@ -61,18 +61,18 @@ export const getPendingInvoices = async () => {
   }
 };
 
-// Approve invoice (placeholder - backend approve endpoint not present yet)
-export const approveInvoice = (id) => {
-  return { id, status: "approved" };
-};
-
-// Reject invoice (placeholder)
-export const rejectInvoice = (id) => {
-  return { id, status: "rejected" };
+export const postPendingInvoice = async (payload) => {
+  try {
+    const response = await axios.post("/inventory-approved", payload);
+    return normalizeInvoice(response.data);
+  }
+  catch (error) {
+    console.error("Error posting pending invoice:", error);
+    throw error.response?.data ?? error;
+  }
 };
 
 export default {
   getPendingInvoices,
-  approveInvoice,
-  rejectInvoice,
+  postPendingInvoice,
 };
