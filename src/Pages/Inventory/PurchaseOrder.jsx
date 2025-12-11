@@ -234,6 +234,7 @@ const PurchaseOrder = () => {
       quantity: 1,
       unitPrice: 0,
       minPrice: 0,
+      productDiscount: 0,
     });
     const [centers, setCenters] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
@@ -296,7 +297,11 @@ const PurchaseOrder = () => {
         const qty = Number(it.quantity) || 0;
         const price = Number(it.unitPrice) || 0;
         const gross = qty * price;
-        const dAmt = parseDiscount(it.discountInput, gross);
+        // prefer user-entered discountInput (parsed) as canonical amount;
+        // fall back to configured product_discount when discountInput is empty or parses to 0
+        const parsedFromInput = parseDiscount(it.discountInput, gross);
+        const productDisc = Number(it.product_discount) || 0;
+        const dAmt = parsedFromInput > 0 ? parsedFromInput : productDisc;
         disc += dAmt;
         sub += Math.max(0, gross - dAmt);
       }
@@ -369,6 +374,7 @@ const PurchaseOrder = () => {
           mrp,
           minPrice,
           discountInput: "",
+          product_discount: selected ? Number(selected.productDiscount || 0) : Number(entry.productDiscount || 0),
           attemptedOverMrp,
         },
       ]);
@@ -379,6 +385,7 @@ const PurchaseOrder = () => {
         quantity: 1,
         unitPrice: 0,
         minPrice: 0,
+        productDiscount: 0,
       });
     };
 
@@ -447,17 +454,23 @@ const PurchaseOrder = () => {
             const qty = Number(it.quantity) || 0;
             const price = Number(it.unitPrice) || 0;
             const gross = qty * price;
-            const dAmt = parseDiscount(it.discountInput, gross);
             const itemMinPrice = pickNumericValue(it.minPrice, it.min_price);
+            // Prefer user-entered discountInput (parsed to absolute amount) as canonical per-line discount;
+            // fall back to configured product_discount when input is empty
+            const parsedFromInput = parseDiscount(it.discountInput, gross);
+            const configuredProductDisc = Number(it.product_discount) || 0;
+            const productDisc = parsedFromInput > 0 ? parsedFromInput : configuredProductDisc;
             return {
               ...it,
+              // set product_discount to the final numeric discount amount that will be sent to backend
+              product_discount: productDisc,
               batchNumber: it.batchNumber || "",
               minPrice: itemMinPrice,
               min_price: itemMinPrice,
               lineGross: gross,
               lineDiscountInput: it.discountInput || "",
-              lineDiscountAmount: dAmt,
-              lineNet: Math.max(0, gross - dAmt),
+              lineDiscountAmount: productDisc,
+              lineNet: Math.max(0, gross - productDisc),
             };
           }),
           subtotal,
@@ -596,6 +609,14 @@ const PurchaseOrder = () => {
               p.qty_on_hand
             ),
             minPrice: extractProductMinPrice(p),
+            productDiscount: pickNumericValue(
+              p.product_discount,
+              p.discount,
+              p.discountPerUnit,
+              p.discount_per_unit,
+              p.default_discount,
+              0
+            ),
           }));
           setProducts(normalized);
         } catch (e) {
@@ -762,6 +783,9 @@ const PurchaseOrder = () => {
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(subtotal)}
                   </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total Discount: <span className="text-sm font-medium text-slate-700">{formatLKR(discountTotal)}</span>
+                  </p>
                 </div>
               </div>
 
@@ -822,6 +846,7 @@ const PurchaseOrder = () => {
                               quantity: 1,
                               unitPrice: extractProductUnitPrice(p),
                               minPrice: extractProductMinPrice(p),
+                              productDiscount: Number(p.productDiscount || 0),
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
@@ -879,6 +904,7 @@ const PurchaseOrder = () => {
                                   quantity: 1,
                                   unitPrice: extractProductUnitPrice(p),
                                   minPrice: extractProductMinPrice(p),
+                                  productDiscount: Number(p.productDiscount || 0),
                                 });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
@@ -981,10 +1007,10 @@ const PurchaseOrder = () => {
                             const rowQty = Number(it.quantity) || 0;
                             const rowPrice = Number(it.unitPrice) || 0;
                             const rowGross = rowQty * rowPrice;
-                            const rowDiscount = parseDiscount(
-                              it.discountInput,
-                              rowGross
-                            );
+                            // prefer parsed discountInput (user-entered) as canonical amount; fall back to product_discount
+                            const parsedRowDiscount = parseDiscount(it.discountInput, rowGross);
+                            const rowProductDisc = Number(it.product_discount) || 0;
+                            const rowDiscount = parsedRowDiscount > 0 ? parsedRowDiscount : rowProductDisc;
                             const rowTotal = Math.max(
                               0,
                               rowGross - rowDiscount

@@ -98,6 +98,7 @@ const GRN = () => {
       quantity: 1,
       unitPrice: 0,
       batchNumber: "",
+      productDiscount: 0,
     });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
@@ -208,6 +209,10 @@ const GRN = () => {
             ),
             mrp: Number(p.mrp ?? p.mrp_price ?? p.retail_price ?? p.price ?? 0),
             currentstock: p.currentstock ?? p.stock ?? p.qty ?? 0,
+            productDiscount:
+              Number(
+                p.product_discount ?? p.discount ?? p.discountPerUnit ?? p.discount_per_unit ?? 0
+              ) || 0,
           }));
           setProducts(normalized);
         } catch (e) {
@@ -372,21 +377,24 @@ const GRN = () => {
         .slice(0, 8);
     }, [entry.productName, products]);
 
-    const tableTotal = useMemo(() => {
-      return items.reduce((acc, it) => {
+    const { totalAmount, discountTotal } = useMemo(() => {
+      let totalAcc = 0;
+      let discAcc = 0;
+      for (const it of items) {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        // discount is optional and applied per-unit if present
-        const disc = Number(it.discount || 0) || 0;
-        const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
-      }, 0);
+        const gross = unit * qty;
+        // Treat `it.discount` as an absolute line discount amount (not per-unit)
+        const lineDiscount = Number(it.discount) || 0;
+        discAcc += lineDiscount;
+        totalAcc += Math.max(0, gross - lineDiscount);
+      }
+      return { totalAmount: totalAcc, discountTotal: discAcc };
     }, [items]);
 
     useEffect(() => {
-      setFormData((p) => ({ ...p, amount: tableTotal }));
-    }, [tableTotal]);
+      setFormData((p) => ({ ...p, amount: totalAmount }));
+    }, [totalAmount]);
 
     const validateForm = () => {
       const e = {};
@@ -541,6 +549,9 @@ const GRN = () => {
             quantity: qty,
             unitPrice: Math.max(0, unitPrice),
             discount: Math.max(0, Number(discountValue)),
+            product_discount: Number(
+              item.product?.product_discount ?? item.product_discount ?? item.product?.discount ?? 0
+            ) || 0,
             mrp: Number(item.mrp ?? item.maximumRetailPrice ?? 0),
             currentStock: Number(
               item.currentStock ?? item.current_stock ?? item.stock ?? 0
@@ -567,6 +578,7 @@ const GRN = () => {
         quantity: 1,
         unitPrice: 0,
         batchNumber: "",
+        productDiscount: 0,
       });
       setErrors((prev) => ({ ...prev, items: undefined }));
       setSubmitError("");
@@ -593,6 +605,9 @@ const GRN = () => {
       const unitPrice = selected
         ? Number(selected.costPrice) || Number(selected.unitPrice) || 0
         : Number(entry.unitPrice) || 0;
+      const productDiscount = selected
+        ? Number(selected.productDiscount || 0)
+        : Number(entry.productDiscount || 0) || 0;
       if (!name) {
         setErrors((prev) => ({
           ...prev,
@@ -651,6 +666,7 @@ const GRN = () => {
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
+        product_discount: productDiscount,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
         batchNumber: isBatchEnabled
@@ -664,6 +680,7 @@ const GRN = () => {
         quantity: 1,
         unitPrice: 0,
         batchNumber: "",
+        productDiscount: 0,
       });
       setShowSuggestions(false);
       setActiveIndex(-1);
@@ -692,14 +709,8 @@ const GRN = () => {
       setSubmitError("");
       if (!validateForm()) return;
 
-      const computedAmount = items.reduce((acc, it) => {
-        const qty = Number(it.quantity) || 0;
-        const unit = Number(it.unitPrice) || 0;
-        const disc = Number(it.discount || 0) || 0;
-        const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
-      }, 0);
+      // Use computed totalAmount (sum of line gross - line discount) as the GRN amount
+      const computedAmount = totalAmount;
 
       const itemsForPayload = items.map((item, index) => {
         const { rowId: _ROW_ID, id: legacyId, ...itemWithoutRowId } = item;
@@ -715,15 +726,21 @@ const GRN = () => {
             : resolvedProductId;
         const quantity = Number(itemWithoutRowId.quantity) || 0;
         const unitPrice = Number(itemWithoutRowId.unitPrice) || 0;
+        // `discount` is treated as an absolute per-line discount amount
         const discount = Number(itemWithoutRowId.discount) || 0;
         const mrp = Number(itemWithoutRowId.mrp) || 0;
-        const lineTotal = (unitPrice - discount) * quantity;
+        const lineGross = unitPrice * quantity;
+        const lineDiscount = Math.max(0, discount); // absolute line discount (not multiplied by qty)
+        const normalizedProductDiscount = lineDiscount || Number(itemWithoutRowId.product_discount) || 0;
+        const lineDiscountAmount = lineDiscount;
+        const lineNet = Math.max(0, lineGross - lineDiscount);
         const batchNumber = itemWithoutRowId.batchNumber
           ? String(itemWithoutRowId.batchNumber).trim()
           : null;
 
         return {
           ...itemWithoutRowId,
+          product_discount: normalizedProductDiscount,
           id: finalProductId,
           productId: finalProductId,
           product_id: finalProductId,
@@ -738,8 +755,11 @@ const GRN = () => {
           batch_number: batchNumber,
           lineNumber: index + 1,
           line_number: index + 1,
-          total: lineTotal,
-          line_total: lineTotal,
+          total: lineNet,
+          line_total: lineNet,
+            line_discount: lineDiscount,
+            lineDiscountAmount: lineDiscountAmount,
+            line_discount_amount: lineDiscountAmount,
         };
       });
 
@@ -755,6 +775,10 @@ const GRN = () => {
         items: itemsForPayload,
         batchTrackingEnabled: isBatchEnabled,
         batch_tracking_enabled: isBatchEnabled,
+        totalDiscount: discountTotal,
+        total_discount: discountTotal,
+        discountTotal,
+        discount_total: discountTotal,
       };
 
       setIsSubmitting(true);
@@ -1062,7 +1086,10 @@ const GRN = () => {
                     Total Amount
                   </p>
                   <p className="text-3xl sm:text-4xl font-bold text-slate-900">
-                    {formatLKR(tableTotal)}
+                    {formatLKR(totalAmount)}
+                  </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total Discount: <span className="text-sm font-medium text-slate-700">{formatLKR(discountTotal)}</span>
                   </p>
                 </div>
               </div>
@@ -1140,6 +1167,7 @@ const GRN = () => {
                               quantity: 1,
                               unitPrice: defaultUnit,
                               batchNumber: "",
+                              productDiscount: Number(p.productDiscount || 0),
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
@@ -1163,22 +1191,17 @@ const GRN = () => {
                             ...p,
                             productId: "",
                             productName: val,
+                            productDiscount: 0,
                           }));
                           setShowSuggestions(true);
                           setActiveIndex(-1);
                         }}
                         onBlur={() => {
+                          // Delay hiding to allow click selection
                           setTimeout(() => setShowSuggestions(false), 150);
                         }}
-                        disabled={!formData.center || loading.products}
-                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                          errors.productName
-                            ? "border-red-300 bg-red-50"
-                            : "border-slate-300 bg-white hover:border-slate-400"
-                        } ${
-                          loading.products || !formData.center
-                            ? "opacity-60 cursor-not-allowed"
-                            : ""
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white hover:border-slate-400 ${
+                          errors.productName ? "border-red-500" : "border-slate-300"
                         }`}
                         placeholder={
                           !formData.center
@@ -1219,6 +1242,7 @@ const GRN = () => {
                                     quantity: 1,
                                     unitPrice: defaultUnit,
                                     batchNumber: "",
+                                    productDiscount: Number(p.productDiscount || 0),
                                   });
                                   setShowSuggestions(false);
                                   setActiveIndex(-1);
@@ -1368,13 +1392,12 @@ const GRN = () => {
                           </thead>
                           <tbody className="bg-white divide-y divide-slate-100">
                             {items.map((it, idx) => {
-                              const Discount =
-                                (Number(it.discount) || 0) *
-                                (Number(it.quantity) || 0);
-                              const Total =
-                                (Number(it.unitPrice) || 0) *
-                                (Number(it.quantity) || 0);
-                              const rowTotal = Total - Discount;
+                              const qty = Number(it.quantity) || 0;
+                              const unit = Number(it.unitPrice) || 0;
+                              const gross = unit * qty;
+                              // treat `it.discount` as an absolute line discount amount
+                              const lineDiscount = Number(it.discount) || 0;
+                              const rowTotal = Math.max(0, gross - lineDiscount);
                               return (
                                 <tr
                                   key={it.rowId}
