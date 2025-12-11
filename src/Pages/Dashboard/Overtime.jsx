@@ -124,6 +124,13 @@ const Overtime = () => {
     return `${sign}${adjHours}h ${String(adjMinutes).padStart(2, "0")}m`;
   };
 
+  const formatCurrency = (val) => {
+    if (val === null || val === undefined) return "-";
+    const num = parseFloat(val);
+    if (isNaN(num)) return "-";
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   // small helper to compute total OT when backend doesn't provide it
   const computeTotalOt = (row) => {
     const a = parseFloat(row.morning_ot || 0) || 0;
@@ -369,11 +376,14 @@ const Overtime = () => {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Special OT
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      {/* <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Morning OT Rate
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Night OT Rate
+                      </th> */}
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Total OT Amount
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Approve OT
@@ -383,7 +393,7 @@ const Overtime = () => {
                   <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-gray-100">
                     {currentRows.length === 0 ? (
                       <tr>
-                        <td colSpan="15" className="px-6 py-8 text-center">
+                        <td colSpan="13" className="px-6 py-8 text-center">
                           <div className="flex flex-col items-center space-y-2">
                             <Search className="h-8 w-8 text-gray-300" />
                             <span className="text-sm text-gray-500">
@@ -453,11 +463,14 @@ const Overtime = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
                             {row.special_ot || "-"}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
+                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
                             {row.ot_morning_rate || "-"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
                             {row.ot_night_rate || "-"}
+                          </td> */}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                            {formatCurrency(row.total_ot_amount)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             <div className="flex items-center gap-3">

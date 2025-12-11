@@ -35,6 +35,11 @@ const ShiftModal = ({
     startTime: "",
     endTime: "",
     midnightRoster: false,
+    // New OT fields
+    morningOtStart: "",
+    morningOtEnd: "",
+    nightOtStart: "",
+    nightOtEnd: "",
     ...initialData,
   });
 
@@ -168,6 +173,103 @@ const ShiftModal = ({
             </div>
           </div>
 
+          {/* Morning OT */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+              Morning OT
+              <span className="text-xs text-gray-500">
+                <i>(Optional)</i>
+              </span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Morning OT Start
+                </label>
+                <input
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  type="time"
+                  value={form.morningOtStart || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, morningOtStart: e.target.value })
+                  }
+                />
+                {errors.morning_ot_start && (
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.morning_ot_start[0]}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Morning OT End
+                </label>
+                <input
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  type="time"
+                  value={form.morningOtEnd || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, morningOtEnd: e.target.value })
+                  }
+                />
+                {errors.morning_ot_end && (
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.morning_ot_end[0]}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Night OT */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+              Night OT
+              <span className="text-xs text-gray-500">
+                <i>(Optional)</i>
+              </span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Night OT Start
+                </label>
+                <input
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  type="time"
+                  value={form.nightOtStart || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, nightOtStart: e.target.value })
+                  }
+                />
+                {errors.night_ot_start && (
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.night_ot_start[0]}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Night OT End
+                </label>
+                <input
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  type="time"
+                  value={form.nightOtEnd || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, nightOtEnd: e.target.value })
+                  }
+                />
+                {errors.night_ot_end && (
+                  <div className="text-xs text-red-600 mt-1">
+                    {errors.night_ot_end[0]}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
@@ -260,6 +362,11 @@ const ShiftSchedule = () => {
           endTime: shift.end_time,
           midnightRoster: shift.midnight_roster,
           id: shift.id,
+          // New OT fields mapping
+          morningOtStart: shift.morning_ot_start,
+          morningOtEnd: shift.morning_ot_end,
+          nightOtStart: shift.night_ot_start,
+          nightOtEnd: shift.night_ot_end,
         }))
       );
     } catch (error) {
@@ -386,7 +493,8 @@ const ShiftSchedule = () => {
   };
 
   const formatTime = (time) => {
-    return time.slice(0, 5);
+    if (!time) return "-";
+    return String(time).slice(0, 5);
   };
 
   const getShiftTypeColor = (description) => {
@@ -504,8 +612,6 @@ const ShiftSchedule = () => {
               <Users className="w-8 h-8 text-blue-500" />
             </div>
           </div>
-         
-          
         </div>
       </div>
 
@@ -553,6 +659,9 @@ const ShiftSchedule = () => {
                   Schedule
                 </th>
                 <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  OT Details
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -561,7 +670,7 @@ const ShiftSchedule = () => {
               {filteredShifts.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="4"
+                    colSpan="5"
                     className="px-4 py-6 text-center text-gray-500"
                   >
                     No shifts found matching your criteria
@@ -572,9 +681,7 @@ const ShiftSchedule = () => {
                   <tr
                     key={shift.code}
                     className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 ${
-                      index % 2 === 0
-                        ? "bg-white"
-                        : "bg-gray-50/30"
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                     }`}
                   >
                     <td className="px-4 py-4">
@@ -588,7 +695,6 @@ const ShiftSchedule = () => {
                           <span className="text-sm font-semibold text-gray-900">
                             {shift.description}
                           </span>
-                          
                         </div>
                         <div className="flex items-center gap-4 text-xs text-gray-600">
                           <div className="flex items-center gap-1">
@@ -623,6 +729,72 @@ const ShiftSchedule = () => {
                               shift.endTime
                             )}
                           </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="space-y-2 text-sm text-gray-700">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-gray-900">
+                            Morning OT
+                          </span>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                              Start: {formatTime(shift.morningOtStart)}
+                            </span>
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                              End: {formatTime(shift.morningOtEnd)}
+                            </span>
+                            {shift.morningOtRate !== null &&
+                              shift.morningOtRate !== undefined &&
+                              shift.morningOtRate !== "" && (
+                                <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                                  Rate: {shift.morningOtRate}
+                                </span>
+                              )}
+                            {shift.morningOtMaxMinutes !== null &&
+                              shift.morningOtMaxMinutes !== undefined &&
+                              shift.morningOtMaxMinutes !== "" && (
+                                <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-200">
+                                  Max: {shift.morningOtMaxMinutes} min
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-gray-900">
+                            Night OT
+                          </span>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                              Start: {formatTime(shift.nightOtStart)}
+                            </span>
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                              End: {formatTime(shift.nightOtEnd)}
+                            </span>
+                            {shift.nightNormalOtMaxMinutes !== null &&
+                              shift.nightNormalOtMaxMinutes !== undefined &&
+                              shift.nightNormalOtMaxMinutes !== "" && (
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                                  Normal Max: {shift.nightNormalOtMaxMinutes}{" "}
+                                  min
+                                </span>
+                              )}
+                            {shift.nightNormalOtRate !== null &&
+                              shift.nightNormalOtRate !== undefined &&
+                              shift.nightNormalOtRate !== "" && (
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                                  Normal Rate: {shift.nightNormalOtRate}
+                                </span>
+                              )}
+                            {shift.nightSpecialOtRate !== null &&
+                              shift.nightSpecialOtRate !== undefined &&
+                              shift.nightSpecialOtRate !== "" && (
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 rounded border border-indigo-200">
+                                  Special Rate: {shift.nightSpecialOtRate}
+                                </span>
+                              )}
+                          </div>
                         </div>
                       </div>
                     </td>

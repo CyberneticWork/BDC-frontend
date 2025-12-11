@@ -116,11 +116,20 @@ const TimeCard = () => {
   );
   const totalAttendancePages = Math.ceil(filteredData.length / attendanceRowsPerPage);
 
+  // ADD: guard to prevent pagination reset when refreshing after edit/save
+  const preventPaginationReset = useRef(false);
+
   useEffect(() => {
     setAbsentPage(1);
   }, [absentees]);
 
+  // CHANGE: only reset to first page when not prevented
   useEffect(() => {
+    if (preventPaginationReset.current) {
+      // keep current page, then clear the guard
+      preventPaginationReset.current = false;
+      return;
+    }
     setAttendancePage(1);
   }, [filteredData]);
 
@@ -256,7 +265,7 @@ const TimeCard = () => {
   };
 
   const handleLeave = () => {
-    setFilteredData(filterAttendance('Leave'));
+    setFilteredData(filterAttendance('Early OUT')); // CHANGED from 'Leave'
   };
 
   // Cancel handler for filters
@@ -359,7 +368,7 @@ const TimeCard = () => {
       let timeToSend = '';
       if (editStatus === 'IN') {
         timeToSend = editInTime;
-      } else if (editStatus === 'OUT' || editStatus === 'Leave') {
+      } else if (editStatus === 'OUT' || editStatus === 'Early OUT') {
         timeToSend = editOutTime;
       } else if (editStatus === 'Absent') {
         timeToSend = '00:00:00'; // Default time for absent records
@@ -390,6 +399,9 @@ const TimeCard = () => {
       
       // Refresh data
       const updated = await fetchTimeCards();
+
+      // PREVENT resetting to page 1 on this refresh
+      preventPaginationReset.current = true;
       setAttendanceData(updated);
       setFilteredData(updated);
       
@@ -1102,7 +1114,7 @@ const TimeCard = () => {
                 className="px-4 sm:px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-semibold rounded-xl hover:from-yellow-600 hover:to-yellow-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base"
                 onClick={handleLeave}
               >
-                Leave
+                Early OUT
               </button>
             </div>
 
@@ -1160,7 +1172,7 @@ const TimeCard = () => {
                               <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border ${
                                 record.status === 'Absent'
                                   ? 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
-                                  : record.status === 'Leave'
+                                  : record.status === 'Early OUT'
                                   ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-200'
                                   : record.inOut === 'IN'
                                   ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200'
@@ -1281,7 +1293,7 @@ const TimeCard = () => {
                     setEditInTime(''); // Clear in time when switching to OUT
                   // } else if (status === 'Absent') {
                   //   entry = '0';
-                  } else if (status === 'Leave') {
+                  } else if (status === 'Early OUT') {
                     entry = '0'; // Leave typically uses OUT entry
                   }
                   setEditStatus(status);
@@ -1495,7 +1507,7 @@ const TimeCard = () => {
                       let entry = '';
                       if (status === 'IN') entry = '1';
                       else if (status === 'OUT') entry = '2';
-                      else if (status === 'Leave') entry = '0';
+                      else if (status === 'Early OUT') entry = '0';
 
                       setNewRecord(prev => ({ ...prev, status, entry }));
                       setAddErrors(prev => ({

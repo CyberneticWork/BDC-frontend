@@ -105,6 +105,8 @@ import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
+import SingleEntryReport from "@src/Pages/Reports/TimeCard/SingleEntryReport";
+import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
 
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -783,7 +785,17 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="myKPIs" action="view">
                 <EmployeeKPIView />
               </ProtectedComponent>
-            ) : activeItem === "lms" ? (
+            ) : activeItem === "attendanceReport" ? (
+              <ProtectedComponent module="attendanceReport" action="view">
+                <AttendanceReport />
+              </ProtectedComponent>
+            ) 
+            : activeItem === "singleEntryReport" ? (
+              <ProtectedComponent module="singleEntryReport" action="view">
+                <SingleEntryReport />
+              </ProtectedComponent>
+            ) 
+            : activeItem === "lms" ? (
               <ProtectedComponent module="lms" action="view">
                 <LMS />
               </ProtectedComponent>

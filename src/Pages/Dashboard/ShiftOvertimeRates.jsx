@@ -12,7 +12,7 @@ const initialForm = {
   working_days_per_month: "",
   ot_multiplier: "",
   holiday_multiplier: "",
-  ignore_hours_threshold: "",
+  ignore_hours_threshold: { hours: "", minutes: "" }, // Change from string to object
 };
 
 const ShiftOvertimeRates = () => {
@@ -97,43 +97,66 @@ const ShiftOvertimeRates = () => {
 
   // When shift changes, fetch any existing rate + hydrate shift meta
   useEffect(() => {
-    (async () => {
-      setErrors({});
-      setRecordId(null);
+    if (!selectedShiftId || !shifts.length) {
       setSelectedShift(null);
-      if (!selectedShiftId) {
-        setForm(initialForm);
-        return;
-      }
+      return;
+    }
 
-      const meta = shifts.find((s) => String(s.id) === String(selectedShiftId));
-      setSelectedShift(meta || null);
+    const shiftMeta = shifts.find((s) => String(s.id) === String(selectedShiftId));
+    setSelectedShift(shiftMeta || null);
 
+    let cancelled = false;
+
+    const loadRate = async () => {
       try {
         setLoading(true);
-        const existing = await ShiftOvertimeRateService.getByShiftId(selectedShiftId);
-        if (existing) {
-          setRecordId(existing.id);
+        const rate = await ShiftOvertimeRateService.getByShiftId(selectedShiftId);
+        if (cancelled) return;
+
+        if (rate) {
           setForm({
-            shift_id: existing.shift_id,
-            shift_hours_per_day: toFixedOrEmpty(existing.shift_hours_per_day),
-            working_days_per_month: toFixedOrEmpty(existing.working_days_per_month),
-            ot_multiplier: toFixedOrEmpty(existing.ot_multiplier),
-            holiday_multiplier: toFixedOrEmpty(existing.holiday_multiplier),
-            ignore_hours_threshold: toFixedOrEmpty(existing.ignore_hours_threshold),
+            shift_id: rate.shift_id?.toString() || "",
+            shift_hours_per_day: rate.shift_hours_per_day?.toString() || "",
+            working_days_per_month: rate.working_days_per_month?.toString() || "",
+            ot_multiplier: rate.ot_multiplier?.toString() || "",
+            holiday_multiplier: rate.holiday_multiplier?.toString() || "",
+            ignore_hours_threshold: {
+              hours: rate.ignore_hours_threshold?.hours?.toString() || "",
+              minutes: rate.ignore_hours_threshold?.minutes?.toString() || "",
+            },
           });
+          setRecordId(rate.id);
         } else {
           setForm({
             ...initialForm,
-            shift_id: selectedShiftId,
+            shift_id: selectedShiftId.toString(),
+            ignore_hours_threshold: { hours: "", minutes: "" },
           });
+          setRecordId(null);
         }
-      } catch (e) {
-        Swal.fire({ icon: "error", title: "Error", text: "Failed to load OT rate for selected shift" });
+      } catch (error) {
+        if (cancelled) return;
+
+        if (error?.response?.status === 404) {
+          setForm({
+            ...initialForm,
+            shift_id: selectedShiftId.toString(),
+            ignore_hours_threshold: { hours: "", minutes: "" },
+          });
+          setRecordId(null);
+        } else {
+          console.error("Failed to fetch shift OT rate:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    })();
+    };
+
+    loadRate();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedShiftId, shifts]);
 
   const onNumberChange = (key) => (e) => {
@@ -144,11 +167,16 @@ const ShiftOvertimeRates = () => {
     }
   };
 
-  const onThresholdChange = (e) => {
-    const v = e.target.value;
-    if (v === "" || /^\d{0,2}(\.\d{0,2})?$/.test(v)) {
-      setForm((prev) => ({ ...prev, ignore_hours_threshold: v }));
-    }
+  // Update the threshold change handler
+  const onThresholdChange = (field) => (e) => {
+    const value = e.target.value;
+    setForm(prev => ({
+      ...prev,
+      ignore_hours_threshold: {
+        ...prev.ignore_hours_threshold,
+        [field]: value
+      }
+    }));
   };
 
   // Handle calculation input changes
@@ -166,7 +194,10 @@ const ShiftOvertimeRates = () => {
       working_days_per_month: form.working_days_per_month === "" ? 0 : Number(form.working_days_per_month),
       ot_multiplier: form.ot_multiplier === "" ? 0 : Number(form.ot_multiplier),
       holiday_multiplier: form.holiday_multiplier === "" ? 0 : Number(form.holiday_multiplier),
-      ignore_hours_threshold: form.ignore_hours_threshold === "" ? 0 : Number(form.ignore_hours_threshold),
+      ignore_hours_threshold: {
+        hours: form.ignore_hours_threshold.hours === "" ? null : Number(form.ignore_hours_threshold.hours),
+        minutes: form.ignore_hours_threshold.minutes === "" ? null : Number(form.ignore_hours_threshold.minutes)
+      }, // Send as object instead of number
     }),
     [form, selectedShiftId]
   );
@@ -201,16 +232,39 @@ const ShiftOvertimeRates = () => {
     }
   };
 
-  const handleClear = () => {
-    setSelectedShiftId("");
-    setSelectedShift(null);
+  // Edit rate from table
+  const handleEditRate = (rate) => {
+    // Set the shift selection first
+    setSelectedShiftId(rate.shift_id?.toString() || rate.shift?.id?.toString() || "");
+    
+    // Hydrate form with the rate data
     setForm({
-      shift_id: "",
-      shift_hours_per_day: "",
-      working_days_per_month: "",
-      ot_multiplier: "",
-      holiday_multiplier: "",
-      ignore_hours_threshold: "",
+      shift_id: rate.shift_id?.toString() || rate.shift?.id?.toString() || "",
+      shift_hours_per_day: rate.shift_hours_per_day?.toString() || "",
+      working_days_per_month: rate.working_days_per_month?.toString() || "",
+      ot_multiplier: rate.ot_multiplier?.toString() || "",
+      holiday_multiplier: rate.holiday_multiplier?.toString() || "",
+      ignore_hours_threshold: {
+        hours: rate.ignore_hours_threshold?.hours?.toString() || "",
+        minutes: rate.ignore_hours_threshold?.minutes?.toString() || ""
+      }
+    });
+    
+    // Set the record ID for update mode
+    setRecordId(rate.id);
+    
+    // Clear any existing errors
+    setErrors({});
+    
+    // Close the modal
+    setShowModal(false);
+  };
+
+  const handleClear = () => {
+    setForm({
+      ...initialForm,
+      shift_id: selectedShiftId?.toString() || "",
+      ignore_hours_threshold: { hours: "", minutes: "" }
     });
     setRecordId(null);
     setErrors({});
@@ -246,13 +300,6 @@ const ShiftOvertimeRates = () => {
     } finally {
       setLoadingTable(false);
     }
-  };
-
-  // Edit rate from table
-  const handleEditRate = (rate) => {
-    setSelectedShiftId(String(rate.shift_id));
-    setShowModal(false);
-    // The useEffect will handle loading the data
   };
 
   // Delete rate
@@ -615,15 +662,35 @@ const ShiftOvertimeRates = () => {
                 <span className="text-xs text-gray-500 block">Hours to ignore before OT</span>
               </label>
               <div className="relative">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="1.00"
-                  value={num(form.ignore_hours_threshold)}
-                  onChange={onThresholdChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">hrs</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="24"
+                      step="1"
+                      value={form.ignore_hours_threshold.hours}
+                      onChange={onThresholdChange("hours")}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      step="1"
+                      value={form.ignore_hours_threshold.minutes}
+                      onChange={onThresholdChange("minutes")}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Set threshold for ignoring overtime calculations (e.g., 1 hour 30 minutes)
+                </p>
               </div>
               {errors?.ignore_hours_threshold && <p className="text-xs text-red-600 mt-1">{errors.ignore_hours_threshold[0]}</p>}
             </div>
@@ -721,7 +788,7 @@ const ShiftOvertimeRates = () => {
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Days/Month</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">OT Multiplier</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Holiday Multiplier</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Ignore Threshold</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Ignore Threshold</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Actions</th>
                       </tr>
                     </thead>
@@ -742,8 +809,16 @@ const ShiftOvertimeRates = () => {
                           <td className="px-4 py-3 text-sm text-right font-mono text-orange-700">
                             {Number(rate.holiday_multiplier).toFixed(2)}×
                           </td>
-                          <td className="px-4 py-3 text-right text-xs font-semibold text-gray-700">
-                            {Number(rate.ignore_hours_threshold).toFixed(2)}h
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                            {rate.ignore_hours_threshold && (rate.ignore_hours_threshold.hours || rate.ignore_hours_threshold.minutes) ? (
+                              <div className="inline-flex flex-col items-center">
+                                <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                                  {rate.ignore_hours_threshold.hours || '0'}h {rate.ignore_hours_threshold.minutes || '0'}m
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 italic text-xs">Not set</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-2">
