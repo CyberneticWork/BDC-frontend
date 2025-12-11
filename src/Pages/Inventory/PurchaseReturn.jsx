@@ -131,7 +131,6 @@ const Invoices = () => {
       date: new Date().toISOString().split("T")[0],
       refNumber: "",
       amount: 0,
-      // kept for backward compatibility where needed
       productName: "",
       quantity: 0,
     });
@@ -156,6 +155,7 @@ const Invoices = () => {
       quantity: 1,
       unitPrice: 0,
       batchNumber: "",
+      productDiscount: 0,
     });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
@@ -264,10 +264,17 @@ const Invoices = () => {
       return items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = Number(it.discount) || 0;
+        const disc = Number(it.discount) || 0; // discount is a flat line amount
         const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
+        const lineDiscount = disc; // treat discount as total for the line, not per-unit
         return acc + (lineTotal - lineDiscount);
+      }, 0);
+    }, [items]);
+
+    const totalDiscount = useMemo(() => {
+      return items.reduce((acc, it) => {
+        const d = Number(it.discount) || 0;
+        return acc + (Number.isFinite(d) ? d : 0);
       }, 0);
     }, [items]);
 
@@ -353,10 +360,17 @@ const Invoices = () => {
         }
       }
       const directSources = [
-        item.unitPrice,
-        item.unit_price,
         item.costPrice,
         item.cost_price,
+        item.unitCost,
+        item.unit_cost,
+        item.purchasePrice,
+        item.purchase_price,
+        item.rate,
+        item.unitRate,
+        item.unit_rate,
+        item.unitPrice,
+        item.unit_price,
         item.price,
       ];
       for (const direct of directSources) {
@@ -408,10 +422,86 @@ const Invoices = () => {
                 0
             )
           );
-          const unitPrice = Math.max(0, resolveGrnUnitPrice(item, qty));
-          const discount = Number(
-            item.discountPerUnit ?? item.discount ?? item.discountAmount ?? 0
+          // Prefer GRN-provided line totals/discounts to compute accurate unit price and discount
+          const grnLineTotal = Number(
+            item.line_total ?? item.lineTotal ?? item.total ?? item.totalAmount ?? NaN
           );
+          const grnLineDiscount = Number(
+            item.line_discount_amount ??
+              item.lineDiscountAmount ??
+              item.line_discount ??
+              item.discountAmount ??
+              item.discount ??
+              item.product_discount ??
+              item.productDiscount ??
+              item.total_discount ??
+              item.totalDiscount ??
+              NaN
+          );
+          let discount = 0;
+          if (!Number.isNaN(grnLineDiscount) && grnLineDiscount >= 0) {
+            discount = grnLineDiscount;
+          } else {
+            const rawPerUnit = Number(item.discountPerUnit ?? NaN);
+            if (!Number.isNaN(rawPerUnit) && rawPerUnit > 0) {
+              discount = rawPerUnit * qty;
+            } else {
+              discount = 0;
+            }
+          }
+          const reconstructedUnitFromTotals =
+            !Number.isNaN(grnLineTotal) && grnLineTotal >= 0 && qty > 0
+              ? Math.max(0, (grnLineTotal + discount) / qty)
+              : null;
+          
+          const directUnitPriceSources = [
+            item.cost,
+            item.cost_price,
+            item.unitCost,
+            item.unit_cost,
+            item.purchasePrice,
+            item.purchase_price,
+            item.purchaseRate,
+            item.purchase_rate,
+            item.rate,
+            item.unitRate,
+            item.unit_rate,
+            item.unitPrice,
+            item.unit_price,
+            item.price,
+            item.product?.purchasePrice,
+            item.product?.purchase_price,
+            item.product?.purchaseRate,
+            item.product?.purchase_rate,
+            item.product?.costPrice,
+            item.product?.cost_price,
+            item.product?.unitCost,
+            item.product?.unit_cost,
+            item.product?.unitPrice,
+            item.product?.unit_price,
+            item.product?.rate,
+          ];
+          const directUnitPrice = directUnitPriceSources
+            .map((src) => Number(src))
+            .find((val) => Number.isFinite(val) && val >= 0);
+
+          const unitPriceCandidates = [reconstructedUnitFromTotals, directUnitPrice]
+            .filter((v) => Number.isFinite(v) && v > 0);
+
+          let unitPrice = unitPriceCandidates.length
+            ? Math.max(...unitPriceCandidates)
+            : null;
+
+          if (!(Number.isFinite(unitPrice) && unitPrice > 0)) {
+            if (reconstructedUnitFromTotals !== null && reconstructedUnitFromTotals > 0) {
+              unitPrice = reconstructedUnitFromTotals;
+            } else if (!Number.isNaN(grnLineTotal) && grnLineTotal >= 0 && qty > 0) {
+              
+              unitPrice = Math.max(0, (grnLineTotal + discount) / qty);
+            } else {
+              unitPrice = Math.max(0, resolveGrnUnitPrice(item, qty));
+            }
+          }
           const name =
             item.product?.name ??
             item.name ??
@@ -438,6 +528,8 @@ const Invoices = () => {
             quantity: qty,
             unitPrice,
             discount: Math.max(0, discount),
+            // Mirror the actual line discount into product_discount for backend consistency
+            product_discount: Math.max(0, discount),
             mrp: Number(item.mrp ?? item.maximumRetailPrice ?? 0),
             currentStock: Number(
               item.currentStock ?? item.current_stock ?? item.stock ?? 0
@@ -503,12 +595,13 @@ const Invoices = () => {
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
+        product_discount: selected ? Number(selected.productDiscount || 0) : Number(entry.productDiscount || 0),
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
         batchNumber: "",
       };
       setItems((prev) => [...prev, newItem]);
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, productDiscount: 0 });
       setShowSuggestions(false);
       setActiveIndex(-1);
       setErrors((prev) => ({ ...prev, productName: undefined }));
@@ -531,9 +624,9 @@ const Invoices = () => {
       const computedAmount = items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = Number(it.discount) || 0;
+        const disc = Number(it.discount) || 0; // flat discount for the line
         const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
+        const lineDiscount = disc;
         return acc + (lineTotal - lineDiscount);
       }, 0);
 
@@ -590,10 +683,13 @@ const Invoices = () => {
           null;
         const qty = Number(it.quantity) || 0;
         const unitPrice = Number(it.unitPrice) || 0;
-        const discount = Number(it.discount) || 0;
+        const discount = Number(it.discount) || 0; // discount is flat amount for the line
         const lineTotal = qty * unitPrice;
+        const netLineTotal = Math.max(0, lineTotal - discount);
+        const discountPerUnit = qty > 0 ? discount / qty : 0;
         return {
           ...it,
+          product_discount: Number(it.product_discount) || 0,
           productId,
           product_id: productId,
           productName: it.name ?? it.productName ?? "",
@@ -604,19 +700,24 @@ const Invoices = () => {
           unit_price: unitPrice,
           price: unitPrice,
           rate: unitPrice,
-          discount,
-          discountPerUnit: discount,
-          discount_per_unit: discount,
+          discount: discount,
+          discountPerUnit: discountPerUnit,
+          discount_per_unit: discountPerUnit,
           discountAmount: discount,
           batchNumber: it.batchNumber || "",
           batch_number: it.batchNumber || "",
           mrp: Number(it.mrp) || 0,
           currentStock: Number(it.currentStock) || 0,
           current_stock: Number(it.currentStock) || 0,
-          lineTotal,
-          total: lineTotal,
+          lineTotal: netLineTotal,
+          total: netLineTotal,
         };
       });
+
+      const totalDiscount = normalizedItems.reduce((acc, it) => {
+        const d = Number(it.discountAmount ?? it.discount ?? 0);
+        return acc + (Number.isFinite(d) ? d : 0);
+      }, 0);
 
       const payload = {
         ...completedInvoice,
@@ -637,6 +738,8 @@ const Invoices = () => {
         totalAmount: completedInvoice.amount,
         subtotal: completedInvoice.amount,
         amount: completedInvoice.amount,
+        // single canonical total discount field (sum of flat line discounts)
+        total_discount: totalDiscount,
         itemCount: normalizedItems.length,
         items: normalizedItems,
       };
@@ -850,6 +953,9 @@ const Invoices = () => {
                   <p className="text-3xl sm:text-4xl font-bold text-slate-900">
                     {formatLKR(tableTotal)}
                   </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total Discount: <span className="text-sm font-medium text-slate-700">{formatLKR(totalDiscount)}</span>
+                  </p>
                 </div>
               </div>
 
@@ -894,8 +1000,16 @@ const Invoices = () => {
                               productId: p.id,
                               productName: p.name,
                               quantity: 1,
-                              unitPrice: Number(p.unitPrice) || 0,
+                              // Prefer costPrice; fallback to unitPrice
+                              unitPrice:
+                                Number(p.costPrice) ||
+                                Number(p.cost_price) ||
+                                Number(p.unitCost) ||
+                                Number(p.unit_cost) ||
+                                Number(p.unitPrice) ||
+                                0,
                               batchNumber: "",
+                              productDiscount: Number(p.productDiscount || 0),
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
@@ -949,8 +1063,16 @@ const Invoices = () => {
                                   productId: p.id,
                                   productName: p.name,
                                   quantity: 1,
-                                  unitPrice: Number(p.unitPrice) || 0,
+                                  // Prefer costPrice from product, fallback to unitPrice
+                                  unitPrice:
+                                    Number(p.costPrice) ||
+                                    Number(p.cost_price) ||
+                                    Number(p.unitCost) ||
+                                    Number(p.unit_cost) ||
+                                    Number(p.unitPrice) ||
+                                    0,
                                   batchNumber: p.batchNumber ?? "",
+                                  productDiscount: Number(p.productDiscount || 0),
                                 });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
@@ -1066,10 +1188,8 @@ const Invoices = () => {
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-slate-100">
-                            {items.map((it, idx) => {
-                              const Discount =
-                                (Number(it.discount) || 0) *
-                                (Number(it.quantity) || 0);
+                              {items.map((it, idx) => {
+                              const Discount = Number(it.discount) || 0; // flat discount for the entire line
                               const Total =
                                 (Number(it.unitPrice) || 0) *
                                 (Number(it.quantity) || 0);
@@ -1150,6 +1270,17 @@ const Invoices = () => {
                                   <td className="px-4 sm:px-6 py-4 text-left whitespace-nowrap">
                                     <input
                                       type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={it.discount}
+                                      onChange={(e) =>
+                                        updateItemField(
+                                          it.id,
+                                          "discount",
+                                          parseFloat(e.target.value) || 0
+                                        )
+                                      }
+                                      aria-label={`Discount for ${it.name}`}
                                       className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
                                     />
                                   </td>

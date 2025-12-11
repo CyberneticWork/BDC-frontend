@@ -1,14 +1,8 @@
 
 import axios from "../../utils/axios";
 const inventoryData = {
-  purchaseOrders: [
-  ],
-
-  purchaseReturns: [
-   
-  ],
-  salesReturns: [
-  ],
+  purchaseOrders: [],
+  salesReturns: [],
 };
 
 // Load persisted stockTransfers from localStorage if available
@@ -26,7 +20,6 @@ try {
 
 // Getter functions
 export const getPurchaseOrders = () => inventoryData.purchaseOrders;
-export const getPurchaseReturns = () => inventoryData.purchaseReturns;
 export const getSalesReturns = () => inventoryData.salesReturns;
 export const getStockTransfers = () => inventoryData.stockTransfers;
 export const getStockVerifications = () => inventoryData.stockVerifications;
@@ -125,8 +118,7 @@ export const createPurchaseReturn = async (data) => {
   try {
     const response = await axios.post("/purchaseReturn", data);
     return response.data;
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error creating Purchase Return:", error);
     throw error;
   }
@@ -333,18 +325,6 @@ export const updatePurchaseOrder = (id, updated) => {
   return null;
 };
 
-export const addPurchaseReturn = (ret) => {
-  const newReturn = {
-    ...ret,
-    id: Date.now(),
-    returnNumber: `PR${String(
-      inventoryData.purchaseReturns.length + 1
-    ).padStart(3, "0")}`,
-  };
-  inventoryData.purchaseReturns.push(newReturn);
-  return newReturn;
-};
-
 export const addSalesReturn = (ret) => {
   const newReturn = {
     ...ret,
@@ -448,7 +428,6 @@ export const updateStockVerification = (id, updated) => {
 
 export default {
   getPurchaseOrders,
-  getPurchaseReturns,
   getSalesReturns,
   getStockTransfers,
   getStockVerifications,
@@ -458,7 +437,6 @@ export default {
   getSuppliers,
   addPurchaseOrder,
   updatePurchaseOrder,
-  addPurchaseReturn,
   addSalesReturn,
   addStockTransfer,
   updateStockTransfer,
