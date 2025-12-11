@@ -571,7 +571,7 @@ const LeaveMaster = () => {
         leave_to: null,
         period: null,
         is_half_day: false,
-        leave_duration: 0, // Add duration field
+        leave_duration: 0 // Add duration field
       };
 
       if (formData.leaveDateType === "fullDay") {
@@ -695,6 +695,18 @@ const LeaveMaster = () => {
 
   const handleSubmitError = (error) => {
     console.error("Error submitting leave request:", error);
+
+    // Check for duplicate error
+    if (error.response?.status === 422 && error.response?.data?.duplicate_found) {
+      Swal.fire({
+        icon: "error",
+        title: "Duplicate Leave Request",
+        text: error.response.data.message,
+        confirmButtonColor: "#3085d6",
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     // Check if the error response contains validation errors
     if (

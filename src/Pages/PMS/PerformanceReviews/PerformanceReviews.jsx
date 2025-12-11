@@ -108,6 +108,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
   const [progress, setProgress] = useState(0);
   const [grade, setGrade] = useState(review?.grade || '');
   const [comments, setComments] = useState(review?.supervisorComments || '');
+  const [practicalFeedback, setPracticalFeedback] = useState(review?.practicalFeedback || ''); // Add this line
   const [statusState, setStatusState] = useState(review?.status || 'In Progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCategoryDetails, setShowCategoryDetails] = useState(false);
@@ -184,6 +185,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       setProgress(review.progress || 0);
       setGrade(review.grade || '');
       setComments(review.supervisorComments || '');
+      setPracticalFeedback(review.practicalFeedback || ''); // Add this line
       setStatusState(review.status || 'In Progress');
       
       // Initialize performance metrics from supervisor review if exists
@@ -198,9 +200,10 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
     // When task details are loaded, override with saved supervisor data if available
     if (taskDetails?.supervisor_review) {
       const supervisorData = taskDetails.supervisor_review;
-      setProgress(supervisorData.progress || 0); // Use supervisor's saved progress
+      setProgress(supervisorData.progress || 0);
       setGrade(supervisorData.grade || '');
       setComments(supervisorData.comments || '');
+      setPracticalFeedback(supervisorData.practical_feedback || ''); // Add this line
       setStatusState(supervisorData.status || 'In Progress');
       
       if (supervisorData.performance_metrics && Object.values(supervisorData.performance_metrics).some(v => v > 0)) {
@@ -417,6 +420,17 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
       return;
     }
 
+    // Optional validation for practical feedback (you can remove this if you want it completely optional)
+    if (practicalFeedback && practicalFeedback.trim().length > 2000) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Practical Feedback Too Long",
+        text: "Practical feedback must be less than 2000 characters.",
+        confirmButtonColor: "#F59E0B",
+      });
+      return;
+    }
+
     // Validate metrics values (0-100)
     for (const [key, val] of Object.entries(performanceMetrics)) {
       const v = Number(val);
@@ -453,6 +467,7 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
         progress: parseInt(progress, 10),
         grade,
         supervisorComments: comments,
+        practicalFeedback: practicalFeedback.trim(), // Make sure this is included
         status: mappedStatus,
         performanceMetrics,
         lastUpdated: new Date().toISOString()
@@ -911,6 +926,55 @@ const ProgressReviewModal = ({ isOpen, onClose, review, onSave }) => {
             ></textarea>
           </div>
 
+          {/* NEW: Practical Feedback Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Practical Feedback
+              <span className="text-gray-500 text-xs ml-2">(Optional)</span>
+            </label>
+            <div className="relative">
+              <textarea
+                value={practicalFeedback}
+                onChange={(e) => setPracticalFeedback(e.target.value)}
+                rows="4"
+                maxLength="2000"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-vertical"
+                placeholder="Provide specific, actionable feedback to help improve their performance and achieve better results..."
+              ></textarea>
+              <div className="flex justify-between items-center mt-1">
+                <div className="text-xs text-gray-500">
+                  Provide specific, actionable suggestions for improvement and skill development
+                </div>
+                <div className={`text-xs ${
+                  practicalFeedback.length > 1800 ? 'text-red-500' : 
+                  practicalFeedback.length > 1500 ? 'text-yellow-600' : 'text-gray-400'
+                }`}>
+                  {practicalFeedback.length}/2000
+                </div>
+              </div>
+            </div>
+            
+            {/* Guidelines for practical feedback */}
+            <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <div className="w-4 h-4 mt-0.5 text-purple-600">
+                  <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-purple-800 mb-1">Practical Feedback Tips:</p>
+                  <ul className="text-xs text-purple-700 space-y-0.5">
+                    <li>• Focus on specific behaviors and actions</li>
+                    <li>• Provide constructive suggestions for improvement</li>
+                    <li>• Include examples when possible</li>
+                    <li>• Suggest resources or training opportunities</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Submit Button */}
           <div className="flex justify-end pt-4 border-t border-gray-100">
             <button
@@ -988,6 +1052,7 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
         grade: review.grade,
         progress: review.progress,
         supervisorComments: review.supervisorComments,
+        practicalFeedback: details?.performanceReview?.practicalFeedback ?? review.practicalFeedback ?? null, // Add this line
         lastUpdated: review.lastUpdated,
         selfReportedProgress: review.selfReportedProgress,
         selfReportedLastUpdated: review.selfReportedLastUpdated,
@@ -1229,6 +1294,45 @@ const ReviewDetailsModal = ({ isOpen, onClose, review }) => { // Remove useDatab
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Supervisor Comments</h3>
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="text-gray-700 whitespace-pre-line">{reviewDetails.supervisorComments}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Practical Feedback */}
+              {reviewDetails.practicalFeedback && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <div className="p-1 rounded-full bg-purple-100">
+                      <Award className="h-4 w-4 text-purple-600" />
+                    </div>
+                    Practical Feedback
+                  </h3>
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <FileText className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="mb-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Actionable Feedback
+                          </span>
+                        </div>
+                        <p className="text-gray-800 whitespace-pre-line leading-relaxed">{reviewDetails.practicalFeedback}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Optional: Add feedback metadata if available */}
+                    <div className="mt-4 pt-3 border-t border-purple-200">
+                      <div className="flex items-center gap-2 text-xs text-purple-700">
+                        <div className="w-4 h-4">
+                          <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                          </svg>
+                        </div>
+                        <span>This feedback is designed to help improve performance and achieve better results</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1520,14 +1624,12 @@ const getTaskTypeBadge = (taskType) => {
     setIsDocumentsModalOpen(true);
   };
 
-  // Open Practical Feedback prompt (Enhanced Professional Modal with Subject)
+  // Open Practical Feedback prompt (Simplified Modal with Feedback Area)
   const openPracticalFeedbackModal = async (review) => {
     setSelectedReview(review);
 
-    // Fetch detailed info and employee email from user table
+    // Fetch detailed info if needed
     let details = null;
-    let currentUserEmail = user?.email || '';
-    let currentUserName = user?.name || 'System User';
     
     try {
       setIsLoading(true);
@@ -1540,22 +1642,12 @@ const getTaskTypeBadge = (taskType) => {
 
     const taskName = details?.taskName ?? details?.kpiAssignment?.kpiTask?.task_name ?? review.taskName ?? 'N/A';
     const employeeName = details?.employee?.full_name ?? review.employeeName ?? 'Employee';
-    
-    // Prioritize user table email, then contact detail email, then fallback
-    const employeeEmail = details?.employeeUser?.email ?? 
-                         details?.employee?.contactDetail?.email ?? 
-                         details?.employee?.email ?? 
-                         review.employeeEmail ?? 
-                         '';
-    
-    // Auto-generate subject based on task
-    const defaultSubject = `Performance Feedback - ${taskName}`;
 
-    // Enhanced Professional Modal with Subject Field
+    // Enhanced Practical Feedback Modal
     const result = await Swal.fire({
-      title: 'Send Practical Feedback',
+      title: 'Practical Feedback',
       html: `
-        <div class="pms-feedback-modal">
+        <div class="practical-feedback-modal">
           <!-- Header Card -->
           <div class="feedback-header-card">
             <div class="employee-info">
@@ -1570,81 +1662,63 @@ const getTaskTypeBadge = (taskType) => {
               </div>
             </div>
             
-            <div class="task-info">
+            <div class="task-info-card">
               <div class="task-label">Task</div>
               <div class="task-name">${taskName}</div>
             </div>
           </div>
 
-          <!-- Communication Details -->
-          <div class="communication-card">
-            <div class="comm-row">
-              <div class="comm-item">
-                <div class="comm-label">From</div>
-                <div class="comm-value">${currentUserName}</div>
-                <div class="comm-email">${currentUserEmail}</div>
+          <!-- Feedback Input Section -->
+          <div class="feedback-input-container">
+            <div class="feedback-input-header">
+              <div class="feedback-label">
+                <svg class="feedback-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Practical Feedback
               </div>
-              <div class="comm-divider"></div>
-              <div class="comm-item">
-                <div class="comm-label">To</div>
-                <div class="comm-value">${employeeName}</div>
-                <input type="email" id="swal-email" class="comm-email-input" value="${employeeEmail}" placeholder="Enter employee email" ${employeeEmail ? 'readonly' : ''} />
+              <div class="character-counter">
+                <span id="char-count">0</span>/1000
               </div>
             </div>
-          </div>
-
-          <!-- Subject Input -->
-          <div class="subject-input-section">
-            <label for="swal-subject" class="subject-label">
-              <svg class="subject-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
-              </svg>
-              Subject
-            </label>
-            <input 
-              type="text" 
-              id="swal-subject" 
-              class="subject-input" 
-              value="${defaultSubject}"
-              placeholder="Enter email subject..."
-              maxlength="255"
-            />
-          </div>
-
-          <!-- Feedback Input -->
-          <div class="feedback-input-section">
-            <label for="swal-feedback" class="feedback-label">
-              <svg class="feedback-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-              </svg>
-              Practical Feedback
-            </label>
+            
             <textarea 
-              id="swal-feedback" 
+ 
+              id="practical-feedback-input" 
               class="feedback-textarea" 
-              placeholder="Provide specific, actionable feedback to help improve performance..."
-              rows="4"
+              placeholder="Provide specific, actionable feedback to help improve performance and achieve better results..."
+              rows="6"
+              maxlength="1000"
             ></textarea>
-            <div class="feedback-helper">
-              <svg class="helper-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-              </svg>
-              <span>Focus on specific actions and behaviors that can be improved</span>
+            
+            <div class="feedback-guidelines">
+              <div class="guidelines-header">
+                <svg class="guidelines-icon" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <span>Feedback Guidelines</span>
+              </div>
+              <ul class="guidelines-list">
+                <li>• Focus on specific behaviors and actions</li>
+                <li>• Provide constructive suggestions for improvement</li>
+                <li>• Be objective and professional in your feedback</li>
+                <li>• Include examples when possible</li>
+              </ul>
             </div>
           </div>
-        </div>
 
         <style>
-          .pms-feedback-modal {
+          .practical-feedback-modal {
             text-align: left;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            max-width: 100%;
           }
 
           .feedback-header-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 12px;
             padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             color: white;
           }
 
@@ -1672,7 +1746,7 @@ const getTaskTypeBadge = (taskType) => {
           }
 
           .employee-details h3 {
-            font-size: 18px;
+                                             font-size: 18px;
             font-weight: 600;
             margin: 0 0 4px 0;
             color: white;
@@ -1684,7 +1758,7 @@ const getTaskTypeBadge = (taskType) => {
             color: rgba(255, 255, 255, 0.8);
           }
 
-          .task-info {
+          .task-info-card {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 8px;
             padding: 12px 16px;
@@ -1706,143 +1780,56 @@ const getTaskTypeBadge = (taskType) => {
             color: white;
           }
 
-          .communication-card {
+          .feedback-input-container {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
+            padding: 20px;
           }
 
-          .comm-row {
+          .feedback-input-header {
             display: flex;
+            justify-content: between;
             align-items: center;
-            gap: 16px;
-          }
-
-          .comm-item {
-            flex: 1;
-          }
-
-          .comm-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #64748b;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-
-          .comm-value {
-            font-size: 14px;
-            font-weight: 500;
-            color: #1e293b;
-            margin-bottom: 4px;
-          }
-
-          .comm-email {
-            font-size: 13px;
-            color: #64748b;
-          }
-
-          .comm-email-input {
-            font-size: 13px;
-            color: #64748b;
-            background: transparent;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            padding: 6px 10px;
-            width: 100%;
-            outline: none;
-            transition: border-color 0.2s;
-          }
-
-          .comm-email-input:focus {
-            border-color: #6366f1;
-          }
-
-          .comm-email-input:not([readonly]) {
-            background: white;
-          }
-
-          .comm-divider {
-            width: 1px;
-            height: 40px;
-            background: #e2e8f0;
-            flex-shrink: 0;
-          }
-
-          .subject-input-section {
-            margin-bottom: 16px;
-          }
-
-          .subject-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 8px;
-          }
-
-          .subject-icon {
-            width: 18px;
-            height: 18px;
-            color: #8b5cf6;
-          }
-
-          .subject-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            font-size: 14px;
-            color: #374151;
-            background: white;
-            transition: all 0.2s ease;
-            font-family: inherit;
-          }
-
-          .subject-input:focus {
-            outline: none;
-            border-color: #8b5cf6;
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-          }
-
-          .feedback-input-section {
-            margin-bottom: 8px;
+            margin-bottom: 12px;
           }
 
           .feedback-label {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
             color: #374151;
-            margin-bottom: 12px;
+            flex: 1;
           }
 
           .feedback-icon {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             color: #6366f1;
+          }
+
+          .character-counter {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
           }
 
           .feedback-textarea {
             width: 100%;
-            min-height: 100px;
-            padding: 14px 16px;
+            min-height: 120px;
+            padding: 16px;
             border: 2px solid #e5e7eb;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.6;
             color: #374151;
             background: white;
             resize: vertical;
             transition: all 0.2s ease;
             font-family: inherit;
+            margin-bottom: 16px;
           }
 
           .feedback-textarea:focus {
@@ -1855,31 +1842,57 @@ const getTaskTypeBadge = (taskType) => {
             color: #9ca3af;
           }
 
-          .feedback-helper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-            padding: 12px 16px;
+          .feedback-guidelines {
             background: #fef3c7;
             border: 1px solid #fbbf24;
             border-radius: 8px;
-            font-size: 13px;
-            color: #92400e;
+            padding: 14px 16px;
           }
 
-          .helper-icon {
+          .guidelines-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+          }
+
+          .guidelines-icon {
             width: 16px;
             height: 16px;
             color: #f59e0b;
             flex-shrink: 0;
           }
 
+          .guidelines-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            font-size: 12px;
+            color: #92400e;
+            line-height: 1.5;
+          }
+
+          .guidelines-list li {
+            margin-bottom: 2px;
+          }
+
+          /* Character counter color changes */
+          .char-warning {
+            color: #f59e0b !important;
+          }
+
+          .char-danger {
+            color: #ef4444 !important;
+          }
+
           /* SweetAlert2 customizations */
           .swal2-popup {
             border-radius: 16px !important;
             padding: 0 !important;
-            width: 520px !important;
+            width: 540px !important;
             max-width: 90vw !important;
           }
 
@@ -1889,7 +1902,7 @@ const getTaskTypeBadge = (taskType) => {
           }
 
           .swal2-title {
-            font-size: 20px !important;
+            font-size: 22px !important;
             font-weight: 700 !important;
             color: #1f2937 !important;
             margin: 0 !important;
@@ -1907,19 +1920,19 @@ const getTaskTypeBadge = (taskType) => {
           }
 
           .swal2-confirm {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
             border: none !important;
             border-radius: 10px !important;
             padding: 12px 24px !important;
             font-weight: 600 !important;
             font-size: 14px !important;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
             transition: all 0.2s ease !important;
           }
 
           .swal2-confirm:hover {
             transform: translateY(-1px) !important;
-            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4) !important;
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
           }
 
           .swal2-cancel {
@@ -1941,80 +1954,83 @@ const getTaskTypeBadge = (taskType) => {
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: '📤 Send Feedback',
+      confirmButtonText: '💾 Save Feedback',
       cancelButtonText: 'Cancel',
       customClass: {
-        popup: 'pms-feedback-popup',
-        confirmButton: 'pms-confirm-btn',
-        cancelButton: 'pms-cancel-btn'
+        popup: 'practical-feedback-popup',
+        confirmButton: 'practical-feedback-confirm',
+        cancelButton: 'practical-feedback-cancel'
       },
       willOpen: () => {
-        // Focus textarea when opened
+        // Focus textarea and setup character counter
         setTimeout(() => {
-          const ta = document.getElementById('swal-feedback');
-          if (ta) ta.focus();
+          const textarea = document.getElementById('practical-feedback-input');
+          const charCount = document.getElementById('char-count');
+          
+          if (textarea && charCount) {
+            textarea.focus();
+            
+            // Character counter functionality
+            const updateCharCount = () => {
+              const length = textarea.value.length;
+              charCount.textContent = length;
+              
+              // Update color based on character count
+              charCount.classList.remove('char-warning', 'char-danger');
+              if (length > 800) {
+                charCount.classList.add('char-danger');
+              } else if (length > 600) {
+                charCount.classList.add('char-warning');
+              }
+            };
+            
+            textarea.addEventListener('input', updateCharCount);
+            updateCharCount(); // Initial count
+          }
         }, 150);
       },
       preConfirm: () => {
-        const feedback = (document.getElementById('swal-feedback')?.value || '').trim();
-        const email = (document.getElementById('swal-email')?.value || '').trim();
-        const subject = (document.getElementById('swal-subject')?.value || '').trim();
+        const feedback = (document.getElementById('practical-feedback-input')?.value || '').trim();
         
         if (!feedback) {
-          Swal.showValidationMessage('Please provide feedback');
+          Swal.showValidationMessage('Please provide practical feedback');
           return false;
         }
         if (feedback.length < 10) {
-          Swal.showValidationMessage('Feedback must be at least 10 characters');
+          Swal.showValidationMessage('Feedback must be at least 10 characters long');
           return false;
         }
         if (feedback.length > 1000) {
-          Swal.showValidationMessage('Feedback must be less than 1000 characters');
-          return false;
-        }
-        if (!email) {
-          Swal.showValidationMessage('Employee email is required');
-          return false;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          Swal.showValidationMessage('Please enter a valid email address');
-          return false;
-        }
-        if (!subject) {
-          Swal.showValidationMessage('Subject is required');
-          return false;
-        }
-        if (subject.length < 5) {
-          Swal.showValidationMessage('Subject must be at least 5 characters');
+          Swal.showValidationMessage('Feedback cannot exceed 1000 characters');
           return false;
         }
         
-        return { feedback, email, subject };
+        return { feedback };
       }
     });
 
     if (result.isConfirmed && result.value) {
-      const { feedback, email, subject } = result.value;
+      const { feedback } = result.value;
       
       // Show loading state
       Swal.fire({
-        title: 'Sending Feedback...',
+        title: 'Saving Feedback...',
         html: `
           <div style="text-align: center; padding: 20px;">
-            <div class="sending-animation" style="margin-bottom:   16px;">
-              <svg style="width: 48px; height: 48px; color: #6366f1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            <div class="saving-animation" style="margin-bottom: 16px;">
+              <svg style="width: 48px; height: 48px; color: #10b981;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
               </svg>
             </div>
-            <p style="color: #64748b; margin: 0;">Please wait while we send your feedback...</p>
+            <p style="color: #64748b; margin: 0;">Saving your practical feedback...</p>
           </div>
           <style>
-            .sending-animation svg {
+            .saving-animation svg {
               animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
             }
             @keyframes pulse {
               0%, 100% { opacity: 1; }
-              50% { opacity: 0.5; }
+              50% { opacity: 0.7; }
             }
           </style>
         `,
@@ -2022,45 +2038,41 @@ const getTaskTypeBadge = (taskType) => {
         allowEscapeKey: false,
         showConfirmButton: false,
         customClass: {
-          popup: 'pms-loading-popup'
+          popup: 'practical-feedback-loading'
         }
       });
 
       try {
-        const response = await PMSService.submitPracticalFeedback(review.id, { 
-          feedback, 
-          email, 
-          subject,
-          taskName 
+        // Call your API to save feedback (adjust endpoint as needed)
+        const response = await PMSService.savePracticalFeedback(review.id, { 
+          feedback,
+          taskName,
+          employeeName: employeeName
         });
         
-        // Show success message with enhanced styling
+        // Show success message
         await Swal.fire({
           icon: 'success',
-          title: 'Feedback Sent Successfully!',
+          title: 'Feedback Saved Successfully!',
           html: `
             <div class="success-content">
               <div class="success-details">
                 <div class="success-row">
-                  <span class="success-label">To:</span>
+                  <span class="success-label">Employee:</span>
                   <span class="success-value">${employeeName}</span>
-                </div>
-                <div class="success-row">
-                  <span class="success-label">Email:</span>
-                  <span class="success-value">${response.data?.sent_to || email}</span>
-                </div>
-                <div class="success-row">
-                  <span class="success-label">Subject:</span>
-                  <span class="success-value">${response.data?.subject || subject}</span>
                 </div>
                 <div class="success-row">
                   <span class="success-label">Task:</span>
                   <span class="success-value">${taskName}</span>
                 </div>
+                <div class="success-row">
+                  <span class="success-label">Feedback Length:</span>
+                  <span class="success-value">${feedback.length} characters</span>
+                </div>
               </div>
               <div class="feedback-preview">
                 <div class="preview-label">Feedback Preview:</div>
-                <div class="preview-text">${feedback.substring(0, 120)}${feedback.length > 120 ? '...' : ''}</div>
+                <div class="preview-text">${feedback.substring(0, 150)}${feedback.length > 150 ? '...' : ''}</div>
               </div>
             </div>
             <style>
@@ -2113,24 +2125,27 @@ const getTaskTypeBadge = (taskType) => {
           `,
           confirmButtonText: 'Done',
           customClass: {
-            popup: 'pms-success-popup',
-            confirmButton: 'pms-success-btn'
+            popup: 'practical-feedback-success',
+            confirmButton: 'practical-feedback-success-btn'
           }
         });
         
         // Show toast for quick confirmation
-        toast.success('Practical feedback sent successfully!');
+        toast.success('Practical feedback saved successfully!');
+        
+        // Refresh the data if needed
+        setNeedsRefresh(true);
         
       } catch (e) {
-        console.error('Failed to send practical feedback', e);
+        console.error('Failed to save practical feedback', e);
         
         // Show error with better UX
         await Swal.fire({
           icon: 'error',
-          title: 'Failed to Send Feedback',
+          title: 'Failed to Save Feedback',
           html: `
             <div class="error-content">
-              <p class="error-message">${e?.response?.data?.message || 'An unexpected error occurred while sending the feedback.'}</p>
+              <p class="error-message">${e?.response?.data?.message || 'An unexpected error occurred while saving the feedback.'}</p>
               <div class="error-actions">
                 <p class="error-suggestion">Please try again or contact support if the problem persists.</p>
               </div>
@@ -2160,7 +2175,7 @@ const getTaskTypeBadge = (taskType) => {
           showCancelButton: true,
           cancelButtonText: 'Close',
           customClass: {
-            popup: 'pms-error-popup'
+            popup: 'practical-feedback-error'
           }
         }).then((result) => {
           if (result.isConfirmed) {
@@ -2169,42 +2184,44 @@ const getTaskTypeBadge = (taskType) => {
           }
         });
         
-        toast.error('Failed to send practical feedback');
+        toast.error('Failed to save practical feedback');
       }
     }
   };
   
 const handleSaveProgressReview = async (updatedReview) => {
-  try {
-    setIsLoading(true);
-    const payload = {
-      progress: updatedReview.progress,
-      grade: updatedReview.grade,
-      supervisor_comments: updatedReview.supervisorComments,
-      status: updatedReview.status,
-      performance_metrics: updatedReview.performanceMetrics || {} // Ensure it's never null/undefined
-    };
-    
-    // Add appraisal rating only if it exists (for performance appraisal tasks)
-    if (updatedReview.appraisal_rating !== undefined && updatedReview.appraisal_rating !== null) {
-      payload.appraisal_rating = updatedReview.appraisal_rating;
+    try {
+        setIsLoading(true);
+        const payload = {
+            progress: updatedReview.progress,
+            grade: updatedReview.grade,
+            supervisor_comments: updatedReview.supervisorComments,
+            practical_feedback: updatedReview.practicalFeedback || '', // Make sure this matches
+            status: updatedReview.status,
+            performance_metrics: updatedReview.performanceMetrics || {}
+        };
+        
+        // Add appraisal rating only if it exists (for performance appraisal tasks)
+        if (updatedReview.appraisal_rating !== undefined && updatedReview.appraisal_rating !== null) {
+            payload.appraisal_rating = updatedReview.appraisal_rating;
+        }
+        
+        console.log('Sending payload to backend:', payload); // Debug log
+        
+        // Call backend (see PMSService.updatePerformanceReview)
+        const response = await PMSService.updatePerformanceReview(updatedReview.id, payload);
+        console.log('Backend response:', response); // Debug log
+        
+        toast.success('Review updated successfully');
+        setNeedsRefresh(true);
+        setIsProgressModalOpen(false);
+    } catch (e) {
+        console.error('Update failed', e);
+        console.error('Error response:', e.response?.data);
+        toast.error(e?.response?.data?.message || 'Failed to update review');
+    } finally {
+        setIsLoading(false);
     }
-    
-    console.log('Sending payload to backend:', payload); // Debug log
-    
-    // Call backend (see PMSService.updatePerformanceReview)
-    await PMSService.updatePerformanceReview(updatedReview.id, payload);
-    toast.success('Review updated');
-    // mark for refresh and close modal
-    setNeedsRefresh(true);
-    setIsProgressModalOpen(false);
-  } catch (e) {
-    console.error('Update failed', e);
-    console.error('Error response:', e.response?.data); // More detailed error logging
-    toast.error(e?.response?.data?.message || 'Failed to update review');
-  } finally {
-    setIsLoading(false);
-  }
 };
 
   const handleCreateReview = async (formData) => {
@@ -2601,7 +2618,7 @@ const handleSaveProgressReview = async (updatedReview) => {
                         )}
 
                         {/* Practical Feedback - open feedback prompt */}
-                        {userRole !== 'user' && userPermissions.edit && (
+                        {/* {userRole !== 'user' && userPermissions.edit && (
                           <button
                             className="text-teal-600 hover:text-teal-900 p-1"
                             onClick={() => openPracticalFeedbackModal(review)}
@@ -2609,7 +2626,7 @@ const handleSaveProgressReview = async (updatedReview) => {
                           >
                             <Award className="h-4 w-4" />
                           </button>
-                        )}
+                        )} */}
 
                         {/* Show Edit Review only if not "user" role and has edit permission */}
                         {/* {userRole !== 'user' && userPermissions.edit && (
