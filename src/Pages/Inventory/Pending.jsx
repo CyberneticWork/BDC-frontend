@@ -115,6 +115,28 @@ const Pending = () => {
     });
   };
 
+  const parsePositive = (v) => {
+    if (v == null) return null;
+    const n = Number(String(v).replace(/[^0-9.-]+/g, ""));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  const normalizeValue = (v) => {
+    if (v == null) return null;
+    if (Array.isArray(v)) return v.length ? v.join(", ") : null;
+    if (typeof v === "string") return v.trim() ? v.trim() : null;
+    return String(v);
+  };
+
+  const sanitizeNumber = (value) => {
+    if (value == null || value === "") return 0;
+    const sanitized = typeof value === "string" ? value.replace(/[^0-9.-]+/g, "") : value;
+    const num = Number(sanitized);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const formatCurrency = (value) => sanitizeNumber(value).toLocaleString();
+
   const q = (searchTerm || "").toString().trim().toLowerCase();
   const filteredInvoices = pendingInvoices.filter((inv = {}) => {
     if (!q) return true;
@@ -171,193 +193,202 @@ const Pending = () => {
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredInvoices.map((inv, idx) => {
-              const firstItem = (inv.items && inv.items[0]) || {};
-              const pName =
-                firstItem.product?.name ||
-                firstItem.name ||
-                firstItem.product_name ||
-                firstItem.productName ||
-                "—";
-              const pCode =
-                firstItem.product?.code || firstItem.product_code || "—";
-              const pUnit =
-                firstItem.cost ??
-                firstItem.unitPrice ??
-                firstItem.unit_price ??
-                firstItem.rate ??
-                0;
-              const totalQty = (inv.items || []).reduce(
-                (s, it) => s + (it.quantity ?? it.qty ?? 0),
-                0
-              );
+              const items = inv.items || [];
+              const firstItem = items[0] || {};
+            
 
-              // Resolve MRP and minimum price from various possible shapes
-              // Parse numeric strings and prefer product-level values when item-level values are zero or absent
-              const parsePositive = (v) => {
-                if (v == null) return null;
-                const n = Number(String(v).replace(/[^0-9.-]+/g, ""));
-                return Number.isFinite(n) && n > 0 ? n : null;
-              };
-
-              const pMrp =
-                parsePositive(firstItem.mrp ?? firstItem.MRP ?? firstItem.mrp_price ?? firstItem.mrpPrice ?? firstItem.price ?? firstItem.unitPrice) ??
-                parsePositive(firstItem.product?.mrp) ??
-                0;
-
-              const pMinPrice =
-                parsePositive(firstItem.minPrice ?? firstItem.min_price ?? firstItem.min_rate ?? firstItem.minimum) ??
-                parsePositive(firstItem.product?.minPrice ?? firstItem.product?.min_price) ??
-                0;
-
-              // Normalize batch / OEM values: return a usable string or null
-              const normalizeValue = (v) => {
-                if (v == null) return null;
-                if (Array.isArray(v)) return v.length ? v.join(", ") : null;
-                if (typeof v === "string") return v.trim() ? v.trim() : null;
-                return String(v);
-              };
-
-              // Only treat explicit item batch_number as Batch Number for UI
               const batchValue = normalizeValue(firstItem.batch_number);
 
               return (
-              <article key={inv.id || idx} className="flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-lg">
-                <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Invoice #{idx + 1}</p>
-                      <p className="text-2xl font-bold text-slate-900">
-                        {inv.voucherNumber || inv.invoiceNumber || ""}
-                      </p>
-                      <p className="text-sm text-slate-600">{inv.customer || "Unknown customer"}</p>
-                    </div>
-                    <span
-                      className={`text-xs font-semibold uppercase px-3 py-1 rounded-full border ${
-                        inv.status === "approved"
-                          ? "border-emerald-300 bg-emerald-100 text-emerald-700"
-                          : inv.status === "rejected"
-                          ? "border-rose-300 bg-rose-100 text-rose-700"
-                          : "border-amber-300 bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {inv.status || "Pending"}
-                    </span>
-                  </div>
-                  
-                </div>
-
-                {/* Summary: show only the requested five fields */}
-                <div className="mt-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-                  <div className="grid grid-cols-2 gap-3 items-center">
-                    <div>
-                      <div className="text-xs text-slate-400 uppercase">Voucher</div>
-                      <div className="text-sm font-semibold text-slate-900 truncate">{inv.voucherNumber || inv.invoiceNumber || "—"}</div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-xs text-slate-400 uppercase">Date</div>
-                      <div className="text-sm font-semibold text-slate-900">{inv.date ? new Date(inv.date).toLocaleDateString() : "—"}</div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-slate-400 uppercase">Center</div>
-                      <div className="text-sm font-semibold text-slate-900">{inv.centerName || inv.center || "—"}</div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-xs text-slate-400 uppercase">Amount</div>
-                      <div className="text-sm font-semibold text-slate-900">Rs. {(inv.amount ?? 0).toLocaleString()}</div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-slate-400 uppercase">Discount</div>
-                      <div className="text-sm font-semibold text-rose-600">Rs. {(inv.discount ?? 0).toLocaleString()}</div>
-                    </div>
-                    <div />
-                  </div>
-                </div>
-
-    
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {expandedItems.has(inv.id) && (
-                    <>
-                      <button
-                        onClick={() => openConfirmModal("approve", inv)}
-                        disabled={!(inv.status === null || inv.status === undefined || inv.status === "pending")}
-                        className="flex-1 whitespace-nowrap rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
+                <article key={inv.id || idx} className="flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-lg">
+                  <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Invoice #{idx + 1}</p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          {inv.voucherNumber || inv.invoiceNumber || ""}
+                        </p>
+                        <p className="text-sm text-slate-600">{inv.customer || "Unknown customer"}</p>
+                      </div>
+                      <span
+                        className={`text-xs font-semibold uppercase px-3 py-1 rounded-full border ${
+                          inv.status === "approved"
+                            ? "border-emerald-300 bg-emerald-100 text-emerald-700"
+                            : inv.status === "rejected"
+                            ? "border-rose-300 bg-rose-100 text-rose-700"
+                            : "border-amber-300 bg-amber-100 text-amber-700"
+                        }`}
                       >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => openConfirmModal("reject", inv)}
-                        disabled={!(inv.status === null || inv.status === undefined || inv.status === "pending")}
-                        className="flex-1 whitespace-nowrap rounded-2xl bg-rose-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-rose-500 disabled:opacity-50"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => toggleExpanded(inv.id)}
-                    className="flex-1 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-900"
-                  >
-                    {expandedItems.has(inv.id) ? "Hide Details" : "View Details"}
-                  </button>
-                </div>
-                {!viewedDetails.has(inv.id) && (
-                  <p className="mt-2 text-[11px] text-amber-600 uppercase tracking-widest">
-                    View details before approving or rejecting
-                  </p>
-                )}
-
-                {expandedItems.has(inv.id) && (
-                  <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                    {/* Additional details shown only when expanded */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2 text-sm text-slate-700">
-                      <div>
-                        <div className="text-xs text-slate-400">Creator</div>
-                        <div className="font-medium text-slate-900">{(inv.creator && inv.creator.name) || inv.created_by || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-slate-400">Reference</div>
-                        <div className="font-medium text-slate-900">{inv.refNumber || inv.reference || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-slate-400">Product</div>
-                        <div className="font-medium text-slate-900">{pName}</div>
-                       
-                      </div>
-                      <div>
-                        <div className="text-xs text-slate-400">Total Qty</div>
-                        <div className="font-medium text-slate-900">{totalQty}</div>
-                      </div>
-                       <div>
-                        <div className="text-xs text-slate-400">Product Code</div>
-                        <div className="font-medium text-slate-900">{pCode}</div>
-                      </div>
-                         <div>
-                        <div className="text-xs text-slate-400">Unit Price</div>
-                        <div className="font-medium text-slate-900">Rs. {Number(pUnit).toLocaleString()}</div>
-                      </div>
-                          <div>
-                            <div className="text-xs text-slate-400">MRP</div>
-                            <div className="font-medium text-slate-900">Rs. {pMrp.toLocaleString()}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-400">Min Price</div>
-                            <div className="font-medium text-slate-900">Rs. {pMinPrice.toLocaleString()}</div>
-                          </div>
-                          {batchValue && (
-                            <div>
-                              <div className="text-xs text-slate-400">Batch Number</div>
-                              <div className="font-medium text-slate-900">{batchValue}</div>
-                            </div>
-                          )}
+                        {inv.status || "Pending"}
+                      </span>
                     </div>
                     
                   </div>
-                )}
-              </article>
+
+                  {/* Summary: show only the requested five fields */}
+                  <div className="mt-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                    <div className="grid grid-cols-2 gap-3 items-center">
+                      <div>
+                        <div className="text-xs text-slate-400 uppercase">Voucher</div>
+                        <div className="text-sm font-semibold text-slate-900 truncate">{inv.voucherNumber || inv.invoiceNumber || "—"}</div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-xs text-slate-400 uppercase">Date</div>
+                        <div className="text-sm font-semibold text-slate-900">{inv.date ? new Date(inv.date).toLocaleDateString() : "—"}</div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs text-slate-400 uppercase">Center</div>
+                        <div className="text-sm font-semibold text-slate-900">{inv.centerName || inv.center || "—"}</div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-xs text-slate-400 uppercase">Amount</div>
+                        <div className="text-sm font-semibold text-slate-900">Rs. {formatCurrency(inv.amount ?? 0)}</div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs text-slate-400 uppercase">Discount</div>
+                        <div className="text-sm font-semibold text-rose-600">Rs. {formatCurrency(inv.discount ?? 0)}</div>
+                      </div>
+                      <div />
+                    </div>
+                  </div>
+
+      
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {expandedItems.has(inv.id) && (
+                      <>
+                        <button
+                          onClick={() => openConfirmModal("approve", inv)}
+                          disabled={!(inv.status === null || inv.status === undefined || inv.status === "pending")}
+                          className="flex-1 whitespace-nowrap rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => openConfirmModal("reject", inv)}
+                          disabled={!(inv.status === null || inv.status === undefined || inv.status === "pending")}
+                          className="flex-1 whitespace-nowrap rounded-2xl bg-rose-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow transition hover:bg-rose-500 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => toggleExpanded(inv.id)}
+                      className="flex-1 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-900"
+                    >
+                      {expandedItems.has(inv.id) ? "Hide Details" : "View Details"}
+                    </button>
+                  </div>
+                  {!viewedDetails.has(inv.id) && (
+                    <p className="mt-2 text-[11px] text-amber-600 uppercase tracking-widest">
+                      View details before approving or rejecting
+                    </p>
+                  )}
+
+                  {expandedItems.has(inv.id) && (
+                    <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                      {/* Additional details shown only when expanded */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2 text-sm text-slate-700">
+                        <div>
+                          <div className="text-xs text-slate-400">Creator</div>
+                          <div className="font-medium text-slate-900">{(inv.creator && inv.creator.name) || inv.created_by || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-slate-400">Reference</div>
+                          <div className="font-medium text-slate-900">
+                            {inv.refNumber || inv.referNumber || inv.reference || "—"}
+                          </div>
+                        </div>
+                      
+                        {batchValue && (
+                          <div>
+                            <div className="text-xs text-slate-400">Batch Number</div>
+                            <div className="font-medium text-slate-900">{batchValue}</div>
+                          </div>
+                        )}
+                      </div>
+                      {items.length > 0 && (
+                        <div className="space-y-3 border-t border-slate-100 pt-3 text-slate-600">
+                          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.4em] text-slate-400">
+                            <span>Products</span>
+                            <span>{items.length} item{items.length > 1 ? "s" : ""}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {items.map((item, itemIndex) => {
+                              const itemName =
+                                item.product?.name ||
+                                item.name ||
+                                item.product_name ||
+                                item.productName ||
+                                "—";
+                              const itemCode =
+                                item.product?.code || item.product_code || item.code || "—";
+                              const itemQty = sanitizeNumber(
+                                item.quantity ?? item.qty ?? item.requestedQuantity ?? item.quantity_required ?? 0
+                              );
+                              const itemUnitPrice =
+                                item.unitPrice ?? item.unit_price ?? item.rate ?? item.cost ?? item.price ?? 0;
+                              const itemMrp =
+                                parsePositive(
+                                  item.mrp ?? item.MRP ?? item.mrp_price ?? item.mrpPrice ?? item.price ?? item.unitPrice
+                                ) ??
+                                parsePositive(item.product?.mrp) ??
+                                0;
+                              const itemMinPrice =
+                                parsePositive(
+                                  item.minPrice ?? item.min_price ?? item.min_rate ?? item.minimum
+                                ) ??
+                                parsePositive(item.product?.minPrice ?? item.product?.min_price) ??
+                                0;
+                              const itemBatch =
+                                normalizeValue(item.batch_number ?? item.batch ?? item.batchNo ?? item.batchNumber) ||
+                                normalizeValue(item.product?.batch_number ?? item.product?.batch);
+                              return (
+                                <div
+                                  key={item.id || item.product?.id || `${inv.id}-${idx}-${itemIndex}`}
+                                  className="rounded-2xl border border-slate-200 bg-white p-3 text-slate-700 shadow-sm"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-semibold text-slate-900 truncate">{itemName}</p>
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-800">Qty {itemQty}</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-500 mt-2">
+                                    <div>
+                                      <div className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Code</div>
+                                      <div className="font-medium text-slate-900">{itemCode}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Unit Price</div>
+                                      <div className="font-medium text-slate-900">Rs. {formatCurrency(itemUnitPrice)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] uppercase tracking-[0.4em] text-slate-400">MRP</div>
+                                      <div className="font-medium text-slate-900">Rs. {formatCurrency(itemMrp)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Min Price</div>
+                                      <div className="font-medium text-slate-900">Rs. {formatCurrency(itemMinPrice)}</div>
+                                    </div>
+                                  </div>
+                                  {itemBatch && (
+                                    <div className="mt-2 text-[11px] text-slate-500">
+                                      <div className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Batch Number</div>
+                                      <div className="font-medium text-slate-900">{itemBatch}</div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </article>
               );
             })}
           </div>
