@@ -1,7 +1,7 @@
 
 import axios from "../../utils/axios";
 
-// Customer API get functions
+export const getProducts = () => [];
 export const getCustomers = async () => {
   try {
     const response = await axios.get("/customers");
@@ -11,7 +11,6 @@ export const getCustomers = async () => {
     return [];
   }
 };
-
 // GRN API post functions
 export const createGRN = async (grnData) => {
   try {
@@ -129,18 +128,6 @@ export const fetchPurchaseOrders = async (config) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching purchase orders:", error);
-    throw error;
-  }
-};
-
-//fetch pending Sales return from backend
-export const fetchPendingSalesReturns = async (config) => {
-  try {
-    const response = await axios.get("/salesreturn", config);
-    return response.data;
-  } 
-  catch (error) {
-    console.error("Error fetching pending sales returns:", error);
     throw error;
   }
 };
@@ -285,6 +272,7 @@ export const getNextStockVerification = async () => {
 
 
 export default {
+  getProducts,
   getCustomers,
   createGRN,
   getNextGrn,
@@ -301,7 +289,6 @@ export default {
   fetchStockTransfers,
   createPurchaseOrder,
   fetchPurchaseOrders,
-  fetchPendingSalesReturns,
   getNextPurchaseReturn,
   fetchGRNs,
   createPurchaseReturn,
