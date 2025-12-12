@@ -10,8 +10,8 @@ const SalesReturn = () => {
   // Main component state for orders and UI control
   const [, setOrders] = useState([]); // List of existing sales returns
   const [nextSONumber, setNextSONumber] = useState(() => {
-    const yy = String(new Date().getFullYear()).slice(-2);
-    return `SRET-${yy}-0001`;
+  const yy = String(new Date().getFullYear()).slice(-2);
+  return `SRET-${yy}-0001`;
   }); // Next available return number
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for form submission
   const [showSuccess, setShowSuccess] = useState(false); // Success modal visibility
@@ -693,7 +693,7 @@ const SalesReturn = () => {
             )
           );
 
-          // MRP: prefer explicit MRP field or many possible variants; parse to number robustly
+       
           const mrpSources = [
             item.mrp,
             item.MRP,
@@ -746,9 +746,8 @@ const SalesReturn = () => {
               item.amount,
             ]) || Number(unitPrice) || 0;
 
-          // Resolve current stock from invoice item fields or fallback to product data.
-          // Use `null` as unknown sentinel so a value of 0 is accepted from the API.
-          let stockVal = null;
+      
+        let stockVal = null;
           const stockCandidates = [
             item.current_stock,
             item.currentStock,
@@ -778,7 +777,6 @@ const SalesReturn = () => {
               }
             }
           }
-
           // If invoice didn't include stock (stockVal === null), try to look up from product master
           if (stockVal === null) {
             const lookupId =
@@ -1333,6 +1331,9 @@ const SalesReturn = () => {
                   </p>
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(totalAmount)}
+                  </p>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Total discount: {formatLKR(discountTotal)}
                   </p>
                 </div>
               </div>

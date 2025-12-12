@@ -348,6 +348,9 @@ const SalesOrder = () => {
               unitPrice: Number(
                 product.cost ?? product.min_price ?? product.price ?? 0
               ),
+              min_price: Number(
+                product.min_price ?? product.minPrice ?? product.cost ?? 0
+              ),
               mrp: Number(
                 product.mrp ?? product.price ?? product.min_price ?? 0
               ),
@@ -478,6 +481,9 @@ const SalesOrder = () => {
           currentStock,
           mrp,
           batchNumber: batchNumber || null,
+              min_price: selected
+                ? Number(selected.min_price ?? selected.minPrice ?? 0)
+                : 0,
           discountEnabled: defaultDiscountEnabled,
           discountInput: defaultDiscountInput,
         },
@@ -542,6 +548,8 @@ const SalesOrder = () => {
               ...it,
               batchNumber: normalizedBatch,
               batch_number: normalizedBatch,
+                min_price:
+                  Number(it.min_price ?? it.minPrice ?? it.unitPrice ?? 0),
               lineGross: gross,
               lineDiscountInput: it.discountInput || "",
               lineDiscountAmount: dAmt,

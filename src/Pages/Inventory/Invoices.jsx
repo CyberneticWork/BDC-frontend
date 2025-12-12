@@ -63,25 +63,12 @@ const Invoices = () => {
       if (rawNext) {
         const normalized = String(rawNext).trim();
         if (normalized) {
-          // Prefer the backend-provided preview value as authoritative for display.
-          // If the server (unexpectedly) returns the same value we have stored as "last created",
-          // increment it once to avoid showing a duplicate id in the UI.
-          if (
-            String(lastCreatedInvoiceRef.current || "").trim() === normalized
-          ) {
-            const bumped = incrementInvCode(normalized);
-            setNextInvoiceId(bumped);
-            return bumped;
-          }
-
           setNextInvoiceId(normalized);
           return normalized;
         }
       }
 
-      const fallbackFromStored = applyStoredFallback();
-      if (fallbackFromStored) return fallbackFromStored;
-
+      // Server indicates there is no "next" invoice yet, so start from INV-YY-0001.
       const year = new Date().getFullYear().toString().slice(-2);
       const fallbackNext = `INV-${year}-0001`;
       setNextInvoiceId(fallbackNext);
@@ -755,6 +742,9 @@ const Invoices = () => {
             }
           }
 
+          const mrpVal = Number(item.mrp ?? item.product?.mrp ?? 0);
+          const minPriceVal = Number(item.min_price ?? item.product?.min_price ?? item.product?.minPrice ?? 0);
+
           return {
             id: `${baseId}-${idx}`,
             productId: item.productId ?? item.product_id ?? item.id ?? null,
@@ -764,6 +754,8 @@ const Invoices = () => {
             unitPrice,
             discountPerUnit: discountPerUnit != null ? Number(discountPerUnit) : undefined,
             discount: Number(resolvedLineDiscount.toFixed(2)),
+            mrp: mrpVal,
+            min_price: minPriceVal,
             discountEnabled: Number(resolvedLineDiscount) > 0,
             batchNumber:
               item.batchNumber ??
@@ -954,6 +946,8 @@ const Invoices = () => {
         name,
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
+        mrp: selected ? Number(selected.mrp ?? selected.mrp ?? 0) : 0,
+        min_price: selected ? Number(selected.min_price ?? selected.minPrice ?? 0) : 0,
         discount: Math.max(0, defaultLineDiscount),
         discountEnabled: defaultDiscountEnabled,
         batchNumber: isBatchEnabled
@@ -1051,6 +1045,8 @@ const Invoices = () => {
           quantity,
           unitPrice,
           discount: item.discount,
+          mrp: Number(item.mrp) || 0,
+          min_price: Number(item.min_price) || 0,
           batchNumber,
           batch_number: batchNumber,
           lineNumber: index + 1,
