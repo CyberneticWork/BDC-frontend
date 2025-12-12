@@ -105,11 +105,6 @@ const Invoices = () => {
     refreshNextInv();
   }, [refreshNextInv]);
 
-  // next invoice id is provided by backend via refreshNextInv
-
-  // No filters or status display; only creation form remains
-
-  // Currency formatter for Sri Lankan Rupees
   const formatLKR = (value) => {
     try {
       return new Intl.NumberFormat("en-LK", {
@@ -472,7 +467,7 @@ const Invoices = () => {
       };
     }, []);
 
-    // When adding items, derive default per-unit discount from selected discount level
+    
 
     useEffect(() => {
       // Recalculate the available product list whenever the selected center changes
@@ -717,10 +712,7 @@ const Invoices = () => {
                 0
             )
           );
-          // When applying a sales order to an invoice we DO NOT inject
-          // per-row numeric discounts into the invoice table. Instead,
-          // prefer to set a discount level for the invoice (if provided
-          // on the sales order) and keep line discounts off.
+        
           const resolvedName =
             item.productName ??
             item.name ??
@@ -745,6 +737,24 @@ const Invoices = () => {
                 null
               : null;
 
+         
+          const backendFinalAmount = item.amount ?? null;
+          const backendPerUnitDiscount = item.discount ?? null;
+          const preDiscountLineTotal = unitPrice * qty;
+
+          let resolvedLineDiscount = 0;
+          let discountPerUnit = null;
+          if (backendPerUnitDiscount != null && isFinite(Number(backendPerUnitDiscount))) {
+            discountPerUnit = Number(backendPerUnitDiscount);
+            resolvedLineDiscount = Math.round(discountPerUnit * qty * 100) / 100;
+          } else if (backendFinalAmount != null && isFinite(Number(backendFinalAmount))) {
+            const finalAmt = Number(backendFinalAmount);
+            const inferredDiscount = Math.max(0, preDiscountLineTotal - finalAmt);
+            if (inferredDiscount >= 0.005) {
+              resolvedLineDiscount = Math.round(inferredDiscount * 100) / 100;
+            }
+          }
+
           return {
             id: `${baseId}-${idx}`,
             productId: item.productId ?? item.product_id ?? item.id ?? null,
@@ -752,8 +762,9 @@ const Invoices = () => {
             productName: resolvedName,
             quantity: qty,
             unitPrice,
-            discount: 0,
-            discountEnabled: false,
+            discountPerUnit: discountPerUnit != null ? Number(discountPerUnit) : undefined,
+            discount: Number(resolvedLineDiscount.toFixed(2)),
+            discountEnabled: Number(resolvedLineDiscount) > 0,
             batchNumber:
               item.batchNumber ??
               item.batch_number ??
@@ -770,7 +781,7 @@ const Invoices = () => {
         );
         return;
       }
-      // If the sales order carries an overall discount value, distribute it
+   
       try {
         const rawOrderDiscount =
           order.discountValue ??
@@ -788,29 +799,36 @@ const Invoices = () => {
             ? Math.max(0, Number(rawOrderDiscount))
             : 0;
         if (totalOrderDiscount > 0) {
-          const preTotal = mappedItems.reduce(
-            (s, r) => s + (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0),
+          // If backend provided per-item discounts we should not override them.
+          const existingDiscountSum = mappedItems.reduce(
+            (s, r) => s + (Number(r.discount) || 0),
             0
           );
-          const totalQty = mappedItems.reduce(
-            (s, r) => s + (Number(r.quantity) || 0),
-            0
-          );
-          if (preTotal > 0) {
-            mappedItems.forEach((r) => {
-              const lineTotal = (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0);
-              const lineShare = lineTotal / preTotal;
-              const lineDiscountTotal = totalOrderDiscount * lineShare;
-              r.discount = Number(lineDiscountTotal.toFixed(2));
-              r.discountEnabled = Number(lineDiscountTotal) > 0;
-            });
-          } else if (totalQty > 0) {
-            const perRow = Number((totalOrderDiscount / totalQty).toFixed(2));
-            mappedItems.forEach((r) => {
-              const lineDiscountTotal = perRow * (Number(r.quantity) || 0);
-              r.discount = Number(lineDiscountTotal.toFixed(2));
-              r.discountEnabled = lineDiscountTotal > 0;
-            });
+          if (existingDiscountSum <= 0) {
+            const preTotal = mappedItems.reduce(
+              (s, r) => s + (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0),
+              0
+            );
+            const totalQty = mappedItems.reduce(
+              (s, r) => s + (Number(r.quantity) || 0),
+              0
+            );
+            if (preTotal > 0) {
+              mappedItems.forEach((r) => {
+                const lineTotal = (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0);
+                const lineShare = lineTotal / preTotal;
+                const lineDiscountTotal = totalOrderDiscount * lineShare;
+                r.discount = Number(lineDiscountTotal.toFixed(2));
+                r.discountEnabled = Number(lineDiscountTotal) > 0;
+              });
+            } else if (totalQty > 0) {
+              const perRow = Number((totalOrderDiscount / totalQty).toFixed(2));
+              mappedItems.forEach((r) => {
+                const lineDiscountTotal = perRow * (Number(r.quantity) || 0);
+                r.discount = Number(lineDiscountTotal.toFixed(2));
+                r.discountEnabled = lineDiscountTotal > 0;
+              });
+            }
           }
         }
       } catch (err) {
@@ -864,7 +882,7 @@ const Invoices = () => {
       }
     };
 
-    // Products are loaded from service in effect above
+   
 
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
@@ -887,7 +905,7 @@ const Invoices = () => {
             (p) => (p.name || "").toLowerCase() === name.toLowerCase()
           );
 
-      // Use the cost price of the selected product as the unit price
+      
       const unitPrice = selected
         ? Number(selected.costPrice) || 0
         : Number(entry.unitPrice) || 0;
@@ -923,7 +941,7 @@ const Invoices = () => {
         return;
       }
 
-      // compute default discount per-unit from selected discount level (if any)
+      
       const defaultPerUnitDiscount = selectedDiscountLevel
         ? computePerUnitDiscountFromLevel(selectedDiscountLevel, unitPrice)
         : 0;
@@ -963,7 +981,33 @@ const Invoices = () => {
 
     const updateItemField = (id, field, value) => {
       setItems((prev) =>
-        prev.map((it) => (it.id === id ? { ...it, [field]: value } : it))
+        prev.map((it) => {
+          if (it.id !== id) return it;
+          const updated = { ...it, [field]: value };
+        
+          if (field === "quantity" && it.discountPerUnit != null) {
+            const qty = Number(value) || 0;
+            updated.discount = Math.round((Number(it.discountPerUnit) || 0) * qty * 100) / 100;
+            updated.discountEnabled = Number(updated.discount) > 0;
+          }
+          return updated;
+        })
+      );
+    };
+
+    const updateItemDiscount = (id, rawValue) => {
+      const v = Number(rawValue) || 0;
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.id !== id) return it;
+          if (it.discountPerUnit != null) {
+            const perUnit = v;
+            const qty = Number(it.quantity) || 0;
+            const line = Math.round(perUnit * qty * 100) / 100;
+            return { ...it, discountPerUnit: perUnit, discount: line, discountEnabled: perUnit > 0 };
+          }
+          return { ...it, discount: Math.round(v * 100) / 100, discountEnabled: v > 0 };
+        })
       );
     };
 
@@ -1056,8 +1100,7 @@ const Invoices = () => {
     const finalizeInvoiceWithPayment = async (paymentData) => {
       if (!pendingInvoice) return;
 
-      // Build one JSON payload combining invoice and payment
-      // Exclude customerEmail from output payload
+    
       const { customerEmail: _omitCustomerEmail, ...pendingSansEmail } =
         pendingInvoice || {};
       const invoicePayload = {
@@ -1067,7 +1110,6 @@ const Invoices = () => {
         created_by: user?.id || user?.user_id || undefined,
       };
 
-      // Log request and also send to backend INV endpoint
       try {
         // Prepare helpful console output
         const itemsWithTotals = (invoicePayload.items || []).map((it) => {
@@ -1832,11 +1874,14 @@ const Invoices = () => {
                                         type="number"
                                         min="0"
                                         step="0.01"
-                                        value={it.discount}
+                                        value={
+                                          it.discountPerUnit != null
+                                            ? it.discountPerUnit
+                                            : it.discount
+                                        }
                                         onChange={(e) =>
-                                          updateItemField(
+                                          updateItemDiscount(
                                             it.id,
-                                            "discount",
                                             parseFloat(e.target.value) || 0
                                           )
                                         }
@@ -2103,18 +2148,11 @@ const Invoices = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/*  Create New Invoice */}
         <section aria-label="Create new invoice">
           <InlineNewInvoiceForm nextInvoiceId={nextInvoiceId} />
         </section>
-
-        {/* Filters and Search removed as requested */}
-
-        {/* Invoices list and details sections removed */}
+       
       </div>
-
-      {/* Payment Modal (rendered at page level to avoid stacking context issues) */}
-      {/* Note: The InlineNewInvoiceForm owns its own modal state; move modal here if lifting state up in future */}
     </div>
   );
 };
