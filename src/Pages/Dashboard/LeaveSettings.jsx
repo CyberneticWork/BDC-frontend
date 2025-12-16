@@ -12,12 +12,19 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronUp,
+  Briefcase,
 } from "lucide-react";
 import {
   getAllLeaveSettings,
   createLeaveSettings,
   updateLeaveSettings,
   deleteLeaveSettings,
+  LEAVE_TYPES,
+  MONTHS,
+  getMonthName,
+  getMonthRangeString,
+  calculateQuarterTotalDays,
+  calculateTotalLeaveDays,
 } from "../../services/LeaveSettingsService";
 
 const LeaveSettings = () => {
@@ -60,95 +67,150 @@ const LeaveSettings = () => {
 
   const initializeQuarters = (count) => {
     const quarters = [];
-    const currentYear = new Date().getFullYear();
-    
-    // Calculate default date ranges based on number of quarters
     const monthsPerQuarter = Math.floor(12 / count);
-    
+
     for (let i = 1; i <= count; i++) {
-      const startMonth = (i - 1) * monthsPerQuarter;
-      const endMonth = i * monthsPerQuarter - 1;
-      
-      // Default start date: first day of the quarter's first month
-      const defaultStartDate = `${currentYear}-${String(startMonth + 1).padStart(2, '0')}-01`;
-      
-      // Default end date: last day of the quarter's last month
-      const lastDay = new Date(currentYear, endMonth + 1, 0).getDate();
-      const defaultEndDate = `${currentYear}-${String(endMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-      
+      const startMonth = (i - 1) * monthsPerQuarter + 1;
+      const endMonth = i * monthsPerQuarter;
+
       quarters.push({
         quarter_number: i,
-        leave_days: 0,
         name: `Quarter ${i}`,
-        start_date: defaultStartDate,
-        end_date: defaultEndDate,
+        start_month: startMonth,
+        end_month: endMonth,
+        leave_types: [
+          { type: "annual", name: "Annual Leave", days: 0 },
+        ],
       });
     }
     return quarters;
   };
 
-  // Validate quarter dates
-  const validateQuarterDates = (quarters) => {
+  // Validate quarter month ranges
+  const validateQuarterMonths = (quarters) => {
     const errors = {};
-    
+
     quarters.forEach((quarter, index) => {
       const quarterErrors = [];
-      
-      if (!quarter.start_date) {
-        quarterErrors.push("Start date is required");
+
+      if (!quarter.start_month) {
+        quarterErrors.push("Start month is required");
       }
-      if (!quarter.end_date) {
-        quarterErrors.push("End date is required");
+      if (!quarter.end_month) {
+        quarterErrors.push("End month is required");
       }
-      
-      if (quarter.start_date && quarter.end_date) {
-        const startDate = new Date(quarter.start_date);
-        const endDate = new Date(quarter.end_date);
-        
-        // Check if start date is before end date
-        if (startDate >= endDate) {
-          quarterErrors.push("Start date must be before end date");
+
+      if (quarter.start_month && quarter.end_month) {
+        // Check if start month is before or equal to end month
+        if (quarter.start_month > quarter.end_month) {
+          quarterErrors.push("Start month must be before or equal to end month");
         }
-        
+
         // Check for overlapping with other quarters
         quarters.forEach((otherQuarter, otherIndex) => {
-          if (index !== otherIndex && otherQuarter.start_date && otherQuarter.end_date) {
-            const otherStart = new Date(otherQuarter.start_date);
-            const otherEnd = new Date(otherQuarter.end_date);
-            
-            // Check if date ranges overlap
+          if (index !== otherIndex && otherQuarter.start_month && otherQuarter.end_month) {
+            // Check if month ranges overlap
             if (
-              (startDate >= otherStart && startDate <= otherEnd) ||
-              (endDate >= otherStart && endDate <= otherEnd) ||
-              (startDate <= otherStart && endDate >= otherEnd)
+              (quarter.start_month >= otherQuarter.start_month && quarter.start_month <= otherQuarter.end_month) ||
+              (quarter.end_month >= otherQuarter.start_month && quarter.end_month <= otherQuarter.end_month) ||
+              (quarter.start_month <= otherQuarter.start_month && quarter.end_month >= otherQuarter.end_month)
             ) {
-              quarterErrors.push(`Date range overlaps with Quarter ${otherQuarter.quarter_number}`);
+              quarterErrors.push(`Month range overlaps with Quarter ${otherQuarter.quarter_number}`);
             }
           }
         });
       }
-      
+
+      // Validate leave types
+      if (!quarter.leave_types || quarter.leave_types.length === 0) {
+        quarterErrors.push("At least one leave type is required");
+      }
+
       if (quarterErrors.length > 0) {
         errors[`quarter_${index}`] = quarterErrors;
       }
     });
-    
+
     return errors;
   };
 
-  // Handle quarter date change
-  const handleQuarterDateChange = (index, field, value) => {
+  // Handle quarter month change
+  const handleQuarterMonthChange = (index, field, value) => {
     setFormData((prev) => {
       const newQuarters = [...prev.quarters];
       newQuarters[index] = {
         ...newQuarters[index],
-        [field]: value,
+        [field]: parseInt(value),
       };
-      
+
       // Validate after change
-      const errors = validateQuarterDates(newQuarters);
+      const errors = validateQuarterMonths(newQuarters);
       setValidationErrors(errors);
+
+      return { ...prev, quarters: newQuarters };
+    });
+  };
+
+  // Add leave type to a quarter
+  const handleAddLeaveType = (quarterIndex) => {
+    setFormData((prev) => {
+      const newQuarters = [...prev.quarters];
+      const existingTypes = newQuarters[quarterIndex].leave_types.map(lt => lt.type);
       
+      // Find first available leave type
+      const availableType = LEAVE_TYPES.find(lt => !existingTypes.includes(lt.type));
+      
+      if (availableType) {
+        newQuarters[quarterIndex] = {
+          ...newQuarters[quarterIndex],
+          leave_types: [
+            ...newQuarters[quarterIndex].leave_types,
+            { type: availableType.type, name: availableType.name, days: 0 },
+          ],
+        };
+      }
+
+      return { ...prev, quarters: newQuarters };
+    });
+  };
+
+  // Remove leave type from a quarter
+  const handleRemoveLeaveType = (quarterIndex, leaveTypeIndex) => {
+    setFormData((prev) => {
+      const newQuarters = [...prev.quarters];
+      newQuarters[quarterIndex] = {
+        ...newQuarters[quarterIndex],
+        leave_types: newQuarters[quarterIndex].leave_types.filter((_, idx) => idx !== leaveTypeIndex),
+      };
+      return { ...prev, quarters: newQuarters };
+    });
+  };
+
+  // Handle leave type change
+  const handleLeaveTypeChange = (quarterIndex, leaveTypeIndex, field, value) => {
+    setFormData((prev) => {
+      const newQuarters = [...prev.quarters];
+      const newLeaveTypes = [...newQuarters[quarterIndex].leave_types];
+      
+      if (field === "type") {
+        const selectedType = LEAVE_TYPES.find(lt => lt.type === value);
+        newLeaveTypes[leaveTypeIndex] = {
+          ...newLeaveTypes[leaveTypeIndex],
+          type: value,
+          name: selectedType ? selectedType.name : value,
+        };
+      } else if (field === "days") {
+        newLeaveTypes[leaveTypeIndex] = {
+          ...newLeaveTypes[leaveTypeIndex],
+          days: parseInt(value) || 0,
+        };
+      }
+
+      newQuarters[quarterIndex] = {
+        ...newQuarters[quarterIndex],
+        leave_types: newLeaveTypes,
+      };
+
       return { ...prev, quarters: newQuarters };
     });
   };
@@ -168,17 +230,6 @@ const LeaveSettings = () => {
       number_of_quarters: numQuarters,
       quarters: initializeQuarters(numQuarters),
     }));
-  };
-
-  const handleQuarterDaysChange = (index, days) => {
-    setFormData((prev) => {
-      const newQuarters = [...prev.quarters];
-      newQuarters[index] = {
-        ...newQuarters[index],
-        leave_days: parseInt(days) || 0,
-      };
-      return { ...prev, quarters: newQuarters };
-    });
   };
 
   const resetForm = () => {
@@ -219,9 +270,9 @@ const LeaveSettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate quarter dates for permanent employees
+    // Validate quarter months for permanent employees
     if (formData.employee_type === "permanent") {
-      const errors = validateQuarterDates(formData.quarters);
+      const errors = validateQuarterMonths(formData.quarters);
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
         setMessage({ type: "error", text: "Please fix the validation errors before saving" });
@@ -288,7 +339,15 @@ const LeaveSettings = () => {
     if (setting.employee_type === "probation") {
       return setting.annual_leave_days || 0;
     }
-    return (setting.quarters || []).reduce((sum, q) => sum + (q.leave_days || 0), 0);
+    return calculateTotalLeaveDays(setting.quarters);
+  };
+
+  // Get available leave types for a quarter (excluding already selected ones)
+  const getAvailableLeaveTypes = (quarter, currentIndex) => {
+    const selectedTypes = quarter.leave_types
+      .filter((_, idx) => idx !== currentIndex)
+      .map(lt => lt.type);
+    return LEAVE_TYPES.filter(lt => !selectedTypes.includes(lt.type));
   };
 
   if (loading) {
@@ -459,28 +518,46 @@ const LeaveSettings = () => {
                       </button>
 
                       {expandedCard === setting.id && (
-                        <div className="mt-4 space-y-2">
+                        <div className="mt-4 space-y-3">
                           {(setting.quarters || []).map((quarter, idx) => (
                             <div
                               key={idx}
-                              className="p-3 bg-gray-50 rounded-lg"
+                              className="p-4 bg-gray-50 rounded-lg"
                             >
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-gray-700 font-medium">
-                                  {quarter.name || `Quarter ${quarter.quarter_number}`}
-                                </span>
+                              <div className="flex justify-between items-center mb-3">
+                                <div>
+                                  <span className="text-gray-700 font-medium">
+                                    {quarter.name || `Quarter ${quarter.quarter_number}`}
+                                  </span>
+                                  <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>
+                                      {getMonthRangeString(quarter.start_month, quarter.end_month)}
+                                    </span>
+                                  </div>
+                                </div>
                                 <span className="font-semibold text-gray-900">
-                                  {quarter.leave_days} days
+                                  {calculateQuarterTotalDays(quarter)} days
                                 </span>
                               </div>
-                              {(quarter.start_date || quarter.end_date) && (
-                                <div className="text-xs text-gray-500 flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>
-                                    {quarter.start_date ? new Date(quarter.start_date).toLocaleDateString() : "N/A"} 
-                                    {" - "} 
-                                    {quarter.end_date ? new Date(quarter.end_date).toLocaleDateString() : "N/A"}
-                                  </span>
+                              
+                              {/* Leave Types in Quarter */}
+                              {quarter.leave_types && quarter.leave_types.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {quarter.leave_types.map((leaveType, ltIdx) => (
+                                    <div
+                                      key={ltIdx}
+                                      className="flex justify-between items-center text-sm bg-white px-3 py-2 rounded"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Briefcase className="h-3 w-3 text-gray-400" />
+                                        <span className="text-gray-600">{leaveType.name}</span>
+                                      </div>
+                                      <span className="font-medium text-gray-700">
+                                        {leaveType.days} days
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </div>
@@ -505,7 +582,7 @@ const LeaveSettings = () => {
       {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-gray-900">
@@ -633,7 +710,7 @@ const LeaveSettings = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Leave Days per Quarter
+                      Quarter Configuration
                     </label>
                     <div className="space-y-4">
                       {formData.quarters.map((quarter, index) => (
@@ -645,65 +722,137 @@ const LeaveSettings = () => {
                               : "border-gray-200 bg-gray-50"
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center justify-between mb-4">
                             <span className="text-gray-900 font-semibold">
                               Quarter {quarter.quarter_number}
                             </span>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                min="0"
-                                value={quarter.leave_days}
-                                onChange={(e) =>
-                                  handleQuarterDaysChange(index, e.target.value)
-                                }
-                                className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
-                                placeholder="Days"
-                              />
-                              <span className="text-gray-500 text-sm">days</span>
-                            </div>
+                            <span className="text-sm text-gray-500 font-medium bg-white px-3 py-1 rounded-full">
+                              Total: {calculateQuarterTotalDays(quarter)} days
+                            </span>
                           </div>
-                          
-                          <div className="grid grid-cols-2 gap-3">
+
+                          {/* Month Range Selection */}
+                          <div className="grid grid-cols-2 gap-3 mb-4">
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Start Date
+                                Start Month
                               </label>
-                              <input
-                                type="date"
-                                value={quarter.start_date || ""}
+                              <select
+                                value={quarter.start_month || ""}
                                 onChange={(e) =>
-                                  handleQuarterDateChange(index, "start_date", e.target.value)
+                                  handleQuarterMonthChange(index, "start_month", e.target.value)
                                 }
                                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
                                   validationErrors[`quarter_${index}`]
                                     ? "border-red-300"
                                     : "border-gray-300"
                                 }`}
-                              />
+                              >
+                                <option value="">Select month</option>
+                                {MONTHS.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">
-                                End Date
+                                End Month
                               </label>
-                              <input
-                                type="date"
-                                value={quarter.end_date || ""}
+                              <select
+                                value={quarter.end_month || ""}
                                 onChange={(e) =>
-                                  handleQuarterDateChange(index, "end_date", e.target.value)
+                                  handleQuarterMonthChange(index, "end_month", e.target.value)
                                 }
                                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
                                   validationErrors[`quarter_${index}`]
                                     ? "border-red-300"
                                     : "border-gray-300"
                                 }`}
-                              />
+                              >
+                                <option value="">Select month</option>
+                                {MONTHS.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
-                          
+
+                          {/* Leave Types */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-xs font-medium text-gray-600">
+                                Leave Types
+                              </label>
+                              {quarter.leave_types && quarter.leave_types.length < LEAVE_TYPES.length && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddLeaveType(index)}
+                                  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  Add Leave Type
+                                </button>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              {quarter.leave_types && quarter.leave_types.map((leaveType, ltIndex) => (
+                                <div
+                                  key={ltIndex}
+                                  className="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200"
+                                >
+                                  <select
+                                    value={leaveType.type}
+                                    onChange={(e) =>
+                                      handleLeaveTypeChange(index, ltIndex, "type", e.target.value)
+                                    }
+                                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    {getAvailableLeaveTypes(quarter, ltIndex).map((lt) => (
+                                      <option key={lt.type} value={lt.type}>
+                                        {lt.name}
+                                      </option>
+                                    ))}
+                                    {/* Include current selection if not in available types */}
+                                    {!getAvailableLeaveTypes(quarter, ltIndex).find(lt => lt.type === leaveType.type) && (
+                                      <option value={leaveType.type}>
+                                        {leaveType.name}
+                                      </option>
+                                    )}
+                                  </select>
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={leaveType.days}
+                                      onChange={(e) =>
+                                        handleLeaveTypeChange(index, ltIndex, "days", e.target.value)
+                                      }
+                                      className="w-16 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Days"
+                                    />
+                                    <span className="text-xs text-gray-500">days</span>
+                                  </div>
+                                  {quarter.leave_types.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveLeaveType(index, ltIndex)}
+                                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
                           {/* Validation Errors */}
                           {validationErrors[`quarter_${index}`] && (
-                            <div className="mt-2 space-y-1">
+                            <div className="mt-3 space-y-1">
                               {validationErrors[`quarter_${index}`].map((error, errIdx) => (
                                 <p key={errIdx} className="text-xs text-red-600 flex items-center gap-1">
                                   <AlertCircle className="h-3 w-3" />
@@ -719,7 +868,7 @@ const LeaveSettings = () => {
                       <div className="flex justify-between items-center">
                         <span className="text-blue-700 font-medium">Total Annual Leave</span>
                         <span className="text-blue-900 font-bold text-lg">
-                          {formData.quarters.reduce((sum, q) => sum + q.leave_days, 0)} days
+                          {calculateTotalLeaveDays(formData.quarters)} days
                         </span>
                       </div>
                     </div>
