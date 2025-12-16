@@ -94,6 +94,7 @@ export const permissions = {
     discountLevel: { view: true, edit: true },
     productType: { view: true, edit: true },
     pendingApprovals: { view: true, edit: true },
+    leaveSettings: { view: true, edit: true },
   },
   hr: {
     chatbot: { view: true },
@@ -169,6 +170,7 @@ export const permissions = {
     masterFiles: { view: true, edit: true },
     productList: { view: true, edit: true },
     discountLevel: { view: true, edit: true },
+    leaveSettings: { view: true, edit: true },
   },
   supervisor: {
     chatbot: { view: true },

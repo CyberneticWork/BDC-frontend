@@ -107,6 +107,7 @@ import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
 import SingleEntryReport from "@src/Pages/Reports/TimeCard/SingleEntryReport";
 import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
+import LeaveSettings from "./LeaveSettings";
 
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -978,6 +979,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "supplier" ? (
               <ProtectedComponent module="supplier" action="view">
                 <Supplier />
+              </ProtectedComponent>
+            ) : activeItem === "leaveSettings" ? (
+              <ProtectedComponent module="leaveSettings" action="view">
+                <LeaveSettings />
               </ProtectedComponent>
             )  : activeItem === "chatbot" ? (
               <ProtectedComponent module="chatbot" action="view">

@@ -56,6 +56,7 @@ const Sidebar = ({
     // ADD
     reports: false,
     timecardReports: false,
+    settings: false,
   });
 
   const menuItems = useMemo(() => [
@@ -212,7 +213,7 @@ const Sidebar = ({
         },
         // { id: "ledger", name: "Ledger" },
         // { id: "expenses", name: "Expenses" },
-        { id: "accountingSettings", name: "Settings" },
+        // { id: "accountingSettings", name: "Settings" },
       ],
     },
     { //for inventory section
@@ -265,6 +266,15 @@ const Sidebar = ({
       ],
     },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
+    {
+      id: "settings",
+      name: "Settings",
+      icon: Settings,
+      badge: null,
+      subItems: [
+        { id: "leaveSettings", name: "Leave Settings" },
+      ],
+    },
   ], []);
 
   // NEW: auto-expand nested groups based on the current activeItem (works on reload)
@@ -349,6 +359,10 @@ const Sidebar = ({
         path.includes("timecardReports") ||
         activeItem === "timecardReports" ||
         ["attendanceReport", "singleEntryReport"].includes(activeItem),
+      settings:
+        path.includes("settings") ||
+        activeItem === "settings" ||
+        ["leaveSettings"].includes(activeItem),
     });
   }, [activeItem, menuItems]);
 
@@ -413,6 +427,9 @@ const Sidebar = ({
   };
   const toggleTimecardReports = () => {
     setExpandedItems((prev) => ({ ...prev, timecardReports: !prev.timecardReports }));
+  };
+  const toggleSettings = () => {
+    setExpandedItems((prev) => ({ ...prev, settings: !prev.settings }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -527,6 +544,7 @@ const Sidebar = ({
                           financeReports: { toggle: toggleFinanceReports, expanded: expandedItems.financeReports },
                           // ADD
                           reports: { toggle: toggleReports, expanded: expandedItems.reports },
+                          settings: { toggle: toggleSettings, expanded: expandedItems.settings },
                         };
                         const top = topDropdowns[item.id] || {
                           toggle: () => {},
@@ -599,6 +617,7 @@ const Sidebar = ({
                           item.id === "inventory" ? expandedItems.inventory :
                           // ADD
                           item.id === "reports" ? expandedItems.reports :
+                          item.id === "settings" ? expandedItems.settings :
                           false;
                         if (!topExpanded) return null;
                         return (
@@ -777,27 +796,8 @@ const Sidebar = ({
 
         {/* Bottom Actions */}
         <div className="p-4 border-t border-gray-100 space-y-2 flex-shrink-0">
-          <button
-            onClick={() => setActiveItem("settings")}
-            className={`
-              w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-              transition-all duration-200 group
-              ${
-                activeItem === "settings"
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-              }
-            `}
-          >
-            <Settings
-              className={`h-5 w-5 ${
-                activeItem === "settings"
-                  ? "text-indigo-600"
-                  : "text-gray-400 group-hover:text-gray-600"
-              }`}
-            />
-            <span>Settings</span>
-          </button>
+          
+          
 
           <button
             onClick={onLogout}
