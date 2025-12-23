@@ -6,6 +6,7 @@ import { getCustomers as fetchCustomersService } from "../../services/Account/Cu
 import {createINV,getNextInv,fetchSalesOrders,} from "../../services/Inventory/inventoryService";
 import { useAuth } from "../../contexts/AuthContext";
 import Payment from "../../components/Inventory/Payment";
+import { SuccessPdfView } from "../../components/Inventory/successPdf.jsx";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
 import discountLevelService from "../../services/Inventory/discountLevelService";
 
@@ -27,6 +28,7 @@ const Invoices = () => {
   const [nextInvoiceId, setNextInvoiceId] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successText, setSuccessText] = useState("");
+  const [recentInvoiceDetails, setRecentInvoiceDetails] = useState(null);
   const lastCreatedInvoiceRef = useRef("");
 
   useEffect(() => {
@@ -111,6 +113,8 @@ const Invoices = () => {
       center: "",
       customer: "",
       customerEmail: "",
+      customerAddress: "",
+      customerTelephone: "",
       customerId: "",
       date: new Date().toISOString().split("T")[0],
       status: "",
@@ -384,18 +388,22 @@ const Invoices = () => {
           setLoading((prev) => ({ ...prev, customers: true }));
           const data = await fetchCustomersService();
           const normalized = Array.isArray(data)
-            ? data.map((c) => ({
-                id:
-                  c.id ??
-                  c.customer_id ??
-                  String(c.email || c.name || Math.random()),
-                name:
-                  c.name ??
-                  c.customer_name ??
-                  `${c.first_name || ""} ${c.last_name || ""}`.trim(),
-                email: c.email ?? c.contact_email ?? "",
-              }))
-            : [];
+                ? data.map((c) => ({
+                    id:
+                      c.id ??
+                      c.customer_id ??
+                      String(c.email || c.name || Math.random()),
+                    name:
+                      c.name ??
+                      c.customer_name ??
+                      `${c.first_name || ""} ${c.last_name || ""}`.trim(),
+                    email: c.email ?? c.contact_email ?? "",
+                    address:
+                      c.address ?? c.customer_address ?? c.address_line1 ?? c.address1 ?? "",
+                    telephone:
+                      c.telephone ?? c.phone ?? c.contact_number ?? c.mobile ?? "",
+                  }))
+                : [];
           setCustomers(normalized);
         } catch (error) {
           console.error("Error fetching customers:", error);
@@ -538,6 +546,8 @@ const Invoices = () => {
       id: c.id,
       name: c.name,
       email: c.email,
+      address: c.address || "",
+      telephone: c.telephone || "",
     }));
 
     // Helper: compute per-unit discount from a discount level and unit price
@@ -627,13 +637,15 @@ const Invoices = () => {
 
     // Resolve customer meta and trigger voucher fetch once both center/customer are known
     const handleCustomerSelection = (value) => {
-      const selected = availableCustomers.find((c) => c.email === value);
+      const selected = customers.find((c) => String(c.email) === String(value));
       if (selected) {
         setFormData((prev) => ({
           ...prev,
           customer: selected.name,
           customerEmail: selected.email,
           customerId: selected.id,
+          customerAddress: selected.address || "",
+          customerTelephone: selected.telephone || "",
         }));
         if (formData.center) {
           setSalesOrderInlineNotice("");
@@ -659,7 +671,13 @@ const Invoices = () => {
           );
         }
       } else {
-        setFormData((prev) => ({ ...prev, customer: "", customerEmail: "" }));
+        setFormData((prev) => ({
+          ...prev,
+          customer: "",
+          customerEmail: "",
+          customerAddress: "",
+          customerTelephone: "",
+        }));
         pendingSalesOrderRef.current = null;
         setSalesOrderInlineNotice("");
       }
@@ -1238,6 +1256,45 @@ const Invoices = () => {
             created?.id || invoicePayload?.id || nextInvoiceId
           } created successfully.`
         );
+        const previewItems = (invoicePayload.items || []).map((item) => ({
+          ...item,
+        }));
+        const previewOrderNumber =
+          invoicePayload?.voucherNumber ??
+          invoicePayload?.id ??
+          invoicePayload?.reference ??
+          nextInvoiceId;
+        const previewData = {
+          ...invoicePayload,
+          items: previewItems,
+          documentType: "Invoice",
+          paidAmount:
+            paymentData?.amount ??
+            paymentData?.paidAmount ??
+            paymentData?.paid ??
+            0,
+          payment: paymentData,
+          currencyFormat: (value) => formatLKR(value),
+          customerAddress:
+            invoicePayload?.customerAddress ??
+            invoicePayload?.address ??
+            invoicePayload?.billingAddress ??
+            "",
+          customerTelephone:
+            invoicePayload?.customerTelephone ??
+            invoicePayload?.telephone ??
+            invoicePayload?.phone ??
+            invoicePayload?.contactNumber ??
+            invoicePayload?.mobile ??
+            "",
+          totalAmount:
+            invoicePayload?.amount ??
+            invoicePayload?.total ??
+            invoicePayload?.value ??
+            tableTotal,
+          orderNumber: previewOrderNumber,
+        };
+        setRecentInvoiceDetails(previewData);
         setShowSuccess(true);
 
         // Optionally refresh centers list post-create
@@ -1407,6 +1464,20 @@ const Invoices = () => {
                         {salesOrderInlineNotice}
                       </p>
                     )}
+                  {(formData.customerAddress || formData.customerTelephone) ? (
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
+                      {formData.customerAddress && (
+                        <p>
+                          <span className="font-semibold text-slate-700">Address:</span> {formData.customerAddress}
+                        </p>
+                      )}
+                      {formData.customerTelephone && (
+                        <p className="mt-1">
+                          <span className="font-semibold text-slate-700">Telephone:</span> {formData.customerTelephone}
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -2082,40 +2153,50 @@ const Invoices = () => {
         )}
 
         {/* Success Modal */}
-        {showSuccess && (
+        {showSuccess && recentInvoiceDetails && (
           <div
-            className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
             role="dialog"
             aria-modal="true"
             aria-label="Invoice created"
           >
-            <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
-              <div className="flex items-start gap-4">
-                <CheckCircle className="h-7 w-7 text-green-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-slate-900">
-                    Success
-                  </h3>
-                  <p className="mt-2 text-sm text-slate-700">
-                    {successText || "Invoice created successfully."}
-                  </p>
+            <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                    <p className="text-sm text-slate-600">{successText || "Invoice created successfully."}</p>
+                  </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowSuccess(false)}
-                  className="ml-2 text-slate-500 hover:text-slate-700 transition-colors"
-                  aria-label="Close"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setRecentInvoiceDetails(null);
+                  }}
+                  className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                  aria-label="Close invoice summary"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="mt-6 flex justify-end">
+              <div className="mt-5">
+                <SuccessPdfView
+                  orderData={recentInvoiceDetails}
+                  documentType="Invoice"
+                />
+              </div>
+              <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowSuccess(false)}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setRecentInvoiceDetails(null);
+                  }}
+                  className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
                 >
-                  OK
+                  Close
                 </button>
               </div>
             </div>

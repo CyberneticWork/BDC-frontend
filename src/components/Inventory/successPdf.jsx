@@ -2,14 +2,22 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { X, Download, Printer, Share2, FileText, CheckCircle, ExternalLink } from "lucide-react";
+import { X, Download, Printer, FileText, CheckCircle, ExternalLink } from "lucide-react";
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
 }
 
 // Modal Component for PDF Preview
-function PdfPreviewModal({ isOpen, onClose, pdfBlob, orderNumber, onDownload, onPrint }) {
+function PdfPreviewModal({
+  isOpen,
+  onClose,
+  pdfBlob,
+  orderNumber,
+  onDownload,
+  onPrint,
+  documentLabel = "Sales Order",
+}) {
   const [pdfUrl, setPdfUrl] = useState("");
 
   useEffect(() => {
@@ -23,34 +31,45 @@ function PdfPreviewModal({ isOpen, onClose, pdfBlob, orderNumber, onDownload, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative flex flex-col lg:flex-row w-full max-w-6xl h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-slideUp">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4"
+      onClick={(e) => {
+        // Close when clicking the backdrop (but not when clicking inside the modal)
+        if (e.target === e.currentTarget) onClose && onClose();
+      }}
+    >
+      <div className="relative flex flex-col lg:flex-row w-full max-w-full sm:max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl max-h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-slideUp">
+        {/* Always-visible close button (top-right) */}
+        <button
+          onClick={onClose}
+          aria-label="Close preview"
+          className="absolute top-3 right-3 z-50 p-2 sm:p-2.5 bg-white/95 hover:bg-white rounded-full shadow-lg border border-slate-200 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <X className="w-5 h-5" />
+        </button>
         {/* Left Panel - Preview */}
-        <div className="flex-1 flex flex-col border-r border-slate-200">
-          <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+          <div className="flex-1 flex flex-col border-b lg:border-b-0 lg:border-r border-slate-200">
+          <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <FileText className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Generated Sales Order</h3>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Generated {documentLabel}
+                </h3>
                 <p className="text-sm text-slate-600">Number: {orderNumber}</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5 text-slate-500" />
-            </button>
+            {/* header actions (close button moved to top-right for consistent visibility) */}
           </div>
           
-          <div className="flex-1 p-4 overflow-auto">
-            <div className="h-full border-2 border-dashed border-slate-300 rounded-xl overflow-hidden">
+          <div className="flex-1 p-2 sm:p-3 overflow-auto">
+            <div className="w-full h-[36vh] sm:h-[46vh] md:h-[50vh] lg:h-[54vh] xl:h-[58vh] border-2 border-dashed border-slate-300 rounded-xl overflow-hidden">
               {pdfUrl ? (
                 <iframe
                   src={pdfUrl}
-                  className="w-full h-full"
+                  className="w-full h-full min-h-[200px] sm:min-h-[320px]"
                   title="PDF Preview"
                 />
               ) : (
@@ -63,13 +82,13 @@ function PdfPreviewModal({ isOpen, onClose, pdfBlob, orderNumber, onDownload, on
         </div>
 
         {/* Right Panel - Actions */}
-        <div className="w-full lg:w-96 bg-gradient-to-b from-white to-slate-50 p-6">
+        <div className="w-full sm:w-80 md:w-80 lg:w-80 xl:w-96 bg-gradient-to-b from-white to-slate-50 p-4 sm:p-6">
           <div className="sticky top-6 space-y-6">
             <div className="text-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
               <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-3" />
               <h4 className="font-bold text-green-900 text-lg">PDF Ready!</h4>
               <p className="text-sm text-green-700 mt-1">
-                Your sales order has been generated successfully
+                Your {documentLabel.toLowerCase()} has been generated successfully
               </p>
             </div>
 
@@ -152,6 +171,7 @@ export function SuccessPdfView({
   pdfUrl,
   onGeneratePdf,
   isGeneratingPdf,
+  documentType,
 }) {
   const [localGenerating, setLocalGenerating] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
@@ -159,6 +179,17 @@ export function SuccessPdfView({
   const [generationComplete, setGenerationComplete] = useState(false);
 
   const generating = typeof isGeneratingPdf === "boolean" ? isGeneratingPdf : localGenerating;
+  const resolvedDocumentType =
+    documentType ?? orderData?.documentType ?? "Sales Order";
+  const docLabel = String(resolvedDocumentType || "Sales Order").trim() || "Sales Order";
+  const isInvoice = docLabel.toLowerCase() === "invoice";
+  const paidAmountSource =
+    orderData?.paidAmount ??
+    orderData?.payment?.amount ??
+    orderData?.payment?.paidAmount ??
+    orderData?.payment?.paid;
+  const paidAmountValue = Number(paidAmountSource ?? 0);
+  const showPaidAmount = isInvoice && paidAmountSource != null && Number.isFinite(paidAmountValue);
   const hasOrder = Boolean(orderData && orderData.items?.length);
   const items = orderData?.items || [];
   const formatCurrency =
@@ -173,10 +204,21 @@ export function SuccessPdfView({
     orderData?.customerPhone ||
     orderData?.telephone ||
     orderData?.phone ||
+    orderData?.contactNumber ||
+    orderData?.mobile ||
     "—";
   const customerAddress =
     orderData?.customerAddress ||
+    orderData?.billingAddress ||
     orderData?.address ||
+    "—";
+  const customerName =
+    orderData?.customer ||
+    orderData?.customerName ||
+    orderData?.name ||
+    orderData?.customer_full_name ||
+    orderData?.customerDisplayName ||
+    orderData?.companyName ||
     "—";
   
   const orderNumber = orderData?.orderNumber || "—";
@@ -212,7 +254,7 @@ export function SuccessPdfView({
       doc.text(("INVENTORY").toUpperCase(), leftX, headerTop);
       doc.setFontSize(18);
       doc.setTextColor(20);
-      doc.text("Sales Order", leftX, headerTop + 18);
+      doc.text(docLabel, leftX, headerTop + 18);
       doc.setFontSize(12);
       doc.setFont(undefined, "bold");
       doc.text(`Number: ${order.orderNumber || "—"}`, leftX, headerTop + 36);
@@ -227,14 +269,14 @@ export function SuccessPdfView({
       const rightTextX = rightBlockX + customerBlockWidth;
       const custY = headerTop;
       // Render address as a single line (collapse whitespace)
-      const addrOneLine = String(order.customerAddress || "—").replace(/\s+/g, " ").trim();
+      const addrOneLine = String(customerAddress || "—").replace(/\s+/g, " ").trim();
       doc.setFontSize(9);
       doc.setFont(undefined, "bold");
       doc.text("Customer Details:", rightTextX, custY, { align: "right" });
-      doc.text(`${order.customer || "—"}`, rightTextX, custY + 12, { align: "right" });
+      doc.text(`${customerName}`, rightTextX, custY + 12, { align: "right" });
       doc.setFont(undefined, "normal");
       doc.text(addrOneLine, rightTextX, custY + 24, { align: "right" });
-      doc.text(`Tel: ${order.customerTelephone || "—"}`, rightTextX, custY + 36, { align: "right" });
+      doc.text(`Tel: ${customerPhone}`, rightTextX, custY + 36, { align: "right" });
 
       // Table
       const table = autoTable(doc, {
@@ -242,7 +284,13 @@ export function SuccessPdfView({
         body: (order.items || []).map((item, index) => {
           const qty = Number(item.quantity || 0);
           const unitPrice = Number(item.unitPrice || 0);
-          const discount = Number(item.lineDiscountAmount || 0);
+          const discount = Number(
+            item.lineDiscountAmount ??
+            item.lineDiscount ??
+            item.discountAmount ??
+            item.discount ??
+            0
+          );
           const lineTotal = Number(item.lineNet ?? Math.max(0, qty * unitPrice - discount));
           return [index + 1, item.productName || "—", qty, (order.currencyFormat || ((v)=>`LKR ${Number(v||0).toFixed(2)}`))(unitPrice), (order.currencyFormat || ((v)=>`LKR ${Number(v||0).toFixed(2)}`))(discount), (order.currencyFormat || ((v)=>`LKR ${Number(v||0).toFixed(2)}`))(lineTotal)];
         }),
@@ -274,9 +322,14 @@ export function SuccessPdfView({
         try { return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(Number(v||0)); } catch { return `LKR ${Number(v||0).toFixed(2)}`; }
       };
       doc.text(`Discount: ${formatLKR(discountAmount)}`, rightX, totalY, { align: 'right' });
+      let summaryY = totalY + 18;
+      if (showPaidAmount) {
+        doc.text(`Paid Amount: ${formatLKR(paidAmountValue)}`, rightX, summaryY, { align: 'right' });
+        summaryY += 18;
+      }
       doc.setFontSize(12);
       doc.setFont(undefined, "bold");
-      doc.text(`Total: ${formatLKR(totalValue)}`, rightX, totalY + 18, { align: 'right' });
+      doc.text(`Total: ${formatLKR(totalValue)}`, rightX, summaryY, { align: 'right' });
 
       // Footer credit
       doc.setFontSize(8);
@@ -287,11 +340,8 @@ export function SuccessPdfView({
       const pdfBlob = doc.output('blob');
       setGeneratedPdfBlob(pdfBlob);
       setGenerationComplete(true);
-      
-      // Auto-save the PDF
-      doc.save(`Sales-Order-${order.orderNumber || 'export'}.pdf`);
-      
-      // Show preview modal
+
+      // Show preview modal (no auto-download)
       setTimeout(() => {
         setShowPdfPreview(true);
       }, 300);
@@ -308,7 +358,8 @@ export function SuccessPdfView({
       const url = URL.createObjectURL(generatedPdfBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Sales-Order-${orderNumber}.pdf`;
+      const downloadLabel = docLabel.replace(/\s+/g, "-") || "Sales-Order";
+      a.download = `${downloadLabel}-${orderNumber}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -335,14 +386,14 @@ export function SuccessPdfView({
 
   return (
     <>
-      <div className="space-y-8 rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-6 text-slate-900 shadow-xl">
-        <div className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm lg:flex-row lg:items-start">
+      <div className="space-y-4 rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 text-slate-900 shadow-xl">
+        <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm lg:flex-row lg:items-start">
           <div className="lg:flex-1">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
               INVENTORY
             </p>
             <h2 className="text-3xl font-bold text-slate-900">
-              {orderData ? "Sales Order" : "Preview"}
+              {orderData ? docLabel : "Preview"}
             </h2>
             <p className="mt-1 text-lg font-semibold text-slate-700">
               Number: {orderNumber}
@@ -400,11 +451,21 @@ export function SuccessPdfView({
                   Customer
                 </p>
                 <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {orderData?.customer || "—"}
+                  {customerName}
                 </p>
                 <p className="text-xs text-slate-500">{customerAddress}</p>
                 <p className="text-xs text-slate-500">{customerPhone}</p>
               </div>
+              {showPaidAmount && (
+                <div className="mt-4">
+                  <p className="text-[0.6rem] uppercase tracking-[0.4em] text-slate-500">
+                    Paid Amount
+                  </p>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {formatCurrency(paidAmountValue)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -428,7 +489,13 @@ export function SuccessPdfView({
                     {items.map((item, index) => {
                       const qty = Number(item.quantity || 0);
                       const unitPrice = Number(item.unitPrice || 0);
-                      const discount = Number(item.lineDiscountAmount || 0);
+                      const discount = Number(
+                        item.lineDiscountAmount ??
+                        item.lineDiscount ??
+                        item.discountAmount ??
+                        item.discount ??
+                        0
+                      );
                       const lineTotal = Number(
                         item.lineNet ?? Math.max(0, qty * unitPrice - discount)
                       );
@@ -465,6 +532,11 @@ export function SuccessPdfView({
                 <p className="text-xs uppercase tracking-[0.2em] text-black-300">Discount : {formattedDiscount}</p>
                 <p className="mt-2 text-xs uppercase tracking-[0.2em] text-black-300">Total Amount</p>
                 <p className="text-3xl font-bold">{totalAmount}</p>
+                {showPaidAmount && (
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-black-300">
+                    Paid Amount : {formatCurrency(paidAmountValue)}
+                  </p>
+                )}
               </div>
             </div>
           </>
@@ -474,12 +546,12 @@ export function SuccessPdfView({
             <p className="mt-2">Use the <code>?url=/path/to/file.pdf</code> query to load a PDF preview.</p>
             {pdfUrl && (
               <div className="mt-4">
-                <iframe
-                  title="success-pdf-iframe"
-                  src={pdfUrl}
-                  className="h-64 w-full rounded-xl border border-slate-200"
-                />
-              </div>
+                  <iframe
+                    title="success-pdf-iframe"
+                    src={pdfUrl}
+                    className="h-48 w-full rounded-xl border border-slate-200"
+                  />
+                </div>
             )}
           </div>
         )}
@@ -497,6 +569,7 @@ export function SuccessPdfView({
         orderNumber={orderNumber}
         onDownload={handleDownload}
         onPrint={handlePrint}
+        documentLabel={docLabel}
       />
     </>
   );
