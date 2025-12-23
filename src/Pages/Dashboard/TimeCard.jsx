@@ -282,9 +282,8 @@ const TimeCard = () => {
     setFilteredData(attendanceData);
   };
 
-  // Handle delete
-  const handleDelete = async (index) => {
-    const record = filteredData[index];
+  // Handle delete - FIXED: use record.id directly instead of index
+  const handleDelete = async (record) => {
     if (!record || !record.id) {
       Swal.fire({ icon: 'error', title: 'Delete failed', text: 'Record ID not found.' });
       return;
@@ -299,9 +298,14 @@ const TimeCard = () => {
     if (confirm.isConfirmed) {
       try {
         await timeCardService.deleteTimeCard(record.id);
+        
+        // PREVENT resetting to page 1 on this refresh
+        preventPaginationReset.current = true;
+        
         const updated = await fetchTimeCards();
         setAttendanceData(updated);
         setFilteredData(updated);
+        
         Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1200, showConfirmButton: false });
       } catch (e) {
         Swal.fire({ icon: 'error', title: 'Delete failed', text: e.message });
@@ -1194,7 +1198,7 @@ const TimeCard = () => {
                               </button>
                               <button
                                 className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 border border-red-200 rounded-lg hover:bg-red-600 hover:text-white transition-all duration-150 text-xs sm:text-sm font-semibold shadow-sm"
-                                onClick={() => handleDelete(index)}
+                                onClick={() => handleDelete(record)}
                                 title="Delete"
                               >
                                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

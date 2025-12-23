@@ -108,6 +108,7 @@ import ProtectedComponent from "../../components/ProtectedComponent";
 import SingleEntryReport from "@src/Pages/Reports/TimeCard/SingleEntryReport";
 import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
 import LeaveSettings from "./LeaveSettings";
+import AbsentReport from "../Reports/TimeCard/AbsentReport";
 
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -786,17 +787,19 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="myKPIs" action="view">
                 <EmployeeKPIView />
               </ProtectedComponent>
+            ) : activeItem === "absentReport" ? (
+              <ProtectedComponent module="absentReport" action="view">
+                <AbsentReport />
+              </ProtectedComponent>
             ) : activeItem === "attendanceReport" ? (
               <ProtectedComponent module="attendanceReport" action="view">
                 <AttendanceReport />
               </ProtectedComponent>
-            ) 
-            : activeItem === "singleEntryReport" ? (
+            ) : activeItem === "singleEntryReport" ? (
               <ProtectedComponent module="singleEntryReport" action="view">
                 <SingleEntryReport />
               </ProtectedComponent>
-            ) 
-            : activeItem === "lms" ? (
+            ) : activeItem === "lms" ? (
               <ProtectedComponent module="lms" action="view">
                 <LMS />
               </ProtectedComponent>
