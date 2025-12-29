@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, CheckCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import {
   getProducts,
   getNextPurchaseReturn,
@@ -9,6 +9,7 @@ import {
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import SupplierService from "../../services/Account/SupplierService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
+import { SuccessPdfView } from "../../components/Inventory/successPdf.jsx";
 import { getUser } from "../../services/UserService";
 
 const LAST_PURCHASE_RETURN_KEY = "inventory_last_prt_id";
@@ -139,6 +140,7 @@ const Invoices = () => {
     // Payment popup removed; no payment state needed
     const [showSuccess, setShowSuccess] = useState(false);
     const [successText, setSuccessText] = useState("");
+    const [recentOrderDetails, setRecentOrderDetails] = useState(null);
     const [centerOptions, setCenterOptions] = useState([]);
     const [supplierOptions, setSupplierOptions] = useState([]);
     const [loading, setLoading] = useState({ centers: false, suppliers: false });
@@ -227,6 +229,27 @@ const Invoices = () => {
               item.display_name ??
               item.business_name ??
               String(item.name || ""),
+            address1:
+              item.address1 ??
+              item.address_1 ??
+              item.addressLine1 ??
+              item.address_line_1 ??
+              "",
+            address2:
+              item.address2 ??
+              item.address_2 ??
+              item.addressLine2 ??
+              item.address_line_2 ??
+              "",
+            telephone:
+              item.telephone ??
+              item.phone_number ??
+              item.phone ??
+              item.mobile ??
+              item.contact ??
+              item.contactNumber ??
+              item.contact_number ??
+              "",
           }));
           if (active) {
             setSupplierOptions(normalized.filter((s) => s.id && s.name));
@@ -247,6 +270,16 @@ const Invoices = () => {
         active = false;
       };
     }, []);
+
+    const selectedSupplier = useMemo(() => {
+      const value = String(formData.supplier || "").trim();
+      if (!value) return null;
+      return (
+        supplierOptions.find(
+          (s) => String(s.id) === value || String(s.name) === value
+        ) || null
+      );
+    }, [formData.supplier, supplierOptions]);
 
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
@@ -764,6 +797,40 @@ const Invoices = () => {
           response?.message ??
           `Purchase Return ${createdId || nextPrtId} has been created successfully!`;
 
+        // Create order snapshot for PDF generation
+        const itemsSnapshot = normalizedItems.map((item) => {
+          const qty = Number(item.quantity || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const discountAmount = Number(item.discount || 0);
+          return {
+            ...item,
+            productName: item.name || item.productName || "",
+            quantity: qty,
+            unitPrice,
+            lineDiscountAmount: discountAmount,
+            lineNet: Math.max(0, qty * unitPrice - discountAmount),
+          };
+        });
+
+        const orderSnapshot = {
+          ...payload,
+          orderNumber: createdId || nextPrtId,
+          orderDate: completedInvoice.date,
+          center: centerName,
+          supplier: supplierName,
+          supplierName: supplierName,
+          supplierAddress: [selectedSupplier?.address1, selectedSupplier?.address2].filter(Boolean).join(", ") || "",
+          supplierPhone: selectedSupplier?.telephone || "",
+          refNumber: completedInvoice.refNumber,
+          status: payload.status || "Completed",
+          items: itemsSnapshot,
+          discountTotal: totalDiscount,
+          totalAmount: computedAmount,
+          documentType: "Purchase Return",
+          currencyFormat: (value) => formatLKR(value),
+        };
+        setRecentOrderDetails(orderSnapshot);
+
         setFormData({
           id: "",
           center: "",
@@ -922,6 +989,25 @@ const Invoices = () => {
                       className="text-red-500 text-sm mt-2 font-medium"
                     >
                       Supplier is required
+                    </p>
+                  )}
+                  {selectedSupplier && (
+                    <p className="text-sm text-slate-600 mt-1">
+                      {selectedSupplier.address1 && (
+                        <span className="block">
+                          {selectedSupplier.address1}
+                        </span>
+                      )}
+                      {selectedSupplier.address2 && (
+                        <span className="block">
+                          {selectedSupplier.address2}
+                        </span>
+                      )}
+                      {selectedSupplier.telephone && (
+                        <span className="block">
+                          Contact: {selectedSupplier.telephone}
+                        </span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -1431,26 +1517,48 @@ const Invoices = () => {
           </div>
         </InventoryPopup>
 
-        {/* Success Modal */}
-        {showSuccess && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 border border-slate-200">
-              <div className="p-6 text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="rounded-full bg-green-100 p-3">
-                    <CheckCircle className="h-8 w-8 text-green-600" />
+        {/* Success Modal with PDF View */}
+        {showSuccess && recentOrderDetails && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Purchase return created"
+          >
+            <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                    <p className="text-sm text-slate-600">{successText || "Purchase return created successfully."}</p>
                   </div>
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                  Success!
-                </h3>
-                <p className="text-slate-600 mb-6">{successText}</p>
                 <button
-                  onClick={() => setShowSuccess(false)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+                  type="button"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setRecentOrderDetails(null);
+                  }}
+                  className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                  aria-label="Close order summary"
                 >
-                  Continue
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="mt-5">
+                <SuccessPdfView orderData={recentOrderDetails} documentType="Purchase Return" />
+              </div>
+              <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setRecentOrderDetails(null);
+                  }}
+                  className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
+                >
+                  Close
                 </button>
               </div>
             </div>
