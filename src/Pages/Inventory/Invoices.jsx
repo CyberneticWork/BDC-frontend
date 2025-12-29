@@ -1095,12 +1095,8 @@ const Invoices = () => {
         ...formWithoutLegacyFields,
         center_id: centerId || (formWithoutLegacyFields.center_id ?? undefined),
         amount: computedAmount || formData.amount,
-        discountTotal: discountTotal,
         discount_total: discountTotal,
         items: normalizedItems,
-        batchTrackingEnabled: isBatchEnabled,
-        batch_tracking_enabled: isBatchEnabled,
-        inventoryStocks: inventoryStockPayload,
         inventory_stocks: inventoryStockPayload,
       };
 
