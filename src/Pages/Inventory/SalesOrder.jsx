@@ -546,6 +546,9 @@ const SalesOrder = () => {
           status: form.status || "pending",
           centerId: selectedCenterId || null,
           center_id: selectedCenterId || null,
+          // include selected discount level id for backend
+          discountLevelId: selectedDiscountLevel?.id ?? null,
+          discount_level_id: selectedDiscountLevel?.id ?? null,
             items: items.map((it) => {
             const qty = Number(it.quantity) || 0;
             const price = Number(it.unitPrice) || 0;
@@ -613,6 +616,7 @@ const SalesOrder = () => {
           status: form.status || "pending",
           items: itemsSnapshot,
           discountLevelLabel,
+          discountLevelId: selectedDiscountLevel?.id ?? null,
           customerAddress,
           customerTelephone,
           orderName: "Sales Order",

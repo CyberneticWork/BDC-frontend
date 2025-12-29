@@ -5,6 +5,7 @@ import { getSalesOrders } from "../../services/AccountingService";
 import {getProducts,getCustomers,fetchInvoices,getNextSalesReturn,createSalesReturn,} from "../../services/Inventory/inventoryService"; // dummy data inventoryService.js
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
+import { SuccessPdfView } from "../../components/Inventory/successPdf";
 
 const SalesReturn = () => {
   const [, setOrders] = useState([]); 
@@ -14,6 +15,7 @@ const SalesReturn = () => {
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for form submission
   const [showSuccess, setShowSuccess] = useState(false); // Success modal visibility
   const [successText, setSuccessText] = useState(""); // Success message text
+  const [recentReturnDetails, setRecentReturnDetails] = useState(null);
 
 
   useEffect(() => {
@@ -136,6 +138,10 @@ const SalesReturn = () => {
       orderNumber: "",
       center: "",
       customer: "",
+      customerAddress: "",
+      address: "",
+      customerTelephone: "",
+      telephone: "",
       customerId: "",
       date: new Date().toISOString().split("T")[0],
       status: "Draft",
@@ -183,19 +189,16 @@ const SalesReturn = () => {
       const fetchCustomers = async () => {
         try {
           const data = await getCustomers();
-          // ensure customers have id and name fields
           const normalized = Array.isArray(data)
             ? data.map((c) => ({
-                id: String(
-                  c.id ?? c.customer_id ?? c.email ?? c.uuid ?? c._id ?? ""
-                ),
-                name:
-                  c.name ??
-                  c.displayName ??
-                  c.customerName ??
-                  c.customer ??
-                  c.email ??
-                  String(c.id ?? ""),
+                id: String(c.id ?? c.customer_id ?? ""),
+                name: c.name ?? String(c.name ?? ""),
+                // include both canonical and prefixed keys for compatibility
+                address: c.address ?? "",
+                customerAddress: c.address ?? "",
+                city: c.city ?? "",
+                telephone: c.phone ?? "",
+                customerTelephone: c.phone ?? "",
               }))
             : [];
           setCustomers(normalized);
@@ -206,6 +209,7 @@ const SalesReturn = () => {
       fetchCustomers();
     }, []);
 
+//fetch centers from API on component mount
     useEffect(() => {
       let active = true;
       const loadCenters = async () => {
@@ -217,20 +221,9 @@ const SalesReturn = () => {
           const normalized = Array.isArray(data)
             ? data.map((center) => ({
                 id: String(
-                  center.id ??
-                    center.center_id ??
-                    center.value ??
-                    center.code ??
-                    center.uuid ??
-                    ""
-                ),
+                  center.id ?? center.center_id ??"" ),
                 name:
-                  center.name ??
-                  center.centerName ??
-                  center.center_name ??
-                  center.title ??
-                  center.label ??
-                  String(center.id ?? "Unnamed Center"),
+                  center.name ?? center.centerName ?? String(center.id ?? "Unnamed Center"),
               }))
             : [];
           const filtered = normalized.filter(
@@ -955,7 +948,6 @@ const SalesReturn = () => {
           ...form,
           created_by: auth?.user?.id ?? null,
           center_id: selectedCenterId ?? form.centerId ?? form.center_id ?? null,
-          // Sales returns should be created with Pending status
           status: "Pending",
           items: items.map((it) => {
             const qty = Number(it.quantity) || 0;
@@ -979,6 +971,7 @@ const SalesReturn = () => {
           // Ensure totalAmount does not include tax for sales returns
           totalAmount,
         };
+        // Search logs for: "Submitting sales return payload:" to find the POST payload
         console.log("Submitting sales return payload:", payload);
         let created = null;
         try {
@@ -1040,6 +1033,39 @@ const SalesReturn = () => {
             ? resolved
             : String(nextSONumber || resolved || "").trim();
         setSuccessText(`Sales return ${createdNumber} created successfully.`);
+
+        // Prepare a snapshot for PDF preview similar to SalesOrder
+        const itemsSnapshot = payload.items.map((item) => {
+          const qty = Number(item.quantity || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const discountAmount = Number(item.lineDiscountAmount || 0);
+          return {
+            ...item,
+            quantity: qty,
+            unitPrice,
+            lineDiscountAmount: discountAmount,
+            lineNet: Number(item.lineNet ?? Math.max(0, qty * unitPrice - discountAmount)),
+          };
+        });
+        const customerAddress = form.customerAddress || form.address || "";
+        const customerTelephone =
+          form.customerTelephone || form.telephone || form.phone || "";
+        const returnSnapshot = {
+          ...payload,
+          orderNumber: createdNumber,
+          orderDate: form.date,
+          center: form.center,
+          customer: form.customer,
+          refNumber: form.refNumber,
+          status: form.status || "Draft",
+          items: itemsSnapshot,
+          orderName: "Sales Return",
+          orderLabel: "Sales Return",
+          currencyFormat: (value) => formatLKR(value),
+          customerAddress,
+          customerTelephone,
+        };
+        setRecentReturnDetails(returnSnapshot);
         setShowSuccess(true);
 
         try {
@@ -1102,8 +1128,11 @@ const SalesReturn = () => {
       }
     };
 
-   
-    return (
+      const selectedCustomer = customers.find(
+        (c) => String(c.id) === String(form.customerId)
+      );
+
+      return (
       <>
      
         <div className="bg-slate-50 rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
@@ -1229,6 +1258,11 @@ const SalesReturn = () => {
                         ...p,
                         customerId: id,
                         customer: meta?.name || "",
+                        // write both naming variants so snapshots pick them up
+                        customerAddress: meta?.customerAddress || meta?.address || "",
+                        address: meta?.address || meta?.customerAddress || "",
+                        customerTelephone: meta?.customerTelephone || meta?.telephone || "",
+                        telephone: meta?.telephone || meta?.customerTelephone || "",
                       }));
                     }}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
@@ -1252,6 +1286,16 @@ const SalesReturn = () => {
                   {invoiceFetchError && !showInvoiceModal && (
                     <p className="text-amber-600 text-sm mt-1 font-medium">
                       {invoiceFetchError}
+                    </p>
+                  )}
+                  {selectedCustomer && (
+                    <p className="text-sm text-slate-600 mt-1">
+                      {selectedCustomer.address && (
+                        <span className="block">{selectedCustomer.address}</span>
+                      )}
+                      {selectedCustomer.telephone && (
+                        <span className="block">Contact: {selectedCustomer.telephone}</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -1764,7 +1808,54 @@ const SalesReturn = () => {
       )}
 
       {/* ===== SUCCESS MODAL ===== */}
-      {showSuccess && (
+      {showSuccess && recentReturnDetails ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sales return created"
+        >
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                  <p className="text-sm text-slate-600">{successText || "Sales return created successfully."}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentReturnDetails(null);
+                }}
+                className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                aria-label="Close return summary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5">
+              <SuccessPdfView orderData={recentReturnDetails} />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentReturnDetails(null);
+                }}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : showSuccess ? (
         <div
           className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
           role="dialog"
@@ -1775,12 +1866,8 @@ const SalesReturn = () => {
             <div className="flex items-start gap-4">
               <CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
               <div className="flex-1">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  Success
-                </h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  {successText || "Sales return created successfully."}
-                </p>
+                <h3 className="text-xl font-semibold text-slate-900">Success</h3>
+                <p className="mt-2 text-sm text-slate-700">{successText || "Sales return created successfully."}</p>
               </div>
               <button
                 type="button"
@@ -1802,7 +1889,7 @@ const SalesReturn = () => {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
