@@ -183,6 +183,11 @@ export function SuccessPdfView({
     documentType ?? orderData?.documentType ?? "Sales Order";
   const docLabel = String(resolvedDocumentType || "Sales Order").trim() || "Sales Order";
   const isInvoice = docLabel.toLowerCase() === "invoice";
+  const isPurchaseOrder = docLabel.toLowerCase() === "purchase order";
+  const isSupplierDocument =
+    isPurchaseOrder ||
+    ["grn", "goods received note", "goods received note (grn)"]
+      .includes(docLabel.toLowerCase());
   const paidAmountSource =
     orderData?.paidAmount ??
     orderData?.payment?.amount ??
@@ -199,27 +204,54 @@ export function SuccessPdfView({
     orderData?.discountLevelLabel || orderData?.discountLevel?.name ||
     orderData?.discountLevel?.label ||
     "Standard";
-  const customerPhone =
-    orderData?.customerTelephone ||
-    orderData?.customerPhone ||
-    orderData?.telephone ||
-    orderData?.phone ||
-    orderData?.contactNumber ||
-    orderData?.mobile ||
-    "—";
-  const customerAddress =
-    orderData?.customerAddress ||
-    orderData?.billingAddress ||
-    orderData?.address ||
-    "—";
-  const customerName =
-    orderData?.customer ||
-    orderData?.customerName ||
-    orderData?.name ||
-    orderData?.customer_full_name ||
-    orderData?.customerDisplayName ||
-    orderData?.companyName ||
-    "—";
+  
+  // For supplier documents (Purchase Order, GRN), use supplier info; otherwise use customer info
+  const partyLabel = isSupplierDocument ? "Supplier" : "Customer";
+  const partyName = isSupplierDocument
+    ? (orderData?.supplier ||
+       orderData?.supplierName ||
+       orderData?.supplier_name ||
+       orderData?.vendorName ||
+       orderData?.vendor ||
+       "—")
+    : (orderData?.customer ||
+       orderData?.customerName ||
+       orderData?.name ||
+       orderData?.customer_full_name ||
+       orderData?.customerDisplayName ||
+       orderData?.companyName ||
+       "—");
+  const partyPhone = isSupplierDocument
+    ? (orderData?.supplierPhone ||
+       orderData?.supplierTelephone ||
+       orderData?.supplier_phone ||
+       orderData?.phone_number ||
+       orderData?.vendorPhone ||
+       "—")
+    : (orderData?.customerTelephone ||
+       orderData?.customerPhone ||
+       orderData?.telephone ||
+       orderData?.phone ||
+       orderData?.contactNumber ||
+       orderData?.mobile ||
+       "—");
+    const partyAddress = isSupplierDocument
+     ? (
+       orderData?.supplierAddress ||
+       [orderData?.address1, orderData?.address2].filter(Boolean).join(", ") ||
+       orderData?.supplier_address ||
+       orderData?.vendorAddress ||
+       "—"
+      )
+    : (orderData?.customerAddress ||
+       orderData?.billingAddress ||
+       orderData?.address ||
+       "—");
+  
+  // Keep backward compatible aliases
+  const customerPhone = partyPhone;
+  const customerAddress = partyAddress;
+  const customerName = partyName;
   
   const orderNumber = orderData?.orderNumber || "—";
   const referenceNumber = orderData?.refNumber || "—";
@@ -263,37 +295,58 @@ export function SuccessPdfView({
       doc.text(`Discount Level: ${order.discountLevelLabel || "Standard"}`, leftX, headerTop + 52);
       doc.text(`Reference Number: ${order.refNumber || "—"}`, leftX, headerTop + 64);
       
-      // Customer on right
+      // Customer/Supplier on right
       const customerBlockWidth = 220;
       const rightBlockX = pageWidth - margin - customerBlockWidth;
       const rightTextX = rightBlockX + customerBlockWidth;
       const custY = headerTop;
       // Render address as a single line (collapse whitespace)
-      const addrOneLine = String(customerAddress || "—").replace(/\s+/g, " ").trim();
+      const addrOneLine = String(partyAddress || "—").replace(/\s+/g, " ").trim();
       doc.setFontSize(9);
       doc.setFont(undefined, "bold");
-      doc.text("Customer Details:", rightTextX, custY, { align: "right" });
-      doc.text(`${customerName}`, rightTextX, custY + 12, { align: "right" });
+      doc.text(`${partyLabel} Details:`, rightTextX, custY, { align: "right" });
+      doc.text(`${partyName}`, rightTextX, custY + 12, { align: "right" });
       doc.setFont(undefined, "normal");
       doc.text(addrOneLine, rightTextX, custY + 24, { align: "right" });
-      doc.text(`Tel: ${customerPhone}`, rightTextX, custY + 36, { align: "right" });
+      doc.text(`Tel: ${partyPhone}`, rightTextX, custY + 36, { align: "right" });
 
       // Table
+      const tableRows = (order.items || []).map((item, index) => {
+        const qty = item.quantity ?? 0;
+        const unitPrice = item.unitPrice ?? 0;
+        const discount =
+          item.lineDiscountAmount ??
+          item.lineDiscount ??
+          item.discountAmount ??
+          item.discount ??
+          0;
+        const lineTotal = item.lineNet ?? item.total ?? item.lineTotal ?? 0;
+        const fmt = order.currencyFormat || ((v) => `LKR ${Number(v || 0).toFixed(2)}`);
+        return [
+          index + 1,
+          item.productName || "—",
+          qty,
+          fmt(unitPrice),
+          fmt(discount),
+          fmt(lineTotal),
+        ];
+      });
+
+      // Add total amount inside the table
+      tableRows.push([
+        "",
+        "",
+        "",
+        "",
+        "Total Amount",
+        (order.currencyFormat || ((v) => `LKR ${Number(v || 0).toFixed(2)}`))(
+          order.totalAmount ?? 0
+        ),
+      ]);
+
       const table = autoTable(doc, {
         head: [["#", "Product", "Qty", "Unit", "Discount", "Total"]],
-        body: (order.items || []).map((item, index) => {
-          const qty = Number(item.quantity || 0);
-          const unitPrice = Number(item.unitPrice || 0);
-          const discount = Number(
-            item.lineDiscountAmount ??
-            item.lineDiscount ??
-            item.discountAmount ??
-            item.discount ??
-            0
-          );
-          const lineTotal = Number(item.lineNet ?? Math.max(0, qty * unitPrice - discount));
-          return [index + 1, item.productName || "—", qty, (order.currencyFormat || ((v)=>`LKR ${Number(v||0).toFixed(2)}`))(unitPrice), (order.currencyFormat || ((v)=>`LKR ${Number(v||0).toFixed(2)}`))(discount), (order.currencyFormat || ((v)=>`LKR ${Number(v||0).toFixed(2)}`))(lineTotal)];
-        }),
+        body: tableRows,
         startY: headerTop + 80,
         theme: "striped",
         headStyles: { fillColor: [200, 200, 200], textColor: 20, fontSize: 10 },
@@ -303,17 +356,7 @@ export function SuccessPdfView({
       // Totals
       const totalY = (table?.finalY || headerTop + 80) + 80;
       const discountAmount = Number(order.discountTotal ?? order.discountAmount ?? order.totalDiscount ?? 0);
-      // Determine total: prefer explicit fields, fallback to computed sum
-      let totalValue = order.totalAmount ?? order.total ?? order.amount;
-      if (totalValue == null) {
-        totalValue = (order.items || []).reduce((acc, it) => {
-          const qty = Number(it.quantity || 0);
-          const unitPrice = Number(it.unitPrice || 0);
-          const lineDiscount = Number(it.lineDiscountAmount || 0);
-          const lineNet = Number(it.lineNet ?? Math.max(0, qty * unitPrice - lineDiscount));
-          return acc + lineNet;
-        }, 0) - Number(discountAmount || 0);
-      }
+      const totalValue = Number(order.totalAmount ?? 0);
       const rightX = pageWidth - margin;
       doc.setFontSize(10);
       doc.setTextColor(20);
@@ -448,13 +491,13 @@ export function SuccessPdfView({
             <div className="w-full p-4 text-sm text-slate-800">
               <div>
                 <p className="text-[0.6rem] uppercase tracking-[0.4em] text-slate-500">
-                  Customer
+                  {partyLabel}
                 </p>
                 <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {customerName}
+                  {partyName}
                 </p>
-                <p className="text-xs text-slate-500">{customerAddress}</p>
-                <p className="text-xs text-slate-500">{customerPhone}</p>
+                <p className="text-xs text-slate-500">{partyAddress}</p>
+                <p className="text-xs text-slate-500">{partyPhone}</p>
               </div>
               {showPaidAmount && (
                 <div className="mt-4">
@@ -487,18 +530,15 @@ export function SuccessPdfView({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {items.map((item, index) => {
-                      const qty = Number(item.quantity || 0);
-                      const unitPrice = Number(item.unitPrice || 0);
-                      const discount = Number(
+                      const qty = item.quantity ?? 0;
+                      const unitPrice = item.unitPrice ?? 0;
+                      const discount =
                         item.lineDiscountAmount ??
                         item.lineDiscount ??
                         item.discountAmount ??
                         item.discount ??
-                        0
-                      );
-                      const lineTotal = Number(
-                        item.lineNet ?? Math.max(0, qty * unitPrice - discount)
-                      );
+                        0;
+                      const lineTotal = item.lineNet ?? item.total ?? item.lineTotal ?? 0;
                       return (
                         <tr
                           key={item.id ?? index}
@@ -523,6 +563,8 @@ export function SuccessPdfView({
                         </tr>
                       );
                     })}
+
+                   
                   </tbody>
                 </table>
               </div>
