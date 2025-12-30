@@ -336,7 +336,7 @@ export function SuccessPdfView({
         "",
         "",
         "",
-        "Total Amount",
+        "Total Anmount",
         (order.currencyFormat || ((v) => `LKR ${Number(v || 0).toFixed(2)}`))(
           order.totalAmount ?? 0
         ),

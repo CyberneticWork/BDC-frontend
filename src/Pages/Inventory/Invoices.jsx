@@ -22,6 +22,19 @@ const incrementInvCode = (code) => {
   return `${prefix}${nextDigits}${suffix}`;
 };
 
+const resolveOrderDiscountLevelId = (order) => {
+  if (!order) return null;
+  return (
+    order.discountLevelId ??
+    order.discountLevel_id ??
+    order.discount_level_id ??
+    order.discountLevel ??
+    order.discount_level ??
+    order.discountlevel_id ??
+    null
+  );
+};
+
 const Invoices = () => {
   // Track submit state when posting to backend
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,6 +165,7 @@ const Invoices = () => {
     const [salesOrderOptions, setSalesOrderOptions] = useState([]);
     const [discountLevels, setDiscountLevels] = useState([]);
     const [selectedDiscountLevel, setSelectedDiscountLevel] = useState(null);
+    const [pendingOrderDiscountLevelId, setPendingOrderDiscountLevelId] = useState(null);
     const [showSalesOrderModal, setShowSalesOrderModal] = useState(false);
     const [isSalesOrderLoading, setIsSalesOrderLoading] = useState(false);
     const [salesOrderFetchError, setSalesOrderFetchError] = useState("");
@@ -461,6 +475,18 @@ const Invoices = () => {
         active = false;
       };
     }, []);
+
+    useEffect(() => {
+      if (!pendingOrderDiscountLevelId) return;
+      const matchedLevel = discountLevels.find(
+        (level) =>
+          String(level.id) === String(pendingOrderDiscountLevelId)
+      );
+      if (matchedLevel) {
+        setSelectedDiscountLevel(matchedLevel);
+        setPendingOrderDiscountLevelId(null);
+      }
+    }, [discountLevels, pendingOrderDiscountLevelId]);
 
     
 
@@ -866,12 +892,11 @@ const Invoices = () => {
       setShowSalesOrderModal(false);
       // If the sales order carries a reference to a discount level, try to apply it
       try {
-        const dlId =
-          order.discountLevelId ?? order.discount_level_id ?? order.discountLevel ?? order.discount_level ?? order.discount_level_id ?? null;
-        const dlCandidate =
-          (dlId && discountLevels.find((d) => String(d.id) === String(dlId))) ||
-          // fallback: try matching by name/title if order contains a level name
-          (order.discountLevelName || order.discount_level_name
+        const dlId = resolveOrderDiscountLevelId(order);
+        const dlMatchById =
+          dlId && discountLevels.find((d) => String(d.id) === String(dlId));
+        const dlMatchByName =
+          order.discountLevelName || order.discount_level_name
             ? discountLevels.find((d) => {
                 const n = String(d.name ?? d.title ?? d.label ?? "").toLowerCase();
                 return (
@@ -882,10 +907,16 @@ const Invoices = () => {
                     .includes(n)
                 );
               })
-            : null);
+            : null;
+        const dlCandidate = dlMatchById || dlMatchByName;
 
         if (dlCandidate) {
           setSelectedDiscountLevel(dlCandidate);
+          setPendingOrderDiscountLevelId(null);
+        } else if (dlId) {
+          setPendingOrderDiscountLevelId(dlId);
+        } else {
+          setPendingOrderDiscountLevelId(null);
         }
       } catch {
         // ignore matching errors
@@ -1098,6 +1129,14 @@ const Invoices = () => {
         discount_total: discountTotal,
         items: normalizedItems,
         inventory_stocks: inventoryStockPayload,
+        // attach chosen discount level info so backend can record it
+        discount_level_id:
+          (selectedDiscountLevel && (selectedDiscountLevel.id ?? selectedDiscountLevel.level_id)) ||
+          pendingOrderDiscountLevelId ||
+          undefined,
+        discount_level_name:
+          (selectedDiscountLevel && (selectedDiscountLevel.name ?? selectedDiscountLevel.title ?? selectedDiscountLevel.label)) ||
+          undefined,
       };
 
       // Open Payment popup; finalize after payment is set
@@ -1521,6 +1560,7 @@ const Invoices = () => {
                     value={selectedDiscountLevel?.id ?? ""}
                     onChange={(e) => {
                       const id = String(e.target.value || "");
+                      setPendingOrderDiscountLevelId(null);
                       if (!id) {
                         setSelectedDiscountLevel(null);
                         return;
