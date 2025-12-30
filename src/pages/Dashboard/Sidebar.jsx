@@ -252,7 +252,6 @@ const Sidebar = ({
       id: "reports",
       name: "Reports",
       icon: BarChart3,
-      badge: null,
       subItems: [
         {
           id: "timecardReports",
@@ -261,6 +260,7 @@ const Sidebar = ({
           subItems: [
             { id: "attendanceReport", name: "Attendance Report" },
             { id: "singleEntryReport", name: "Single Entry Report" },
+            { id: "absentReport", name: "Absent Report" }, // NEW
           ],
         },
       ],
@@ -363,6 +363,7 @@ const Sidebar = ({
         path.includes("settings") ||
         activeItem === "settings" ||
         ["leaveSettings"].includes(activeItem),
+        ["attendanceReport","singleEntryReport","absentReport"].includes(activeItem),
     });
   }, [activeItem, menuItems]);
 
