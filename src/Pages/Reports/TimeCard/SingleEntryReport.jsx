@@ -186,13 +186,22 @@ const SingleEntryReport = () => {
     return pages;
   };
 
-  // Add this helper function to get today's date in YYYY-MM-DD format
+  // Helper: today's date for max attribute
   const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  // NEW: Clear Filters
+  const clearFilters = () => {
+    setDate("");
+    setSearch("");
+    setPerPage(15);
+    setData([]);
+    setMeta({ current_page: 1, last_page: 1, total: 0 });
   };
 
   return (
@@ -263,6 +272,14 @@ const SingleEntryReport = () => {
               ) : (
                 "Generate"
               )}
+            </button>
+            {/* NEW: Clear Filters button */}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl border border-gray-300 hover:bg-gray-200 transition-all font-semibold"
+            >
+              Clear Filters
             </button>
           </div>
         </div>

@@ -9,7 +9,6 @@ import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
 const AbsentReport = () => {
   const [date, setDate] = useState("");
   const [search, setSearch] = useState("");
-  // REPLACED: IDs as strings controlled by dropdowns
   const [companyId, setCompanyId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [companies, setCompanies] = useState([]);
@@ -200,6 +199,17 @@ const AbsentReport = () => {
     return `${year}-${month}-${day}`;
   };
 
+  // NEW: Clear Filters
+  const clearFilters = () => {
+    setDate("");
+    setSearch("");
+    setCompanyId("");
+    setDepartmentId("");
+    setPerPage(15);
+    setData([]);
+    setMeta({ current_page: 1, last_page: 1, total: 0 });
+  };
+
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-red-50 min-h-screen">
       <div className="mb-6">
@@ -284,8 +294,20 @@ const AbsentReport = () => {
           </div>
 
           <div className="flex items-end gap-2">
-            <button onClick={() => fetchReport(1)} disabled={loading} className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 font-semibold">
+            <button
+              onClick={() => fetchReport(1)}
+              disabled={loading}
+              className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 font-semibold"
+            >
               {loading ? <><div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>Loading...</> : "Generate"}
+            </button>
+            {/* NEW: Clear Filters button */}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl border border-gray-300 hover:bg-gray-200 transition-all font-semibold"
+            >
+              Clear Filters
             </button>
           </div>
         </div>

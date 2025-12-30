@@ -196,6 +196,15 @@ const AttendanceReport = () => {
     return `${year}-${month}-${day}`;
   };
 
+  // NEW: Clear Filters
+  const clearFilters = () => {
+    setDate("");
+    setSearch("");
+    setPerPage(15);
+    setData([]);
+    setMeta({ current_page: 1, last_page: 1, total: 0 });
+  };
+
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
       {/* Header */}
@@ -267,6 +276,14 @@ const AttendanceReport = () => {
               ) : (
                 "Generate"
               )}
+            </button>
+            {/* NEW: Clear Filters button */}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl border border-gray-300 hover:bg-gray-200 transition-all font-semibold"
+            >
+              Clear Filters
             </button>
           </div>
         </div>
