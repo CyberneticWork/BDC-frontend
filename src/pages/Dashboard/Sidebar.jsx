@@ -358,12 +358,12 @@ const Sidebar = ({
       timecardReports:
         path.includes("timecardReports") ||
         activeItem === "timecardReports" ||
-        ["attendanceReport", "singleEntryReport"].includes(activeItem),
+        ["attendanceReport", "singleEntryReport","absentReport"].includes(activeItem),
       settings:
         path.includes("settings") ||
         activeItem === "settings" ||
-        ["leaveSettings"].includes(activeItem),
-        ["attendanceReport","singleEntryReport","absentReport"].includes(activeItem),
+        ["leaveSettings"].includes(activeItem)
+        
     });
   }, [activeItem, menuItems]);
 
