@@ -186,6 +186,15 @@ const SingleEntryReport = () => {
     return pages;
   };
 
+  // Add this helper function to get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
       {/* Header */}
@@ -206,6 +215,7 @@ const SingleEntryReport = () => {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              max={getTodayDate()}
               className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
             />
           </div>

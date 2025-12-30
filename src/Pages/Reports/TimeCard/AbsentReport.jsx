@@ -191,6 +191,15 @@ const AbsentReport = () => {
     return pages;
   };
 
+  // Add this helper function to get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-red-50 min-h-screen">
       <div className="mb-6">
@@ -207,7 +216,13 @@ const AbsentReport = () => {
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               <Calendar className="w-4 h-4 inline mr-1" /> Select Date
             </label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none" />
+            <input 
+              type="date" 
+              value={date} 
+              onChange={(e) => setDate(e.target.value)} 
+              max={getTodayDate()}
+              className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none" 
+            />
           </div>
 
           <div>
