@@ -9,8 +9,8 @@ import {
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import SupplierService from "../../services/Account/SupplierService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
-import { SuccessPdfView } from "../../components/Inventory/successPdf.jsx";
 import { getUser } from "../../services/UserService";
+import { SuccessPdfView } from "../../components/Inventory/successPdf";
 
 const LAST_PURCHASE_RETURN_KEY = "inventory_last_prt_id";
 
@@ -28,6 +28,9 @@ const Invoices = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextPrtId, setNextPrtId] = useState("");
   const lastCreatedPrtRef = useRef("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successText, setSuccessText] = useState("");
+  const [recentReturnDetails, setRecentReturnDetails] = useState(null);
 
   const refreshNextPrtId = useCallback(async () => {
     const applyStoredFallback = () => {
@@ -124,7 +127,7 @@ const Invoices = () => {
     }
   };
 
-  const InlineNewInvoiceForm = ({ nextPrtId, onPurchaseReturnCreated }) => {
+  const InlineNewInvoiceForm = ({ nextPrtId, onPurchaseReturnCreated, onShowSuccess, setIsSubmitting }) => {
     const [formData, setFormData] = useState({
       id: "",
       center: "",
@@ -138,9 +141,6 @@ const Invoices = () => {
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
     // Payment popup removed; no payment state needed
-    const [showSuccess, setShowSuccess] = useState(false);
-    const [successText, setSuccessText] = useState("");
-    const [recentOrderDetails, setRecentOrderDetails] = useState(null);
     const [centerOptions, setCenterOptions] = useState([]);
     const [supplierOptions, setSupplierOptions] = useState([]);
     const [loading, setLoading] = useState({ centers: false, suppliers: false });
@@ -797,39 +797,52 @@ const Invoices = () => {
           response?.message ??
           `Purchase Return ${createdId || nextPrtId} has been created successfully!`;
 
-        // Create order snapshot for PDF generation
-        const itemsSnapshot = normalizedItems.map((item) => {
-          const qty = Number(item.quantity || 0);
-          const unitPrice = Number(item.unitPrice || 0);
-          const discountAmount = Number(item.discount || 0);
-          return {
-            ...item,
-            productName: item.name || item.productName || "",
-            quantity: qty,
-            unitPrice,
-            lineDiscountAmount: discountAmount,
-            lineNet: Math.max(0, qty * unitPrice - discountAmount),
-          };
-        });
-
-        const orderSnapshot = {
-          ...payload,
+        // Prepare order details for PDF generation
+        const returnDetailsForPdf = {
           orderNumber: createdId || nextPrtId,
-          orderDate: completedInvoice.date,
-          center: centerName,
+          refNumber: payload.refNumber || payload.referenceNumber || "",
+          date: payload.returnDate || completedInvoice.date,
           supplier: supplierName,
           supplierName: supplierName,
-          supplierAddress: [selectedSupplier?.address1, selectedSupplier?.address2].filter(Boolean).join(", ") || "",
-          supplierPhone: selectedSupplier?.telephone || "",
-          refNumber: completedInvoice.refNumber,
-          status: payload.status || "Completed",
-          items: itemsSnapshot,
+          // Build supplier address from address1 and address2 like PurchaseOrder
+          supplierAddress: [
+            supplierMatch?.address1,
+            supplierMatch?.address2,
+          ].filter(Boolean).join(", ") || supplierMatch?.address || supplierMatch?.supplier_address || "",
+          address1: supplierMatch?.address1 || "",
+          address2: supplierMatch?.address2 || "",
+          supplierPhone: supplierMatch?.telephone || supplierMatch?.phone || supplierMatch?.supplier_phone || "",
+          supplierTelephone: supplierMatch?.telephone || "",
+          center: centerName,
+          centerName: centerName,
+          totalAmount: payload.totalAmount || payload.amount || 0,
           discountTotal: totalDiscount,
-          totalAmount: computedAmount,
+          discountAmount: totalDiscount,
+          status: payload.status,
+          items: normalizedItems.map((item, idx) => ({
+            id: item.id || idx,
+            productName: item.productName || item.name,
+            quantity: item.quantity || item.qty || 0,
+            unitPrice: item.unitPrice || item.unit_price || 0,
+            discount: item.discountAmount || item.discount || 0,
+            lineDiscount: item.discountAmount || item.discount || 0,
+            lineDiscountAmount: item.discountAmount || item.discount || 0,
+            lineTotal: item.lineTotal || item.total || 0,
+            lineNet: item.lineTotal || item.total || 0,
+            batchNumber: item.batchNumber || "",
+          })),
+          currencyFormat: (value) => {
+            try {
+              return new Intl.NumberFormat("en-LK", {
+                style: "currency",
+                currency: "LKR",
+              }).format(Number(value || 0));
+            } catch {
+              return `LKR ${Number(value || 0).toFixed(2)}`;
+            }
+          },
           documentType: "Purchase Return",
-          currencyFormat: (value) => formatLKR(value),
         };
-        setRecentOrderDetails(orderSnapshot);
 
         setFormData({
           id: "",
@@ -843,8 +856,7 @@ const Invoices = () => {
         });
         setItems([]);
         onPurchaseReturnCreated?.(createdId || nextPrtId);
-        setSuccessText(successMessage);
-        setShowSuccess(true);
+        onShowSuccess?.(successMessage, returnDetailsForPdf);
       } catch (error) {
         console.error("Error creating Purchase Return:", error);
         const apiMessage =
@@ -1516,77 +1528,23 @@ const Invoices = () => {
             )}
           </div>
         </InventoryPopup>
-
-        {/* Success Modal with PDF View */}
-        {showSuccess && recentOrderDetails && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Purchase return created"
-          >
-            <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
-                    <p className="text-sm text-slate-600">{successText || "Purchase return created successfully."}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    setRecentOrderDetails(null);
-                  }}
-                  className="rounded-full p-2 text-slate-500 hover:text-slate-900"
-                  aria-label="Close order summary"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="mt-5">
-                <SuccessPdfView orderData={recentOrderDetails} documentType="Purchase Return" />
-              </div>
-              <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    setRecentOrderDetails(null);
-                  }}
-                  className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading Modal */}
-        {isSubmitting && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 border border-slate-200">
-              <div className="p-8 text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                  Processing...
-                </h3>
-                <p className="text-slate-600">
-                  Please wait while we create your purchase return.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </>
     );
   };
+
+  // Handler to show success modal with return details
+  const handleShowSuccess = useCallback((message, returnDetails) => {
+    setSuccessText(message);
+    setRecentReturnDetails(returnDetails);
+    setShowSuccess(true);
+  }, []);
+
+  // Handler to close success modal
+  const handleCloseSuccess = useCallback(() => {
+    setShowSuccess(false);
+    setRecentReturnDetails(null);
+    setSuccessText("");
+  }, []);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 md:p-8">
@@ -1595,9 +1553,69 @@ const Invoices = () => {
           <InlineNewInvoiceForm
             nextPrtId={nextPrtId}
             onPurchaseReturnCreated={handlePurchaseReturnCreated}
+            onShowSuccess={handleShowSuccess}
+            setIsSubmitting={setIsSubmitting}
           />
         </section>
       </div>
+
+      {/* Loading Modal */}
+      {isSubmitting && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="bg-white rounded-xl shadow-xl p-6 flex items-center gap-4 border border-slate-200">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+            <span className="text-slate-800 font-medium">
+              Creating purchase return…
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal with PDF Preview */}
+      {showSuccess && recentReturnDetails && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Purchase return created"
+        >
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                  <p className="text-sm text-slate-600">{successText || "Purchase return created successfully."}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseSuccess}
+                className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                aria-label="Close return summary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-5">
+              <SuccessPdfView orderData={recentReturnDetails} documentType="Purchase Return" />
+            </div>
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={handleCloseSuccess}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

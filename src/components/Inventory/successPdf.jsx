@@ -184,8 +184,10 @@ export function SuccessPdfView({
   const docLabel = String(resolvedDocumentType || "Sales Order").trim() || "Sales Order";
   const isInvoice = docLabel.toLowerCase() === "invoice";
   const isPurchaseOrder = docLabel.toLowerCase() === "purchase order";
+  const isPurchaseReturn = docLabel.toLowerCase() === "purchase return";
   const isSupplierDocument =
     isPurchaseOrder ||
+    isPurchaseReturn ||
     ["grn", "goods received note", "goods received note (grn)"]
       .includes(docLabel.toLowerCase());
   const paidAmountSource =
@@ -248,11 +250,7 @@ export function SuccessPdfView({
        orderData?.address ||
        "—");
   
-  // Keep backward compatible aliases
-  const customerPhone = partyPhone;
-  const customerAddress = partyAddress;
-  const customerName = partyName;
-  
+
   const orderNumber = orderData?.orderNumber || "—";
   const referenceNumber = orderData?.refNumber || "—";
   const totalAmount = formatCurrency(orderData?.totalAmount);
