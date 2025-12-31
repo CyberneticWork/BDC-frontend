@@ -9,7 +9,6 @@ import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
 const AbsentReport = () => {
   const [date, setDate] = useState("");
   const [search, setSearch] = useState("");
-  // REPLACED: IDs as strings controlled by dropdowns
   const [companyId, setCompanyId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [companies, setCompanies] = useState([]);
@@ -191,6 +190,26 @@ const AbsentReport = () => {
     return pages;
   };
 
+  // Add this helper function to get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // NEW: Clear Filters
+  const clearFilters = () => {
+    setDate("");
+    setSearch("");
+    setCompanyId("");
+    setDepartmentId("");
+    setPerPage(15);
+    setData([]);
+    setMeta({ current_page: 1, last_page: 1, total: 0 });
+  };
+
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-red-50 min-h-screen">
       <div className="mb-6">
@@ -207,7 +226,13 @@ const AbsentReport = () => {
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               <Calendar className="w-4 h-4 inline mr-1" /> Select Date
             </label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none" />
+            <input 
+              type="date" 
+              value={date} 
+              onChange={(e) => setDate(e.target.value)} 
+              max={getTodayDate()}
+              className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none" 
+            />
           </div>
 
           <div>
@@ -269,8 +294,20 @@ const AbsentReport = () => {
           </div>
 
           <div className="flex items-end gap-2">
-            <button onClick={() => fetchReport(1)} disabled={loading} className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 font-semibold">
+            <button
+              onClick={() => fetchReport(1)}
+              disabled={loading}
+              className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 font-semibold"
+            >
               {loading ? <><div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>Loading...</> : "Generate"}
+            </button>
+            {/* NEW: Clear Filters button */}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl border border-gray-300 hover:bg-gray-200 transition-all font-semibold"
+            >
+              Clear Filters
             </button>
           </div>
         </div>
