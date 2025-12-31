@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, CheckCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import {
   getProducts,
   getNextPurchaseReturn,
@@ -10,6 +10,7 @@ import { fetchCenters as fetchCentersService } from "../../services/Inventory/ce
 import SupplierService from "../../services/Account/SupplierService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
 import { getUser } from "../../services/UserService";
+import { SuccessPdfView } from "../../components/Inventory/successPdf";
 
 const LAST_PURCHASE_RETURN_KEY = "inventory_last_prt_id";
 
@@ -27,6 +28,9 @@ const Invoices = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextPrtId, setNextPrtId] = useState("");
   const lastCreatedPrtRef = useRef("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successText, setSuccessText] = useState("");
+  const [recentReturnDetails, setRecentReturnDetails] = useState(null);
 
   const refreshNextPrtId = useCallback(async () => {
     const applyStoredFallback = () => {
@@ -123,7 +127,7 @@ const Invoices = () => {
     }
   };
 
-  const InlineNewInvoiceForm = ({ nextPrtId, onPurchaseReturnCreated }) => {
+  const InlineNewInvoiceForm = ({ nextPrtId, onPurchaseReturnCreated, onShowSuccess, setIsSubmitting }) => {
     const [formData, setFormData] = useState({
       id: "",
       center: "",
@@ -131,15 +135,12 @@ const Invoices = () => {
       date: new Date().toISOString().split("T")[0],
       refNumber: "",
       amount: 0,
-      // kept for backward compatibility where needed
       productName: "",
       quantity: 0,
     });
     const [errors, setErrors] = useState({});
     const [items, setItems] = useState([]);
     // Payment popup removed; no payment state needed
-    const [showSuccess, setShowSuccess] = useState(false);
-    const [successText, setSuccessText] = useState("");
     const [centerOptions, setCenterOptions] = useState([]);
     const [supplierOptions, setSupplierOptions] = useState([]);
     const [loading, setLoading] = useState({ centers: false, suppliers: false });
@@ -156,6 +157,7 @@ const Invoices = () => {
       quantity: 1,
       unitPrice: 0,
       batchNumber: "",
+      productDiscount: 0,
     });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
@@ -227,6 +229,27 @@ const Invoices = () => {
               item.display_name ??
               item.business_name ??
               String(item.name || ""),
+            address1:
+              item.address1 ??
+              item.address_1 ??
+              item.addressLine1 ??
+              item.address_line_1 ??
+              "",
+            address2:
+              item.address2 ??
+              item.address_2 ??
+              item.addressLine2 ??
+              item.address_line_2 ??
+              "",
+            telephone:
+              item.telephone ??
+              item.phone_number ??
+              item.phone ??
+              item.mobile ??
+              item.contact ??
+              item.contactNumber ??
+              item.contact_number ??
+              "",
           }));
           if (active) {
             setSupplierOptions(normalized.filter((s) => s.id && s.name));
@@ -248,6 +271,16 @@ const Invoices = () => {
       };
     }, []);
 
+    const selectedSupplier = useMemo(() => {
+      const value = String(formData.supplier || "").trim();
+      if (!value) return null;
+      return (
+        supplierOptions.find(
+          (s) => String(s.id) === value || String(s.name) === value
+        ) || null
+      );
+    }, [formData.supplier, supplierOptions]);
+
     const filteredProducts = useMemo(() => {
       const q = (entry.productName || "").toLowerCase().trim();
       if (!q) return products.slice(0, 8);
@@ -264,10 +297,17 @@ const Invoices = () => {
       return items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = Number(it.discount) || 0;
+        const disc = Number(it.discount) || 0; // discount is a flat line amount
         const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
+        const lineDiscount = disc; // treat discount as total for the line, not per-unit
         return acc + (lineTotal - lineDiscount);
+      }, 0);
+    }, [items]);
+
+    const totalDiscount = useMemo(() => {
+      return items.reduce((acc, it) => {
+        const d = Number(it.discount) || 0;
+        return acc + (Number.isFinite(d) ? d : 0);
       }, 0);
     }, [items]);
 
@@ -353,10 +393,17 @@ const Invoices = () => {
         }
       }
       const directSources = [
-        item.unitPrice,
-        item.unit_price,
         item.costPrice,
         item.cost_price,
+        item.unitCost,
+        item.unit_cost,
+        item.purchasePrice,
+        item.purchase_price,
+        item.rate,
+        item.unitRate,
+        item.unit_rate,
+        item.unitPrice,
+        item.unit_price,
         item.price,
       ];
       for (const direct of directSources) {
@@ -408,10 +455,86 @@ const Invoices = () => {
                 0
             )
           );
-          const unitPrice = Math.max(0, resolveGrnUnitPrice(item, qty));
-          const discount = Number(
-            item.discountPerUnit ?? item.discount ?? item.discountAmount ?? 0
+          // Prefer GRN-provided line totals/discounts to compute accurate unit price and discount
+          const grnLineTotal = Number(
+            item.line_total ?? item.lineTotal ?? item.total ?? item.totalAmount ?? NaN
           );
+          const grnLineDiscount = Number(
+            item.line_discount_amount ??
+              item.lineDiscountAmount ??
+              item.line_discount ??
+              item.discountAmount ??
+              item.discount ??
+              item.product_discount ??
+              item.productDiscount ??
+              item.total_discount ??
+              item.totalDiscount ??
+              NaN
+          );
+          let discount = 0;
+          if (!Number.isNaN(grnLineDiscount) && grnLineDiscount >= 0) {
+            discount = grnLineDiscount;
+          } else {
+            const rawPerUnit = Number(item.discountPerUnit ?? NaN);
+            if (!Number.isNaN(rawPerUnit) && rawPerUnit > 0) {
+              discount = rawPerUnit * qty;
+            } else {
+              discount = 0;
+            }
+          }
+          const reconstructedUnitFromTotals =
+            !Number.isNaN(grnLineTotal) && grnLineTotal >= 0 && qty > 0
+              ? Math.max(0, (grnLineTotal + discount) / qty)
+              : null;
+          
+          const directUnitPriceSources = [
+            item.cost,
+            item.cost_price,
+            item.unitCost,
+            item.unit_cost,
+            item.purchasePrice,
+            item.purchase_price,
+            item.purchaseRate,
+            item.purchase_rate,
+            item.rate,
+            item.unitRate,
+            item.unit_rate,
+            item.unitPrice,
+            item.unit_price,
+            item.price,
+            item.product?.purchasePrice,
+            item.product?.purchase_price,
+            item.product?.purchaseRate,
+            item.product?.purchase_rate,
+            item.product?.costPrice,
+            item.product?.cost_price,
+            item.product?.unitCost,
+            item.product?.unit_cost,
+            item.product?.unitPrice,
+            item.product?.unit_price,
+            item.product?.rate,
+          ];
+          const directUnitPrice = directUnitPriceSources
+            .map((src) => Number(src))
+            .find((val) => Number.isFinite(val) && val >= 0);
+
+          const unitPriceCandidates = [reconstructedUnitFromTotals, directUnitPrice]
+            .filter((v) => Number.isFinite(v) && v > 0);
+
+          let unitPrice = unitPriceCandidates.length
+            ? Math.max(...unitPriceCandidates)
+            : null;
+
+          if (!(Number.isFinite(unitPrice) && unitPrice > 0)) {
+            if (reconstructedUnitFromTotals !== null && reconstructedUnitFromTotals > 0) {
+              unitPrice = reconstructedUnitFromTotals;
+            } else if (!Number.isNaN(grnLineTotal) && grnLineTotal >= 0 && qty > 0) {
+              
+              unitPrice = Math.max(0, (grnLineTotal + discount) / qty);
+            } else {
+              unitPrice = Math.max(0, resolveGrnUnitPrice(item, qty));
+            }
+          }
           const name =
             item.product?.name ??
             item.name ??
@@ -438,6 +561,8 @@ const Invoices = () => {
             quantity: qty,
             unitPrice,
             discount: Math.max(0, discount),
+            // Mirror the actual line discount into product_discount for backend consistency
+            product_discount: Math.max(0, discount),
             mrp: Number(item.mrp ?? item.maximumRetailPrice ?? 0),
             currentStock: Number(
               item.currentStock ?? item.current_stock ?? item.stock ?? 0
@@ -503,12 +628,13 @@ const Invoices = () => {
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
+        product_discount: selected ? Number(selected.productDiscount || 0) : Number(entry.productDiscount || 0),
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
         batchNumber: "",
       };
       setItems((prev) => [...prev, newItem]);
-      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0 });
+      setEntry({ productId: "", productName: "", quantity: 1, unitPrice: 0, productDiscount: 0 });
       setShowSuggestions(false);
       setActiveIndex(-1);
       setErrors((prev) => ({ ...prev, productName: undefined }));
@@ -531,9 +657,9 @@ const Invoices = () => {
       const computedAmount = items.reduce((acc, it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const disc = Number(it.discount) || 0;
+        const disc = Number(it.discount) || 0; // flat discount for the line
         const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
+        const lineDiscount = disc;
         return acc + (lineTotal - lineDiscount);
       }, 0);
 
@@ -590,10 +716,13 @@ const Invoices = () => {
           null;
         const qty = Number(it.quantity) || 0;
         const unitPrice = Number(it.unitPrice) || 0;
-        const discount = Number(it.discount) || 0;
+        const discount = Number(it.discount) || 0; // discount is flat amount for the line
         const lineTotal = qty * unitPrice;
+        const netLineTotal = Math.max(0, lineTotal - discount);
+        const discountPerUnit = qty > 0 ? discount / qty : 0;
         return {
           ...it,
+          product_discount: Number(it.product_discount) || 0,
           productId,
           product_id: productId,
           productName: it.name ?? it.productName ?? "",
@@ -604,19 +733,24 @@ const Invoices = () => {
           unit_price: unitPrice,
           price: unitPrice,
           rate: unitPrice,
-          discount,
-          discountPerUnit: discount,
-          discount_per_unit: discount,
+          discount: discount,
+          discountPerUnit: discountPerUnit,
+          discount_per_unit: discountPerUnit,
           discountAmount: discount,
           batchNumber: it.batchNumber || "",
           batch_number: it.batchNumber || "",
           mrp: Number(it.mrp) || 0,
           currentStock: Number(it.currentStock) || 0,
           current_stock: Number(it.currentStock) || 0,
-          lineTotal,
-          total: lineTotal,
+          lineTotal: netLineTotal,
+          total: netLineTotal,
         };
       });
+
+      const totalDiscount = normalizedItems.reduce((acc, it) => {
+        const d = Number(it.discountAmount ?? it.discount ?? 0);
+        return acc + (Number.isFinite(d) ? d : 0);
+      }, 0);
 
       const payload = {
         ...completedInvoice,
@@ -637,6 +771,8 @@ const Invoices = () => {
         totalAmount: completedInvoice.amount,
         subtotal: completedInvoice.amount,
         amount: completedInvoice.amount,
+        // single canonical total discount field (sum of flat line discounts)
+        total_discount: totalDiscount,
         itemCount: normalizedItems.length,
         items: normalizedItems,
       };
@@ -661,6 +797,53 @@ const Invoices = () => {
           response?.message ??
           `Purchase Return ${createdId || nextPrtId} has been created successfully!`;
 
+        // Prepare order details for PDF generation
+        const returnDetailsForPdf = {
+          orderNumber: createdId || nextPrtId,
+          refNumber: payload.refNumber || payload.referenceNumber || "",
+          date: payload.returnDate || completedInvoice.date,
+          supplier: supplierName,
+          supplierName: supplierName,
+          // Build supplier address from address1 and address2 like PurchaseOrder
+          supplierAddress: [
+            supplierMatch?.address1,
+            supplierMatch?.address2,
+          ].filter(Boolean).join(", ") || supplierMatch?.address || supplierMatch?.supplier_address || "",
+          address1: supplierMatch?.address1 || "",
+          address2: supplierMatch?.address2 || "",
+          supplierPhone: supplierMatch?.telephone || supplierMatch?.phone || supplierMatch?.supplier_phone || "",
+          supplierTelephone: supplierMatch?.telephone || "",
+          center: centerName,
+          centerName: centerName,
+          totalAmount: payload.totalAmount || payload.amount || 0,
+          discountTotal: totalDiscount,
+          discountAmount: totalDiscount,
+          status: payload.status,
+          items: normalizedItems.map((item, idx) => ({
+            id: item.id || idx,
+            productName: item.productName || item.name,
+            quantity: item.quantity || item.qty || 0,
+            unitPrice: item.unitPrice || item.unit_price || 0,
+            discount: item.discountAmount || item.discount || 0,
+            lineDiscount: item.discountAmount || item.discount || 0,
+            lineDiscountAmount: item.discountAmount || item.discount || 0,
+            lineTotal: item.lineTotal || item.total || 0,
+            lineNet: item.lineTotal || item.total || 0,
+            batchNumber: item.batchNumber || "",
+          })),
+          currencyFormat: (value) => {
+            try {
+              return new Intl.NumberFormat("en-LK", {
+                style: "currency",
+                currency: "LKR",
+              }).format(Number(value || 0));
+            } catch {
+              return `LKR ${Number(value || 0).toFixed(2)}`;
+            }
+          },
+          documentType: "Purchase Return",
+        };
+
         setFormData({
           id: "",
           center: "",
@@ -673,8 +856,7 @@ const Invoices = () => {
         });
         setItems([]);
         onPurchaseReturnCreated?.(createdId || nextPrtId);
-        setSuccessText(successMessage);
-        setShowSuccess(true);
+        onShowSuccess?.(successMessage, returnDetailsForPdf);
       } catch (error) {
         console.error("Error creating Purchase Return:", error);
         const apiMessage =
@@ -821,6 +1003,25 @@ const Invoices = () => {
                       Supplier is required
                     </p>
                   )}
+                  {selectedSupplier && (
+                    <p className="text-sm text-slate-600 mt-1">
+                      {selectedSupplier.address1 && (
+                        <span className="block">
+                          {selectedSupplier.address1}
+                        </span>
+                      )}
+                      {selectedSupplier.address2 && (
+                        <span className="block">
+                          {selectedSupplier.address2}
+                        </span>
+                      )}
+                      {selectedSupplier.telephone && (
+                        <span className="block">
+                          Contact: {selectedSupplier.telephone}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -849,6 +1050,9 @@ const Invoices = () => {
                   </p>
                   <p className="text-3xl sm:text-4xl font-bold text-slate-900">
                     {formatLKR(tableTotal)}
+                  </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total Discount: <span className="text-sm font-medium text-slate-700">{formatLKR(totalDiscount)}</span>
                   </p>
                 </div>
               </div>
@@ -894,8 +1098,16 @@ const Invoices = () => {
                               productId: p.id,
                               productName: p.name,
                               quantity: 1,
-                              unitPrice: Number(p.unitPrice) || 0,
+                              // Prefer costPrice; fallback to unitPrice
+                              unitPrice:
+                                Number(p.costPrice) ||
+                                Number(p.cost_price) ||
+                                Number(p.unitCost) ||
+                                Number(p.unit_cost) ||
+                                Number(p.unitPrice) ||
+                                0,
                               batchNumber: "",
+                              productDiscount: Number(p.productDiscount || 0),
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
@@ -949,8 +1161,16 @@ const Invoices = () => {
                                   productId: p.id,
                                   productName: p.name,
                                   quantity: 1,
-                                  unitPrice: Number(p.unitPrice) || 0,
+                                  // Prefer costPrice from product, fallback to unitPrice
+                                  unitPrice:
+                                    Number(p.costPrice) ||
+                                    Number(p.cost_price) ||
+                                    Number(p.unitCost) ||
+                                    Number(p.unit_cost) ||
+                                    Number(p.unitPrice) ||
+                                    0,
                                   batchNumber: p.batchNumber ?? "",
+                                  productDiscount: Number(p.productDiscount || 0),
                                 });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
@@ -1066,10 +1286,8 @@ const Invoices = () => {
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-slate-100">
-                            {items.map((it, idx) => {
-                              const Discount =
-                                (Number(it.discount) || 0) *
-                                (Number(it.quantity) || 0);
+                              {items.map((it, idx) => {
+                              const Discount = Number(it.discount) || 0; // flat discount for the entire line
                               const Total =
                                 (Number(it.unitPrice) || 0) *
                                 (Number(it.quantity) || 0);
@@ -1150,6 +1368,17 @@ const Invoices = () => {
                                   <td className="px-4 sm:px-6 py-4 text-left whitespace-nowrap">
                                     <input
                                       type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={it.discount}
+                                      onChange={(e) =>
+                                        updateItemField(
+                                          it.id,
+                                          "discount",
+                                          parseFloat(e.target.value) || 0
+                                        )
+                                      }
+                                      aria-label={`Discount for ${it.name}`}
                                       className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all duration-200 bg-white"
                                     />
                                   </td>
@@ -1299,55 +1528,23 @@ const Invoices = () => {
             )}
           </div>
         </InventoryPopup>
-
-        {/* Success Modal */}
-        {showSuccess && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 border border-slate-200">
-              <div className="p-6 text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="rounded-full bg-green-100 p-3">
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  </div>
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                  Success!
-                </h3>
-                <p className="text-slate-600 mb-6">{successText}</p>
-                <button
-                  onClick={() => setShowSuccess(false)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading Modal */}
-        {isSubmitting && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 border border-slate-200">
-              <div className="p-8 text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                  Processing...
-                </h3>
-                <p className="text-slate-600">
-                  Please wait while we create your purchase return.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </>
     );
   };
+
+  // Handler to show success modal with return details
+  const handleShowSuccess = useCallback((message, returnDetails) => {
+    setSuccessText(message);
+    setRecentReturnDetails(returnDetails);
+    setShowSuccess(true);
+  }, []);
+
+  // Handler to close success modal
+  const handleCloseSuccess = useCallback(() => {
+    setShowSuccess(false);
+    setRecentReturnDetails(null);
+    setSuccessText("");
+  }, []);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 md:p-8">
@@ -1356,9 +1553,69 @@ const Invoices = () => {
           <InlineNewInvoiceForm
             nextPrtId={nextPrtId}
             onPurchaseReturnCreated={handlePurchaseReturnCreated}
+            onShowSuccess={handleShowSuccess}
+            setIsSubmitting={setIsSubmitting}
           />
         </section>
       </div>
+
+      {/* Loading Modal */}
+      {isSubmitting && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="bg-white rounded-xl shadow-xl p-6 flex items-center gap-4 border border-slate-200">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+            <span className="text-slate-800 font-medium">
+              Creating purchase return…
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal with PDF Preview */}
+      {showSuccess && recentReturnDetails && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Purchase return created"
+        >
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                  <p className="text-sm text-slate-600">{successText || "Purchase return created successfully."}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseSuccess}
+                className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                aria-label="Close return summary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-5">
+              <SuccessPdfView orderData={recentReturnDetails} documentType="Purchase Return" />
+            </div>
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={handleCloseSuccess}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

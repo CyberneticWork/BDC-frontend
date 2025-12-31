@@ -4,8 +4,9 @@ import { getInventoryDetails as fetchInventoryDetails } from "../../services/Inv
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getCustomers as fetchCustomersService } from "../../services/Account/CustomerService";
 import { useAuth } from "../../contexts/AuthContext";
-import {fetchSalesOrders,salesOrder,getNextSalesOrder,} from "../../services/Inventory/inventoryService";
+import {fetchSalesOrders,salesOrder,getNextSalesOrder,}from"../../services/Inventory/inventoryService";
 import { getAll as fetchDiscountLevels } from "../../services/Inventory/discountLevelService";
+import { SuccessPdfView } from "../../components/Inventory/successPdf.jsx";
 
 const incrementSoCode = (code) => {
   if (!code) return "";
@@ -31,6 +32,7 @@ const SalesOrder = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successText, setSuccessText] = useState("");
+  const [recentOrderDetails, setRecentOrderDetails] = useState(null);
   const ordersMounted = useRef(true);
   const loadOrders = useCallback(async () => {
     try {
@@ -105,18 +107,6 @@ const SalesOrder = () => {
     });
   }, [orders, serverProvidedSo]);
 
-  // Auto-refresh next number and data after success
-  useEffect(() => {
-    if (!showSuccess) return;
-    const timer = setTimeout(() => {
-      setShowSuccess(false);
-      refreshNextSalesOrder().catch((error) => {
-        console.warn("Failed to refresh next sales order", error);
-      });
-      loadOrders();
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [showSuccess, refreshNextSalesOrder, loadOrders]);
 
   // Success modal stays until user dismisses; no auto-hide
 
@@ -133,11 +123,16 @@ const SalesOrder = () => {
     }
   };
 
+    
+
   const InlinePOForm = ({ nextSONumber, createdById }) => {
     const [form, setForm] = useState({
       orderNumber: "",
       center: "",
+      customerId: "",
       customer: "",
+      customerAddress: "",
+      customerTelephone: "",
       date: new Date().toISOString().split("T")[0],
       status: "pending",
       refNumber: "",
@@ -194,16 +189,31 @@ const SalesOrder = () => {
           const data = await fetchCustomersService();
           if (!active) return;
           const normalized = Array.isArray(data)
-            ? data.map((c) => ({
-                id: c.id ?? c.customer_id ?? c.email ?? c.name,
-                name:
-                  c.name ??
-                  c.customer_name ??
-                  `${c.first_name || ""} ${c.last_name || ""}`.trim(),
-                email: c.email ?? c.contact_email ?? "",
-              }))
+            ? data.map((c) => {
+                const address =
+                  c.address || c.customer_address || c.location || c.city || "";
+                const telephone =
+                  c.phone ||
+                  c.telephone ||
+                  c.phone_number ||
+                  c.contact_number ||
+                  c.mobile ||
+                  "";
+                return {
+                  id: c.id ?? c.customer_id ?? c.email ?? c.name,
+                  name:
+                    c.name ??
+                    c.customer_name ??
+                    `${c.first_name || ""} ${c.last_name || ""}`.trim(),
+                  email: c.email ?? c.contact_email ?? "",
+                  address,
+                  telephone,
+                };
+              })
             : [];
-          setCustomers(normalized.filter((c) => c.name));
+          setCustomers(
+            normalized.filter((c) => c.name && c.id)
+          );
         } catch (error) {
           console.error("Error fetching customers:", error);
         } finally {
@@ -348,6 +358,9 @@ const SalesOrder = () => {
               unitPrice: Number(
                 product.cost ?? product.min_price ?? product.price ?? 0
               ),
+              min_price: Number(
+                product.min_price ?? product.minPrice ?? product.cost ?? 0
+              ),
               mrp: Number(
                 product.mrp ?? product.price ?? product.min_price ?? 0
               ),
@@ -378,7 +391,7 @@ const SalesOrder = () => {
 
     // Build customer options from inventory service customers
     const customerOptions = useMemo(() => {
-      return customers.map((c) => c.name).filter(Boolean);
+      return customers.filter((c) => c.id && c.name);
     }, [customers]);
 
     // (e.g. "10%") are applied against the unit price.
@@ -478,6 +491,9 @@ const SalesOrder = () => {
           currentStock,
           mrp,
           batchNumber: batchNumber || null,
+              min_price: selected
+                ? Number(selected.min_price ?? selected.minPrice ?? 0)
+                : 0,
           discountEnabled: defaultDiscountEnabled,
           discountInput: defaultDiscountInput,
         },
@@ -530,6 +546,9 @@ const SalesOrder = () => {
           status: form.status || "pending",
           centerId: selectedCenterId || null,
           center_id: selectedCenterId || null,
+          // include selected discount level id for backend
+          discountLevelId: selectedDiscountLevel?.id ?? null,
+          discount_level_id: selectedDiscountLevel?.id ?? null,
             items: items.map((it) => {
             const qty = Number(it.quantity) || 0;
             const price = Number(it.unitPrice) || 0;
@@ -542,6 +561,8 @@ const SalesOrder = () => {
               ...it,
               batchNumber: normalizedBatch,
               batch_number: normalizedBatch,
+                min_price:
+                  Number(it.min_price ?? it.minPrice ?? it.unitPrice ?? 0),
               lineGross: gross,
               lineDiscountInput: it.discountInput || "",
               lineDiscountAmount: dAmt,
@@ -560,6 +581,49 @@ const SalesOrder = () => {
         const createdNumber =
           created?.orderNumber || created?.order_number || nextSONumber;
         setSuccessText(`Sales order ${createdNumber} created successfully.`);
+        const itemsSnapshot = payload.items.map((item) => {
+          const qty = Number(item.quantity || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const discountAmount = Number(item.lineDiscountAmount || 0);
+          return {
+            ...item,
+            quantity: qty,
+            unitPrice,
+            lineDiscountAmount: discountAmount,
+            lineNet: Number(
+              item.lineNet ?? Math.max(0, qty * unitPrice - discountAmount)
+            ),
+          };
+        });
+        const discountLevelLabel =
+          selectedDiscountLevel?.name ||
+          selectedDiscountLevel?.label ||
+          selectedDiscountLevel?.title ||
+          (selectedDiscountLevel?.percentage
+            ? `${selectedDiscountLevel.percentage}%`
+            : null) ||
+          "No discount";
+        const customerAddress = form.customerAddress || form.address || "";
+        const customerTelephone =
+          form.customerTelephone || form.telephone || form.phone || "";
+        const orderSnapshot = {
+          ...payload,
+          orderNumber: createdNumber,
+          orderDate: form.date,
+          center: form.center,
+          customer: form.customer,
+          refNumber: form.refNumber,
+          status: form.status || "pending",
+          items: itemsSnapshot,
+          discountLevelLabel,
+          discountLevelId: selectedDiscountLevel?.id ?? null,
+          customerAddress,
+          customerTelephone,
+          orderName: "Sales Order",
+          orderLabel: "Sales Order",
+          currencyFormat: (value) => formatLKR(value),
+        };
+        setRecentOrderDetails(orderSnapshot);
         setShowSuccess(true);
         // Refresh next SO number from server (preferred). If that fails, fall back to incrementing the created number.
         try {
@@ -577,7 +641,10 @@ const SalesOrder = () => {
         setForm({
           orderNumber: "",
           center: "",
+          customerId: "",
           customer: "",
+          customerAddress: "",
+          customerTelephone: "",
           date: new Date().toISOString().split("T")[0],
           status: "pending",
           refNumber: "",
@@ -592,6 +659,7 @@ const SalesOrder = () => {
           batchNumber: "",
         });
         setErrors({});
+        loadOrders();
       } catch (error) {
         console.error("Error creating sales order:", error);
       } finally {
@@ -689,10 +757,20 @@ const SalesOrder = () => {
                     Customer Information *
                   </label>
                   <select
-                    value={form.customer}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, customer: e.target.value }))
-                    }
+                    value={form.customerId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const selectedCustomer = customerOptions.find(
+                        (c) => String(c.id) === value
+                      );
+                      setForm((p) => ({
+                        ...p,
+                        customerId: value,
+                        customer: selectedCustomer?.name || "",
+                        customerAddress: selectedCustomer?.address || "",
+                        customerTelephone: selectedCustomer?.telephone || "",
+                      }));
+                    }}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                       errors.customer
                         ? "border-red-300 bg-red-50"
@@ -701,11 +779,25 @@ const SalesOrder = () => {
                   >
                     <option value="">Select customer</option>
                     {customerOptions.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                      <option key={c.id} value={c.id}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
+                  {form.customerAddress || form.customerTelephone ? (
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
+                      {form.customerAddress && (
+                        <p>
+                          <span className="font-semibold text-slate-700">Address:</span> {form.customerAddress}
+                        </p>
+                      )}
+                      {form.customerTelephone && (
+                        <p className="mt-1">
+                          <span className="font-semibold text-slate-700">Telephone:</span> {form.customerTelephone}
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                   {errors.customer && (
                     <p className="text-red-600 text-sm mt-1 font-medium">
                       {errors.customer}
@@ -1143,41 +1235,48 @@ const SalesOrder = () => {
         </div>
       )}
 
-      {/* Success modal popup (visible until dismissed) */}
-      {showSuccess && (
+      {/* Success modal popup with order details */}
+      {showSuccess && recentOrderDetails && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
           role="dialog"
           aria-modal="true"
-          aria-label="Sales order created"
+          aria-label="Sales order finalized"
         >
-          <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
-            <div className="flex items-start gap-4">
-              <CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  Success
-                </h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  {successText || "Sales order created successfully."}
-                </p>
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                  <p className="text-sm text-slate-600">{successText || "Sales order created successfully."}</p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowSuccess(false)}
-                className="ml-2 text-slate-500 hover:text-slate-700 transition-colors"
-                aria-label="Close"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentOrderDetails(null);
+                }}
+                className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                aria-label="Close order summary"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-5">
+              <SuccessPdfView orderData={recentOrderDetails} />
+            </div>
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
               <button
                 type="button"
-                onClick={() => setShowSuccess(false)}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentOrderDetails(null);
+                }}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
               >
-                OK
+                Close
               </button>
             </div>
           </div>

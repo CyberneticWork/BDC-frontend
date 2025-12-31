@@ -1,37 +1,7 @@
 
 import axios from "../../utils/axios";
-const inventoryData = {
-  purchaseOrders: [
-  ],
 
-  purchaseReturns: [
-   
-  ],
-  salesReturns: [
-  ],
-};
-
-// Load persisted stockTransfers from localStorage if available
-try {
-  const saved = localStorage.getItem("inventory_stockTransfers");
-  if (saved) {
-    const parsed = JSON.parse(saved);
-    if (Array.isArray(parsed)) {
-      inventoryData.stockTransfers = parsed;
-    }
-  }
-} catch {
-  // ignore localStorage errors
-}
-
-// Getter functions
-export const getPurchaseOrders = () => inventoryData.purchaseOrders;
-export const getPurchaseReturns = () => inventoryData.purchaseReturns;
-export const getSalesReturns = () => inventoryData.salesReturns;
-export const getStockTransfers = () => inventoryData.stockTransfers;
-export const getStockVerifications = () => inventoryData.stockVerifications;
-export const getCenters = () => inventoryData.centers;
-export const getProducts = () => inventoryData.products;
+export const getProducts = () => [];
 export const getCustomers = async () => {
   try {
     const response = await axios.get("/customers");
@@ -41,8 +11,6 @@ export const getCustomers = async () => {
     return [];
   }
 };
-export const getSuppliers = () => inventoryData.suppliers;
-
 // GRN API post functions
 export const createGRN = async (grnData) => {
   try {
@@ -125,8 +93,7 @@ export const createPurchaseReturn = async (data) => {
   try {
     const response = await axios.post("/purchaseReturn", data);
     return response.data;
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error creating Purchase Return:", error);
     throw error;
   }
@@ -161,18 +128,6 @@ export const fetchPurchaseOrders = async (config) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching purchase orders:", error);
-    throw error;
-  }
-};
-
-//fetch pending Sales return from backend
-export const fetchPendingSalesReturns = async (config) => {
-  try {
-    const response = await axios.get("/salesreturn", config);
-    return response.data;
-  } 
-  catch (error) {
-    console.error("Error fetching pending sales returns:", error);
     throw error;
   }
 };
@@ -307,163 +262,18 @@ export const getNextStockVerification = async () => {
   }
 };
 
-// Mutation functions
-export const addPurchaseOrder = (order) => {
-  const newOrder = {
-    ...order,
-    id: Date.now(),
-    orderNumber: `PO-${String(inventoryData.purchaseOrders.length + 1).padStart(
-      4,
-      "0"
-    )}`,
-  };
-  inventoryData.purchaseOrders.push(newOrder);
-  return newOrder;
-};
 
-export const updatePurchaseOrder = (id, updated) => {
-  const idx = inventoryData.purchaseOrders.findIndex((o) => o.id === id);
-  if (idx !== -1) {
-    inventoryData.purchaseOrders[idx] = {
-      ...inventoryData.purchaseOrders[idx],
-      ...updated,
-    };
-    return inventoryData.purchaseOrders[idx];
-  }
-  return null;
-};
 
-export const addPurchaseReturn = (ret) => {
-  const newReturn = {
-    ...ret,
-    id: Date.now(),
-    returnNumber: `PR${String(
-      inventoryData.purchaseReturns.length + 1
-    ).padStart(3, "0")}`,
-  };
-  inventoryData.purchaseReturns.push(newReturn);
-  return newReturn;
-};
 
-export const addSalesReturn = (ret) => {
-  const newReturn = {
-    ...ret,
-    id: Date.now(),
-    returnNumber: `SR${String(inventoryData.salesReturns.length + 1).padStart(
-      3,
-      "0"
-    )}`,
-  };
-  inventoryData.salesReturns.push(newReturn);
-  return newReturn;
-};
 
-export const addStockTransfer = (transfer) => {
-  // Determine next sequence by scanning existing ST ids to avoid collisions
-  const nums = inventoryData.stockTransfers
-    .map((t) => {
-      const m = String(t.id || "").match(/^ST-(\d{4})$/i);
-      return m ? parseInt(m[1], 10) : null;
-    })
-    .filter((n) => n !== null);
-  const nextSeq = nums.length ? Math.max(...nums) + 1 : 1;
-  const stId = `ST-${String(nextSeq).padStart(4, "0")}`;
-  const newTransfer = {
-    ...transfer,
-    id: stId,
-    transferNumber: stId,
-  };
-  inventoryData.stockTransfers.push(newTransfer);
-  try {
-    localStorage.setItem(
-      "inventory_stockTransfers",
-      JSON.stringify(inventoryData.stockTransfers)
-    );
-  } catch {
-    /* ignore */
-  }
-  return newTransfer;
-};
 
-export const updateStockTransfer = (id, updated) => {
-  const idx = inventoryData.stockTransfers.findIndex((t) => t.id === id);
-  if (idx !== -1) {
-    inventoryData.stockTransfers[idx] = {
-      ...inventoryData.stockTransfers[idx],
-      ...updated,
-    };
-    try {
-      localStorage.setItem(
-        "inventory_stockTransfers",
-        JSON.stringify(inventoryData.stockTransfers)
-      );
-    } catch {
-      /* ignore */
-    }
-    return inventoryData.stockTransfers[idx];
-  }
-  return null;
-};
 
-export const addStockVerification = (verification) => {
-  // Determine next STV sequence by scanning existing verification numbers
-  const nums = inventoryData.stockVerifications
-    .map((v) => {
-      const m = String(v.verificationNumber || v.id || "").match(
-        /^STV-(\d{4})$/i
-      );
-      return m ? parseInt(m[1], 10) : null;
-    })
-    .filter((n) => n !== null);
-  const nextSeq = nums.length ? Math.max(...nums) + 1 : 1;
-  const stv = `STV-${String(nextSeq).padStart(4, "0")}`;
-  const newVerification = {
-    ...verification,
-    id: stv,
-    verificationNumber: stv,
-  };
-  inventoryData.stockVerifications.push(newVerification);
-  try {
-    localStorage.setItem(
-      "inventory_stockVerifications",
-      JSON.stringify(inventoryData.stockVerifications)
-    );
-  } catch {
-    /* ignore */
-  }
-  return newVerification;
-};
 
-export const updateStockVerification = (id, updated) => {
-  const idx = inventoryData.stockVerifications.findIndex((v) => v.id === id);
-  if (idx !== -1) {
-    inventoryData.stockVerifications[idx] = {
-      ...inventoryData.stockVerifications[idx],
-      ...updated,
-    };
-    return inventoryData.stockVerifications[idx];
-  }
-  return null;
-};
+
 
 export default {
-  getPurchaseOrders,
-  getPurchaseReturns,
-  getSalesReturns,
-  getStockTransfers,
-  getStockVerifications,
-  getCenters,
   getProducts,
   getCustomers,
-  getSuppliers,
-  addPurchaseOrder,
-  updatePurchaseOrder,
-  addPurchaseReturn,
-  addSalesReturn,
-  addStockTransfer,
-  updateStockTransfer,
-  addStockVerification,
-  updateStockVerification,
   createGRN,
   getNextGrn,
   createINV,
@@ -479,7 +289,6 @@ export default {
   fetchStockTransfers,
   createPurchaseOrder,
   fetchPurchaseOrders,
-  fetchPendingSalesReturns,
   getNextPurchaseReturn,
   fetchGRNs,
   createPurchaseReturn,

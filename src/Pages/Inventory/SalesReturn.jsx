@@ -5,24 +5,24 @@ import { getSalesOrders } from "../../services/AccountingService";
 import {getProducts,getCustomers,fetchInvoices,getNextSalesReturn,createSalesReturn,} from "../../services/Inventory/inventoryService"; // dummy data inventoryService.js
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
+import { SuccessPdfView } from "../../components/Inventory/successPdf";
 
 const SalesReturn = () => {
-  // Main component state for orders and UI control
-  const [, setOrders] = useState([]); // List of existing sales returns
+  const [, setOrders] = useState([]); 
   const [nextSONumber, setNextSONumber] = useState(() => {
-    const yy = String(new Date().getFullYear()).slice(-2);
-    return `SRET-${yy}-0001`;
-  }); // Next available return number
+  const yy = String(new Date().getFullYear()).slice(-2);
+  return `SRET-${yy}-0001`;}); 
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for form submission
   const [showSuccess, setShowSuccess] = useState(false); // Success modal visibility
   const [successText, setSuccessText] = useState(""); // Success message text
+  const [recentReturnDetails, setRecentReturnDetails] = useState(null);
 
-  // Load initial sales returns data on component mount
+
   useEffect(() => {
     const initial = getSalesOrders();
     setOrders(initial);
   }, []);
-  // Persisted last created SRET id (localStorage) key and ref
+ 
   const LAST_SRET_STORAGE_KEY = "inventory_last_sret_id";
   const lastCreatedSretRef = useRef("");
   useEffect(() => {
@@ -40,13 +40,12 @@ const SalesReturn = () => {
       // ignore
     }
   }, []);
-  // Helper: increment a code by the last numeric segment, preserving padding.
+ 
   const incrementSretCode = (code) => {
     if (!code) return "";
     const match = String(code).match(/^(.*?)(\d+)([^0-9]*)$/);
     if (!match) return String(code);
     const [, prefix, digits, suffix] = match;
-    // Always pad sequence to 4 digits so numbering starts at 0001 and remains consistent
     const nextDigits = (parseInt(digits, 10) + 1).toString().padStart(4, "0");
     return `${prefix}${nextDigits}${suffix}`;
   };
@@ -63,8 +62,7 @@ const SalesReturn = () => {
           setNextSONumber(s);
           return s;
         }
-        // If backend returned a raw numeric/partial token, try to format it
-        // If it contains digits, attempt to extract sequence and append SRET prefix with year
+      
         const digits = String(s).match(/(\d+)/);
         const shortYear = String(new Date().getFullYear()).slice(-2);
         if (digits) {
@@ -81,7 +79,6 @@ const SalesReturn = () => {
         return formatted;
       }
 
-      // If backend returned an object with year/sequence keys, format accordingly
       if (next && typeof next === "object") {
         const yearVal = next.year ?? new Date().getFullYear();
         const seq = next.sequence ?? next.next ?? next.number ?? null;
@@ -96,7 +93,7 @@ const SalesReturn = () => {
         }
       }
 
-      // Final fallback: always start a fresh SRET sequence for current year on initial load
+     
       const shortYearNow = String(new Date().getFullYear()).slice(-2);
       const initial = `SRET-${shortYearNow}-0001`;
       setNextSONumber(initial);
@@ -134,19 +131,23 @@ const SalesReturn = () => {
     }
   };
 
-  // Contains all form fields, item management, and validation logic
+  
   const InlinePOForm = ({ nextSONumber }) => {
-    // ===== FORM STATE =====
+   
     const [form, setForm] = useState({
       orderNumber: "",
       center: "",
       customer: "",
+      customerAddress: "",
+      address: "",
+      customerTelephone: "",
+      telephone: "",
       customerId: "",
       date: new Date().toISOString().split("T")[0],
       status: "Draft",
       refNumber: "",
     });
-    const [items, setItems] = useState([]); // Array of return items
+    const [items, setItems] = useState([]); 
     const [entry, setEntry] = useState({
       productId: "",
       productName: "",
@@ -166,6 +167,7 @@ const SalesReturn = () => {
       centerName: "",
       customerName: "",
     });
+    const [linkedInvoiceDiscountTotal, setLinkedInvoiceDiscountTotal] = useState(0);
     const [centers, setCenters] = useState([]);
     const [selectedCenterId, setSelectedCenterId] = useState("");
     const [centerLoading, setCenterLoading] = useState(false);
@@ -187,19 +189,16 @@ const SalesReturn = () => {
       const fetchCustomers = async () => {
         try {
           const data = await getCustomers();
-          // ensure customers have id and name fields
           const normalized = Array.isArray(data)
             ? data.map((c) => ({
-                id: String(
-                  c.id ?? c.customer_id ?? c.email ?? c.uuid ?? c._id ?? ""
-                ),
-                name:
-                  c.name ??
-                  c.displayName ??
-                  c.customerName ??
-                  c.customer ??
-                  c.email ??
-                  String(c.id ?? ""),
+                id: String(c.id ?? c.customer_id ?? ""),
+                name: c.name ?? String(c.name ?? ""),
+                // include both canonical and prefixed keys for compatibility
+                address: c.address ?? "",
+                customerAddress: c.address ?? "",
+                city: c.city ?? "",
+                telephone: c.phone ?? "",
+                customerTelephone: c.phone ?? "",
               }))
             : [];
           setCustomers(normalized);
@@ -210,6 +209,7 @@ const SalesReturn = () => {
       fetchCustomers();
     }, []);
 
+//fetch centers from API on component mount
     useEffect(() => {
       let active = true;
       const loadCenters = async () => {
@@ -221,20 +221,9 @@ const SalesReturn = () => {
           const normalized = Array.isArray(data)
             ? data.map((center) => ({
                 id: String(
-                  center.id ??
-                    center.center_id ??
-                    center.value ??
-                    center.code ??
-                    center.uuid ??
-                    ""
-                ),
+                  center.id ?? center.center_id ??"" ),
                 name:
-                  center.name ??
-                  center.centerName ??
-                  center.center_name ??
-                  center.title ??
-                  center.label ??
-                  String(center.id ?? "Unnamed Center"),
+                  center.name ?? center.centerName ?? String(center.id ?? "Unnamed Center"),
               }))
             : [];
           const filtered = normalized.filter(
@@ -308,15 +297,11 @@ const SalesReturn = () => {
             .trim()
             .toLowerCase();
           const filtered = list.filter((invoice) => {
-            // Exclude invoices marked as a reference (is_ref === 1)
-            // Some APIs return '1' as string or 1 as number; use == to coerce both.
             if (invoice?.is_ref == 1) return false;
 
             const invoiceCenters = [
-              invoice.center,
               invoice.centerName,
               invoice.center_name,
-              invoice.centerId,
               invoice.center_id,
               invoice?.center?.name,
             ]
@@ -455,29 +440,34 @@ const SalesReturn = () => {
       (it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        const gross = qty * unit;
-        return parseDiscount(it.discountInput, gross);
+        const unitDiscount = parseDiscount(it.discountInput, unit);
+        return (Number.isFinite(unitDiscount) ? unitDiscount : 0) * qty;
       },
       [parseDiscount]
     );
 
     // Calculate totals from items
-    const { subtotal, discountTotal } = useMemo(() => {
-      let sub = 0;
+    const { grossTotal, lineDiscountTotal } = useMemo(() => {
+      let gross = 0;
       let disc = 0;
       for (const it of items) {
         const qty = Number(it.quantity) || 0;
         const price = Number(it.unitPrice) || 0;
-        const gross = qty * price;
+        const lineGross = qty * price;
         const dAmt = computeLineDiscountAmount(it);
-        disc += dAmt;
-        sub += Math.max(0, gross - dAmt);
+        gross += Math.max(0, lineGross);
+        disc += Math.max(0, dAmt);
       }
-      return { subtotal: sub, discountTotal: disc };
+      return { grossTotal: gross, lineDiscountTotal: disc };
     }, [items, computeLineDiscountAmount]);
 
-    // Visible total should match table subtotal (no tax)
-    const totalAmount = Math.max(0, subtotal);
+    const effectiveDiscountTotal =
+      linkedInvoiceDiscountTotal > 0
+        ? linkedInvoiceDiscountTotal
+        : lineDiscountTotal;
+
+    // Total Amount should be gross minus the effective total discount (no tax)
+    const totalAmount = Math.max(0, grossTotal - effectiveDiscountTotal);
 
     // ===== VALIDATION =====
     // Validate form before submission
@@ -553,7 +543,6 @@ const SalesReturn = () => {
     ]);
 
     // ===== ITEM MANAGEMENT =====
-    // Add new item to the return list
     const addItem = () => {
       const name = (entry.productName || "").trim();
       const selected = entry.productId
@@ -615,6 +604,7 @@ const SalesReturn = () => {
         quantity: 1,
         unitPrice: 0,
         batchNumber: "",
+        discountInput: "",
       });
     };
 
@@ -679,7 +669,7 @@ const SalesReturn = () => {
             item.inventoryItem?.name ??
             `Item ${idx + 1}`;
 
-          // Unit price / cost: prefer explicit unit price fields
+     
           const unitPrice = Math.max(
             0,
             Number(
@@ -693,7 +683,7 @@ const SalesReturn = () => {
             )
           );
 
-          // MRP: prefer explicit MRP field or many possible variants; parse to number robustly
+       
           const mrpSources = [
             item.mrp,
             item.MRP,
@@ -746,9 +736,8 @@ const SalesReturn = () => {
               item.amount,
             ]) || Number(unitPrice) || 0;
 
-          // Resolve current stock from invoice item fields or fallback to product data.
-          // Use `null` as unknown sentinel so a value of 0 is accepted from the API.
-          let stockVal = null;
+      
+        let stockVal = null;
           const stockCandidates = [
             item.current_stock,
             item.currentStock,
@@ -778,7 +767,6 @@ const SalesReturn = () => {
               }
             }
           }
-
           // If invoice didn't include stock (stockVal === null), try to look up from product master
           if (stockVal === null) {
             const lookupId =
@@ -830,20 +818,6 @@ const SalesReturn = () => {
 
           const discountFields = [
             "discount",
-            "discountAmount",
-            "discountVale",
-            "discount_amt",
-            "discount_amount",
-            "discountValue",
-            "discount_value",
-            "discountPercent",
-            "discount_pct",
-            "discount_percentage",
-            "discountRate",
-            "discount_rate",
-            "disc",
-            "disc_amt",
-            "discountAmt",
           ];
 
           let rawDisc = null;
@@ -894,7 +868,8 @@ const SalesReturn = () => {
         .filter(Boolean);
 
       console.log("applyInvoiceToReturn - mapped items:", mapped);
-      // Apply invoice-level discount proportionally to each line item
+
+      // Capture invoice-level total discount (do not distribute to lines).
       try {
         const rawInvoiceDiscount =
           invoice.discountValue ??
@@ -911,35 +886,11 @@ const SalesReturn = () => {
           rawInvoiceDiscount != null && isFinite(Number(rawInvoiceDiscount))
             ? Math.max(0, Number(rawInvoiceDiscount))
             : 0;
-        if (totalInvoiceDiscount > 0) {
-          const preTotal = mapped.reduce(
-            (s, r) => s + (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0),
-            0
-          );
-          const totalQty = mapped.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
-          if (preTotal > 0) {
-            mapped.forEach((r) => {
-              const lineGross = (Number(r.unitPrice) || 0) * (Number(r.quantity) || 0);
-              const lineShare = lineGross / preTotal;
-              const lineDiscountTotal = totalInvoiceDiscount * lineShare;
-              r.discountInput = lineDiscountTotal
-                ? String(Number(lineDiscountTotal.toFixed(2)))
-                : "";
-            });
-          } else if (totalQty > 0) {
-            mapped.forEach((r) => {
-              const qty = Number(r.quantity) || 0;
-              const lineShare = qty / totalQty;
-              const lineDiscountTotal = totalInvoiceDiscount * lineShare;
-              r.discountInput = lineDiscountTotal
-                ? String(Number(lineDiscountTotal.toFixed(2)))
-                : "";
-            });
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to apply invoice-level discount to return items:", err);
+        setLinkedInvoiceDiscountTotal(totalInvoiceDiscount);
+      } catch {
+        setLinkedInvoiceDiscountTotal(0);
       }
+
 
       if (!mapped.length) {
         setInvoiceFetchError(
@@ -949,7 +900,7 @@ const SalesReturn = () => {
       }
 
       setItems(mapped);
-      // If any mapped item contains a batch number, enable batch mode so the column becomes visible
+      
       try {
         const hasBatch = mapped.some((m) =>
           Boolean(m.batchNumber && String(m.batchNumber).trim())
@@ -967,18 +918,13 @@ const SalesReturn = () => {
       });
       setErrors((prev) => ({ ...prev, items: undefined }));
 
-      // Prefer voucher number as the reference when available
+   
       const voucher =
         invoice.voucherNumber ??
-        invoice.voucher_no ??
-        invoice.voucherNo ??
-        invoice.voucher ??
         null;
       const invoiceRef =
         voucher ??
         invoice.invoiceNumber ??
-        invoice.invoiceNo ??
-        invoice.number ??
         invoice.id ??
         "";
 
@@ -990,20 +936,18 @@ const SalesReturn = () => {
       setShowInvoiceModal(false);
     };
 
-    // ===== FORM SUBMISSION =====
+   
     // Handle form submission
     const onSubmit = async (e) => {
       e.preventDefault();
       if (!validate()) return;
       setIsSubmitting(true);
       try {
-        // Prepare payload with calculated values
+     
         const payload = {
           ...form,
-          // Record creator id from auth context (both variants for compatibility)
           created_by: auth?.user?.id ?? null,
-          createdBy: auth?.user?.id ?? null,
-          // Sales returns should be created with Pending status
+          center_id: selectedCenterId ?? form.centerId ?? form.center_id ?? null,
           status: "Pending",
           items: items.map((it) => {
             const qty = Number(it.quantity) || 0;
@@ -1020,13 +964,14 @@ const SalesReturn = () => {
               lineNet: Math.max(0, gross - lineDiscountAmount),
             };
           }),
-          subtotal,
-          discountTotal,
+          subtotal: grossTotal,
+          discountTotal: effectiveDiscountTotal,
           // No tax should be sent when adding a sales return
           tax: 0,
           // Ensure totalAmount does not include tax for sales returns
-          totalAmount: subtotal,
+          totalAmount,
         };
+        // Search logs for: "Submitting sales return payload:" to find the POST payload
         console.log("Submitting sales return payload:", payload);
         let created = null;
         try {
@@ -1042,8 +987,7 @@ const SalesReturn = () => {
           return;
         }
 
-        // Helper: robustly resolve a returned order/receipt/voucher id from various response shapes
-        // This function will also inspect nested `data` objects (depth-limited) because
+  
         // some services wrap the created resource under `.data`.
         const resolveCreatedNumber = (obj, depth = 0) => {
           if (!obj || depth > 3) return "";
@@ -1083,17 +1027,47 @@ const SalesReturn = () => {
         };
 
         const resolved = resolveCreatedNumber(created);
-        // Prefer a backend-returned SRET (explicit). If backend returned a different
-        // identifier (e.g. 'SO003'), show the original submitted SRET (`nextSONumber`).
+        
         const createdNumber =
           resolved && /^SRET-/i.test(resolved)
             ? resolved
             : String(nextSONumber || resolved || "").trim();
         setSuccessText(`Sales return ${createdNumber} created successfully.`);
+
+        // Prepare a snapshot for PDF preview similar to SalesOrder
+        const itemsSnapshot = payload.items.map((item) => {
+          const qty = Number(item.quantity || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const discountAmount = Number(item.lineDiscountAmount || 0);
+          return {
+            ...item,
+            quantity: qty,
+            unitPrice,
+            lineDiscountAmount: discountAmount,
+            lineNet: Number(item.lineNet ?? Math.max(0, qty * unitPrice - discountAmount)),
+          };
+        });
+        const customerAddress = form.customerAddress || form.address || "";
+        const customerTelephone =
+          form.customerTelephone || form.telephone || form.phone || "";
+        const returnSnapshot = {
+          ...payload,
+          orderNumber: createdNumber,
+          orderDate: form.date,
+          center: form.center,
+          customer: form.customer,
+          refNumber: form.refNumber,
+          status: form.status || "Draft",
+          items: itemsSnapshot,
+          orderName: "Sales Return",
+          orderLabel: "Sales Return",
+          currencyFormat: (value) => formatLKR(value),
+          customerAddress,
+          customerTelephone,
+        };
+        setRecentReturnDetails(returnSnapshot);
         setShowSuccess(true);
 
-        // Persist created number (prefer SRET-formatted value). Use nextSONumber as authoritative
-        // if backend returned a non-SRET order number (e.g. SOxxx).
         try {
           const isSret = /^SRET-/i.test(String(createdNumber || ""));
           const baseForPersist = isSret
@@ -1114,7 +1088,6 @@ const SalesReturn = () => {
           // intentionally ignored
         }
 
-        // Optimistic increment locally using the persisted SRET base (or nextSONumber)
         try {
           const base = String(
             lastCreatedSretRef.current || nextSONumber || createdNumber || ""
@@ -1129,7 +1102,8 @@ const SalesReturn = () => {
         } catch {
           /* intentionally ignored */
         }
-        // Reset form after successful submission
+     
+
         setForm({
           orderNumber: "",
           center: "",
@@ -1140,6 +1114,7 @@ const SalesReturn = () => {
         });
         setSelectedCenterId("");
         setItems([]);
+        setLinkedInvoiceDiscountTotal(0);
         setEntry({
           productId: "",
           productName: "",
@@ -1153,10 +1128,13 @@ const SalesReturn = () => {
       }
     };
 
-    // ===== RENDER =====
-    return (
+      const selectedCustomer = customers.find(
+        (c) => String(c.id) === String(form.customerId)
+      );
+
+      return (
       <>
-        {/* ===== HEADER SECTION ===== */}
+     
         <div className="bg-slate-50 rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8 border border-slate-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
@@ -1280,6 +1258,11 @@ const SalesReturn = () => {
                         ...p,
                         customerId: id,
                         customer: meta?.name || "",
+                        // write both naming variants so snapshots pick them up
+                        customerAddress: meta?.customerAddress || meta?.address || "",
+                        address: meta?.address || meta?.customerAddress || "",
+                        customerTelephone: meta?.customerTelephone || meta?.telephone || "",
+                        telephone: meta?.telephone || meta?.customerTelephone || "",
                       }));
                     }}
                     className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
@@ -1303,6 +1286,16 @@ const SalesReturn = () => {
                   {invoiceFetchError && !showInvoiceModal && (
                     <p className="text-amber-600 text-sm mt-1 font-medium">
                       {invoiceFetchError}
+                    </p>
+                  )}
+                  {selectedCustomer && (
+                    <p className="text-sm text-slate-600 mt-1">
+                      {selectedCustomer.address && (
+                        <span className="block">{selectedCustomer.address}</span>
+                      )}
+                      {selectedCustomer.telephone && (
+                        <span className="block">Contact: {selectedCustomer.telephone}</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -1333,6 +1326,9 @@ const SalesReturn = () => {
                   </p>
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(totalAmount)}
+                  </p>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Total discount: {formatLKR(effectiveDiscountTotal)}
                   </p>
                 </div>
               </div>
@@ -1571,10 +1567,7 @@ const SalesReturn = () => {
                             const rowPrice = Number(it.unitPrice) || 0;
                             const rowGross = rowQty * rowPrice;
                             const rowDiscount = computeLineDiscountAmount(it);
-                            const rowTotal = Math.max(
-                              0,
-                              rowGross - rowDiscount
-                            );
+                            const rowTotal = Math.max(0, rowGross - rowDiscount);
                             return (
                               <tr
                                 key={it.id}
@@ -1815,7 +1808,54 @@ const SalesReturn = () => {
       )}
 
       {/* ===== SUCCESS MODAL ===== */}
-      {showSuccess && (
+      {showSuccess && recentReturnDetails ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sales return created"
+        >
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                  <p className="text-sm text-slate-600">{successText || "Sales return created successfully."}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentReturnDetails(null);
+                }}
+                className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                aria-label="Close return summary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5">
+              <SuccessPdfView orderData={recentReturnDetails} />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentReturnDetails(null);
+                }}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : showSuccess ? (
         <div
           className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
           role="dialog"
@@ -1826,12 +1866,8 @@ const SalesReturn = () => {
             <div className="flex items-start gap-4">
               <CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
               <div className="flex-1">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  Success
-                </h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  {successText || "Sales return created successfully."}
-                </p>
+                <h3 className="text-xl font-semibold text-slate-900">Success</h3>
+                <p className="mt-2 text-sm text-slate-700">{successText || "Sales return created successfully."}</p>
               </div>
               <button
                 type="button"
@@ -1853,7 +1889,7 @@ const SalesReturn = () => {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -5,6 +5,8 @@ import {getAll as fetchProductsList,getInventoryDetails as fetchProductDetails,}
 import SupplierService from "../../services/Account/SupplierService";
 import {createPurchaseOrder,getNextPurchaseOrder,} from "../../services/Inventory/inventoryService"; //get from dummy data inventoryService.js
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import Supplier from "./MasterFile/Supplier";
+import { SuccessPdfView } from "../../components/Inventory/successPdf.jsx";
 
 const defaultPurchaseOrderNumber = () => `PO-${new Date().getFullYear()}-0001`;
 
@@ -169,6 +171,7 @@ const PurchaseOrder = () => {
   const [successText, setSuccessText] = useState("");
   const [isFetchingNext, setIsFetchingNext] = useState(false);
   const [nextNumberError, setNextNumberError] = useState("");
+  const [recentOrderDetails, setRecentOrderDetails] = useState(null);
 
   const fetchNextPONumber = useCallback(async (options = {}) => {
     const { fallbackSource } = options;
@@ -234,6 +237,7 @@ const PurchaseOrder = () => {
       quantity: 1,
       unitPrice: 0,
       minPrice: 0,
+      productDiscount: 0,
     });
     const [centers, setCenters] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
@@ -296,7 +300,11 @@ const PurchaseOrder = () => {
         const qty = Number(it.quantity) || 0;
         const price = Number(it.unitPrice) || 0;
         const gross = qty * price;
-        const dAmt = parseDiscount(it.discountInput, gross);
+        // prefer user-entered discountInput (parsed) as canonical amount;
+        // fall back to configured product_discount when discountInput is empty or parses to 0
+        const parsedFromInput = parseDiscount(it.discountInput, gross);
+        const productDisc = Number(it.product_discount) || 0;
+        const dAmt = parsedFromInput > 0 ? parsedFromInput : productDisc;
         disc += dAmt;
         sub += Math.max(0, gross - dAmt);
       }
@@ -369,6 +377,7 @@ const PurchaseOrder = () => {
           mrp,
           minPrice,
           discountInput: "",
+          product_discount: selected ? Number(selected.productDiscount || 0) : Number(entry.productDiscount || 0),
           attemptedOverMrp,
         },
       ]);
@@ -379,6 +388,7 @@ const PurchaseOrder = () => {
         quantity: 1,
         unitPrice: 0,
         minPrice: 0,
+        productDiscount: 0,
       });
     };
 
@@ -447,17 +457,23 @@ const PurchaseOrder = () => {
             const qty = Number(it.quantity) || 0;
             const price = Number(it.unitPrice) || 0;
             const gross = qty * price;
-            const dAmt = parseDiscount(it.discountInput, gross);
             const itemMinPrice = pickNumericValue(it.minPrice, it.min_price);
+            // Prefer user-entered discountInput (parsed to absolute amount) as canonical per-line discount;
+            // fall back to configured product_discount when input is empty
+            const parsedFromInput = parseDiscount(it.discountInput, gross);
+            const configuredProductDisc = Number(it.product_discount) || 0;
+            const productDisc = parsedFromInput > 0 ? parsedFromInput : configuredProductDisc;
             return {
               ...it,
+              // set product_discount to the final numeric discount amount that will be sent to backend
+              product_discount: productDisc,
               batchNumber: it.batchNumber || "",
               minPrice: itemMinPrice,
               min_price: itemMinPrice,
               lineGross: gross,
               lineDiscountInput: it.discountInput || "",
-              lineDiscountAmount: dAmt,
-              lineNet: Math.max(0, gross - dAmt),
+              lineDiscountAmount: productDisc,
+              lineNet: Math.max(0, gross - productDisc),
             };
           }),
           subtotal,
@@ -500,6 +516,41 @@ const PurchaseOrder = () => {
           ensuredOrderNumber;
         console.log("Purchase order API response:", createdData);
         setSuccessText(`Purchase order ${createdNumber} created successfully.`);
+        
+        // Create order snapshot for PDF generation
+        const itemsSnapshot = payload.items.map((item) => {
+          const qty = Number(item.quantity || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const discountAmount = Number(item.lineDiscountAmount || 0);
+          return {
+            ...item,
+            quantity: qty,
+            unitPrice,
+            lineDiscountAmount: discountAmount,
+            lineNet: Number(
+              item.lineNet ?? Math.max(0, qty * unitPrice - discountAmount)
+            ),
+          };
+        });
+        
+        const orderSnapshot = {
+          ...payload,
+          orderNumber: createdNumber,
+          orderDate: form.date,
+          center: form.center,
+          supplier: selectedSupplier?.name || form.supplier,
+          supplierName: selectedSupplier?.name || form.supplier,
+          supplierAddress: [selectedSupplier?.address1, selectedSupplier?.address2].filter(Boolean).join(", ") || selectedSupplier?.address || "",
+          supplierPhone: selectedSupplier?.telephone || selectedSupplier?.phone || "",
+          refNumber: form.refNumber,
+          status: payload.status || "Completed",
+          items: itemsSnapshot,
+          discountTotal,
+          totalAmount: subtotal - discountTotal,
+          documentType: "Purchase Order",
+          currencyFormat: (value) => formatLKR(value),
+        };
+        setRecentOrderDetails(orderSnapshot);
         setShowSuccess(true);
         const optimisticNext = incrementPurchaseOrderNumber(createdNumber);
         setNextPONumber(optimisticNext);
@@ -596,6 +647,14 @@ const PurchaseOrder = () => {
               p.qty_on_hand
             ),
             minPrice: extractProductMinPrice(p),
+            productDiscount: pickNumericValue(
+              p.product_discount,
+              p.discount,
+              p.discountPerUnit,
+              p.discount_per_unit,
+              p.default_discount,
+              0
+            ),
           }));
           setProducts(normalized);
         } catch (e) {
@@ -606,6 +665,9 @@ const PurchaseOrder = () => {
         }
       };
 
+
+
+// for supplier details load
       const loadSuppliers = async () => {
         try {
           setLoading((prev) => ({ ...prev, suppliers: true }));
@@ -613,12 +675,15 @@ const PurchaseOrder = () => {
           const normalized = Array.isArray(data)
             ? data.map((s) => ({
                 id:
-                  s.id ??
-                  s.supplier_id ??
-                  s.value ??
-                  String(s.name || s.title || s),
+                  s.id ?? s.supplier_id ??  s.value ??  String(s.name || s.title || s),
                 name:
-                  s.name ?? s.supplier_name ?? s.title ?? String(s.name || s),
+                   s.supplier_name ?? String(s.name || s),
+                address1:
+                  s.address1 ??  "",
+                address2:
+                  s.address2 ?? "",
+                telephone:
+                   s.phone_number ?? "",
               }))
             : [];
           setSuppliers(normalized);
@@ -634,6 +699,10 @@ const PurchaseOrder = () => {
       loadProducts();
       loadSuppliers();
     }, []);
+
+    const selectedSupplier = suppliers.find(
+      (s) => String(s.id) === String(form.supplier)
+    );
 
     return (
       <>
@@ -736,6 +805,19 @@ const PurchaseOrder = () => {
                       {errors.supplier}
                     </p>
                   )}
+                  {selectedSupplier && (
+                    <p className="text-sm text-slate-600 mt-1">
+                      {selectedSupplier.address1 && (
+                        <span className="block">{selectedSupplier.address1}</span>
+                      )}
+                      {selectedSupplier.address2 && (
+                        <span className="block">{selectedSupplier.address2}</span>
+                      )}
+                      {selectedSupplier.telephone && (
+                        <span className="block">Contact: {selectedSupplier.telephone}</span>
+                      )}
+                    </p>
+                  )}
                  
                 </div>
               </div>
@@ -761,6 +843,9 @@ const PurchaseOrder = () => {
                   </p>
                   <p className="text-3xl font-bold text-slate-900">
                     {formatLKR(subtotal)}
+                  </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total Discount: <span className="text-sm font-medium text-slate-700">{formatLKR(discountTotal)}</span>
                   </p>
                 </div>
               </div>
@@ -822,6 +907,7 @@ const PurchaseOrder = () => {
                               quantity: 1,
                               unitPrice: extractProductUnitPrice(p),
                               minPrice: extractProductMinPrice(p),
+                              productDiscount: Number(p.productDiscount || 0),
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
@@ -879,6 +965,7 @@ const PurchaseOrder = () => {
                                   quantity: 1,
                                   unitPrice: extractProductUnitPrice(p),
                                   minPrice: extractProductMinPrice(p),
+                                  productDiscount: Number(p.productDiscount || 0),
                                 });
                                 setShowSuggestions(false);
                                 setActiveIndex(-1);
@@ -981,10 +1068,10 @@ const PurchaseOrder = () => {
                             const rowQty = Number(it.quantity) || 0;
                             const rowPrice = Number(it.unitPrice) || 0;
                             const rowGross = rowQty * rowPrice;
-                            const rowDiscount = parseDiscount(
-                              it.discountInput,
-                              rowGross
-                            );
+                            // prefer parsed discountInput (user-entered) as canonical amount; fall back to product_discount
+                            const parsedRowDiscount = parseDiscount(it.discountInput, rowGross);
+                            const rowProductDisc = Number(it.product_discount) || 0;
+                            const rowDiscount = parsedRowDiscount > 0 ? parsedRowDiscount : rowProductDisc;
                             const rowTotal = Math.max(
                               0,
                               rowGross - rowDiscount
@@ -1162,41 +1249,48 @@ const PurchaseOrder = () => {
         </div>
       )}
 
-      {/* Success modal popup (visible until dismissed) */}
-      {showSuccess && (
+      {/* Success modal popup with order details */}
+      {showSuccess && recentOrderDetails && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
           role="dialog"
           aria-modal="true"
           aria-label="Purchase order created"
         >
-          <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] max-w-md border border-slate-200">
-            <div className="flex items-start gap-4">
-              <CheckCircle className="h-7 w-7 text-green-600 shrink-0" />
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  Success
-                </h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  {successText || "Purchase order created successfully."}
-                </p>
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                  <p className="text-sm text-slate-600">{successText || "Purchase order created successfully."}</p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowSuccess(false)}
-                className="ml-2 text-slate-500 hover:text-slate-700 transition-colors"
-                aria-label="Close"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentOrderDetails(null);
+                }}
+                className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                aria-label="Close order summary"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-5">
+              <SuccessPdfView orderData={recentOrderDetails} documentType="Purchase Order" />
+            </div>
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
               <button
                 type="button"
-                onClick={() => setShowSuccess(false)}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-semibold"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentOrderDetails(null);
+                }}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
               >
-                OK
+                Close
               </button>
             </div>
           </div>

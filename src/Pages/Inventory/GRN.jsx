@@ -1,5 +1,5 @@
 import React, {useCallback,useEffect,useMemo,useRef,useState} from "react";
-import { Plus, Trash2, CheckCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle, X } from "lucide-react";
 import {createGRN,getNextGrn,fetchPurchaseOrders,} from "../../services/Inventory/inventoryService";
 import { fetchCenters as fetchCentersService } from "../../services/Inventory/centerService";
 import { getAll as fetchProductsService } from "../../services/Inventory/productListService";
@@ -7,6 +7,7 @@ import SupplierService from "../../services/Account/SupplierService";
 import { useAuth } from "../../contexts/AuthContext";
 import ErrorMessage from "../../components/ErrorMessage/ErrorMessage";
 import InventoryPopup from "../../components/Inventory/inventoryPopup";
+import { SuccessPdfView } from "../../components/Inventory/successPdf";
 
 const incrementGrnCode = (code) => {
   if (!code) return "";
@@ -25,6 +26,10 @@ const GRN = () => {
   const [nextGrnId, setNextGrnId] = useState("");
   // Loading flag while fetching next GRN from backend
   const [isFetchingNext, setIsFetchingNext] = useState(false);
+  // State for success modal and GRN details for PDF
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successText, setSuccessText] = useState("");
+  const [recentGrnDetails, setRecentGrnDetails] = useState(null);
 
   const refreshNextGrn = useCallback(async () => {
     setIsFetchingNext(true);
@@ -67,6 +72,7 @@ const GRN = () => {
     nextGrnId,
     refreshNextGrn,
     setNextGrnId: updateNextGrnId,
+    onSuccess,
   }) => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
@@ -88,8 +94,6 @@ const GRN = () => {
     const [errors, setErrors] = useState({});
     const [submitError, setSubmitError] = useState("");
     const [items, setItems] = useState([]);
-    const [showSuccess, setShowSuccess] = useState(false);
-    const [successText, setSuccessText] = useState("");
 
     // Entry state and typeahead like SalesOrder page
     const [entry, setEntry] = useState({
@@ -98,6 +102,7 @@ const GRN = () => {
       quantity: 1,
       unitPrice: 0,
       batchNumber: "",
+      productDiscount: 0,
     });
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
@@ -165,6 +170,17 @@ const GRN = () => {
                   String(s.name || s.title || s),
                 name:
                   s.name ?? s.supplier_name ?? s.title ?? String(s.name || s),
+                // Carry through address/contact fields from backend so we can show them under the select
+                address1: s.address1 ?? s.address_1 ?? s.addressLine1 ?? s.address_line1 ?? "",
+                address2: s.address2 ?? s.address_2 ?? s.addressLine2 ?? s.address_line2 ?? "",
+                // Normalize to `telephone` like PurchaseOrder uses
+                telephone:
+                  s.telephone ??
+                  s.phone_number ??
+                  s.phoneNumber ??
+                  s.phone ??
+                  s.mobile ??
+                  "",
               }))
             : [];
           setSuppliers(normalized);
@@ -208,6 +224,10 @@ const GRN = () => {
             ),
             mrp: Number(p.mrp ?? p.mrp_price ?? p.retail_price ?? p.price ?? 0),
             currentstock: p.currentstock ?? p.stock ?? p.qty ?? 0,
+            productDiscount:
+              Number(
+                p.product_discount ?? p.discount ?? p.discountPerUnit ?? p.discount_per_unit ?? 0
+              ) || 0,
           }));
           setProducts(normalized);
         } catch (e) {
@@ -372,21 +392,24 @@ const GRN = () => {
         .slice(0, 8);
     }, [entry.productName, products]);
 
-    const tableTotal = useMemo(() => {
-      return items.reduce((acc, it) => {
+    const { totalAmount, discountTotal } = useMemo(() => {
+      let totalAcc = 0;
+      let discAcc = 0;
+      for (const it of items) {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unitPrice) || 0;
-        // discount is optional and applied per-unit if present
-        const disc = Number(it.discount || 0) || 0;
-        const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
-      }, 0);
+        const gross = unit * qty;
+        // Treat `it.discount` as an absolute line discount amount (not per-unit)
+        const lineDiscount = Number(it.discount) || 0;
+        discAcc += lineDiscount;
+        totalAcc += Math.max(0, gross - lineDiscount);
+      }
+      return { totalAmount: totalAcc, discountTotal: discAcc };
     }, [items]);
 
     useEffect(() => {
-      setFormData((p) => ({ ...p, amount: tableTotal }));
-    }, [tableTotal]);
+      setFormData((p) => ({ ...p, amount: totalAmount }));
+    }, [totalAmount]);
 
     const validateForm = () => {
       const e = {};
@@ -524,7 +547,19 @@ const GRN = () => {
             )
           );
           if (!qty) return null;
-          const unitPrice = Math.max(0, resolveOrderUnitPrice(item, qty));
+          const explicitCost = Number(
+            item.cost ??
+              item.cost_price ??
+              item.purchase_price ??
+              item.unit_price ??
+              item.unitPrice ??
+              item.price ??
+              0
+          );
+          const unitPrice = Math.max(
+            0,
+            explicitCost > 0 ? explicitCost : resolveOrderUnitPrice(item, qty)
+          );
           const discountValue =
             Number(
               item.discountPerUnit ?? item.discount ?? item.discountAmount ?? 0
@@ -541,6 +576,9 @@ const GRN = () => {
             quantity: qty,
             unitPrice: Math.max(0, unitPrice),
             discount: Math.max(0, Number(discountValue)),
+            product_discount: Number(
+              item.product?.product_discount ?? item.product_discount ?? item.product?.discount ?? 0
+            ) || 0,
             mrp: Number(item.mrp ?? item.maximumRetailPrice ?? 0),
             currentStock: Number(
               item.currentStock ?? item.current_stock ?? item.stock ?? 0
@@ -567,6 +605,7 @@ const GRN = () => {
         quantity: 1,
         unitPrice: 0,
         batchNumber: "",
+        productDiscount: 0,
       });
       setErrors((prev) => ({ ...prev, items: undefined }));
       setSubmitError("");
@@ -593,6 +632,9 @@ const GRN = () => {
       const unitPrice = selected
         ? Number(selected.costPrice) || Number(selected.unitPrice) || 0
         : Number(entry.unitPrice) || 0;
+      const productDiscount = selected
+        ? Number(selected.productDiscount || 0)
+        : Number(entry.productDiscount || 0) || 0;
       if (!name) {
         setErrors((prev) => ({
           ...prev,
@@ -651,6 +693,7 @@ const GRN = () => {
         quantity: qty,
         unitPrice: Math.max(0, unitPrice),
         discount: 0,
+        product_discount: productDiscount,
         mrp: selected ? Number(selected.mrp) || 0 : 0,
         currentStock: selected ? selected.currentstock || 0 : 0,
         batchNumber: isBatchEnabled
@@ -664,6 +707,7 @@ const GRN = () => {
         quantity: 1,
         unitPrice: 0,
         batchNumber: "",
+        productDiscount: 0,
       });
       setShowSuggestions(false);
       setActiveIndex(-1);
@@ -692,14 +736,8 @@ const GRN = () => {
       setSubmitError("");
       if (!validateForm()) return;
 
-      const computedAmount = items.reduce((acc, it) => {
-        const qty = Number(it.quantity) || 0;
-        const unit = Number(it.unitPrice) || 0;
-        const disc = Number(it.discount || 0) || 0;
-        const lineTotal = unit * qty;
-        const lineDiscount = disc * qty;
-        return acc + (lineTotal - lineDiscount);
-      }, 0);
+      // Use computed totalAmount (sum of line gross - line discount) as the GRN amount
+      const computedAmount = totalAmount;
 
       const itemsForPayload = items.map((item, index) => {
         const { rowId: _ROW_ID, id: legacyId, ...itemWithoutRowId } = item;
@@ -715,15 +753,21 @@ const GRN = () => {
             : resolvedProductId;
         const quantity = Number(itemWithoutRowId.quantity) || 0;
         const unitPrice = Number(itemWithoutRowId.unitPrice) || 0;
+        // `discount` is treated as an absolute per-line discount amount
         const discount = Number(itemWithoutRowId.discount) || 0;
         const mrp = Number(itemWithoutRowId.mrp) || 0;
-        const lineTotal = (unitPrice - discount) * quantity;
+        const lineGross = unitPrice * quantity;
+        const lineDiscount = Math.max(0, discount); // absolute line discount (not multiplied by qty)
+        const normalizedProductDiscount = lineDiscount || Number(itemWithoutRowId.product_discount) || 0;
+        const lineDiscountAmount = lineDiscount;
+        const lineNet = Math.max(0, lineGross - lineDiscount);
         const batchNumber = itemWithoutRowId.batchNumber
           ? String(itemWithoutRowId.batchNumber).trim()
           : null;
 
         return {
           ...itemWithoutRowId,
+          product_discount: normalizedProductDiscount,
           id: finalProductId,
           productId: finalProductId,
           product_id: finalProductId,
@@ -738,8 +782,11 @@ const GRN = () => {
           batch_number: batchNumber,
           lineNumber: index + 1,
           line_number: index + 1,
-          total: lineTotal,
-          line_total: lineTotal,
+          total: lineNet,
+          line_total: lineNet,
+            line_discount: lineDiscount,
+            lineDiscountAmount: lineDiscountAmount,
+            line_discount_amount: lineDiscountAmount,
         };
       });
 
@@ -755,6 +802,10 @@ const GRN = () => {
         items: itemsForPayload,
         batchTrackingEnabled: isBatchEnabled,
         batch_tracking_enabled: isBatchEnabled,
+        totalDiscount: discountTotal,
+        total_discount: discountTotal,
+        discountTotal,
+        discount_total: discountTotal,
       };
 
       setIsSubmitting(true);
@@ -802,6 +853,48 @@ const GRN = () => {
           }
         }
         setErrors({});
+        
+        // Create GRN snapshot for PDF generation BEFORE clearing form
+        const itemsSnapshot = itemsForPayload.map((item) => {
+          const qty = Number(item.quantity || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const discountAmount = Number(item.lineDiscountAmount || 0);
+          return {
+            ...item,
+            quantity: qty,
+            unitPrice,
+            lineDiscountAmount: discountAmount,
+            lineNet: Number(
+              item.line_total ?? Math.max(0, qty * unitPrice - discountAmount)
+            ),
+          };
+        });
+
+        const selectedSupplier = suppliers.find(
+          (s) => String(s.id) === String(formData.supplier)
+        );
+        const selectedCenter = centers.find(
+          (c) => String(c.id) === String(formData.center)
+        );
+
+        const grnSnapshot = {
+          orderNumber: voucher,
+          orderDate: formData.date,
+          center: selectedCenter?.name || formData.centerName || formData.center,
+          supplier: selectedSupplier?.name || formData.supplierName || formData.supplier,
+          supplierName: selectedSupplier?.name || formData.supplierName || formData.supplier,
+          supplierAddress: [selectedSupplier?.address1, selectedSupplier?.address2].filter(Boolean).join(", ") || selectedSupplier?.address || "",
+          supplierPhone: selectedSupplier?.telephone || selectedSupplier?.phone || "",
+          refNumber: formData.refNumber,
+          status: "Completed",
+          items: itemsSnapshot,
+          discountTotal,
+          totalAmount: computedAmount,
+          documentType: "GRN",
+          currencyFormat: (value) => formatLKR(value),
+        };
+
+        // Now clear the form
         setFormData({
           id: "",
           center: "",
@@ -818,9 +911,17 @@ const GRN = () => {
           productName: "",
           quantity: 0,
         });
+        
+        // Clear items
         setItems([]);
-        // Show success modal
-        setSuccessText(`GRN ${voucher} has been created successfully!`);
+
+        // Trigger parent success handler with GRN details
+        if (typeof onSuccess === "function") {
+          onSuccess({
+            grnSnapshot,
+            successText: `GRN ${voucher} has been created successfully!`,
+          });
+        }
 
         try {
           const freshCenters = await fetchCentersService();
@@ -839,7 +940,6 @@ const GRN = () => {
           // non-fatal: log and continue
           console.warn("refresh centers failed", e);
         }
-        setShowSuccess(true);
         setSubmitError("");
       } catch (error) {
         console.error("Error creating GRN:", error);
@@ -900,6 +1000,10 @@ const GRN = () => {
         setIsSubmitting(false);
       }
     };
+
+    const selectedSupplier = suppliers.find(
+      (s) => String(s.id) === String(formData.supplier)
+    );
 
     return (
       <>
@@ -1028,11 +1132,44 @@ const GRN = () => {
                       Supplier is required
                     </p>
                   )}
-                  {purchaseOrderInlineNotice && !errors.supplier && (
-                    <p className="text-amber-600 text-xs mt-2 font-semibold">
-                      {purchaseOrderInlineNotice}
-                    </p>
-                  )}
+                    {purchaseOrderInlineNotice && !errors.supplier && (
+                      <p className="text-amber-600 text-xs mt-2 font-semibold">
+                        {purchaseOrderInlineNotice}
+                      </p>
+                    )}
+                    {/** Show supplier address and contact under select like Purchase Order */}
+                    {selectedSupplier && (
+                      <div className="mt-2 text-sm text-slate-600 space-y-1" aria-live="polite">
+                        {/* Address lines */}
+                        {selectedSupplier.address1 && (
+                          <p className="leading-snug">{selectedSupplier.address1}</p>
+                        )}
+                        {selectedSupplier.address2 && (
+                          <p className="leading-snug">{selectedSupplier.address2}</p>
+                        )}
+                        {!selectedSupplier.address1 && !selectedSupplier.address2 && (
+                          <p className="leading-snug">
+                            {selectedSupplier.address ||
+                              selectedSupplier.supplierAddress ||
+                              selectedSupplier.supplier_address ||
+                              selectedSupplier.addressLine1 ||
+                              selectedSupplier.address_line1 ||
+                              "Address not available"}
+                          </p>
+                        )}
+                        {/* Contact number */}
+                        <p className="leading-snug">
+                          Contact: {selectedSupplier.telephone ||
+                            selectedSupplier.phone_number ||
+                            selectedSupplier.phone ||
+                            selectedSupplier.mobile ||
+                            selectedSupplier.contact ||
+                            selectedSupplier.contactNumber ||
+                            selectedSupplier.contact_number ||
+                            "—"}
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -1062,7 +1199,10 @@ const GRN = () => {
                     Total Amount
                   </p>
                   <p className="text-3xl sm:text-4xl font-bold text-slate-900">
-                    {formatLKR(tableTotal)}
+                    {formatLKR(totalAmount)}
+                  </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total Discount: <span className="text-sm font-medium text-slate-700">{formatLKR(discountTotal)}</span>
                   </p>
                 </div>
               </div>
@@ -1140,6 +1280,7 @@ const GRN = () => {
                               quantity: 1,
                               unitPrice: defaultUnit,
                               batchNumber: "",
+                              productDiscount: Number(p.productDiscount || 0),
                             });
                             setShowSuggestions(false);
                             setActiveIndex(-1);
@@ -1163,22 +1304,17 @@ const GRN = () => {
                             ...p,
                             productId: "",
                             productName: val,
+                            productDiscount: 0,
                           }));
                           setShowSuggestions(true);
                           setActiveIndex(-1);
                         }}
                         onBlur={() => {
+                          // Delay hiding to allow click selection
                           setTimeout(() => setShowSuggestions(false), 150);
                         }}
-                        disabled={!formData.center || loading.products}
-                        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                          errors.productName
-                            ? "border-red-300 bg-red-50"
-                            : "border-slate-300 bg-white hover:border-slate-400"
-                        } ${
-                          loading.products || !formData.center
-                            ? "opacity-60 cursor-not-allowed"
-                            : ""
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white hover:border-slate-400 ${
+                          errors.productName ? "border-red-500" : "border-slate-300"
                         }`}
                         placeholder={
                           !formData.center
@@ -1219,6 +1355,7 @@ const GRN = () => {
                                     quantity: 1,
                                     unitPrice: defaultUnit,
                                     batchNumber: "",
+                                    productDiscount: Number(p.productDiscount || 0),
                                   });
                                   setShowSuggestions(false);
                                   setActiveIndex(-1);
@@ -1368,13 +1505,12 @@ const GRN = () => {
                           </thead>
                           <tbody className="bg-white divide-y divide-slate-100">
                             {items.map((it, idx) => {
-                              const Discount =
-                                (Number(it.discount) || 0) *
-                                (Number(it.quantity) || 0);
-                              const Total =
-                                (Number(it.unitPrice) || 0) *
-                                (Number(it.quantity) || 0);
-                              const rowTotal = Total - Discount;
+                              const qty = Number(it.quantity) || 0;
+                              const unit = Number(it.unitPrice) || 0;
+                              const gross = unit * qty;
+                              // treat `it.discount` as an absolute line discount amount
+                              const lineDiscount = Number(it.discount) || 0;
+                              const rowTotal = Math.max(0, gross - lineDiscount);
                               return (
                                 <tr
                                   key={it.rowId}
@@ -1636,32 +1772,6 @@ const GRN = () => {
           </div>
         </InventoryPopup>
 
-        {/* Success Modal */}
-        {showSuccess && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 border border-slate-200">
-              <div className="p-6 text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="rounded-full bg-green-100 p-3">
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  </div>
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                  Success!
-                </h3>
-                <p className="text-slate-600 mb-6">{successText}</p>
-                <button
-                  onClick={() => setShowSuccess(false)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Loading Modal */}
         {isSubmitting && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1685,6 +1795,12 @@ const GRN = () => {
     );
   };
 
+  const handleGrnSuccess = ({ grnSnapshot, successText: text }) => {
+    setRecentGrnDetails(grnSnapshot);
+    setSuccessText(text);
+    setShowSuccess(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -1693,9 +1809,74 @@ const GRN = () => {
             nextGrnId={nextGrnId}
             refreshNextGrn={refreshNextGrn}
             setNextGrnId={setNextGrnId}
+            onSuccess={handleGrnSuccess}
           />
         </section>
       </div>
+
+      {/* Loading Modal */}
+      {isSubmitting && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="bg-white rounded-xl shadow-xl p-6 flex items-center gap-4 border border-slate-200">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+            <span className="text-slate-800 font-medium">
+              Creating GRN…
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal with PDF View */}
+      {showSuccess && recentGrnDetails && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="GRN created"
+        >
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Success</p>
+                  <p className="text-sm text-slate-600">{successText || "GRN created successfully."}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentGrnDetails(null);
+                }}
+                className="rounded-full p-2 text-slate-500 hover:text-slate-900"
+                aria-label="Close GRN summary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-5">
+              <SuccessPdfView orderData={recentGrnDetails} documentType="GRN" />
+            </div>
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccess(false);
+                  setRecentGrnDetails(null);
+                }}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
