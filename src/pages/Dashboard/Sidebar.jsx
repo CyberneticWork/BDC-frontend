@@ -41,18 +41,22 @@ const Sidebar = ({
 
   const [expandedItems, setExpandedItems] = useState({
     hrMaster: false,
-    allowanceDeduction: false, // Replace allowance and deduction with this
+    allowanceDeduction: false,
     loans: false,
     salaryProcess: false,
     timeAttendance: false,
     pms: false,
     lms: false,
     accounting: false,
-    chartOfAccounts: false, // Added this
-    transactions: false, // Added this
-    financeReports: false, // Added this
-    inventory: false, // Added for Inventory section
-    masterFiles: false, // Added Master Files subsection under Inventory
+    chartOfAccounts: false,
+    transactions: false,
+    financeReports: false,
+    inventory: false,
+    masterFiles: false,
+    // ADD
+    reports: false,
+    timecardReports: false,
+    settings: false,
   });
 
   const menuItems = useMemo(() => [
@@ -71,13 +75,14 @@ const Sidebar = ({
         { id: "departmentMaster", name: "Department Master" },
         { id: "shiftTime", name: "Shift Time" },
         { id: "grouproster", name: "Roster" },
+        { id: "shiftOvertimeRates", name: "Shift OT Rates" },
         { id: "resignation", name: "Resignation" },
         { id: "termination", name: "Termination" },
         // { id: "userManagement", name: "User Management", icon: Users },
         {
           id: "allowanceDeduction",
           name: "Compensation",
-          icon: DollarSign,
+         
           subItems: [
             { id: "createNewAllowance", name: "Allowance" },
             { id: "createNewDeduction", name: "Deduction" },
@@ -86,7 +91,7 @@ const Sidebar = ({
         {
           id: "loans",
           name: "Loans",
-          icon: DollarSign,
+        
           subItems: [
             { id: "viewLoans", name: "View Loans" },
             { id: "employeeLoan", name: "Employee Wise Loan" },
@@ -95,7 +100,7 @@ const Sidebar = ({
         {
           id: "salaryProcess",
           name: "Salary Process",
-          icon: DollarSign,
+         
           subItems: [
             { id: "SalaryProcessPage", name: "Salary Process" },
             { id: "SalaryPage", name: "View Salary" },
@@ -104,7 +109,7 @@ const Sidebar = ({
         {
           id: "timeAttendance",
           name: "Time Attendance",
-          icon: UserCheck,
+        
           subItems: [
             { id: "TimeCard", name: "Time Card" },
             { id: "Overtime", name: "Over Time" },
@@ -208,7 +213,7 @@ const Sidebar = ({
         },
         // { id: "ledger", name: "Ledger" },
         // { id: "expenses", name: "Expenses" },
-        { id: "accountingSettings", name: "Settings" },
+        // { id: "accountingSettings", name: "Settings" },
       ],
     },
     { //for inventory section
@@ -231,6 +236,7 @@ const Sidebar = ({
               
             ],
           },
+        {id: "pendingApprovals", name: "Pending Approval"},
         { id: "invoices", name: "Invoice" },
         { id: "salesOrder", name: "Sales Order" },
         { id: "salesReturn", name: "Sales Return" },
@@ -241,8 +247,34 @@ const Sidebar = ({
         { id: "stockVerification", name: "Stock Verification" },
       ],
     },
-    { id: "reports", name: "Reports", icon: BarChart3, badge: null },
+    // REPLACE the plain "reports" item with a nested structure:
+    {
+      id: "reports",
+      name: "Reports",
+      icon: BarChart3,
+      subItems: [
+        {
+          id: "timecardReports",
+          name: "Timecard Reports",
+          icon: FileText,
+          subItems: [
+            { id: "attendanceReport", name: "Attendance Report" },
+            { id: "singleEntryReport", name: "Single Entry Report" },
+            { id: "absentReport", name: "Absent Report" }, // NEW
+          ],
+        },
+      ],
+    },
     { id: "utilities", name: "Utilities", icon: FileText, badge: null },
+    {
+      id: "settings",
+      name: "Settings",
+      icon: Settings,
+      badge: null,
+      subItems: [
+        { id: "leaveSettings", name: "Leave Settings" },
+      ],
+    },
   ], []);
 
   // NEW: auto-expand nested groups based on the current activeItem (works on reload)
@@ -263,13 +295,10 @@ const Sidebar = ({
     setExpandedItems({
       hrMaster: path.includes("hrMaster"),
       allowanceDeduction:
-        path.includes("allowanceDeduction") ||
-        activeItem === "allowanceDeduction",
+        path.includes("allowanceDeduction") || activeItem === "allowanceDeduction",
       loans: path.includes("loans") || activeItem === "loans",
-      salaryProcess:
-        path.includes("salaryProcess") || activeItem === "salaryProcess",
-      timeAttendance:
-        path.includes("timeAttendance") || activeItem === "timeAttendance",
+      salaryProcess: path.includes("salaryProcess") || activeItem === "salaryProcess",
+      timeAttendance: path.includes("timeAttendance") || activeItem === "timeAttendance",
       pms: path.includes("pms") || activeItem === "pms",
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",
@@ -297,14 +326,9 @@ const Sidebar = ({
       financeReports:
         path.includes("financeReports") ||
         activeItem === "financeReports" ||
-        [
-          "trialBalance",
-          "incomeStatement",
-          "balanceSheet",
-          "cashFlowStatement",
-        ].includes(activeItem),
+        ["trialBalance", "incomeStatement", "balanceSheet", "cashFlowStatement"].includes(activeItem),
 
-      inventory: // Added for Inventory Section
+      inventory:
         path.includes("inventory") ||
         activeItem === "inventory" ||
         [
@@ -316,17 +340,30 @@ const Sidebar = ({
           "purchaseOrder",
           "stockTransfer",
           "stockVerification",
+          "pendingApprovals",
           // moved master files children
           "customer",
           "supplier",
           "center",
           "product",
-          "discountLevel", 
+          "discountLevel",
         ].includes(activeItem),
       masterFiles:
         path.includes("masterFiles") ||
         activeItem === "masterFiles" ||
-        ["customer", "supplier", "center", "product", "discountLevel"].includes(activeItem), // Added "product" here
+        ["customer", "supplier", "center", "product", "discountLevel"].includes(activeItem),
+
+      // ADD
+      reports: path.includes("reports") || activeItem === "reports",
+      timecardReports:
+        path.includes("timecardReports") ||
+        activeItem === "timecardReports" ||
+        ["attendanceReport", "singleEntryReport","absentReport"].includes(activeItem),
+      settings:
+        path.includes("settings") ||
+        activeItem === "settings" ||
+        ["leaveSettings"].includes(activeItem)
+        
     });
   }, [activeItem, menuItems]);
 
@@ -379,11 +416,21 @@ const Sidebar = ({
       financeReports: !prev.financeReports,
     }));
   };
-  const toggleInventory = () => {  // Added for inventory Section
+  const toggleInventory = () => {
     setExpandedItems((prev) => ({ ...prev, inventory: !prev.inventory }));
   };
   const toggleMasterFiles = () => {
     setExpandedItems((prev) => ({ ...prev, masterFiles: !prev.masterFiles }));
+  };
+  // ADD
+  const toggleReports = () => {
+    setExpandedItems((prev) => ({ ...prev, reports: !prev.reports }));
+  };
+  const toggleTimecardReports = () => {
+    setExpandedItems((prev) => ({ ...prev, timecardReports: !prev.timecardReports }));
+  };
+  const toggleSettings = () => {
+    setExpandedItems((prev) => ({ ...prev, settings: !prev.settings }));
   };
 
   // Recursive function to filter menu items based on permissions
@@ -488,38 +535,17 @@ const Sidebar = ({
                       {/* support multiple top-level dropdowns dynamically */}
                       {(() => {
                         const topDropdowns = {
-                          hrMaster: {
-                            toggle: toggleHrMaster,
-                            expanded: expandedItems.hrMaster,
-                          },
-                          pms: {
-                            toggle: togglePMS,
-                            expanded: expandedItems.pms,
-                          },
-                          lms: {
-                            toggle: toggleLMS,
-                            expanded: expandedItems.lms,
-                          },
-                          accounting: {
-                            toggle: toggleAccounting,
-                            expanded: expandedItems.accounting,
-                          },
-                          inventory: { // Added for Inventory Section
-                            toggle: toggleInventory,
-                            expanded: expandedItems.inventory,
-                          },
-                          chartOfAccounts: {
-                            toggle: toggleChartOfAccounts,
-                            expanded: expandedItems.chartOfAccounts,
-                          },
-                          transactions: {
-                            toggle: toggleTransactions,
-                            expanded: expandedItems.transactions,
-                          },
-                          financeReports: {
-                            toggle: toggleFinanceReports,
-                            expanded: expandedItems.financeReports,
-                          },
+                          hrMaster: { toggle: toggleHrMaster, expanded: expandedItems.hrMaster },
+                          pms: { toggle: togglePMS, expanded: expandedItems.pms },
+                          lms: { toggle: toggleLMS, expanded: expandedItems.lms },
+                          accounting: { toggle: toggleAccounting, expanded: expandedItems.accounting },
+                          inventory: { toggle: toggleInventory, expanded: expandedItems.inventory },
+                          chartOfAccounts: { toggle: toggleChartOfAccounts, expanded: expandedItems.chartOfAccounts },
+                          transactions: { toggle: toggleTransactions, expanded: expandedItems.transactions },
+                          financeReports: { toggle: toggleFinanceReports, expanded: expandedItems.financeReports },
+                          // ADD
+                          reports: { toggle: toggleReports, expanded: expandedItems.reports },
+                          settings: { toggle: toggleSettings, expanded: expandedItems.settings },
                         };
                         const top = topDropdowns[item.id] || {
                           toggle: () => {},
@@ -585,55 +611,31 @@ const Sidebar = ({
                       {(() => {
                         // Support for accounting top-level dropdowns
                         const topExpanded =
-                          item.id === "hrMaster"
-                            ? expandedItems.hrMaster
-                            : item.id === "pms"
-                            ? expandedItems.pms
-                            : item.id === "lms"
-                            ? expandedItems.lms
-                            : item.id === "accounting"
-                            ? expandedItems.accounting
-                            : item.id === "inventory" // Added for inventory Section
-                            ? expandedItems.inventory
-                            : false;
+                          item.id === "hrMaster" ? expandedItems.hrMaster :
+                          item.id === "pms" ? expandedItems.pms :
+                          item.id === "lms" ? expandedItems.lms :
+                          item.id === "accounting" ? expandedItems.accounting :
+                          item.id === "inventory" ? expandedItems.inventory :
+                          // ADD
+                          item.id === "reports" ? expandedItems.reports :
+                          item.id === "settings" ? expandedItems.settings :
+                          false;
                         if (!topExpanded) return null;
                         return (
                           <ul className="ml-4 mt-1 space-y-1">
                             {item.subItems.map((subItem) => {
                               // Map subItem.id to its toggle and expanded state
                               const subDropdowns = {
-                                allowanceDeduction: {
-                                  toggle: toggleAllowanceDeduction,
-                                  expanded: expandedItems.allowanceDeduction,
-                                },
-                                masterFiles: {
-                                  toggle: toggleMasterFiles,
-                                  expanded: expandedItems.masterFiles,
-                                },
-                                loans: {
-                                  toggle: toggleLoans,
-                                  expanded: expandedItems.loans,
-                                },
-                                salaryProcess: {
-                                  toggle: toggleSalaryProcess,
-                                  expanded: expandedItems.salaryProcess,
-                                },
-                                timeAttendance: {
-                                  toggle: toggleTimeAttendance,
-                                  expanded: expandedItems.timeAttendance,
-                                },
-                                chartOfAccounts: {
-                                  toggle: toggleChartOfAccounts,
-                                  expanded: expandedItems.chartOfAccounts,
-                                },
-                                transactions: {
-                                  toggle: toggleTransactions,
-                                  expanded: expandedItems.transactions,
-                                },
-                                financeReports: {
-                                  toggle: toggleFinanceReports,
-                                  expanded: expandedItems.financeReports,
-                                },
+                                allowanceDeduction: { toggle: toggleAllowanceDeduction, expanded: expandedItems.allowanceDeduction },
+                                masterFiles: { toggle: toggleMasterFiles, expanded: expandedItems.masterFiles },
+                                loans: { toggle: toggleLoans, expanded: expandedItems.loans },
+                                salaryProcess: { toggle: toggleSalaryProcess, expanded: expandedItems.salaryProcess },
+                                timeAttendance: { toggle: toggleTimeAttendance, expanded: expandedItems.timeAttendance },
+                                chartOfAccounts: { toggle: toggleChartOfAccounts, expanded: expandedItems.chartOfAccounts },
+                                transactions: { toggle: toggleTransactions, expanded: expandedItems.transactions },
+                                financeReports: { toggle: toggleFinanceReports, expanded: expandedItems.financeReports },
+                                // ADD
+                                timecardReports: { toggle: toggleTimecardReports, expanded: expandedItems.timecardReports },
                               };
 
                               if (subItem.subItems) {
@@ -795,27 +797,8 @@ const Sidebar = ({
 
         {/* Bottom Actions */}
         <div className="p-4 border-t border-gray-100 space-y-2 flex-shrink-0">
-          <button
-            onClick={() => setActiveItem("settings")}
-            className={`
-              w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-              transition-all duration-200 group
-              ${
-                activeItem === "settings"
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-              }
-            `}
-          >
-            <Settings
-              className={`h-5 w-5 ${
-                activeItem === "settings"
-                  ? "text-indigo-600"
-                  : "text-gray-400 group-hover:text-gray-600"
-              }`}
-            />
-            <span>Settings</span>
-          </button>
+          
+          
 
           <button
             onClick={onLogout}

@@ -28,6 +28,9 @@ const Supplier = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [formData, setFormData] = useState({
     supplierName: '',
     phoneNumber: '',
@@ -55,6 +58,7 @@ const Supplier = () => {
   }, []);
 
   const loadData = async () => {
+    setLoading(true);
     try {
       const fetchedSuppliers = await SupplierService.list();
 
@@ -78,6 +82,8 @@ const Supplier = () => {
     } catch (error) {
       console.error("Error loading suppliers:", error);
       alert("Failed to load suppliers");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -141,6 +147,7 @@ const Supplier = () => {
     }
 
     (async () => {
+      setSaving(true);
       try {
         // Map frontend camelCase fields to backend expected snake_case keys
         const payload = {
@@ -166,6 +173,8 @@ const Supplier = () => {
       } catch (err) {
         console.error('Save supplier failed', err);
         Swal.fire({ icon: 'error', title: 'Save failed', text: err?.response?.data?.message || 'Failed to save supplier' });
+      } finally {
+        setSaving(false);
       }
     })();
   };
@@ -212,6 +221,7 @@ const Supplier = () => {
       });
 
       if (result.isConfirmed) {
+        setDeletingId(supplierId);
         try {
           await SupplierService.remove(supplierId);
           await loadData();
@@ -219,6 +229,8 @@ const Supplier = () => {
         } catch (err) {
           console.error('Delete failed', err);
           Swal.fire({ icon: 'error', title: 'Delete failed', text: err?.response?.data?.message || 'Failed to delete supplier' });
+        } finally {
+          setDeletingId(null);
         }
       }
     })();
@@ -244,14 +256,24 @@ const Supplier = () => {
       {/* Suppliers List */}
       {!showForm && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          {isMobile ? (
+          {loading ? (
+            <div className="p-8 flex justify-center items-center">
+              <ResponsiveLoadingSpinner size="lg" />
+            </div>
+          ) : isMobile ? (
             /* Mobile Card View */
             <div className="divide-y divide-gray-200">
               {suppliers.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <CreditCard className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm">No suppliers found.</p>
-                  <p className="text-xs text-gray-400 mt-1">Add your first supplier to get started.</p>
+                <div className="p-12 text-center text-gray-500">
+                  <CreditCard className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-base font-medium text-gray-700">No suppliers found</p>
+                  <p className="text-sm text-gray-500 mt-2">Add your first supplier to get started.</p>
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                  >
+                    + Add Supplier
+                  </button>
                 </div>
               ) : (
                 suppliers.map((supplier) => (
@@ -285,8 +307,13 @@ const Supplier = () => {
                           className="text-red-600 hover:text-red-900 p-1"
                           title="Delete Supplier"
                           onClick={() => handleDelete(supplier.id)}
+                          disabled={deletingId === supplier.id}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {deletingId === supplier.id ? (
+                            <ResponsiveLoadingSpinner size="sm" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -301,9 +328,9 @@ const Supplier = () => {
                         {supplier.address2 && `, ${supplier.address2}`}
                       </div>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-sm font-medium">
+                        <div className="flex items-center gap-1 text-sm font-medium text-green-600">
                           <CreditCard className="h-3 w-3 text-green-500" />
-                          <span>Credit: ${supplier.creditValue?.toFixed(2)}</span>
+                          <span>Credit: {Number(supplier.creditValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -319,70 +346,84 @@ const Supplier = () => {
           ) : (
             /* Desktop Table View */
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full w-full divide-y divide-gray-200">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Supplier Name
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Phone
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       NIC
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Address
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Credit Value
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Credit Period
                     </th>
-                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {suppliers.map((supplier) => (
-                    <tr key={supplier.id} className="hover:bg-gray-50">
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <tr key={supplier.id} className="hover:bg-blue-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {supplier.supplierName}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                         {supplier.phoneNumber}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                         {supplier.email}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                         {supplier.nic}
                       </td>
-                      <td className="px-4 md:px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                      <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
                         {supplier.address1}
                         {supplier.address2 && `, ${supplier.address2}`}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${supplier.creditValue?.toFixed(2)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                        {Number(supplier.creditValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {supplier.creditPeriod} days
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {supplier.creditPeriod} days
+                        </span>
                       </td>
-                      <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center justify-center gap-3">
                           <button
                             onClick={() => handleEdit(supplier)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                           >
+                            <Edit className="h-3 w-3 mr-1" />
                             Edit
                           </button>
-                          <button className="text-red-600 hover:text-red-900">
-                            <span onClick={() => handleDelete(supplier.id)}>Delete</span>
+                          <button
+                            onClick={() => handleDelete(supplier.id)}
+                            disabled={deletingId === supplier.id}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deletingId === supplier.id ? (
+                              <ResponsiveLoadingSpinner size="sm" />
+                            ) : (
+                              <>
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Delete
+                              </>
+                            )}
                           </button>
                         </div>
                       </td>
@@ -397,25 +438,27 @@ const Supplier = () => {
 
       {/* Supplier Form */}
       {showForm && (
-        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-800">
+        <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 md:p-8">
+          <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900">
               {editingSupplier ? 'Edit Supplier' : 'Add Supplier'}
             </h2>
             <button
               onClick={resetForm}
-              className="text-gray-500 hover:text-gray-700 p-1"
+              disabled={saving}
+              className="text-gray-400 hover:text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors disabled:opacity-50"
+              title="Close form"
             >
-              <X className="h-5 w-5 md:h-6 md:w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Supplier Name*
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Supplier Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -423,15 +466,16 @@ const Supplier = () => {
                   value={formData.supplierName}
                   onChange={handleInputChange}
                   required
+                  disabled={saving}
                   placeholder="Enter supplier name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
                 {errors.supplierName && <p className="text-sm text-red-600 mt-1">{errors.supplierName}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number*
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -439,21 +483,21 @@ const Supplier = () => {
                   value={formData.phoneNumber}
                   onChange={handleInputChange}
                   required
+                  disabled={saving}
                   placeholder="Enter phone number"
                   onKeyDown={(e) => {
-                    // prevent typing non digits (but allow ctrl/cmd/meta keys)
                     if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') e.preventDefault();
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
                 {errors.phoneNumber && <p className="text-sm text-red-600 mt-1">{errors.phoneNumber}</p>}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  NIC*
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  NIC <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -461,14 +505,15 @@ const Supplier = () => {
                   value={formData.nic}
                   onChange={handleInputChange}
                   required
+                  disabled={saving}
                   placeholder="Enter NIC number"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
                 {errors.nic && <p className="text-sm text-red-600 mt-1">{errors.nic}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Email
                 </label>
                 <input
@@ -476,98 +521,146 @@ const Supplier = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
+                  disabled={saving}
                   placeholder="Enter email address"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
                 {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
               </div>
             </div>
 
             {/* Address Information */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Address 1*
-              </label>
-              <input
-                type="text"
-                name="address1"
-                value={formData.address1}
-                onChange={handleInputChange}
-                required
-                placeholder="Enter primary address"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-              />
-              {errors.address1 && <p className="text-sm text-red-600 mt-1">{errors.address1}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Address 2
-              </label>
-              <input
-                type="text"
-                name="address2"
-                value={formData.address2}
-                onChange={handleInputChange}
-                placeholder="Enter secondary address (optional)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-              />
-              {errors.address2 && <p className="text-sm text-red-600 mt-1">{errors.address2}</p>}
-            </div>
-
-            {/* Credit Information */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-gray-600" />
+                Address Information
+              </h3>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Credit Value
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Address Line 1 <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="number"
-                  name="creditValue"
-                  value={formData.creditValue}
+                  type="text"
+                  name="address1"
+                  value={formData.address1}
                   onChange={handleInputChange}
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  onKeyDown={(e) => { if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') e.preventDefault(); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
+                  required
+                  disabled={saving}
+                  placeholder="Enter primary address"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
-                {errors.creditValue && <p className="text-sm text-red-600 mt-1">{errors.creditValue}</p>}
+                {errors.address1 && <p className="text-sm text-red-600 mt-1">{errors.address1}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Credit Period (Days)
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Address Line 2 <span className="text-gray-400 text-xs">(Optional)</span>
                 </label>
                 <input
-                  type="number"
-                  name="creditPeriod"
-                  value={formData.creditPeriod}
+                  type="text"
+                  name="address2"
+                  value={formData.address2}
                   onChange={handleInputChange}
-                  min="0"
-                  placeholder="30"
-                  onKeyDown={(e) => { if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') e.preventDefault(); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
+                  disabled={saving}
+                  placeholder="Enter secondary address (optional)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
-                {errors.creditPeriod && <p className="text-sm text-red-600 mt-1">{errors.creditPeriod}</p>}
+                {errors.address2 && <p className="text-sm text-red-600 mt-1">{errors.address2}</p>}
+              </div>
+            </div>
+
+            {/* Credit Information */}
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-gray-600" />
+                Credit Information
+              </h3>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Credit Value <span className="text-gray-400 text-xs">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="creditValue"
+                    value={formData.creditValue}
+                    onChange={handleInputChange}
+                    step="0.01"
+                    min="0"
+                    disabled={saving}
+                    placeholder="0.00"
+                    onKeyDown={(e) => { if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') e.preventDefault(); }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  {errors.creditValue && <p className="text-sm text-red-600 mt-1">{errors.creditValue}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Credit Period (Days) <span className="text-gray-400 text-xs">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="creditPeriod"
+                    value={formData.creditPeriod}
+                    onChange={handleInputChange}
+                    min="0"
+                    disabled={saving}
+                    placeholder="30"
+                    onKeyDown={(e) => { if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') e.preventDefault(); }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  {errors.creditPeriod && <p className="text-sm text-red-600 mt-1">{errors.creditPeriod}</p>}
+                </div>
               </div>
             </div>
 
             {/* Form Actions */}
-            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 mt-6 border-t border-gray-200">
               <button
                 type="button"
-                onClick={resetForm}
-                className="w-full sm:w-auto px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm md:text-base"
+                onClick={() => {
+                  setFormData({
+                    supplierName: '',
+                    phoneNumber: '',
+                    nic: '',
+                    email: '',
+                    address1: '',
+                    address2: '',
+                    creditValue: '',
+                    creditPeriod: ''
+                  });
+                  setErrors({});
+                }}
+                disabled={saving}
+                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                Clear Form
               </button>
-              <button
-                type="submit"
-                className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm md:text-base"
-              >
-                {editingSupplier ? 'Update Supplier' : 'Add Supplier'}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={saving}
+                  className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full sm:w-auto px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <ResponsiveLoadingSpinner size="sm" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    editingSupplier ? 'Update Supplier' : 'Add Supplier'
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>

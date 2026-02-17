@@ -17,7 +17,7 @@ import {
   createLeave,
   createLeaveWithOverride, // Add this import
   getLeaveById,
-  getLeaveCountsByEmployee,
+  getLeaveEligibility,
 } from "../../services/LeaveMaster";
 import { fetchLeaveCalendar } from "../../services/LeaveCalendar";
 
@@ -57,7 +57,7 @@ const LeaveMaster = () => {
   // Add a new state to store employee data
   const [employeeData, setEmployeeData] = useState(null);
 
-  // Define standard leave entitlements - modified to only have Casual Leave available
+  // Define standard leave entitlements - kept for reference
   const leaveEntitlements = {
     "Casual Leave": 7,
     "Annual Leave": 0,
@@ -65,16 +65,6 @@ const LeaveMaster = () => {
     "Unpaid Leave": 0,
     "Special Leave": 0,
   };
-
-  // Keep all leave types but make only Casual Leave selectable
-  const leaveTypes = [
-    "Casual Leave",
-    // Keep these for future use but they won't be selectable in the dropdown
-    // "Annual Leave",
-    // "Medical Leave",
-    // "Unpaid Leave",
-    // "Special Leave",
-  ];
 
   // Helper function to get current date in YYYY-MM-DD format
   function getCurrentDate() {
@@ -287,76 +277,40 @@ const LeaveMaster = () => {
     }
   };
 
-  // Function to fetch employee leave counts - modified to handle half-day calculations and exclude rejected leaves
-  const fetchLeaveUsage = async (employeeId) => {
-    if (!employeeId) return;
+  // Function to fetch employee leave eligibility - uses dynamic leave types from API
+  const fetchLeaveUsage = async (empNumber) => {
+    if (!empNumber) return;
 
     setIsLoadingUsage(true);
     try {
-      const leaveCounts = await getLeaveCountsByEmployee(employeeId);
+      const eligibilityData = await getLeaveEligibility(empNumber);
 
-      if (leaveCounts && Array.isArray(leaveCounts)) {
-        const formattedUsage = Object.keys(leaveEntitlements).map(
-          (leaveType, index) => {
-            // Find the leave data for this type
-            const leaveData = leaveCounts.find(
-              (item) => item.leave_type === leaveType
-            ) || {
-              approved_full_days: 0,
-              approved_half_days: 0,
-              rejected_full_days: 0,
-              rejected_half_days: 0,
-            };
-
-            // Calculate total usage: approved full days + approved half days
-            const usage =
-              (parseFloat(leaveData.approved_full_days) || 0) +
-              (parseFloat(leaveData.approved_half_days) || 0);
-
-            const total = leaveEntitlements[leaveType];
-            const balance = total - usage;
-
-            return {
-              id: index + 1,
-              leaveType: leaveType,
-              total: total,
-              usage: usage.toFixed(1),
-              balance: balance.toFixed(1),
-            };
-          }
+      if (eligibilityData && eligibilityData.eligible_leaves && Array.isArray(eligibilityData.eligible_leaves)) {
+        const formattedUsage = eligibilityData.eligible_leaves.map(
+          (leave, index) => ({
+            id: index + 1,
+            leaveType: leave.leave_type,
+            total: leave.total_days,
+            usage: leave.used_days.toFixed(1),
+            balance: leave.available_days.toFixed(1),
+            isHalfDayOnly: leave.is_half_day_only,
+            note: leave.note,
+          })
         );
         setLeaveUsageData(formattedUsage);
       } else {
-        // Default data if no records found
-        const defaultUsage = Object.keys(leaveEntitlements).map(
-          (leaveType, index) => ({
-            id: index + 1,
-            leaveType: leaveType,
-            total: leaveEntitlements[leaveType],
-            usage: "0.0",
-            balance: leaveEntitlements[leaveType].toFixed(1),
-          })
-        );
-        setLeaveUsageData(defaultUsage);
+        // Clear data if no eligible leaves found
+        setLeaveUsageData([]);
       }
     } catch (error) {
-      console.error("Error fetching leave usage data:", error);
+      console.error("Error fetching leave eligibility data:", error);
       Swal.fire({
         icon: "error",
         title: "Data Fetch Error",
-        text: "Failed to fetch leave usage data. Please try again.",
+        text: "Failed to fetch leave eligibility data. Please try again.",
         confirmButtonColor: "#3085d6",
       });
-      const defaultUsage = Object.keys(leaveEntitlements).map(
-        (leaveType, index) => ({
-          id: index + 1,
-          leaveType: leaveType,
-          total: leaveEntitlements[leaveType],
-          usage: "0.0",
-          balance: leaveEntitlements[leaveType].toFixed(1),
-        })
-      );
-      setLeaveUsageData(defaultUsage);
+      setLeaveUsageData([]);
     } finally {
       setIsLoadingUsage(false);
     }
@@ -396,7 +350,7 @@ const LeaveMaster = () => {
 
         await Promise.all([
           fetchEmployeeLeaves(empData.id, empData),
-          fetchLeaveUsage(empData.id),
+          fetchLeaveUsage(formData.attendanceNo),
         ]);
       } else {
         Swal.fire({
@@ -407,16 +361,7 @@ const LeaveMaster = () => {
         });
         setLeaveRecords([]);
         setEmployeeData(null);
-        const defaultUsage = Object.keys(leaveEntitlements).map(
-          (leaveType, index) => ({
-            id: index + 1,
-            leaveType: leaveType,
-            total: leaveEntitlements[leaveType],
-            usage: 0,
-            balance: leaveEntitlements[leaveType],
-          })
-        );
-        setLeaveUsageData(defaultUsage);
+        setLeaveUsageData([]);
       }
     } catch (error) {
       console.error("Error fetching employee data:", error);
@@ -571,7 +516,7 @@ const LeaveMaster = () => {
         leave_to: null,
         period: null,
         is_half_day: false,
-        leave_duration: 0, // Add duration field
+        leave_duration: 0 // Add duration field
       };
 
       if (formData.leaveDateType === "fullDay") {
@@ -696,6 +641,18 @@ const LeaveMaster = () => {
   const handleSubmitError = (error) => {
     console.error("Error submitting leave request:", error);
 
+    // Check for duplicate error
+    if (error.response?.status === 422 && error.response?.data?.duplicate_found) {
+      Swal.fire({
+        icon: "error",
+        title: "Duplicate Leave Request",
+        text: error.response.data.message,
+        confirmButtonColor: "#3085d6",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     // Check if the error response contains validation errors
     if (
       error.response?.status === 422 &&
@@ -722,20 +679,6 @@ const LeaveMaster = () => {
 
     setIsSubmitting(false);
   };
-
-  // Initialize default leave usage data when component mounts
-  useEffect(() => {
-    const defaultUsage = Object.keys(leaveEntitlements).map(
-      (leaveType, index) => ({
-        id: index + 1,
-        leaveType: leaveType,
-        total: leaveEntitlements[leaveType],
-        usage: "0.0",
-        balance: leaveEntitlements[leaveType].toFixed(1),
-      })
-    );
-    setLeaveUsageData(defaultUsage);
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8">
@@ -886,14 +829,20 @@ const LeaveMaster = () => {
                           onChange={handleDateChange}
                           required
                           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                          disabled={leaveUsageData.length === 0}
                         >
                           <option value="">Select Leave Type</option>
-                          {leaveTypes.map((type) => (
-                            <option key={type} value={type}>
-                              {type}
+                          {leaveUsageData.map((item) => (
+                            <option key={item.leaveType} value={item.leaveType}>
+                              {item.leaveType} (Available: {item.balance})
                             </option>
                           ))}
                         </select>
+                        {leaveUsageData.length === 0 && formData.employeeName && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            No leave types available for this employee
+                          </p>
+                        )}
                       </div>
                     </div>
 

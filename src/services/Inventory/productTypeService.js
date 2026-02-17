@@ -1,4 +1,3 @@
-
 import axios from "../../utils/axios";
 
 // axios baseURL already includes the '/api' prefix (see src/utils/axios.js)
@@ -31,7 +30,8 @@ async function toggleProductTypeActive(id) {
   // because some backends accept partial updates there and there may be no
   // dedicated /set-status endpoint.
   const typeRes = await axios.get(`${API_URL}/${id}`);
-  const newStatus = typeRes.data && typeRes.data.status === "active" ? "deactive" : "active";
+  const newStatus =
+    typeRes.data && typeRes.data.status === "active" ? "deactive" : "active";
   // Use PUT to update the resource. This keeps behaviour consistent with updateProductType.
   const res = await axios.put(`${API_URL}/${id}`, { status: newStatus });
   return res.data;

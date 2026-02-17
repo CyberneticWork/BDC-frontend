@@ -151,6 +151,25 @@ export const getLeavesByEmployee = async (employeeId) => {
   }
 };
 
+// Get leave eligibility for an employee (by emp_number or employee_id)
+export const getLeaveEligibility = async (empNumber = null, employeeId = null) => {
+  try {
+    const params = {};
+    if (empNumber) {
+      params.emp_number = empNumber;
+    }
+    if (employeeId) {
+      params.employee_id = employeeId;
+    }
+    
+    const response = await axios.get(`/leave-masters/eligibility`, { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching leave eligibility:", error);
+    throw error;
+  }
+};
+
 // export const getLeaveCountsByEmployee = async (employeeId) => {
 //     try {
 //       const response = await axios.get(`/leave-masters/${employeeId}/counts`);

@@ -29,12 +29,13 @@ import EmployeeAdd from "@dashboard/EmployeeAdd";
 import ShowEmployee from "@dashboard/ShowEmployee";
 import CreateNewDeduction from "@dashboard/createnewdeduction";
 import ShiftSchedule from "@dashboard/ShiftSchedule";
+import ShiftOvertimeRates from "@dashboard/ShiftOvertimeRates";
 import CreateNewAllowance from "@dashboard/createnewallowance";
 import EmployeeLoan from "@dashboard/employeeloan";
 import TimeCard from "@dashboard/timecard";
 import Overtime from "@dashboard/overtime";
 import Department from "@dashboard/Department";
-import Grouproster from "@dashboard/Grouproster";
+import Grouproster from "@dashboard/grouproster";
 import LeaveMaster from "@dashboard/LeaveMaster";
 import NoPayManagement from "@dashboard/nopaymanagement";
 import LeaveCalendar from "@dashboard/leavecalendar";
@@ -83,6 +84,7 @@ import PurchaseReturn from "../Inventory/PurchaseReturn";
 import PurchaseOrder from "../Inventory/PurchaseOrder";
 import StockTransfer from "../Inventory/StockTransfer";
 import StockVerification from "../Inventory/StockVerification";
+import Pending from "../Inventory/Pending";
 import Expenses from "../Accounting/Expenses";
 import AccountingReports from "../Accounting/Reports";
 import AccountingSettings from "../Accounting/Settings";
@@ -103,6 +105,10 @@ import employeeService from "../../services/EmployeeDataService";
 import { fetchDepartments } from "../../services/ApiDataService";
 import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
+import SingleEntryReport from "@src/Pages/Reports/TimeCard/SingleEntryReport";
+import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
+import LeaveSettings from "./LeaveSettings";
+import AbsentReport from "../Reports/TimeCard/AbsentReport";
 
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -727,6 +733,10 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="grouproster" action="view">
                 <Grouproster />
               </ProtectedComponent>
+            ) : activeItem === "shiftOvertimeRates" ? (
+              <ProtectedComponent module="shiftOvertimeRates" action="view">
+                <ShiftOvertimeRates />
+              </ProtectedComponent>
             ) : activeItem === "leavecalendar" ? (
               <ProtectedComponent module="leavecalendar" action="view">
                 <LeaveCalendar />
@@ -776,6 +786,18 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "myKPIs" ? (
               <ProtectedComponent module="myKPIs" action="view">
                 <EmployeeKPIView />
+              </ProtectedComponent>
+            ) : activeItem === "absentReport" ? (
+              <ProtectedComponent module="absentReport" action="view">
+                <AbsentReport />
+              </ProtectedComponent>
+            ) : activeItem === "attendanceReport" ? (
+              <ProtectedComponent module="attendanceReport" action="view">
+                <AttendanceReport />
+              </ProtectedComponent>
+            ) : activeItem === "singleEntryReport" ? (
+              <ProtectedComponent module="singleEntryReport" action="view">
+                <SingleEntryReport />
               </ProtectedComponent>
             ) : activeItem === "lms" ? (
               <ProtectedComponent module="lms" action="view">
@@ -893,9 +915,13 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="stockVerification" action="view">
                 <StockVerification />
               </ProtectedComponent>
-            ) : activeItem === "expenses" ? (
-              <ProtectedComponent module="expenses" action="view">
-                <Expenses />
+            ) : activeItem === "pendingApprovals" ? (
+              <ProtectedComponent module="pendingApprovals" action="view">
+                <Pending />
+              </ProtectedComponent>
+            ) : activeItem === "supplier" ? (
+              <ProtectedComponent module="supplier" action="view">
+                <Supplier />
               </ProtectedComponent>
             ) : activeItem === "accountingReports" ? (
               <ProtectedComponent module="accountingReports" action="view">
@@ -956,6 +982,10 @@ const Dashboard = ({ user, onLogout }) => {
             ) : activeItem === "supplier" ? (
               <ProtectedComponent module="supplier" action="view">
                 <Supplier />
+              </ProtectedComponent>
+            ) : activeItem === "leaveSettings" ? (
+              <ProtectedComponent module="leaveSettings" action="view">
+                <LeaveSettings />
               </ProtectedComponent>
             )  : activeItem === "chatbot" ? (
               <ProtectedComponent module="chatbot" action="view">

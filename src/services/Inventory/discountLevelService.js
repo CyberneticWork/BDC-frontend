@@ -117,7 +117,11 @@ export default service;
 
 // CommonJS interop (some tooling may `require` modules)
 try {
-  if (typeof globalThis !== 'undefined' && globalThis.module && globalThis.module.exports) {
+  if (
+    typeof globalThis !== "undefined" &&
+    globalThis.module &&
+    globalThis.module.exports
+  ) {
     globalThis.module.exports = service;
   }
 } catch {

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Plus, Search, Edit, Trash2, Building } from "lucide-react";
 import {
   fetchCenters,
-  getCenters,
   createCenter,
   updateCenter,
   deleteCenter,
