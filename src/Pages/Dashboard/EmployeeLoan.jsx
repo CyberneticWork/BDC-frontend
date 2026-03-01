@@ -83,6 +83,7 @@ const EmployeeLoan = () => {
         start_from: startDate,
         with_interest: interestType === "withInterest",
         installment_count: loanDetails.length, // Add this line to include installment count
+        schedule: loanDetails,
       };
 
       await createLoan(payload);

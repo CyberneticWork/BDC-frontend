@@ -33,6 +33,24 @@ const ViewLoans = () => {
     }).format(amount);
   };
 
+  const getScheduleRows = (loan) => {
+  if (!loan) return [];
+  const s = loan.schedule;
+
+  // sometimes schedule comes as JSON string
+  if (typeof s === "string") {
+    try {
+      const parsed = JSON.parse(s);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return Array.isArray(s) ? s : [];
+};
+
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -153,7 +171,8 @@ const ViewLoans = () => {
   ).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8">
+    
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8"> 
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
         {/* Header Section */}
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
@@ -473,7 +492,9 @@ const ViewLoans = () => {
       {/* Loan Details Modal */}
       {showDetails && (
         <div className="fixed inset-0 bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4">
+          {/*<div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4">*/}
+
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h3 className="text-xl font-bold text-gray-900">Loan Details</h3>
               <button
@@ -577,6 +598,98 @@ const ViewLoans = () => {
                   </p>
                 </div> */}
               </div>
+
+              {/* Repayment Schedule */}
+{(() => {
+  const rows = getScheduleRows(showDetails);
+
+  if (!rows.length) {
+    return (
+      <div className="mt-8 text-sm text-gray-500">
+        No repayment schedule available for this loan.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8">
+      <h4 className="text-lg font-bold text-gray-900 mb-3">
+        Repayment Schedule
+      </h4>
+
+      <div className="overflow-x-auto border border-gray-200 rounded-xl">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                No
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                Due Date
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                Outstanding
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                Capital
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                Interest
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                Installment
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                Balance
+              </th>
+            </tr>
+          </thead>
+
+          <tbody className="bg-white divide-y divide-gray-200">
+            {rows.map((row, idx) => {
+              const no = row.no ?? row.installment_no ?? idx + 1;
+              const dueDate = row.dueDate ?? row.due_date ?? "N/A";
+
+              const outstanding =
+                row.capitalOutstanding ?? row.capital_outstanding ?? 0;
+              const capital =
+                row.capitalRepayment ?? row.capital_repayment ?? 0;
+              const interest =
+                row.interestPayment ?? row.interest_payment ?? 0;
+              const installment =
+                row.installmentAmount ?? row.installment_amount ?? 0;
+              const balance = row.dueBalance ?? row.due_balance ?? 0;
+
+              return (
+                <tr key={idx} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm text-gray-700">{no}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{dueDate}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700 text-right font-mono">
+                    {formatCurrency(outstanding)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 text-right font-mono">
+                    {formatCurrency(capital)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 text-right font-mono">
+                    {formatCurrency(interest)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 text-right font-mono font-bold">
+                    {formatCurrency(installment)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 text-right font-mono">
+                    {formatCurrency(balance)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+})()}
+
+
             </div>
 
             <div className="flex justify-end p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl">

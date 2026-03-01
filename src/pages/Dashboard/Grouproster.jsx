@@ -651,6 +651,12 @@ const RosterManagementSystem = () => {
         roster_id: rd.roster_id ?? item.roster_id ?? rd.id ?? item.id,
         shift_code:
           rd.shift_code ?? item.shift_code ?? rd.shift?.shift_code ?? "",
+
+         // ✅ NEW
+      shift_name: rd.shift_name ?? item.shift_name ?? "",
+      start_time: rd.start_time ?? item.start_time ?? null,
+      end_time: rd.end_time ?? item.end_time ?? null,
+  
         company_id: company.id ?? item.company_id ?? null,
         company_name: company.name ?? item.company_name ?? "",
         department_id: dept.id ?? item.department_id ?? null,
@@ -1951,6 +1957,8 @@ const RosterManagementSystem = () => {
                           <th className="px-4 py-2 border">Employee</th>
                           <th className="px-4 py-2 border">Date From</th>
                           <th className="px-4 py-2 border">Date To</th>
+                          <th className="px-4 py-2 border">Start Time</th>
+                          <th className="px-4 py-2 border">End Time</th>
                           <th className="px-4 py-2 border">Actions</th>
                         </tr>
                       </thead>
@@ -1973,6 +1981,8 @@ const RosterManagementSystem = () => {
                             <td className="px-4 py-2 border">{roster.employee_name || "-"}</td>
                             <td className="px-4 py-2 border">{roster.date_from || "-"}</td>
                             <td className="px-4 py-2 border">{roster.date_to || "-"}</td>
+                            <td className="px-4 py-2 border">{roster.start_time || "-"}</td>
+<td className="px-4 py-2 border">{roster.end_time || "-"}</td>
                             <td className="px-4 py-2 border text-center">
                               <button
                                 onClick={() => handleDeleteConfirm(roster)}

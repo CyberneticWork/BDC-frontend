@@ -39,6 +39,7 @@ const deleteAllowance = async (id) => {
   }
 };
 
+/*
 const getAllowancesByCompanyOrDepartment = async (companyId, departmentId) => {
   try {
     const response = await axios.get(`/allowance/by-company-or-department`, {
@@ -53,6 +54,23 @@ const getAllowancesByCompanyOrDepartment = async (companyId, departmentId) => {
     throw error;
   }
 };
+*/
+
+
+const getAllowancesByCompanyOrDepartment = async (companyId, departmentId) => {
+  try {
+    const response = await axios.get(`/allowances/by-company-or-department`, {
+      params: { company_id: companyId, department_id: departmentId },
+    });
+    return response.data.data;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      return []; // ✅ treat as no allowances
+    }
+    throw error;
+  }
+};
+
 
 const downloadTemplate = async () => {
   try {

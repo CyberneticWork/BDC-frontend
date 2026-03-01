@@ -70,40 +70,25 @@ const Modal = ({ isOpen, onClose, children }) => {
 
       {/* Modal content with enhanced animations and styling */}
       <div
-        className="relative w-full max-w-2xl transform transition-all duration-300 ease-out scale-100 opacity-100"
-        style={{
-          animation: isOpen
-            ? "modalEnter 0.3s ease-out"
-            : "modalExit 0.2s ease-in",
-        }}
-      >
-        <div className="relative bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-200 group"
-            aria-label="Close modal"
-          >
-            <svg
-              className="w-5 h-5 text-gray-500 group-hover:text-gray-700 transition-colors"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+  className="relative w-full max-w-4xl h-[90vh] flex flex-col transform transition-all duration-300 ease-out"
+>
+  <div className="relative bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 flex flex-col h-full overflow-hidden">
+    
+    {/* Close button */}
+    <button
+      onClick={onClose}
+      className="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-100 hover:bg-gray-200"
+    >
+      <X size={18} />
+    </button>
 
-          {/* Modal content */}
-          <div className="relative">{children}</div>
-        </div>
-      </div>
+    {/* Scrollable Content Area */}
+    <div className="flex-1 overflow-y-auto p-6">
+      {children}
+    </div>
 
+  </div>
+</div>
       <style jsx>{`
         @keyframes modalEnter {
           from {

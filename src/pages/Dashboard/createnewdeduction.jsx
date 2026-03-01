@@ -305,7 +305,7 @@ const CreateNewDeduction = () => {
         description: formData.description,
         // amount: parseFloat(formData.amount),
         status: formData.status,
-        category: "Other", // Add a default category
+        category: "other", // Add a default category
         deduction_type: formData.deduction_type,
         startDate: formData.startDate,
         endDate:
