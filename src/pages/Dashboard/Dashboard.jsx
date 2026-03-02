@@ -28,6 +28,8 @@ import EmployeeMaster from "@dashboard/AddEmployeeMaster/EmployeeMaster";
 import EmployeeAdd from "@dashboard/EmployeeAdd";
 import ShowEmployee from "@dashboard/ShowEmployee";
 import CreateNewDeduction from "@dashboard/createnewdeduction";
+
+import CreateNewBonus from "@dashboard/CreateNewBonus";
 import ShiftSchedule from "@dashboard/ShiftSchedule";
 import ShiftOvertimeRates from "@dashboard/ShiftOvertimeRates";
 import CreateNewAllowance from "@dashboard/createnewallowance";
@@ -206,11 +208,10 @@ const DashboardStats = () => {
                 {stat.value}
               </p>
               <p
-                className={`text-sm mt-3 font-semibold ${
-                  stat.change.startsWith("+")
+                className={`text-sm mt-3 font-semibold ${stat.change.startsWith("+")
                     ? "text-green-600"
                     : "text-red-600"
-                }`}
+                  }`}
               >
                 {stat.change} from last month
               </p>
@@ -685,328 +686,333 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="createNewDeduction" action="view">
                 <CreateNewDeduction />
               </ProtectedComponent>
-            ) : activeItem === "shiftTime" ? (
-              <ProtectedComponent module="shiftTime" action="view">
-                <ShiftSchedule />
-              </ProtectedComponent>
-            ) : activeItem === "createNewAllowance" ? (
-              <ProtectedComponent module="createNewAllowance" action="view">
-                <CreateNewAllowance />
-              </ProtectedComponent>
-            ) : activeItem === "employeeLoan" ? (
-              <ProtectedComponent module="employeeLoan" action="view">
-                <EmployeeLoan />
-              </ProtectedComponent>
-            ) : activeItem === "viewLoans" ? (
-              <ProtectedComponent module="viewLoans" action="view">
-                <ViewLoans />
-              </ProtectedComponent>
-            ) : activeItem === "noPayManagement" ? (
-              <ProtectedComponent module="noPayManagement" action="view">
-                <NoPayManagement />
-              </ProtectedComponent>
-            ) : activeItem === "hrLeaveApproval" ? (
-              <ProtectedComponent module="hrLeaveApproval" action="view">
-                <HRLeaveApproval />
-              </ProtectedComponent>
-            ) : activeItem === "leaveApproval" ? (
-              <ProtectedComponent module="leaveApproval" action="view">
-                <LeaveApproval />
-              </ProtectedComponent>
-            ) : activeItem === "leaveMaster" ? (
-              <ProtectedComponent module="leaveMaster" action="view">
-                <LeaveMaster />
-              </ProtectedComponent>
-            ) : activeItem === "TimeCard" ? (
-              <ProtectedComponent module="TimeCard" action="view">
-                <TimeCard />
-              </ProtectedComponent>
-            ) : activeItem === "Overtime" ? (
-              <ProtectedComponent module="Overtime" action="view">
-                <Overtime />
-              </ProtectedComponent>
-            ) : activeItem === "departmentMaster" ? (
-              <ProtectedComponent module="departmentMaster" action="view">
-                <Department />
-              </ProtectedComponent>
-            ) : activeItem === "grouproster" ? (
-              <ProtectedComponent module="grouproster" action="view">
-                <Grouproster />
-              </ProtectedComponent>
-            ) : activeItem === "shiftOvertimeRates" ? (
-              <ProtectedComponent module="shiftOvertimeRates" action="view">
-                <ShiftOvertimeRates />
-              </ProtectedComponent>
-            ) : activeItem === "leavecalendar" ? (
-              <ProtectedComponent module="leavecalendar" action="view">
-                <LeaveCalendar />
-              </ProtectedComponent>
-            ) : activeItem === "SalaryProcessPage" ? (
-              <ProtectedComponent module="SalaryProcessPage" action="view">
-                <SalaryProcessPage />
-              </ProtectedComponent>
-            ) : activeItem === "termination" ? (
-              <ProtectedComponent module="termination" action="view">
-                <Termination />
-              </ProtectedComponent>
-            ) : activeItem === "SalaryPage" ? (
-              <ProtectedComponent module="SalaryPage" action="view">
-                <SalaryPage />
-              </ProtectedComponent>
-            ) : activeItem === "resignation" ? (
-              <ProtectedComponent module="resignation" action="view">
-                <Resignation />
-              </ProtectedComponent>
-            ) : activeItem === "userManagement" ? (
-              <ProtectedComponent module="userManagement" action="view">
-                <UserManagement />
-              </ProtectedComponent>
-            ) : activeItem === "pmsDashboard" ? (
-              <ProtectedComponent module="pmsDashboard" action="view">
-                <PMSDashboard />
-              </ProtectedComponent>
-            ) : activeItem === "performanceReviews" ? (
-              <ProtectedComponent module="performanceReviews" action="view">
-                <PerformanceReviews />
-              </ProtectedComponent>
-            ) : activeItem === "kpis" ? (
-              <ProtectedComponent module="kpis" action="view">
-                <KPIs />
-              </ProtectedComponent>
-            ) : activeItem === "employeeEvaluation" ? (
-              <EmployeePerformanceEvaluation />
-            ) : activeItem === "PerformanceAppraisal" ? (
-              <ProtectedComponent module="PerformanceAppraisal" action="view">
-                <PerformanceAppraisal />
-              </ProtectedComponent>
-            ) : activeItem === "taskApproval" ? (
-              <ProtectedComponent module="taskApproval" action="view">
-                <TaskApproval />
-              </ProtectedComponent>
-            ) : activeItem === "myKPIs" ? (
-              <ProtectedComponent module="myKPIs" action="view">
-                <EmployeeKPIView />
-              </ProtectedComponent>
-            ) : activeItem === "absentReport" ? (
-              <ProtectedComponent module="absentReport" action="view">
-                <AbsentReport />
-              </ProtectedComponent>
-            ) : activeItem === "attendanceReport" ? (
-              <ProtectedComponent module="attendanceReport" action="view">
-                <AttendanceReport />
-              </ProtectedComponent>
-            ) : activeItem === "singleEntryReport" ? (
-              <ProtectedComponent module="singleEntryReport" action="view">
-                <SingleEntryReport />
-              </ProtectedComponent>
-            ) : activeItem === "lms" ? (
-              <ProtectedComponent module="lms" action="view">
-                <LMS />
-              </ProtectedComponent>
-            ) : activeItem === "lmsDashboard" ? (
-              <ProtectedComponent module="lms" action="view">
-                <LMS initialView="dashboard" />
-              </ProtectedComponent>
-            ) : activeItem === "manageExams" ? (
-              <ProtectedComponent module="manageExams" action="view">
-                <LMS initialView="exams" />
-              </ProtectedComponent>
-            ) : activeItem === "manageCourses" ? (
-              <ProtectedComponent module="manageCourses" action="view">
-                <LMS initialView="manage" />
-              </ProtectedComponent>
-            ) : activeItem === "myProgress" ? (
-              <ProtectedComponent module="myProgress" action="view">
-                <LMS initialView="progress" />
-              </ProtectedComponent>
-            ) : activeItem === "lmsUserStats" ? (
-              <ProtectedComponent module="lmsUserStats" action="view">
-                <UserStats />
-              </ProtectedComponent>
-            ) : activeItem === "accountingDashboard" ? (
-              <ProtectedComponent module="accountingDashboard" action="view">
-                <AccountingDashboard setActiveItem={setActiveItem} />
-              </ProtectedComponent>
-            ) : activeItem === "customer" ? (
-              <ProtectedComponent module="customer" action="view">
-                <Customer />
-              </ProtectedComponent>
-            ) : activeItem === "center" ? (
-              <ProtectedComponent module="center" action="view">
-                <Center />
-              </ProtectedComponent>
-            ) : activeItem === "product" ? (
-              <ProtectedComponent module="product" action="view">
-                <ProductList />
-              </ProtectedComponent>
-            ) : activeItem === "productType" ? (
-              <ProtectedComponent module="productType" action="view">
-                <ProductType />
-              </ProtectedComponent>
-            ) : activeItem === "discountLevel" ? (
-              <ProtectedComponent module="discountLevel" action="view">
-                <DiscountLevel />
-              </ProtectedComponent>
-            ) : activeItem === "chartOfAccounts" ? (
-              <ProtectedComponent module="chartOfAccounts" action="view">
-                <ChartOfAccounts />
-              </ProtectedComponent>
-            ) : activeItem === "accountList" ? (
-              <ProtectedComponent module="accountList" action="view">
-                <AccountList />
-              </ProtectedComponent>
-            ) : activeItem === "transactions" ? (
-              <ProtectedComponent module="transactions" action="view">
-                <Transactions />
-              </ProtectedComponent>
-            ) : activeItem === "transactionsList" ? (
-              <ProtectedComponent module="transactionsList" action="view">
-                <Transactions />
-              </ProtectedComponent>
-            ) : activeItem === "ledger" ? (
-              <ProtectedComponent module="ledger" action="view">
-                <Ledger />
-              </ProtectedComponent>
-            ) : activeItem === "trialBalance" ? (
-              <ProtectedComponent module="trialBalance" action="view">
-                <TrialBalance />
-              </ProtectedComponent>
-            ) : activeItem === "incomeStatement" ? (
-              <ProtectedComponent module="incomeStatement" action="view">
-                <IncomeStatement />
-              </ProtectedComponent>
-            ) : activeItem === "balanceSheet" ? (
-              <ProtectedComponent module="balanceSheet" action="view">
-                <BalanceSheet />
-              </ProtectedComponent>
-            ) : activeItem === "cashFlowStatement" ? (
-              <ProtectedComponent module="cashFlowStatement" action="view">
-                <CashFlowStatement />
-              </ProtectedComponent>
-            ) : activeItem === "invoices" ? (
-              <ProtectedComponent module="invoices" action="view">
-                <Invoices />
-              </ProtectedComponent>
-            ) : activeItem === "salesOrder" ? (
-              <ProtectedComponent module="salesOrder" action="view">
-                <SalesOrder />
-              </ProtectedComponent>
-            ) : activeItem === "salesReturn" ? (
-              <ProtectedComponent module="salesReturn" action="view">
-                <SalesReturn />
-              </ProtectedComponent>
-            ) : activeItem === "grn" ? (
-              <ProtectedComponent module="grn" action="view">
-                <GRN />
-              </ProtectedComponent>
-            ) : activeItem === "purchaseReturn" ? (
-              <ProtectedComponent module="purchaseReturn" action="view">
-                <PurchaseReturn />
-              </ProtectedComponent>
-            ) : activeItem === "purchaseOrder" ? (
-              <ProtectedComponent module="purchaseOrder" action="view">
-                <PurchaseOrder />
-              </ProtectedComponent>
-            ) : activeItem === "stockTransfer" ? (
-              <ProtectedComponent module="stockTransfer" action="view">
-                <StockTransfer />
-              </ProtectedComponent>
-            ) : activeItem === "stockVerification" ? (
-              <ProtectedComponent module="stockVerification" action="view">
-                <StockVerification />
-              </ProtectedComponent>
-            ) : activeItem === "pendingApprovals" ? (
-              <ProtectedComponent module="pendingApprovals" action="view">
-                <Pending />
-              </ProtectedComponent>
-            ) : activeItem === "supplier" ? (
-              <ProtectedComponent module="supplier" action="view">
-                <Supplier />
-              </ProtectedComponent>
-            ) : activeItem === "accountingReports" ? (
-              <ProtectedComponent module="accountingReports" action="view">
-                <AccountingReports />
-              </ProtectedComponent>
-            ) : activeItem === "accountingSettings" ? (
-              <ProtectedComponent module="accountingSettings" action="view">
-                <AccountingSettings />
-              </ProtectedComponent>
-            ) : activeItem === "supplierEnterBill" ? (
-              <ProtectedComponent module="supplierEnterBill" action="view">
-                <SupplierEnterBill />
-              </ProtectedComponent>
-            ) : activeItem === "payment" ? (
-              <ProtectedComponent module="payment" action="view">
-                <Payment />
-              </ProtectedComponent>
-            ) : activeItem === "advancePayment" ? (
-              <ProtectedComponent module="advancePayment" action="view">
-                <AdvancePayment />
-              </ProtectedComponent>
-            ) : activeItem === "makeDeposit" ? (
-              <ProtectedComponent module="makeDeposit" action="view">
-                <MakeDeposit />
-              </ProtectedComponent>
-            ) : activeItem === "receipt" ? (
-              <ProtectedComponent module="receipt" action="view">
-                <Receipt />
-              </ProtectedComponent>
-            ) : activeItem === "createUtilityBill" ? (
-              <ProtectedComponent module="createUtilityBill" action="view">
-                <UtilityBill />
-              </ProtectedComponent>
-            ) : activeItem === "utilityBillPayment" ? (
-              <ProtectedComponent module="utilityBillPayment" action="view">
-                <UtilityBillPayment />
-              </ProtectedComponent>
-            ) : activeItem === "journalEntry" ? (
-              <ProtectedComponent module="journalEntry" action="view">
-                <JournalEntry />
-              </ProtectedComponent>
-            ) : activeItem === "pettyCash" ? (
-              <ProtectedComponent module="pettyCash" action="view">
-                <PettyCash />
-              </ProtectedComponent>
-            ) : activeItem === "cheque" ? (
-              <ProtectedComponent module="cheque" action="view">
-                <Cheque />
-              </ProtectedComponent>
-            ) : activeItem === "doubleEntry" ? (
-              <ProtectedComponent module="doubleEntry" action="view">
-                <DoubleEntry />
-              </ProtectedComponent>
-            ) : activeItem === "bankReconciliation" ? (
-              <ProtectedComponent module="bankReconciliation" action="view">
-                <BankReconciliation />
-              </ProtectedComponent>
-            ) : activeItem === "supplier" ? (
-              <ProtectedComponent module="supplier" action="view">
-                <Supplier />
-              </ProtectedComponent>
-            ) : activeItem === "leaveSettings" ? (
-              <ProtectedComponent module="leaveSettings" action="view">
-                <LeaveSettings />
-              </ProtectedComponent>
-            )  : activeItem === "chatbot" ? (
-              <ProtectedComponent module="chatbot" action="view">
-                <Chatbot />
-              </ProtectedComponent>
-            ) : (
-              <div className="space-y-8">
-                <div className="text-center mb-8">
-                  <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                    HRM Dashboard
-                  </h1>
-                  <p className="text-gray-600 text-lg">
-                    Welcome to your comprehensive HR management system
-                  </p>
+            )
+              : activeItem === "createNewBonus" ? (
+                <ProtectedComponent module="createNewBonus" action="view">
+                  <CreateNewBonus />
+                </ProtectedComponent>
+              ) : activeItem === "shiftTime" ? (
+                <ProtectedComponent module="shiftTime" action="view">
+                  <ShiftSchedule />
+                </ProtectedComponent>
+              ) : activeItem === "createNewAllowance" ? (
+                <ProtectedComponent module="createNewAllowance" action="view">
+                  <CreateNewAllowance />
+                </ProtectedComponent>
+              ) : activeItem === "employeeLoan" ? (
+                <ProtectedComponent module="employeeLoan" action="view">
+                  <EmployeeLoan />
+                </ProtectedComponent>
+              ) : activeItem === "viewLoans" ? (
+                <ProtectedComponent module="viewLoans" action="view">
+                  <ViewLoans />
+                </ProtectedComponent>
+              ) : activeItem === "noPayManagement" ? (
+                <ProtectedComponent module="noPayManagement" action="view">
+                  <NoPayManagement />
+                </ProtectedComponent>
+              ) : activeItem === "hrLeaveApproval" ? (
+                <ProtectedComponent module="hrLeaveApproval" action="view">
+                  <HRLeaveApproval />
+                </ProtectedComponent>
+              ) : activeItem === "leaveApproval" ? (
+                <ProtectedComponent module="leaveApproval" action="view">
+                  <LeaveApproval />
+                </ProtectedComponent>
+              ) : activeItem === "leaveMaster" ? (
+                <ProtectedComponent module="leaveMaster" action="view">
+                  <LeaveMaster />
+                </ProtectedComponent>
+              ) : activeItem === "TimeCard" ? (
+                <ProtectedComponent module="TimeCard" action="view">
+                  <TimeCard />
+                </ProtectedComponent>
+              ) : activeItem === "Overtime" ? (
+                <ProtectedComponent module="Overtime" action="view">
+                  <Overtime />
+                </ProtectedComponent>
+              ) : activeItem === "departmentMaster" ? (
+                <ProtectedComponent module="departmentMaster" action="view">
+                  <Department />
+                </ProtectedComponent>
+              ) : activeItem === "grouproster" ? (
+                <ProtectedComponent module="grouproster" action="view">
+                  <Grouproster />
+                </ProtectedComponent>
+              ) : activeItem === "shiftOvertimeRates" ? (
+                <ProtectedComponent module="shiftOvertimeRates" action="view">
+                  <ShiftOvertimeRates />
+                </ProtectedComponent>
+              ) : activeItem === "leavecalendar" ? (
+                <ProtectedComponent module="leavecalendar" action="view">
+                  <LeaveCalendar />
+                </ProtectedComponent>
+              ) : activeItem === "SalaryProcessPage" ? (
+                <ProtectedComponent module="SalaryProcessPage" action="view">
+                  <SalaryProcessPage />
+                </ProtectedComponent>
+              ) : activeItem === "termination" ? (
+                <ProtectedComponent module="termination" action="view">
+                  <Termination />
+                </ProtectedComponent>
+              ) : activeItem === "SalaryPage" ? (
+                <ProtectedComponent module="SalaryPage" action="view">
+                  <SalaryPage />
+                </ProtectedComponent>
+              ) : activeItem === "resignation" ? (
+                <ProtectedComponent module="resignation" action="view">
+                  <Resignation />
+                </ProtectedComponent>
+              ) : activeItem === "userManagement" ? (
+                <ProtectedComponent module="userManagement" action="view">
+                  <UserManagement />
+                </ProtectedComponent>
+              ) : activeItem === "pmsDashboard" ? (
+                <ProtectedComponent module="pmsDashboard" action="view">
+                  <PMSDashboard />
+                </ProtectedComponent>
+              ) : activeItem === "performanceReviews" ? (
+                <ProtectedComponent module="performanceReviews" action="view">
+                  <PerformanceReviews />
+                </ProtectedComponent>
+              ) : activeItem === "kpis" ? (
+                <ProtectedComponent module="kpis" action="view">
+                  <KPIs />
+                </ProtectedComponent>
+              ) : activeItem === "employeeEvaluation" ? (
+                <EmployeePerformanceEvaluation />
+              ) : activeItem === "PerformanceAppraisal" ? (
+                <ProtectedComponent module="PerformanceAppraisal" action="view">
+                  <PerformanceAppraisal />
+                </ProtectedComponent>
+              ) : activeItem === "taskApproval" ? (
+                <ProtectedComponent module="taskApproval" action="view">
+                  <TaskApproval />
+                </ProtectedComponent>
+              ) : activeItem === "myKPIs" ? (
+                <ProtectedComponent module="myKPIs" action="view">
+                  <EmployeeKPIView />
+                </ProtectedComponent>
+              ) : activeItem === "absentReport" ? (
+                <ProtectedComponent module="absentReport" action="view">
+                  <AbsentReport />
+                </ProtectedComponent>
+              ) : activeItem === "attendanceReport" ? (
+                <ProtectedComponent module="attendanceReport" action="view">
+                  <AttendanceReport />
+                </ProtectedComponent>
+              ) : activeItem === "singleEntryReport" ? (
+                <ProtectedComponent module="singleEntryReport" action="view">
+                  <SingleEntryReport />
+                </ProtectedComponent>
+              ) : activeItem === "lms" ? (
+                <ProtectedComponent module="lms" action="view">
+                  <LMS />
+                </ProtectedComponent>
+              ) : activeItem === "lmsDashboard" ? (
+                <ProtectedComponent module="lms" action="view">
+                  <LMS initialView="dashboard" />
+                </ProtectedComponent>
+              ) : activeItem === "manageExams" ? (
+                <ProtectedComponent module="manageExams" action="view">
+                  <LMS initialView="exams" />
+                </ProtectedComponent>
+              ) : activeItem === "manageCourses" ? (
+                <ProtectedComponent module="manageCourses" action="view">
+                  <LMS initialView="manage" />
+                </ProtectedComponent>
+              ) : activeItem === "myProgress" ? (
+                <ProtectedComponent module="myProgress" action="view">
+                  <LMS initialView="progress" />
+                </ProtectedComponent>
+              ) : activeItem === "lmsUserStats" ? (
+                <ProtectedComponent module="lmsUserStats" action="view">
+                  <UserStats />
+                </ProtectedComponent>
+              ) : activeItem === "accountingDashboard" ? (
+                <ProtectedComponent module="accountingDashboard" action="view">
+                  <AccountingDashboard setActiveItem={setActiveItem} />
+                </ProtectedComponent>
+              ) : activeItem === "customer" ? (
+                <ProtectedComponent module="customer" action="view">
+                  <Customer />
+                </ProtectedComponent>
+              ) : activeItem === "center" ? (
+                <ProtectedComponent module="center" action="view">
+                  <Center />
+                </ProtectedComponent>
+              ) : activeItem === "product" ? (
+                <ProtectedComponent module="product" action="view">
+                  <ProductList />
+                </ProtectedComponent>
+              ) : activeItem === "productType" ? (
+                <ProtectedComponent module="productType" action="view">
+                  <ProductType />
+                </ProtectedComponent>
+              ) : activeItem === "discountLevel" ? (
+                <ProtectedComponent module="discountLevel" action="view">
+                  <DiscountLevel />
+                </ProtectedComponent>
+              ) : activeItem === "chartOfAccounts" ? (
+                <ProtectedComponent module="chartOfAccounts" action="view">
+                  <ChartOfAccounts />
+                </ProtectedComponent>
+              ) : activeItem === "accountList" ? (
+                <ProtectedComponent module="accountList" action="view">
+                  <AccountList />
+                </ProtectedComponent>
+              ) : activeItem === "transactions" ? (
+                <ProtectedComponent module="transactions" action="view">
+                  <Transactions />
+                </ProtectedComponent>
+              ) : activeItem === "transactionsList" ? (
+                <ProtectedComponent module="transactionsList" action="view">
+                  <Transactions />
+                </ProtectedComponent>
+              ) : activeItem === "ledger" ? (
+                <ProtectedComponent module="ledger" action="view">
+                  <Ledger />
+                </ProtectedComponent>
+              ) : activeItem === "trialBalance" ? (
+                <ProtectedComponent module="trialBalance" action="view">
+                  <TrialBalance />
+                </ProtectedComponent>
+              ) : activeItem === "incomeStatement" ? (
+                <ProtectedComponent module="incomeStatement" action="view">
+                  <IncomeStatement />
+                </ProtectedComponent>
+              ) : activeItem === "balanceSheet" ? (
+                <ProtectedComponent module="balanceSheet" action="view">
+                  <BalanceSheet />
+                </ProtectedComponent>
+              ) : activeItem === "cashFlowStatement" ? (
+                <ProtectedComponent module="cashFlowStatement" action="view">
+                  <CashFlowStatement />
+                </ProtectedComponent>
+              ) : activeItem === "invoices" ? (
+                <ProtectedComponent module="invoices" action="view">
+                  <Invoices />
+                </ProtectedComponent>
+              ) : activeItem === "salesOrder" ? (
+                <ProtectedComponent module="salesOrder" action="view">
+                  <SalesOrder />
+                </ProtectedComponent>
+              ) : activeItem === "salesReturn" ? (
+                <ProtectedComponent module="salesReturn" action="view">
+                  <SalesReturn />
+                </ProtectedComponent>
+              ) : activeItem === "grn" ? (
+                <ProtectedComponent module="grn" action="view">
+                  <GRN />
+                </ProtectedComponent>
+              ) : activeItem === "purchaseReturn" ? (
+                <ProtectedComponent module="purchaseReturn" action="view">
+                  <PurchaseReturn />
+                </ProtectedComponent>
+              ) : activeItem === "purchaseOrder" ? (
+                <ProtectedComponent module="purchaseOrder" action="view">
+                  <PurchaseOrder />
+                </ProtectedComponent>
+              ) : activeItem === "stockTransfer" ? (
+                <ProtectedComponent module="stockTransfer" action="view">
+                  <StockTransfer />
+                </ProtectedComponent>
+              ) : activeItem === "stockVerification" ? (
+                <ProtectedComponent module="stockVerification" action="view">
+                  <StockVerification />
+                </ProtectedComponent>
+              ) : activeItem === "pendingApprovals" ? (
+                <ProtectedComponent module="pendingApprovals" action="view">
+                  <Pending />
+                </ProtectedComponent>
+              ) : activeItem === "supplier" ? (
+                <ProtectedComponent module="supplier" action="view">
+                  <Supplier />
+                </ProtectedComponent>
+              ) : activeItem === "accountingReports" ? (
+                <ProtectedComponent module="accountingReports" action="view">
+                  <AccountingReports />
+                </ProtectedComponent>
+              ) : activeItem === "accountingSettings" ? (
+                <ProtectedComponent module="accountingSettings" action="view">
+                  <AccountingSettings />
+                </ProtectedComponent>
+              ) : activeItem === "supplierEnterBill" ? (
+                <ProtectedComponent module="supplierEnterBill" action="view">
+                  <SupplierEnterBill />
+                </ProtectedComponent>
+              ) : activeItem === "payment" ? (
+                <ProtectedComponent module="payment" action="view">
+                  <Payment />
+                </ProtectedComponent>
+              ) : activeItem === "advancePayment" ? (
+                <ProtectedComponent module="advancePayment" action="view">
+                  <AdvancePayment />
+                </ProtectedComponent>
+              ) : activeItem === "makeDeposit" ? (
+                <ProtectedComponent module="makeDeposit" action="view">
+                  <MakeDeposit />
+                </ProtectedComponent>
+              ) : activeItem === "receipt" ? (
+                <ProtectedComponent module="receipt" action="view">
+                  <Receipt />
+                </ProtectedComponent>
+              ) : activeItem === "createUtilityBill" ? (
+                <ProtectedComponent module="createUtilityBill" action="view">
+                  <UtilityBill />
+                </ProtectedComponent>
+              ) : activeItem === "utilityBillPayment" ? (
+                <ProtectedComponent module="utilityBillPayment" action="view">
+                  <UtilityBillPayment />
+                </ProtectedComponent>
+              ) : activeItem === "journalEntry" ? (
+                <ProtectedComponent module="journalEntry" action="view">
+                  <JournalEntry />
+                </ProtectedComponent>
+              ) : activeItem === "pettyCash" ? (
+                <ProtectedComponent module="pettyCash" action="view">
+                  <PettyCash />
+                </ProtectedComponent>
+              ) : activeItem === "cheque" ? (
+                <ProtectedComponent module="cheque" action="view">
+                  <Cheque />
+                </ProtectedComponent>
+              ) : activeItem === "doubleEntry" ? (
+                <ProtectedComponent module="doubleEntry" action="view">
+                  <DoubleEntry />
+                </ProtectedComponent>
+              ) : activeItem === "bankReconciliation" ? (
+                <ProtectedComponent module="bankReconciliation" action="view">
+                  <BankReconciliation />
+                </ProtectedComponent>
+              ) : activeItem === "supplier" ? (
+                <ProtectedComponent module="supplier" action="view">
+                  <Supplier />
+                </ProtectedComponent>
+              ) : activeItem === "leaveSettings" ? (
+                <ProtectedComponent module="leaveSettings" action="view">
+                  <LeaveSettings />
+                </ProtectedComponent>
+              ) : activeItem === "chatbot" ? (
+                <ProtectedComponent module="chatbot" action="view">
+                  <Chatbot />
+                </ProtectedComponent>
+              ) : (
+                <div className="space-y-8">
+                  <div className="text-center mb-8">
+                    <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                      HRM Dashboard
+                    </h1>
+                    <p className="text-gray-600 text-lg">
+                      Welcome to your comprehensive HR management system
+                    </p>
+                  </div>
+                  <DashboardStats />
+                  <QuickActions setActiveItem={setActiveItem} />
+                  <DashboardCharts />
+                  <div className="flex justify-center"></div>
                 </div>
-                <DashboardStats />
-                <QuickActions setActiveItem={setActiveItem} />
-                <DashboardCharts />
-                <div className="flex justify-center"></div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>

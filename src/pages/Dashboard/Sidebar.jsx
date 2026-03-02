@@ -86,6 +86,7 @@ const Sidebar = ({
           subItems: [
             { id: "createNewAllowance", name: "Allowance" },
             { id: "createNewDeduction", name: "Deduction" },
+            { id: "createNewBonus", name: "Bonus" },
           ],
         },
         {

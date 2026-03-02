@@ -96,6 +96,9 @@ export const permissions = {
     productType: { view: true, edit: true },
     pendingApprovals: { view: true, edit: true },
     leaveSettings: { view: true, edit: true },
+
+    // permissions map / roles file
+createNewBonus: { view: true, create: true, update: true, delete: true }
   },
   hr: {
     chatbot: { view: true },
@@ -173,6 +176,9 @@ export const permissions = {
     productList: { view: true, edit: true },
     discountLevel: { view: true, edit: true },
     leaveSettings: { view: true, edit: true },
+
+    // permissions map / roles file
+createNewBonus: { view: true, create: true, update: true, delete: true }
   },
   supervisor: {
     chatbot: { view: true },
@@ -236,6 +242,9 @@ export const permissions = {
     accountingReports: { view: true },
     inventory: { view: true, edit: true },
     // attendanceReport: { view: true },
+
+    // permissions map / roles file
+createNewBonus: { view: true, create: true, update: true, delete: true }
   },
   user: {
     chatbot: { view: true },
@@ -258,6 +267,9 @@ export const permissions = {
     
     inventory: { view: true },
     product: { view: true },
+
+    // permissions map / roles file
+createNewBonus: { view: true, create: true, update: true, delete: true }
   },
   employee: {
     chatbot: { view: true },
@@ -280,5 +292,8 @@ export const permissions = {
    
     inventory: { view: true },
     product: { view: true },
+
+    // permissions map / roles file
+createNewBonus: { view: true, create: true, update: true, delete: true }
   },
 };
