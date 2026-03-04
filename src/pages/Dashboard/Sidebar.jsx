@@ -61,17 +61,18 @@ const Sidebar = ({
 
   const menuItems = useMemo(() => [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
+    { id: "myProfile", name: "My Profile", icon: User, badge: null },
     { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
     // { id: "user", name: "Users", icon: User2, badge: null },
     {
       id: "hrMaster",
-      name: "HR Master",
+      name: user.role === 'employee' ? "Employee Master" : "HRM Master",
       icon: Users,
       badge: null,
       subItems: [
         { id: "show", name: "Show Employee", icon: UserCheck },
-        { id: "employeeMaster", name: " Add Employee Master" },
+        { id: "employeeMaster", name: "Add Employee Master" },
         { id: "departmentMaster", name: "Department Master" },
         { id: "shiftTime", name: "Shift Time" },
         { id: "grouproster", name: "Roster" },
@@ -114,7 +115,7 @@ const Sidebar = ({
           subItems: [
             { id: "TimeCard", name: "Time Card" },
             { id: "Overtime", name: "Over Time" },
-            { id: "leaveMaster", name: "Leave Master" },
+            { id: "leaveMaster", name: "Leave Form" },
             { id: "leaveApproval", name: "Leave Approval" },
             { id: "hrLeaveApproval", name: "HR Leave Approval" },
             { id: "noPayManagement", name: "NoPay" },
@@ -494,7 +495,9 @@ const Sidebar = ({
                 <Building2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900">HRM System</h2>
+                <h2 className="font-bold text-gray-900">
+                  {user.role === 'employee' ? 'Employee System' : 'HRM System'}
+                </h2>
                 <p className="text-xs text-gray-500">v2.1.0</p>
               </div>
             </div>
@@ -520,7 +523,7 @@ const Sidebar = ({
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900 truncate">{user.name}</p>
-              <p className="text-sm text-gray-500 truncate">HR Manager</p>
+              <p className="text-sm text-gray-500 truncate capitalize">{user.role}</p>
             </div>
           </div>
         </div>

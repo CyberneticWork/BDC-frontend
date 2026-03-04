@@ -199,6 +199,29 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <input
+                      name="password"
+                      type="password"
+                      value={formData.address.password || ''}
+                      onChange={handleChange}
+                      className={`w-full border ${
+                        errors.address?.password
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      placeholder="Enter password for employee login"
+                    />
+                  </div>
+                  <FieldError error={errors.address?.password} />
+                  <p className="text-xs text-gray-500 mt-1">Password for employee login account</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
                     Land Line
                   </label>
                   <div className="relative">

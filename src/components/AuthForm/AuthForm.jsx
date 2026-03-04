@@ -1,8 +1,8 @@
 import React from 'react';
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import ErrorMessage from '../ErrorMessage/ErrorMessage';
 
-// Auth Form Component
 const AuthForm = ({ 
   isLogin, 
   formData, 
@@ -10,12 +10,14 @@ const AuthForm = ({
   onSubmit, 
   loading, 
   error,
-  errors = {}, // <-- field-level errors
+  errors = {},
   showPassword,
   togglePassword,
   showConfirmPassword,
   toggleConfirmPassword 
 }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6">
       {error && <ErrorMessage message={error} />}

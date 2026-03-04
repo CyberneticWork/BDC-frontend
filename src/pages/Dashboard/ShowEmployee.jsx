@@ -1166,6 +1166,16 @@ const ShowEmployee = () => {
                     Delete
                   </button>
                   <button
+                    onClick={() => {
+                      localStorage.setItem('editEmployeeId', selectedEmployee.id);
+                      window.location.href = '/dashboard/employee-add';
+                    }}
+                    className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Edit
+                  </button>
+                  <button
                     onClick={closeModal}
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
                   >

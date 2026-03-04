@@ -7,6 +7,8 @@ import {
   Clock,
   DollarSign,
   PieChart,
+  User,
+  BarChart3,
 } from "lucide-react";
 import NotificationBell from "../../components/NotificationBell";
 import { Bar, Pie, Line } from "react-chartjs-2";
@@ -27,6 +29,7 @@ import Sidebar from "./Sidebar";
 import EmployeeMaster from "@dashboard/AddEmployeeMaster/EmployeeMaster";
 import EmployeeAdd from "@dashboard/EmployeeAdd";
 import ShowEmployee from "@dashboard/ShowEmployee";
+import MyProfile from "@dashboard/MyProfile";
 import CreateNewDeduction from "@dashboard/createnewdeduction";
 
 import CreateNewBonus from "@dashboard/CreateNewBonus";
@@ -634,7 +637,7 @@ const Dashboard = ({ user, onLogout }) => {
                     <Building2 className="h-5 w-5 text-white" />
                   </div>
                   <span className="text-xl font-bold text-gray-900">
-                    HRM Dashboard
+                    {user.role === 'employee' ? 'Employee Dashboard' : 'HRM Dashboard'}
                   </span>
                 </div>
               </div>
@@ -678,6 +681,12 @@ const Dashboard = ({ user, onLogout }) => {
               <ProtectedComponent module="show" action="view">
                 <ShowEmployee />
               </ProtectedComponent>
+            ) : activeItem === "employeeMaster" ? (
+              <ProtectedComponent module="employeeMaster" action="view">
+                <EmployeeMaster />
+              </ProtectedComponent>
+            ) : activeItem === "myProfile" ? (
+              <MyProfile />
             ) : activeItem === "EmployeeMaster" ? (
               <ProtectedComponent module="EmployeeMaster" action="view">
                 <EmployeeMaster />
@@ -1001,15 +1010,127 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="space-y-8">
                   <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                      HRM Dashboard
+                      {user.role === 'employee' ? 'Employee Dashboard' : 'HRM Dashboard'}
                     </h1>
                     <p className="text-gray-600 text-lg">
-                      Welcome to your comprehensive HR management system
+                      {user.role === 'employee' 
+                        ? 'Welcome to your employee portal' 
+                        : 'Welcome to your comprehensive HR management system'}
                     </p>
                   </div>
-                  <DashboardStats />
-                  <QuickActions setActiveItem={setActiveItem} />
-                  <DashboardCharts />
+                  {user.role === 'employee' ? (
+                    // Employee Dashboard
+                    <div className="space-y-6">
+                      {/* Welcome Card */}
+                      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white shadow-lg">
+                        <h2 className="text-2xl font-bold mb-2">Welcome back, {user.name}!</h2>
+                        <p className="text-blue-100">Here's your quick overview</p>
+                      </div>
+
+                      {/* Quick Actions for Employee */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <button
+                          onClick={() => setActiveItem('myProfile')}
+                          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all text-left group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-blue-200 transition-colors">
+                              <User className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">My Profile</h3>
+                              <p className="text-sm text-gray-600">View your details</p>
+                            </div>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => setActiveItem('leaveMaster')}
+                          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all text-left group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-green-100 rounded-xl group-hover:bg-green-200 transition-colors">
+                              <Calendar className="h-6 w-6 text-green-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">Apply Leave</h3>
+                              <p className="text-sm text-gray-600">Request time off</p>
+                            </div>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => setActiveItem('leavecalendar')}
+                          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all text-left group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-purple-100 rounded-xl group-hover:bg-purple-200 transition-colors">
+                              <Calendar className="h-6 w-6 text-purple-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">Leave Calendar</h3>
+                              <p className="text-sm text-gray-600">View schedule</p>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* Info Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-blue-600" />
+                            Quick Links
+                          </h3>
+                          <div className="space-y-3">
+                            <button
+                              onClick={() => setActiveItem('SalaryPage')}
+                              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between group"
+                            >
+                              <span className="text-gray-700 group-hover:text-gray-900">View Salary</span>
+                              <DollarSign className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                            </button>
+                            <button
+                              onClick={() => setActiveItem('attendanceReport')}
+                              className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between group"
+                            >
+                              <span className="text-gray-700 group-hover:text-gray-900">Attendance Report</span>
+                              <BarChart3 className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                          <h3 className="font-semibold text-gray-900 mb-4">Important Information</h3>
+                          <div className="space-y-3 text-sm text-gray-600">
+                            <p className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-1">•</span>
+                              <span>Use Leave Form to apply for time off</span>
+                            </p>
+                            <p className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-1">•</span>
+                              <span>Check Leave Calendar for company holidays</span>
+                            </p>
+                            <p className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-1">•</span>
+                              <span>View your salary slips anytime</span>
+                            </p>
+                            <p className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-1">•</span>
+                              <span>Update your profile information</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Admin/HR Dashboard
+                    <>
+                      <DashboardStats />
+                      <QuickActions setActiveItem={setActiveItem} />
+                      <DashboardCharts />
+                    </>
+                  )}
                   <div className="flex justify-center"></div>
                 </div>
               )}
