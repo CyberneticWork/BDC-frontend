@@ -25,6 +25,7 @@ const Ledger = () => {
   const [selectedAccount, setSelectedAccount] = useState("");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [loading, setLoading] = useState(true);
+  const responsive = useResponsive();
 
   useEffect(() => {
     fetchData();
@@ -69,8 +70,6 @@ const Ledger = () => {
       </div>
     );
   }
-
-  const responsive = useResponsive();
 
   const actions = (
     <>

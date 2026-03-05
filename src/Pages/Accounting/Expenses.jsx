@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from "react";
 import {
   getEnhancedExpenses,
-  getExpenseCategories,
-  addEnhancedExpense,
-  updateEnhancedExpense,
-  deleteEnhancedExpense
+  getExpenseCategories
 } from "../../services/AccountingService";
-import { useResponsive } from "../../hooks/useResponsive";
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -27,7 +23,6 @@ import {
 } from "../../components/Accounting/ResponsiveAccountingComponents";
 
 const Expenses = () => {
-  const responsive = useResponsive();
   const [expenses, setExpenses] = useState([]);
   const [filteredExpenses, setFilteredExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,14 +116,6 @@ const Expenses = () => {
 
   const getTotalExpenses = () => {
     return filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  };
-
-  const getExpensesByCategory = () => {
-    const categoryTotals = {};
-    filteredExpenses.forEach(expense => {
-      categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
-    });
-    return categoryTotals;
   };
 
   if (loading) {

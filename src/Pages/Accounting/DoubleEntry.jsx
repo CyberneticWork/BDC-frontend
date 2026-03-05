@@ -1,24 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, FileText, Edit2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import { getAccountList } from "../../services/Account/AccountService";
 
 const DoubleEntry = () => {
-  const [entries, setEntries] = useState([]);
   const [accounts, setAccounts] = useState([]);
-  const [formData, setFormData] = useState({
-    date: "",
-    description: "",
-    debitAccount: "",
-    creditAccount: "",
-    amount: "",
-    reference: "",
-    remarks: "",
-  });
-  const [trialBalance, setTrialBalance] = useState({
-    totalDebits: 0,
-    totalCredits: 0,
-  });
-  const [editingId, setEditingId] = useState(null);
 
   // Fetch accounts from database
   useEffect(() => {
@@ -47,16 +32,6 @@ const DoubleEntry = () => {
     };
     fetchAccounts();
   }, []);
-
-  // Update trial balance
-  useEffect(() => {
-    const totalDebits = entries.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-    const totalCredits = totalDebits; // Always equal in double entry
-    setTrialBalance({ totalDebits, totalCredits });
-  }, [entries]);
-
-  // Find account by name
-  const findAccount = (name) => accounts.find((a) => a.accountName === name) || {};
 
   // Get account balance type (debit/credit)
   const getAccountBalanceType = (accountType) => {
@@ -103,81 +78,6 @@ const DoubleEntry = () => {
     });
 
     return { totalDebit, totalCredit };
-  };
-
-  // Submit handler
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.date || !formData.description || !formData.debitAccount || !formData.creditAccount || !formData.amount) {
-      alert("Please fill all required fields.");
-      return;
-    }
-    if (formData.debitAccount === formData.creditAccount) {
-      alert("Debit and Credit accounts cannot be the same.");
-      return;
-    }
-
-    const debitAcc = findAccount(formData.debitAccount);
-    const creditAcc = findAccount(formData.creditAccount);
-
-    // Validate account types for debit/credit rules
-    const debitBalanceType = getAccountBalanceType(debitAcc.accountType);
-    const creditBalanceType = getAccountBalanceType(creditAcc.accountType);
-
-    if (debitBalanceType !== "DEBIT") {
-      alert(`Invalid debit account: ${debitAcc.accountName} is a ${creditBalanceType} balance account`);
-      return;
-    }
-
-    if (creditBalanceType !== "CREDIT") {
-      alert(`Invalid credit account: ${creditAcc.accountName} is a ${debitBalanceType} balance account`);
-      return;
-    }
-
-    const newEntry = {
-      id: editingId || Date.now(),
-      ...formData,
-      amount: parseFloat(formData.amount) || 0,
-    };
-
-    if (editingId) {
-      setEntries(entries.map((e) => (e.id === editingId ? newEntry : e)));
-      setEditingId(null);
-    } else {
-      setEntries([...entries, newEntry]);
-    }
-
-    // Reset form
-    setFormData({
-      date: "",
-      description: "",
-      debitAccount: "",
-      creditAccount: "",
-      amount: "",
-      reference: "",
-      remarks: "",
-    });
-  };
-
-  // Edit entry
-  const handleEdit = (entry) => {
-    setFormData({
-      date: entry.date,
-      description: entry.description,
-      debitAccount: entry.debitAccount,
-      creditAccount: entry.creditAccount,
-      amount: entry.amount ? entry.amount.toString() : "",
-      reference: entry.reference || "",
-      remarks: entry.remarks || "",
-    });
-    setEditingId(entry.id);
-  };
-
-  // Delete entry
-  const handleDelete = (id) => {
-    if (window.confirm("Delete this journal entry?")) {
-      setEntries(entries.filter((e) => e.id !== id));
-    }
   };
 
   const openingBalances = calculateTotalOpeningBalances();

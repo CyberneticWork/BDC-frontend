@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import EmpPersonalDetails from "@dashboard/AddEmployeeMaster/EmpPersonalDetails";
 import AddressDetails from "@dashboard/AddEmployeeMaster/AddressDetails";
 import OrganizationDetails from "@dashboard/AddEmployeeMaster/OrganizationDetails";
@@ -32,8 +32,25 @@ const EmployeeMasterWrapper = () => {
 const EmployeeMaster = () => {
   const [activeCategory, setActiveCategory] = useState("personal");
   const currentStepIndex = steps.indexOf(activeCategory);
-  const { setFormErrors, setIsSubmitting, errors, clearForm } =
+  const { setFormErrors, setIsSubmitting, clearForm, loadEmployeeData } =
     useEmployeeForm();
+
+  // Load employee data if editing
+  useEffect(() => {
+    const editEmployeeId = localStorage.getItem('editEmployeeId');
+    if (editEmployeeId) {
+      const fetchEmployee = async () => {
+        try {
+          const employeeData = await employeeService.fetchEmployeeById(editEmployeeId);
+          loadEmployeeData(employeeData);
+          localStorage.removeItem('editEmployeeId');
+        } catch (error) {
+          console.error('Error loading employee:', error);
+        }
+      };
+      fetchEmployee();
+    }
+  }, [loadEmployeeData]);
 
   const goNext = () => {
     if (currentStepIndex < steps.length - 1) {
@@ -78,6 +95,15 @@ const EmployeeMaster = () => {
       return response;
     } catch (error) {
       console.error("Update error:", error);
+      
+      // Safe access validation errors
+      const validationErrors = 
+        error.response?.data?.errors || // Laravel default
+        error.response?.data ||         // fallback
+        {};
+      
+      console.error("Validation errors:", validationErrors);
+      
       if (error.response?.data?.errors) {
         const formattedErrors = {};
 

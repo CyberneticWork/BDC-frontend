@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   DollarSign,
   Calendar,
@@ -6,6 +6,8 @@ import {
   CreditCard,
   AlertCircle,
   User,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
@@ -40,9 +42,24 @@ const handleKeyDown = (e) => {
   e.preventDefault();
 };
 
-const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
+const CompensationManagement = ({ onNext, onPrevious }) => {
   const { formData, updateFormData, errors, clearFieldError } =
     useEmployeeForm();
+  
+  const [openSections, setOpenSections] = useState({
+    salary: true,
+    increment: false,
+    employment: false,
+    overtime: false,
+    bank: false,
+    relief: false,
+    primary: false,
+    comments: false,
+  });
+
+  const toggleSection = (section) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const handleInputChange = (field, value) => {
     // Clear error when user makes changes
@@ -72,45 +89,73 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Salary Information */}
             <div className="space-y-6">
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <DollarSign className="w-5 h-5 mr-2 text-green-600" />
-                  Salary Information
-                </h2>
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('salary')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-green-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                    <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                    Salary Information
+                  </h2>
+                  {openSections.salary ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Basic Salary <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={formData.compensation.basicSalary}
-                      onChange={(e) =>
-                        handleInputChange("basicSalary", e.target.value)
-                      }
-                      onKeyDown={handleKeyDown}
-                      className={`w-full pl-10 pr-4 py-3 border ${
-                        errors.compensation?.basicSalary
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      placeholder="Enter basic salary"
-                      required
-                    />
+                {openSections.salary && (
+                  <div className="p-6 pt-0">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Basic Salary <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.compensation.basicSalary}
+                          onChange={(e) =>
+                            handleInputChange("basicSalary", e.target.value)
+                          }
+                          onKeyDown={handleKeyDown}
+                          className={`w-full pl-10 pr-4 py-3 border ${
+                            errors.compensation?.basicSalary
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                          placeholder="Enter basic salary"
+                          required
+                        />
+                      </div>
+                      <FieldError error={errors.compensation?.basicSalary} />
+                    </div>
                   </div>
-                  <FieldError error={errors.compensation?.basicSalary} />
-                </div>
+                )}
               </div>
 
               {/* Increment Settings */}
-              <div className="bg-gradient-to-r from-indigo-50 to-violet-50 p-6 rounded-xl border border-indigo-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
-                  Increment Settings
-                </h2>
+              <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-xl border border-indigo-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('increment')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-indigo-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                    <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
+                    Increment Settings
+                  </h2>
+                  {openSections.increment ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
 
+                {openSections.increment && (
+                  <div className="p-6 pt-0">
                 <div className="flex items-center justify-between p-3 bg-white rounded-lg border mb-4">
                   <label
                     htmlFor="incrementActive"
@@ -191,14 +236,30 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     </div>
                   </div>
                 )}
+                  </div>
+                )}
               </div>
 
               {/* Employment Settings */}
-              <div className="bg-gradient-to-r from-purple-50 to-violet-50 p-6 rounded-xl border border-purple-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <User className="w-5 h-5 mr-2 text-purple-600" />
-                  Employment Settings
-                </h2>
+              <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('employment')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-purple-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                    <User className="w-5 h-5 mr-2 text-purple-600" />
+                    Employment Settings
+                  </h2>
+                  {openSections.employment ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
+
+                {openSections.employment && (
+                  <div className="p-6 pt-0">
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
@@ -383,14 +444,30 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     </div>
                   </div>
                 </div>
+                  </div>
+                )}
               </div>
 
               {/* OT Settings */}
-              <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-xl border border-orange-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />
-                  Overtime Settings
-                </h2>
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('overtime')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-orange-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                    <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />
+                    Overtime Settings
+                  </h2>
+                  {openSections.overtime ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
+
+                {openSections.overtime && (
+                  <div className="p-6 pt-0">
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
@@ -604,16 +681,32 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <FieldError error={errors.compensation?.ot_night_rate_special} />
                   </div>
                 </div>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Right Column - Bank Information */}
             <div className="space-y-6">
-              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-xl border border-blue-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <Building2 className="w-5 h-5 mr-2 text-blue-600" />
-                  Bank Information
-                </h2>
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('bank')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-blue-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                    <Building2 className="w-5 h-5 mr-2 text-blue-600" />
+                    Bank Information
+                  </h2>
+                  {openSections.bank ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
+
+                {openSections.bank && (
+                  <div className="p-6 pt-0">
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -729,13 +822,29 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     <FieldError error={errors.compensation?.bankAccountNo} />
                   </div>
                 </div>
+                  </div>
+                )}
               </div>
 
               {/* Budgetary Relief Allowances */}
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-xl border border-emerald-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                  Budgetary Relief Allowances
-                </h2>
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('relief')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-emerald-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Budgetary Relief Allowances
+                  </h2>
+                  {openSections.relief ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
+
+                {openSections.relief && (
+                  <div className="p-6 pt-0">
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
@@ -810,13 +919,29 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     </div>
                   </div>
                 </div>
+                  </div>
+                )}
               </div>
 
               {/* Primary Employment Basic */}
-              <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 rounded-xl border border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                  Primary Employment Basic
-                </h2>
+              <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('primary')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-gray-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Primary Employment Basic
+                  </h2>
+                  {openSections.primary ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
+
+                {openSections.primary && (
+                  <div className="p-6 pt-0">
 
                 <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
                   <div>
@@ -843,13 +968,29 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                     />
                   </div>
                 </div>
+                  </div>
+                )}
               </div>
 
               {/* Comments */}
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                  Comments
-                </h2>
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('comments')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-yellow-100 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Comments
+                  </h2>
+                  {openSections.comments ? (
+                    <ChevronUp className="w-6 h-6 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-600" />
+                  )}
+                </button>
+
+                {openSections.comments && (
+                  <div className="p-6 pt-0">
 
                 <textarea
                   value={formData.compensation.comments}
@@ -865,6 +1006,8 @@ const CompensationManagement = ({ onNext, onPrevious, activeCategory }) => {
                   placeholder="Add any additional comments or notes..."
                 />
                 <FieldError error={errors.compensation?.comments} />
+                  </div>
+                )}
               </div>
             </div>
           </div>

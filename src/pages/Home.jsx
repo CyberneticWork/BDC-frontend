@@ -10,10 +10,11 @@ import {
 } from "../services/UserService";
 import { useNavigate, useLocation } from "react-router-dom"; // << added
 import { useAuth } from "../contexts/AuthContext";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 // Home Page (Landing + Auth)
 function Home() {
-  const [user, setUser] = useState(getUser());
+  const [user, setUser] = useState(getUser() || null);
   const navigate = useNavigate(); // << added
   const location = useLocation();
   const { setAuthUser, clearAuth } = useAuth();
@@ -76,7 +77,11 @@ function Home() {
 
   if (user) {
     // keep the same Dashboard render so props are preserved
-    return <Dashboard user={user} onLogout={handleLogout} />;
+    return (
+      <ErrorBoundary>
+        <Dashboard user={user} onLogout={handleLogout} />
+      </ErrorBoundary>
+    );
   }
 
   return (

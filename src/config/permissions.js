@@ -272,28 +272,11 @@ createNewBonus: { view: true, create: true, update: true, delete: true }
 createNewBonus: { view: true, create: true, update: true, delete: true }
   },
   employee: {
-    chatbot: { view: true },
     dashboard: { view: true },
-    hrMaster: { view: true },
-    show: { view: true },
+    myProfile: { view: true },
     leaveMaster: { view: true, edit: true },
     leavecalendar: { view: true },
-    myKPIs: { view: true },
-    lms: { view: true },
-    lmsDashboard: { view: true },
-    manageCourses: { view: true },
-    manageExams: { view: true },
-    myProgress: { view: true },
-    accounting: { view: true },
-    accountingDashboard: { view: true },
-    // pms: { view: true },
-    pmsDashboard: { view: true },
-    performanceReviews: { view: true, edit: true },
-   
-    inventory: { view: true },
-    product: { view: true },
-
-    // permissions map / roles file
-createNewBonus: { view: true, create: true, update: true, delete: true }
+    SalaryPage: { view: true },
+    attendanceReport: { view: true },
   },
 };

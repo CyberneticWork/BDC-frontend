@@ -37,7 +37,7 @@ const IncomeStatement = () => {
   }, []);
 
   // Sample financial data
-  const [financialData, setFinancialData] = useState(getIncomeStatementData());
+  const [financialData] = useState(getIncomeStatementData());
 
   const calculations = {
     totalRevenue: Object.values(financialData.revenue).reduce((sum, val) => sum + val, 0),

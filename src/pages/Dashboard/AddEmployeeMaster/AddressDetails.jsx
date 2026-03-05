@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   MapPin,
   Phone,
@@ -7,6 +7,7 @@ import {
   Building,
   Globe,
   Shield,
+  RefreshCw,
 } from "lucide-react";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import ErrorDisplay from "@components/ErrorMessage/ErrorDisplay";
@@ -56,6 +57,23 @@ const provinceData = {
 const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
   const { formData, updateFormData, errors, clearFieldError } =
     useEmployeeForm();
+
+  // Generate strong password
+  const generatePassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  // Auto-generate password when email is entered
+  useEffect(() => {
+    if (formData.address.email && !formData.address.password) {
+      updateFormData('address', { password: generatePassword() });
+    }
+  }, [formData.address.email]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -195,6 +213,35 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     />
                   </div>
                   <FieldError error={errors.address?.email} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Auto-Generated Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <input
+                      name="password"
+                      type="text"
+                      value={formData.address.password || ''}
+                      readOnly
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-12 py-2.5 bg-gray-50 text-gray-700 font-mono text-sm cursor-not-allowed"
+                      placeholder="Password will be auto-generated"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateFormData('address', { password: generatePassword() })}
+                      className="absolute right-3 top-2.5 text-blue-600 hover:text-blue-700 transition-colors"
+                      title="Regenerate password"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    This password will be sent to employee's email
+                  </p>
                 </div>
 
                 <div className="space-y-2">

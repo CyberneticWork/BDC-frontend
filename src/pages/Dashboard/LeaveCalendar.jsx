@@ -28,11 +28,8 @@ import Swal from "sweetalert2";
 const LeaveCalendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [selectedDates, setSelectedDates] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-  const [pendingDates, setPendingDates] = useState([]);
-  const [isSelecting, setIsSelecting] = useState(false);
   const [description, setDescription] = useState("");
   const [leaveType, setLeaveType] = useState("Annual");
   const [searchTerm, setSearchTerm] = useState("");
@@ -145,10 +142,6 @@ const LeaveCalendar = () => {
           });
 
           setLeaveRequests(formattedLeaveData);
-
-          // Update selected dates
-          const allDates = formattedLeaveData.flatMap((leave) => leave.dates);
-          setSelectedDates(allDates);
         } catch (error) {
           console.error("Error loading leave data:", error);
           Swal.fire({
@@ -162,7 +155,6 @@ const LeaveCalendar = () => {
       } else {
         // Clear leave data if no company is selected
         setLeaveRequests([]);
-        setSelectedDates([]);
       }
     };
 
@@ -326,9 +318,6 @@ const LeaveCalendar = () => {
           deleteLeaveEntry(existingLeave.id)
             .then(() => {
               // Remove all dates from this leave request
-              setSelectedDates((prev) =>
-                prev.filter((date) => !existingLeave.dates.includes(date))
-              );
               setLeaveRequests((prev) =>
                 prev.filter((req) => req.id !== existingLeave.id)
               );
@@ -341,7 +330,7 @@ const LeaveCalendar = () => {
                 showConfirmButton: false,
               });
             })
-            .catch((error) => {
+            .catch(() => {
               Swal.fire({
                 title: "Error",
                 text: "Failed to delete leave request.",
@@ -456,7 +445,6 @@ const LeaveCalendar = () => {
             : null,
         };
 
-        setSelectedDates((prev) => [...prev, ...dateRange]);
         setLeaveRequests((prev) => [...prev, newRequest]);
 
         // Reset form

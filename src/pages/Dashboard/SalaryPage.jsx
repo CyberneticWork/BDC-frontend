@@ -22,15 +22,12 @@ import {
   fetchSalaryDataAPI,
   updateSalaryAPI,
   deleteSalaryRecordAPI,
-  fetchSalaryCSV,
 } from "@services/SalaryService";
 import { fetchCompanies as fetchCompaniesAPI } from "@services/ApiDataService";
 
 // Modal Component
 // Fixed Modal Component
 const Modal = ({ isOpen, onClose, children }) => {
-  if (!isOpen) return null;
-
   const handleBackdropClick = (e) => {
     // Only close if clicking directly on backdrop
     if (e.target === e.currentTarget) {
@@ -46,16 +43,18 @@ const Modal = ({ isOpen, onClose, children }) => {
 
   // Add keyboard event listener when modal opens
   useEffect(() => {
-    if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden"; // Prevent background scroll
-    }
+    if (!isOpen) return;
+    
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden"; // Prevent background scroll
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "unset";
     };
   }, [isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -153,8 +152,6 @@ const SalaryPage = () => {
   const [allowanceErrors, setAllowanceErrors] = useState([]); // { name: '', amount: '' }
   const [deductionErrors, setDeductionErrors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-  const [expandedRow, setExpandedRow] = useState(null);
 
   // Pagination state: show 9 rows per page
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,18 +170,6 @@ const SalaryPage = () => {
       // Optionally show an error message to the user
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Update salary record
-  const updateSalaryRecord = async (id, data) => {
-    try {
-      await updateSalaryAPI(id, data);
-      fetchSalaryData(); // Refresh data
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error("Error updating salary record:", error);
-      alert("Failed to update record");
     }
   };
 
@@ -475,54 +460,6 @@ const SalaryPage = () => {
     await fetchSalaryData();
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "LKR",
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      processed: "bg-emerald-100 text-emerald-800 border-emerald-200",
-      pending: "bg-amber-100 text-amber-800 border-amber-200",
-      draft: "bg-gray-100 text-gray-800 border-gray-200",
-    };
-
-    return (
-      <span
-        className={`px-3 py-1 text-xs font-semibold rounded-full border ${
-          statusConfig[status] || statusConfig.draft
-        }`}
-      >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  };
-
-  const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const toggleRowExpansion = (id) => {
-    setExpandedRow(expandedRow === id ? null : id);
-  };
-
-
   // Paginated subset derived from filteredData
   const totalPages = Math.max(1, Math.ceil((filteredData?.length || 0) / rowsPerPage));
   const startIndex = (currentPage - 1) * rowsPerPage;
@@ -555,13 +492,6 @@ const SalaryPage = () => {
     const basicSalary = parseFloat(formData.basic_salary || 0);
     // Using simplified calculation - actual would include allowances too
     return basicSalary * 0.08;
-  };
-
-  const calculateETF = () => {
-    if (!formData.enable_epf_etf) return 0;
-    const basicSalary = parseFloat(formData.basic_salary || 0);
-    // Using simplified calculation - actual would include allowances too
-    return basicSalary * 0.03;
   };
 
   const calculateNetSalary = () => {
