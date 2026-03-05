@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Calendar,
   Download,
@@ -47,10 +47,9 @@ const CashFlowStatement = () => {
   });
   const [loading, setLoading] = useState(false);
   const [comparisonPeriod, setComparisonPeriod] = useState("previous-month");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Sample cash flow data
-  const [cashFlowData, setCashFlowData] = useState(getCashFlowData());
+  const [cashFlowData] = useState(getCashFlowData());
 
   // Previous period data for comparison
   const previousPeriodData = getPreviousCashFlowData();
@@ -122,7 +121,7 @@ const CashFlowStatement = () => {
     }
   };
 
-  const SectionHeader = ({ title, amount, previousAmount, isExpanded, onToggle, icon: Icon, color }) => {
+  const SectionHeader = ({ title, amount, previousAmount, isExpanded, onToggle, icon, color }) => {
     const change = calculateChange(amount, previousAmount);
     
     return (
@@ -131,7 +130,7 @@ const CashFlowStatement = () => {
         onClick={onToggle}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Icon className={`h-4 w-4 sm:h-5 sm:w-5 text-${color}-600 flex-shrink-0`} />
+          {icon && React.createElement(icon, { className: `h-4 w-4 sm:h-5 sm:w-5 text-${color}-600 flex-shrink-0` })}
           {isExpanded ? (
             <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" />
           ) : (
@@ -155,7 +154,7 @@ const CashFlowStatement = () => {
     );
   };
 
-  const LineItem = ({ label, amount, previousAmount, isNegative = false }) => {
+  const LineItem = ({ label, amount, previousAmount }) => {
     const change = calculateChange(amount, previousAmount);
     const displayAmount = Math.abs(amount);
     
@@ -176,7 +175,7 @@ const CashFlowStatement = () => {
     );
   };
 
-  const MetricCard = ({ title, value, icon: Icon, color, isPositive }) => (
+  const MetricCard = ({ title, value, icon, color, isPositive }) => (
     <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
       <div className="flex items-center justify-between">
         <div className="min-w-0 flex-1">
@@ -195,11 +194,13 @@ const CashFlowStatement = () => {
             )}
           </p>
         </div>
-        <Icon className={`h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0 ml-2 ${
-          isPositive !== undefined
-            ? (isPositive ? 'text-green-600' : 'text-red-600')
-            : `text-${color}-600`
-        }`} />
+        {icon && React.createElement(icon, { 
+          className: `h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0 ml-2 ${
+            isPositive !== undefined
+              ? (isPositive ? 'text-green-600' : 'text-red-600')
+              : `text-${color}-600`
+          }`
+        })}
       </div>
     </div>
   );

@@ -307,7 +307,7 @@ const HRLeaveApproval = () => {
 
     try {
       return new Date(dateString).toLocaleDateString(undefined, options);
-    } catch (error) {
+    } catch {
       return dateString || "N/A";
     }
   };
@@ -353,10 +353,7 @@ const HRLeaveApproval = () => {
     setSearchTerm("");
   };
 
-  // Extract unique departments from leave requests
-  const departments = [
-    ...new Set(leaveRequests.map((req) => req.department).filter(Boolean)),
-  ];
+
 
   // Extract unique leave types from leave requests
   const leaveTypes = [

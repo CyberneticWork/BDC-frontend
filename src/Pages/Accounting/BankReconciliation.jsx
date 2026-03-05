@@ -42,8 +42,6 @@ const BankReconciliation = () => {
   const [selectedBank, setSelectedBank] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedReconciliation, setSelectedReconciliation] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Sample data - replace with actual API calls
   const sampleReconciliations = [
@@ -130,19 +128,6 @@ const BankReconciliation = () => {
         return <XCircle className="h-4 w-4 text-red-500" />;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusClass = (status) => {
-    switch (status) {
-      case "reconciled":
-        return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "discrepancy":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -339,7 +324,6 @@ const BankReconciliation = () => {
                     <ResponsiveButton
                       variant="outline"
                       size="sm"
-                      onClick={() => setSelectedReconciliation(reconciliation)}
                     >
                       <Edit className="h-3 w-3" />
                     </ResponsiveButton>
@@ -424,7 +408,6 @@ const BankReconciliation = () => {
                       <ResponsiveButton
                         variant="outline"
                         size="sm"
-                        onClick={() => setSelectedReconciliation(reconciliation)}
                       >
                         <Edit className="h-4 w-4" />
                       </ResponsiveButton>

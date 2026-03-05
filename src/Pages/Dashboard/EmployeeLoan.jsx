@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createLoan, fetchEmployeeNameByNo } from "@services/LoanService";
 import Swal from "sweetalert2";
-import employeeService from "@services/EmployeeDataService"; // Make sure this service exists
 
 const EmployeeLoan = () => {
   const [loanId, setLoanId] = useState("");

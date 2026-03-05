@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Camera,
   Upload,
@@ -79,13 +79,13 @@ const handleKeyDown = (e) => {
   e.preventDefault();
 };
 
-const EmpPersonalDetails = ({ onNext, activeCategory }) => {
+const EmpPersonalDetails = ({ onNext }) => {
   const {
     formData,
     updateFormData,
     errors,
     clearFieldError,
-    clearForm,
+    clearForm: _clearForm,
     setFormData,
   } = useEmployeeForm();
   const [preview, setPreview] = useState(null);
@@ -107,8 +107,10 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
       } else if (typeof formData.personal.profilePicture === "string") {
         setPreview(formData.personal.profilePicture);
       }
+    } else if (formData.personal.profilePicturePreview) {
+      setPreview(formData.personal.profilePicturePreview);
     }
-  }, [formData.personal.profilePicture]);
+  }, [formData.personal.profilePicture, formData.personal.profilePicturePreview]);
 
   useEffect(() => {
     const performSearch = async () => {
@@ -241,7 +243,6 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     try {
       const response = await employeeService.fetchEmployeeById(employeeId);
       const apiData = response;
-      // console.log("API Data:", apiData);
       const normalizeGender = (gender) => {
         if (!gender) return "";
         const lower = gender.toLowerCase();
@@ -423,7 +424,7 @@ const EmpPersonalDetails = ({ onNext, activeCategory }) => {
     }
   };
 
-  const [user, setUser] = useState(getUser());
+  const [user, _setUser] = useState(getUser());
 
   return (
     <div className="rounded-2xl overflow-hidden">

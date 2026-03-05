@@ -16,7 +16,7 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 
 import Swal from "sweetalert2";
 
-const EmployeeConfirmationModal = ({ onPrevious, onSubmit }) => {
+const EmployeeConfirmationModal = ({ onSubmit }) => {
   const { formData, errors, clearForm } = useEmployeeForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   // const [isClear, setIsClear] = useState(false);
@@ -69,7 +69,7 @@ const EmployeeConfirmationModal = ({ onPrevious, onSubmit }) => {
 const renderErrors = () => {
   if (!errors) return null;
 
-  const errorMessages = [];
+  const _errorMessages = [];
 
   // Flatten all error messages
   const flattenErrors = (obj, prefix = "") => {
@@ -440,6 +440,19 @@ const renderErrors = () => {
                 <p className="text-gray-800 mt-1">
                   {formData.address.email || "Not specified"}
                 </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Auto-Generated Password
+                </label>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-1">
+                  <p className="text-blue-900 font-mono font-semibold text-lg">
+                    {formData.address.password || "Not generated"}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    This password will be sent to the employee's email
+                  </p>
+                </div>
               </div>
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="text-md font-medium text-gray-700 mb-3">

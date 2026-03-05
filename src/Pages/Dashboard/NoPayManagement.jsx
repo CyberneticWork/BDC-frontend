@@ -152,8 +152,8 @@ const NoPayManagement = () => {
         totalDays: data.total_days ?? 0,
         affectedEmployees: data.affected_employees ?? 0,
       });
-    } catch (error) {
-      console.error("Error fetching stats:", error);
+    } catch {
+      console.error("Error fetching stats:");
     }
   };
 
@@ -303,7 +303,7 @@ const NoPayManagement = () => {
           confirmButtonColor: "#3b82f6",
         });
         fetchStats();
-      } catch (error) {
+      } catch {
         Swal.fire({
           icon: "error",
           title: "Error",
@@ -681,7 +681,7 @@ const NoPayManagement = () => {
                                       await NoPayService.updateStatus(record.id, e.target.value);
                                       fetchNoPayRecords();
                                       fetchStats();
-                                    } catch (error) {
+                                    } catch {
                                       Swal.fire({
                                         icon: "error",
                                         title: "Error",

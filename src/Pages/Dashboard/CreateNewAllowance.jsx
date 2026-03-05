@@ -130,7 +130,7 @@ const CreateNewAllowance = () => {
   };
 
   // Show confirmation dialog
-  const showConfirmDialog = (title, text, confirmButtonText) => {
+  const _showConfirmDialog = (title, text, confirmButtonText) => {
     return Swal.fire({
       title: title,
       text: text,

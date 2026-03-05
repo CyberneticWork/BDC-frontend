@@ -22,7 +22,7 @@ import {
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 
-const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
+const OrganizationDetails = ({ onNext, onPrevious }) => {
   const { formData, updateFormData, errors, clearFieldError } =
     useEmployeeForm();
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
@@ -72,7 +72,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
     setNewDesignationSubmitting(true);
     try {
       // Call your API to add new designation
-      const newDesignation = await addNewDesignation(newDesignationName.trim());
+      const _newDesignation = await addNewDesignation(newDesignationName.trim());
 
       const DesignationsData = await fetchDesignations();
 
@@ -83,7 +83,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
       setNewDesignationError("");
       setShowAddDesignationModal(false);
       setNewDesignationSubmitting(false);
-    } catch (error) {
+    } catch {
       setNewDesignationError("Failed to add designation. Please try again.");
     }
   };
@@ -242,7 +242,7 @@ const OrganizationDetails = ({ onNext, onPrevious, activeCategory }) => {
     });
   };
 
-  const ToggleButton = ({ enabled, onToggle, label, value }) => (
+  const ToggleButton = ({ enabled, onToggle, label }) => (
     <label className="relative inline-flex items-center cursor-pointer">
       <input
         type="checkbox"
