@@ -26,6 +26,7 @@ import {
   Shield,
   MessageCircle,
   Package, // Add for Inventory
+  Key, // Add for Change Password
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 
@@ -62,6 +63,7 @@ const Sidebar = ({
   const menuItems = useMemo(() => [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
     { id: "myProfile", name: "My Profile", icon: User, badge: null },
+    { id: "changePassword", name: "Change Password", icon: Key, badge: null },
     { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
     // { id: "user", name: "Users", icon: User2, badge: null },
@@ -439,6 +441,12 @@ const Sidebar = ({
   const filterMenuItems = (items, ancestors = []) => {
     return items
       .map((item) => {
+        // Always show these items without permission check
+        const alwaysShowItems = ["dashboard", "myProfile", "changePassword"];
+        if (alwaysShowItems.includes(item.id)) {
+          return item;
+        }
+        
         if (item.subItems) {
           const filteredSubItems = filterMenuItems(item.subItems, [...ancestors, item.id]);
           // Show parent if:

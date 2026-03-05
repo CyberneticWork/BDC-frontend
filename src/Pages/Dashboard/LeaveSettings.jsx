@@ -21,7 +21,6 @@ import {
   deleteLeaveSettings,
   LEAVE_TYPES,
   MONTHS,
-  getMonthName,
   getMonthRangeString,
   calculateQuarterTotalDays,
   calculateTotalLeaveDays,

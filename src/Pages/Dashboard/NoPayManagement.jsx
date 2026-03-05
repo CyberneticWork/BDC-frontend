@@ -30,7 +30,6 @@ const NoPayManagement = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [noPayRecords, setNoPayRecords] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [companies, setCompanies] = useState([]);
@@ -55,8 +54,8 @@ const NoPayManagement = () => {
     try {
       const response = await axios.get("/apiData/companies");
       setCompanies(Array.isArray(response.data) ? response.data : response.data || []);
-    } catch (error) {
-      console.error("Error fetching companies:", error);
+    } catch {
+      console.error("Error fetching companies:");
     }
   };
 
@@ -82,7 +81,7 @@ const NoPayManagement = () => {
       const items = response.data || response;
       setNoPayRecords(items);
       setTotalRecords(response.total ?? (Array.isArray(items) ? items.length : 0));
-    } catch (error) {
+    } catch {
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -97,10 +96,9 @@ const NoPayManagement = () => {
   // Fetch employees for dropdown
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get("/employees?status=Active");
-      setEmployees(response.data);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
+      await axios.get("/employees?status=Active");
+    } catch {
+      console.error("Error fetching employees:");
     }
   };
 
@@ -128,8 +126,8 @@ const NoPayManagement = () => {
         totalDays: data.total_days ?? 0,
         affectedEmployees: data.affected_employees ?? 0,
       });
-    } catch (error) {
-      console.error("Error fetching stats:", error);
+    } catch {
+      console.error("Error fetching stats:");
     }
   };
 
@@ -201,7 +199,7 @@ const NoPayManagement = () => {
         fetchStats();
         setSelectedRecords([]);
         setSelectAll(false);
-      } catch (error) {
+      } catch {
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -252,7 +250,7 @@ const NoPayManagement = () => {
         fetchStats();
         setSelectedRecords([]);
         setSelectAll(false);
-      } catch (error) {
+      } catch {
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -288,7 +286,7 @@ const NoPayManagement = () => {
         });
 
         fetchStats();
-      } catch (error) {
+      } catch {
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -671,7 +669,7 @@ const NoPayManagement = () => {
                                       await NoPayService.updateStatus(record.id, e.target.value);
                                       fetchNoPayRecords();
                                       fetchStats();
-                                    } catch (error) {
+                                    } catch {
                                       Swal.fire({
                                         icon: 'error',
                                         title: 'Error',

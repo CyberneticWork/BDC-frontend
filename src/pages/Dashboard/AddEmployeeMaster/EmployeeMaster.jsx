@@ -95,6 +95,15 @@ const EmployeeMaster = () => {
       return response;
     } catch (error) {
       console.error("Update error:", error);
+      
+      // Safe access validation errors
+      const validationErrors = 
+        error.response?.data?.errors || // Laravel default
+        error.response?.data ||         // fallback
+        {};
+      
+      console.error("Validation errors:", validationErrors);
+      
       if (error.response?.data?.errors) {
         const formattedErrors = {};
 

@@ -34,28 +34,33 @@ const MyProfile = () => {
     setError(null);
     try {
       const user = getUser();
+      console.log('🔍 User from localStorage:', user);
       
       // If no employee_id in localStorage, fetch fresh user data from API
       if (!user || !user.employee_id) {
         try {
           const { data: freshUser } = await axios.get('/user');
+          console.log('🔍 Fresh user from API:', freshUser);
           if (freshUser && freshUser.employee_id) {
             setUser(freshUser);
             const employeeData = await employeeService.fetchEmployeeById(freshUser.employee_id);
+            console.log('✅ Employee data loaded:', employeeData);
             setEmployee(employeeData);
             return;
           }
         } catch (apiError) {
-          console.error('Error fetching fresh user data:', apiError);
+          console.error('❌ Error fetching fresh user data:', apiError);
         }
         setError("No employee profile linked to your account. Please contact HR.");
         return;
       }
 
+      console.log('🔍 Fetching employee by ID:', user.employee_id);
       const employeeData = await employeeService.fetchEmployeeById(user.employee_id);
+      console.log('✅ Employee data loaded:', employeeData);
       setEmployee(employeeData);
     } catch (e) {
-      console.error("Error loading profile:", e);
+      console.error("❌ Error loading profile:", e);
       setError("Failed to load your profile");
     } finally {
       setIsLoading(false);

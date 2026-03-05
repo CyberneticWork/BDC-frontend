@@ -38,6 +38,7 @@ const initialState = {
     permanentAddress: "",
     temporaryAddress: "",
     email: "",
+    password: "",
     landLine: "",
     mobileLine: "",
     gnDivision: "",
@@ -263,6 +264,9 @@ export const EmployeeFormProvider = ({ children }) => {
   }, []);
 
   const loadEmployeeData = useCallback((employeeData) => {
+    console.log('Loading employee data:', employeeData);
+    console.log('Children data:', employeeData.children);
+    
     setFormData({
       personal: {
         id: employeeData.id || "",
@@ -300,6 +304,7 @@ export const EmployeeFormProvider = ({ children }) => {
         permanentAddress: employeeData.contact_detail?.permanent_address || "",
         temporaryAddress: employeeData.contact_detail?.temporary_address || "",
         email: employeeData.contact_detail?.email || "",
+        password: "",
         landLine: employeeData.contact_detail?.land_line || "",
         mobileLine: employeeData.contact_detail?.mobile_line || "",
         gnDivision: employeeData.contact_detail?.gn_division || "",

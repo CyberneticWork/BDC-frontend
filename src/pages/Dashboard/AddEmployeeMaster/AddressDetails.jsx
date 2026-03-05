@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   MapPin,
   Phone,
@@ -7,6 +7,7 @@ import {
   Building,
   Globe,
   Shield,
+  RefreshCw,
 } from "lucide-react";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import ErrorDisplay from "@components/ErrorMessage/ErrorDisplay";
@@ -56,6 +57,23 @@ const provinceData = {
 const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
   const { formData, updateFormData, errors, clearFieldError } =
     useEmployeeForm();
+
+  // Generate strong password
+  const generatePassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  // Auto-generate password when email is entered
+  useEffect(() => {
+    if (formData.address.email && !formData.address.password) {
+      updateFormData('address', { password: generatePassword() });
+    }
+  }, [formData.address.email]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -199,25 +217,31 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Password <span className="text-red-500">*</span>
+                    Auto-Generated Password <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                     <input
                       name="password"
-                      type="password"
+                      type="text"
                       value={formData.address.password || ''}
-                      onChange={handleChange}
-                      className={`w-full border ${
-                        errors.address?.password
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      placeholder="Enter password for employee login"
+                      readOnly
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-12 py-2.5 bg-gray-50 text-gray-700 font-mono text-sm cursor-not-allowed"
+                      placeholder="Password will be auto-generated"
                     />
+                    <button
+                      type="button"
+                      onClick={() => updateFormData('address', { password: generatePassword() })}
+                      className="absolute right-3 top-2.5 text-blue-600 hover:text-blue-700 transition-colors"
+                      title="Regenerate password"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
                   </div>
-                  <FieldError error={errors.address?.password} />
-                  <p className="text-xs text-gray-500 mt-1">Password for employee login account</p>
+                  <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    This password will be sent to employee's email
+                  </p>
                 </div>
 
                 <div className="space-y-2">

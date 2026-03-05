@@ -34,8 +34,6 @@ const CreateNewDeduction = () => {
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
-
   const getToday = () => {
     const today = new Date();
     const yyyy = today.getFullYear();

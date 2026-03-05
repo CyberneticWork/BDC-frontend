@@ -13,27 +13,24 @@ import {
 } from "lucide-react";
 import ShiftScheduleService from "@services/ShiftScheduleService";
 import RosterService from "@services/RosterService";
-import employeeService from "@services/EmployeeDataService";
 import {
   fetchCompanies,
   fetchDepartments,
-  fetchSubDepartmentsById,
   fetchSubDepartments,
   employeesBySubDepartment,
   employeesByCompany,
 } from "@services/ApiDataService";
 import Swal from "sweetalert2";
-import { toast } from "react-toastify"; // Make sure you have react-toastify installed
-import axios from "axios"; // Import axios
+import { toast } from "react-toastify";
 
 const RosterManagementSystem = () => {
   // State for form inputs
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [_selectedEmployee, _setSelectedEmployee] = useState(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [rosterDate, setRosterDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [showAddShift, setShowAddShift] = useState(false);
+  const [_showAddShift, setShowAddShift] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
@@ -64,7 +61,7 @@ const RosterManagementSystem = () => {
 
   const [employees, setEmployees] = useState([]);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
-  const [employeesError, setEmployeesError] = useState(null);
+  const [_employeesError, setEmployeesError] = useState(null);
 
   const [shifts, setShifts] = useState([]);
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
@@ -92,7 +89,7 @@ const RosterManagementSystem = () => {
 
   // New state: whether a search has been performed and a user-visible message
   const [rosterSearchPerformed, setRosterSearchPerformed] = useState(false);
-  const [searchMessage, setSearchMessage] = useState("");
+  const [_searchMessage, setSearchMessage] = useState("");
 
   // Add a new state for companyWise checkbox
   const [isCompanyWise, setIsCompanyWise] = useState(false);
@@ -527,7 +524,7 @@ const RosterManagementSystem = () => {
 
       // Send all entries in a single API call
       try {
-        const response = await RosterService.createRoster(rosterEntries);
+        await RosterService.createRoster(rosterEntries);
         // Success message
         Swal.fire({
           icon: "success",
@@ -578,7 +575,7 @@ const RosterManagementSystem = () => {
   };
 
   // Add or update shift (for modal)
-  const addOrUpdateShift = (shift) => {
+  const _addOrUpdateShift = (shift) => {
     if (editingShift) {
       setShifts((prev) =>
         prev.map((s) => (s.id === editingShift.id ? { ...s, ...shift } : s))
@@ -621,7 +618,7 @@ const RosterManagementSystem = () => {
       console.log("Roster API response:", data);
       // Normalize to flat rows for the table
       setAllRosters(normalizeRosterItems(Array.isArray(data) ? data : []));
-    } catch (err) {
+    } catch {
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -706,8 +703,8 @@ const RosterManagementSystem = () => {
         setSearchedRosters(flattenedRosters);
         setSearchMessage(`Found ${flattenedRosters.length} matching roster(s).`);
       }
-    } catch (err) {
-      console.error('Search error:', err); // Debug log
+    } catch (error) {
+      console.error('Search error:', error); // Debug log
       setSearchedRosters([]);
       setSearchMessage("Search failed. Please try again.");
       Swal.fire({

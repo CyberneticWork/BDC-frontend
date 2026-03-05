@@ -30,6 +30,7 @@ import EmployeeMaster from "@dashboard/AddEmployeeMaster/EmployeeMaster";
 import EmployeeAdd from "@dashboard/EmployeeAdd";
 import ShowEmployee from "@dashboard/ShowEmployee";
 import MyProfile from "@dashboard/MyProfile";
+import ChangePassword from "@dashboard/ChangePassword";
 import CreateNewDeduction from "@dashboard/createnewdeduction";
 
 import CreateNewBonus from "@dashboard/CreateNewBonus";
@@ -120,7 +121,6 @@ import {
   sidebarUtils,
   toggleSidebar,
   closeSidebar,
-  openSidebar,
   isOutsideClick,
   handleBreakpointChange,
 } from "../../utils/SidebarUtils";
@@ -138,11 +138,7 @@ ChartJS.register(
   LineElement
 );
 
-const STORAGE_KEY = "employeeFormData";
 
-const clearForm = () => {
-  localStorage.removeItem(STORAGE_KEY);
-};
 
 const DashboardStats = () => {
   const [stats, setStats] = useState([
@@ -333,26 +329,7 @@ const DashboardCharts = () => {
     fetchChartData();
   }, []);
 
-  const salaryData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
-    datasets: [
-      {
-        label: "Total Salary Paid (LKR)",
-        data: [
-          85000000, 87000000, 89000000, 91000000, 93000000, 95000000, 97000000,
-        ],
-        fill: true,
-        backgroundColor: "rgba(139, 92, 246, 0.2)",
-        borderColor: "rgba(139, 92, 246, 1)",
-        borderWidth: 3,
-        tension: 0.4,
-        pointBackgroundColor: "rgba(139, 92, 246, 1)",
-        pointBorderColor: "#fff",
-        pointBorderWidth: 2,
-        pointRadius: 6,
-      },
-    ],
-  };
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -558,10 +535,6 @@ const Dashboard = ({ user, onLogout }) => {
 
   const toggle = () => {
     toggleSidebar();
-  };
-
-  const close = () => {
-    closeSidebar();
   };
 
   const location = useLocation();
@@ -1006,6 +979,8 @@ const Dashboard = ({ user, onLogout }) => {
                 <ProtectedComponent module="chatbot" action="view">
                   <Chatbot />
                 </ProtectedComponent>
+              ) : activeItem === "changePassword" ? (
+                <ChangePassword />
               ) : (
                 <div className="space-y-8">
                   <div className="text-center mb-8">

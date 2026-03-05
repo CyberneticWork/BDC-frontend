@@ -1,7 +1,3 @@
-
-
-
-
 import { useState, useEffect } from "react";
 import BonusService from "../../components/BonusService";
 import {
@@ -49,7 +45,6 @@ const notify = {
 
 const SalaryProcessPage = () => {
   // State for filters (UI only - no client filtering)
-  const [location, setLocation] = useState("All Locations"); // kept (unused)
   const [month, setMonth] = useState("");
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [status, setStatus] = useState("Unprocessed");
@@ -58,11 +53,7 @@ const SalaryProcessPage = () => {
   const [filteredData, setFilteredData] = useState([]);
   const [activeFilter, setActiveFilter] = useState("All"); // UI highlight only
   const [searchTerm, setSearchTerm] = useState(""); // UI only (no filtering)
-  const [fromDate, setFromDate] = useState(""); // unused (kept)
-  const [toDate, setToDate] = useState(""); // unused (kept)
-  const [showHistory, setShowHistory] = useState(false); // unused (kept)
-  const [employeeHistoryData, setEmployeeHistoryData] = useState([]); // unused
-  const [showingHistory, setShowingHistory] = useState(false); // unused
+  const [showHistory, setShowHistory] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -77,7 +68,6 @@ const SalaryProcessPage = () => {
   // Allowances and deductions
   const [availableAllowances, setAvailableAllowances] = useState([]);
   const [availableDeductions, setAvailableDeductions] = useState([]);
-  const [isLoadingAllowances, setIsLoadingAllowances] = useState(false);
 
   // KPI Mode: "" | "monthly" | "6month"
   const [kpiType, setKpiType] = useState("");
@@ -89,7 +79,6 @@ const SalaryProcessPage = () => {
   // Bulk actions
   const [bulkActionType, setBulkActionType] = useState("allowance");
   const [bulkActionAmount, setBulkActionAmount] = useState("");
-  const [bulkActionName, setBulkActionName] = useState("");
   const [bulkActionId, setBulkActionId] = useState("");
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -97,7 +86,6 @@ const SalaryProcessPage = () => {
 
   //bonus
  const [availableBonuses, setAvailableBonuses] = useState([]);
-const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
 
 
   // Status information
@@ -134,7 +122,6 @@ const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
 
   // ✅ IMPORTANT FIX: move this to component scope (prevents white page crash)
   const loadAllowancesAndDeductions = async () => {
-    setIsLoadingAllowances(true);
     try {
       const allowances = await AllowancesService.getAllAllowances();
       setAvailableAllowances(allowances || []);
@@ -144,13 +131,10 @@ const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
       setAvailableDeductions(deductions || []);
     } catch (error) {
       console.error("Error loading allowances and deductions:", error);
-    } finally {
-      setIsLoadingAllowances(false);
     }
   };
 
   const loadAllowancesByCompany = async (companyId) => {
-    setIsLoadingAllowances(true);
     try {
       const allowances =
         await AllowancesService.getAllowancesByCompanyOrDepartment(
@@ -160,8 +144,6 @@ const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
       setAvailableAllowances(allowances || []);
     } catch (error) {
       console.error("Error loading allowances by company:", error);
-    } finally {
-      setIsLoadingAllowances(false);
     }
   };
 
@@ -183,7 +165,6 @@ const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
   };
 
 const loadBonuses = async () => {
-  setIsLoadingBonuses(true);
   try {
     const res = await BonusService.getAllBonuses();
 
@@ -198,14 +179,11 @@ const loadBonuses = async () => {
   } catch (error) {
     console.error("Error loading bonuses:", error);
     setAvailableBonuses([]); // keep safe
-  } finally {
-    setIsLoadingBonuses(false);
   }
 };
 
 //loard bonus================
 const loadBonusesByCompanyOrDepartment = async (companyId, departmentId) => {
-  setIsLoadingBonuses(true);
   try {
     const res = await BonusService.getBonusesByCompanyOrDepartment(companyId, departmentId);
 
@@ -219,8 +197,6 @@ const loadBonusesByCompanyOrDepartment = async (companyId, departmentId) => {
   } catch (error) {
     console.error("Error loading bonuses by company/department:", error);
     setAvailableBonuses([]);
-  } finally {
-    setIsLoadingBonuses(false);
   }
 };
 
@@ -781,11 +757,7 @@ const loadBonusesByCompanyOrDepartment = async (companyId, departmentId) => {
     setMonth("");
     setKpiType("");
     setSearchTerm("");
-    setFromDate("");
-    setToDate("");
     setShowHistory(false);
-    setEmployeeHistoryData([]);
-    setShowingHistory(false);
   };
 
   {/*
@@ -870,7 +842,6 @@ const loadBonusesByCompanyOrDepartment = async (companyId, departmentId) => {
       setSelectedEmployees([]);
       setSelectAll(false);
       setBulkActionAmount("");
-      setBulkActionName("");
     } catch (error) {
       console.log(error);
       notify.error(
@@ -1627,7 +1598,6 @@ const worksheetData = (employees || []).map((employee) => {
                 value={bulkActionType}
                 onChange={(e) => {
                   setBulkActionType(e.target.value);
-                  setBulkActionName("");
                   setBulkActionAmount("");
                   setBulkActionId("");
                 }}

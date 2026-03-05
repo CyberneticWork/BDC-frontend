@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
         const userData = await loadUser();
         setUser(userData);
         setUserPermissions(permissions[userData.role] || {}); // Map role to permissions
-      } catch (error) {
+      } catch {
         setUser(null);
         setUserPermissions({});
       }

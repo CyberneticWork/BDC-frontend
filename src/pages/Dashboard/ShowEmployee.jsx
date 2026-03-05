@@ -20,12 +20,14 @@ import {
   DollarSign,
 } from "lucide-react";
 import { useDebounce } from "@uidotdev/usehooks";
+import { useNavigate } from "react-router-dom";
 import employeeService from "@services/EmployeeDataService";
 import config from "../../config";
 
 const apiUrl = config.apiBaseUrl;
 
 const ShowEmployee = () => {
+  const navigate = useNavigate();
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1168,7 +1170,7 @@ const ShowEmployee = () => {
                   <button
                     onClick={() => {
                       localStorage.setItem('editEmployeeId', selectedEmployee.id);
-                      window.location.href = '/dashboard/employee-add';
+                      navigate('/dashboard/employee-add');
                     }}
                     className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
                   >

@@ -14,7 +14,7 @@ const allowedTypes = [
   { label: "Other Documents", value: "other", icon: "📋" },
 ];
 
-const Employeedocument = ({ onNext, onPrevious, onSubmit, activeCategory }) => {
+const Employeedocument = ({ onNext, onPrevious }) => {
   const { formData, addDocuments, removeDocument, updateDocumentType } =
     useEmployeeForm();
   const [uploading, setUploading] = useState(false);
@@ -52,7 +52,7 @@ const Employeedocument = ({ onNext, onPrevious, onSubmit, activeCategory }) => {
     updateDocumentType(idx, value);
   };
 
-  const handleUpload = async () => {
+  const _handleUpload = async () => {
     if (formData.documents.some((doc) => !doc.type)) {
       Swal.fire({
         icon: "warning",
@@ -65,11 +65,11 @@ const Employeedocument = ({ onNext, onPrevious, onSubmit, activeCategory }) => {
     setUploading(true);
 
     try {
-      const totalFiles = formData.documents.length;
+      const _totalFiles = formData.documents.length;
       let uploadedCount = 0;
 
       for (let i = 0; i < formData.documents.length; i++) {
-        const doc = formData.documents[i];
+        const _doc = formData.documents[i];
 
         for (let progress = 0; progress <= 100; progress += 10) {
           await new Promise((resolve) => setTimeout(resolve, 100));
