@@ -283,7 +283,14 @@ const LeaveMaster = () => {
 
     setIsLoadingUsage(true);
     try {
+
+
+      
       const eligibilityData = await getLeaveEligibility(empNumber);
+      
+      console.log("empNumber sent:", empNumber);
+console.log("eligibilityData:", eligibilityData);
+console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
 
       if (eligibilityData && eligibilityData.eligible_leaves && Array.isArray(eligibilityData.eligible_leaves)) {
         const formattedUsage = eligibilityData.eligible_leaves.map(
@@ -298,6 +305,11 @@ const LeaveMaster = () => {
           })
         );
         setLeaveUsageData(formattedUsage);
+        
+          
+
+
+
       } else {
         // Clear data if no eligible leaves found
         setLeaveUsageData([]);
