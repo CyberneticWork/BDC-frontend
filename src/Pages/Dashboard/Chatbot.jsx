@@ -67,7 +67,7 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8001/chat", {
+      const response = await fetch("http://localhost:8001/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: messageText }),
@@ -90,7 +90,7 @@ const Chatbot = () => {
       console.error("Error fetching response:", error);
       const botError = {
         id: messages.length + 2,
-        text: "⚠️ There was an issue connecting to the server.",
+        text: "⚠️ Chatbot service is not available. Please make sure the chatbot server is running on port 8001.",
         sender: "bot",
         timestamp: new Date(),
       };

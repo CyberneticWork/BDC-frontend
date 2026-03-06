@@ -299,10 +299,15 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
         );
         setLeaveUsageData(formattedUsage);
         
-          
-
-
-
+        // Show message if no leave settings configured
+        if (formattedUsage.length === 0 && eligibilityData.message) {
+          Swal.fire({
+            icon: "info",
+            title: "Leave Settings",
+            text: eligibilityData.message,
+            confirmButtonColor: "#3085d6",
+          });
+        }
       } else {
         // Clear data if no eligible leaves found
         setLeaveUsageData([]);
@@ -355,7 +360,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
 
         await Promise.all([
           fetchEmployeeLeaves(empData.id, empData),
-          fetchLeaveUsage(formData.attendanceNo),
+          fetchLeaveUsage(empData.attendance_employee_no || formData.attendanceNo),
         ]);
       } else {
         Swal.fire({
@@ -619,7 +624,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
     // Refresh the leave data to show updated balance
     await Promise.all([
       fetchEmployeeLeaves(employeeData.id, employeeData),
-      fetchLeaveUsage(employeeData.id),
+      fetchLeaveUsage(employeeData.attendance_employee_no || formData.attendanceNo),
     ]);
 
     setSubmitSuccess(true);

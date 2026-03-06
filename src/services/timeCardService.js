@@ -141,6 +141,13 @@ const timeCardService = {
     }
   },
 
+  async getTimeCardsByDate(date) {
+    const response = await axios.get('/time-cards/by-date', {
+      params: { date }
+    });
+    return response.data;
+  },
+
 };
 
 export default timeCardService;
