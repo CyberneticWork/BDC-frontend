@@ -1713,6 +1713,9 @@ const SalaryProcessPage = () => {
       const otMorning = Number(employee.salary_breakdown?.ot_morning_fees || 0);
       const otNight = Number(employee.salary_breakdown?.ot_night_fees || 0);
 
+      //holyday
+      const holidayOt = Number(employee.salary_breakdown?.holiday_ot_fees || 0);
+
       return (
         <div
           key={employee.id}
@@ -1905,7 +1908,7 @@ const SalaryProcessPage = () => {
               <div className="rounded-2xl border border-gray-200 p-4">
                 <div className="text-sm font-bold text-gray-800 mb-3">OT & Breakdown</div>
 
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                     <div className="text-[11px] text-gray-500">OT Morning</div>
                     <div className="text-sm font-bold">{otMorning.toLocaleString()}</div>
@@ -1914,6 +1917,10 @@ const SalaryProcessPage = () => {
                     <div className="text-[11px] text-gray-500">OT Night</div>
                     <div className="text-sm font-bold">{otNight.toLocaleString()}</div>
                   </div>
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+  <div className="text-[11px] text-gray-500">Holiday OT</div>
+  <div className="text-sm font-bold">{holidayOt.toLocaleString()}</div>
+</div>
                 </div>
 
                 <div className="space-y-2 text-sm">
