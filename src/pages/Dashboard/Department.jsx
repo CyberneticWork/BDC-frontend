@@ -20,11 +20,8 @@ import Swal from "sweetalert2";
 const EditModal = ({
   show,
   companyForm,
-  setCompanyForm,
   editingCompany,
   setShowAddModal,
-  setCompanies,
-  companies,
   refreshAll
 }) => {
   const [localForm, setLocalForm] = React.useState(companyForm);
@@ -199,7 +196,7 @@ const Department = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
-  const [modalMode, setModalMode] = useState('add');
+  const [_modalMode, setModalMode] = useState('add');
   const [editingCompany, setEditingCompany] = useState(null);
   const [companyForm, setCompanyForm] = useState({
     name: '',
@@ -254,11 +251,7 @@ const Department = () => {
     subdepartments: subDepartments.filter(sub => sub.department_id === dept.id)
   }));
 
-  // Merge departments into companies
-  const companiesWithDeps = companies.map(company => ({
-    ...company,
-    departments: departmentsWithSubs.filter(dept => dept.company_id === company.id)
-  }));
+
 
   function toggleRowExpansion(id) {
     const newExpanded = new Set(expandedRows);
@@ -270,21 +263,25 @@ const Department = () => {
     setExpandedRows(newExpanded);
   }
 
-  const StatCard = ({ icon: Icon, title, value, color }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-        </div>
-        <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
+  const StatCard = (props) => {
+    const { icon: IconComponent, title, value, color } = props;
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+          </div>
+          <div className={`p-3 rounded-lg ${color}`}>
+            <IconComponent className="w-6 h-6 text-white" />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const ActionButton = ({ icon: Icon, onClick, variant = 'primary' }) => {
+  const ActionButton = (props) => {
+    const { icon: IconComponent, onClick, variant = 'primary' } = props;
     const variants = {
       primary: 'text-blue-600 hover:bg-blue-50',
       danger: 'text-red-600 hover:bg-red-50'
@@ -294,7 +291,7 @@ const Department = () => {
         onClick={onClick}
         className={`p-2 rounded-lg transition-colors ${variants[variant]}`}
       >
-        <Icon className="w-4 h-4" />
+        <IconComponent className="w-4 h-4" />
       </button>
     );
   };
@@ -1056,25 +1053,7 @@ const Department = () => {
     }
   };
 
-  const handleDeleteSubDept = async (id) => {
-    try {
-      await deleteSubDepartment(id);
-      await refreshAll();
-      Swal.fire({
-        icon: "success",
-        title: "Deleted!",
-        text: "Sub Department has been deleted.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch (error) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error?.response?.data?.message || "Failed to delete sub department.",
-      });
-    }
-  };
+
 
   // --- SubdepartmentsTable with working edit button ---
   const SubdepartmentsTable = () => {
@@ -1441,12 +1420,9 @@ const Department = () => {
           <EditModal
             show={showAddModal}
             companyForm={companyForm}
-            setCompanyForm={setCompanyForm}
             editingCompany={editingCompany}
             setShowAddModal={setShowAddModal}
-            setCompanies={setCompanies}
-            companies={companies}
-            refreshAll={refreshAll} // <-- pass it
+            refreshAll={refreshAll}
           />
 
           {/* Add Department Modal */}

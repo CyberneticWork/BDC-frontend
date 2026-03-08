@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Calendar,
   User,
@@ -57,14 +57,7 @@ const LeaveMaster = () => {
   // Add a new state to store employee data
   const [employeeData, setEmployeeData] = useState(null);
 
-  // Define standard leave entitlements - kept for reference
-  const leaveEntitlements = {
-    "Casual Leave": 7,
-    "Annual Leave": 0,
-    "Medical Leave": 0,
-    "Unpaid Leave": 0,
-    "Special Leave": 0,
-  };
+
 
   // Helper function to get current date in YYYY-MM-DD format
   function getCurrentDate() {
@@ -494,9 +487,6 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
       }
 
       if (invalidDates.length > 0) {
-        const formattedDates = invalidDates
-          .map((d) => formatDateForDisplay(d))
-          .join(", ");
         Swal.fire({
           icon: "error",
           title: "Invalid Date Selection",
@@ -555,7 +545,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
       }
 
       try {
-        const response = await createLeave(leaveData);
+        await createLeave(leaveData);
 
         // Show success message
         Swal.fire({
@@ -596,7 +586,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
           if (result.isConfirmed) {
             // User wants to continue - resubmit with force_continue flag
             try {
-              const forceResponse = await createLeaveWithOverride(leaveData);
+              await createLeaveWithOverride(leaveData);
 
               Swal.fire({
                 icon: "success",

@@ -199,12 +199,18 @@ function LoginPage({ onSuccess }) {
             <Login onSuccess={handleLogin} loading={loading} />
 
             <motion.div
-              className="mt-6 text-center text-sm text-gray-500"
+              className="mt-6 text-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1.5, duration: 0.5 }}
             >
-              <p>Need help? Contact your system administrator</p>
+              <a
+                href="/otp-login"
+                className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+              >
+                Employee? Login with OTP →
+              </a>
+              <p className="mt-4 text-sm text-gray-500">Need help? Contact your system administrator</p>
             </motion.div>
           </div>
 

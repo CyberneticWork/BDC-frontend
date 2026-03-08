@@ -384,7 +384,7 @@ const AccountCategoryModal = ({ isOpen, onClose, onSave }) => {
     </div>
   );
 };
-{}
+
 // Account Group Modal Component (unchanged)
 //  const AccountGroupModal = ({ isOpen, onClose, onSave }) => {
 //   const [formData, setFormData] = useState({
@@ -484,10 +484,8 @@ const AccountList = () => {
   const [accounts, setAccounts] = useState([]);
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadAccounts();
@@ -504,14 +502,11 @@ const AccountList = () => {
 
   const loadAccounts = async () => {
     try {
-      setLoading(true);
       const accountList = await getAccountList();
       setAccounts(accountList);
     } catch (error) {
       console.error('Error loading accounts:', error);
       alert('Failed to load accounts');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -551,8 +546,7 @@ const AccountList = () => {
     }
   };
 
-  const handleCreateCategory = (categoryData) => {
-    addAccountCategory(categoryData);
+  const handleCreateCategory = () => {
     alert("Account Category created successfully!");
   };
 

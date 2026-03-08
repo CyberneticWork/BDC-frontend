@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Calendar,
   Download,
@@ -47,7 +47,7 @@ const BalanceSheet = () => {
   const [comparisonPeriod, setComparisonPeriod] = useState("previous-month");
 
   // Sample balance sheet data
-  const [balanceSheetData, setBalanceSheetData] = useState(getBalanceSheetData());
+  const [balanceSheetData] = useState(getBalanceSheetData());
 
   // Previous period data for comparison
   const previousPeriodData = getPreviousBalanceSheetData();
@@ -147,7 +147,6 @@ const BalanceSheet = () => {
 
   const LineItem = ({ label, amount, previousAmount, indent = false, isNegative = false }) => {
     const change = calculateChange(amount, previousAmount);
-    const displayAmount = isNegative ? -Math.abs(amount) : Math.abs(amount);
     
     return (
       <div className={`flex justify-between py-2 px-4 ${indent ? 'pl-12 bg-gray-25' : ''} hover:bg-gray-50`}>

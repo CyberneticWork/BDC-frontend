@@ -20,7 +20,7 @@ const TrialBalance = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("current");
   const [searchTerm, setSearchTerm] = useState("");
   const [showZeroBalances, setShowZeroBalances] = useState(false);
-  const [accounts, setAccounts] = useState(getTrialBalanceAccounts());
+  const [accounts] = useState(getTrialBalanceAccounts());
   const [expandedSections, setExpandedSections] = useState({});
   const [filteredAccounts, setFilteredAccounts] = useState(accounts);
   const [loading, setLoading] = useState(false);
@@ -279,12 +279,6 @@ const TrialBalance = () => {
               {accountTypes.map(type => {
                 const typeAccounts = groupedAccounts[type] || [];
                 if (typeAccounts.length === 0) return null;
-                
-                const typeTotal = typeAccounts.reduce((sum, account) => {
-                  return type === 'Asset' || type === 'Expense' 
-                    ? sum + account.debit - account.credit
-                    : sum + account.credit - account.debit;
-                }, 0);
 
                 const isExpanded = expandedSections[type];
 
@@ -293,7 +287,11 @@ const TrialBalance = () => {
                     <MobileSectionHeader
                       type={type}
                       count={typeAccounts.length}
-                      total={typeTotal}
+                      total={typeAccounts.reduce((sum, account) => {
+                        return type === 'Asset' || type === 'Expense' 
+                          ? sum + account.debit - account.credit
+                          : sum + account.credit - account.debit;
+                      }, 0)}
                       isExpanded={isExpanded}
                       onToggle={() => toggleSection(type)}
                     />
@@ -314,12 +312,6 @@ const TrialBalance = () => {
               {accountTypes.map(type => {
                 const typeAccounts = groupedAccounts[type] || [];
                 if (typeAccounts.length === 0) return null;
-                
-                const typeTotal = typeAccounts.reduce((sum, account) => {
-                  return type === 'Asset' || type === 'Expense' 
-                    ? sum + account.debit - account.credit
-                    : sum + account.credit - account.debit;
-                }, 0);
 
                 return (
                   <div key={type} className="border-b border-gray-100 last:border-b-0">

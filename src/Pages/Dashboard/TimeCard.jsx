@@ -1,10 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { addTimeCard, fetchTimeCards } from '../../services/ApiDataService';
-import employeeService from '../../services/EmployeeDataService';
 import timeCardService from '../../services/timeCardService';
 import Swal from 'sweetalert2';
-import axios from 'axios';
 import * as XLSX from 'xlsx';
 
 // Pagination component for better UI/UX
@@ -66,13 +64,10 @@ const Pagination = ({ page, totalPages, onPageChange }) => {
 
 const TimeCard = () => {
   // Form state
-  const [location, setLocation] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('');
   const [importMethod, setImportMethod] = useState('excel');
   const [filterOption, setFilterOption] = useState('all');
-  const [employeeName, setEmployeeName] = useState('');
   const [department, setDepartment] = useState('');
   const [nic, setNic] = useState('');
   const [nicError, setNicError] = useState('');
@@ -141,7 +136,7 @@ const TimeCard = () => {
     try {
       const data = await timeCardService.fetchAbsentees({ date: absentDate, search: absentSearch });
       setAbsentees(data);
-    } catch (e) {
+    } catch {
       setAbsentees([]);
     }
     setAbsentLoading(false);
@@ -261,21 +256,14 @@ const TimeCard = () => {
     }, 500);
   };
 
-  const handleAbsent = () => {
-    setFilteredData(filterAttendance('Absent'));
-  };
-
   const handleLeave = () => {
     setFilteredData(filterAttendance('Early OUT')); // CHANGED from 'Leave'
   };
 
   // Cancel handler for filters
   const handleCancel = () => {
-    setLocation('');
     setDateFrom('');
     setDateTo('');
-    setSelectedMonth('');
-    setEmployeeName('');
     setDepartment('');
     setFilterDate('');
     // clear employee search when cancelling filters
@@ -434,26 +422,6 @@ const TimeCard = () => {
   };
 
   // Helper to sort by date, time, empNo, and entry
-  const insertSorted = (data, record) => {
-    const parseDateTime = (rec) => {
-      const dt = rec.date ? rec.date : '';
-      const tm = rec.time ? rec.time : '';
-      return new Date(`${dt} ${tm}`);
-    };
-    const newData = [...data, record];
-    newData.sort((a, b) => {
-      if (a.empNo !== b.empNo) return a.empNo.localeCompare(b.empNo);
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      if (a.time && b.time && a.time !== b.time) {
-        return parseDateTime(a) - parseDateTime(b);
-      }
-      if (a.entry && b.entry && a.entry !== b.entry) {
-        return Number(a.entry) - Number(b.entry);
-      }
-      return 0;
-    });
-    return newData;
-  };
 
   const handleAddNew = async () => {
     if (!nic) {
@@ -497,17 +465,9 @@ const TimeCard = () => {
 
     try {
       // Add the record
-      const response = await addTimeCard(payload);
+      await addTimeCard(payload);
       // Get updated data
       const updated = await fetchTimeCards();
-      
-      // Store the record info we need to find later
-      const recordInfo = {
-        employeeId: employee.id,
-        date: newRecord.date,
-        time: newRecord.time,
-        status: newRecord.status
-      };
       
       // Set data first
       setAttendanceData(updated);
@@ -612,7 +572,7 @@ const TimeCard = () => {
           department: '',
         }));
       }
-    } catch (error) {
+    } catch {
       setNicError('Employee not found for this NIC');
       setNewRecord((prev) => ({
         ...prev,
@@ -695,7 +655,7 @@ const TimeCard = () => {
           });
         }
         setFilteredData(results);
-      } catch (err) {
+      } catch {
         setFilteredData([]);
       } finally {
         setIsLoading(false);
@@ -856,14 +816,7 @@ const TimeCard = () => {
     }
   };
 
-  // Add this helper function to validate time format
-  const validateTimeFormat = (timeStr) => {
-    if (!timeStr) return false;
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
-    return timeRegex.test(timeStr);
-  };
-
-  // Add this helper function to format time consistently
+  // Helper function to format time consistently
   const formatTimeForBackend = (timeStr) => {
     if (!timeStr) return '';
     

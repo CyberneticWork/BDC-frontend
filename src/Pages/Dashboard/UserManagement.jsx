@@ -242,12 +242,12 @@ const UserManagement = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   // Updated roles to match backend structure
-  const [roles, setRoles] = useState([
+  const roles = [
     { id: "admin", name: "Administrator" },
     { id: "supervisor", name: "Supervisor" },
     { id: "hr", name: "HR" },
     { id: "user", name: "User" },
-  ]);
+  ];
 
   // Fetch users on component mount
   useEffect(() => {

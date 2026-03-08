@@ -4,7 +4,6 @@ import Swal from "sweetalert2";
 import ShiftOvertimeRateService from "@services/ShiftOvertimeRateService";
 
 const num = (v) => (v === "" || v === null || v === undefined ? "" : String(v));
-const toFixedOrEmpty = (v) => (v === "" || v === null || v === undefined ? "" : Number(v).toFixed(2));
 
 const initialForm = {
   shift_id: "",
@@ -86,7 +85,7 @@ const ShiftOvertimeRates = () => {
         setLoading(true);
         const data = await ShiftOvertimeRateService.getShiftsDropdown();
         if (mounted) setShifts(data);
-      } catch (e) {
+      } catch {
         Swal.fire({ icon: "error", title: "Error", text: "Failed to load shifts" });
       } finally {
         if (mounted) setLoading(false);
@@ -222,9 +221,9 @@ const ShiftOvertimeRates = () => {
 
       // Clear form automatically after successful operation
       handleClear();
-    } catch (e) {
-      const msg = e?.response?.data?.message || "Failed to save OT configuration.";
-      const val = e?.response?.data?.errors;
+    } catch (error) {
+      const msg = error?.response?.data?.message || "Failed to save OT configuration.";
+      const val = error?.response?.data?.errors;
       if (val) setErrors(val);
       Swal.fire({ icon: "error", title: "Error", text: msg });
     } finally {
@@ -232,7 +231,6 @@ const ShiftOvertimeRates = () => {
     }
   };
 
-  // Edit rate from table
   const handleEditRate = (rate) => {
     // Set the shift selection first
     setSelectedShiftId(rate.shift_id?.toString() || rate.shift?.id?.toString() || "");
@@ -295,7 +293,7 @@ const ShiftOvertimeRates = () => {
       const data = await ShiftOvertimeRateService.list();
       setSavedRates(data);
       setShowModal(true);
-    } catch (e) {
+    } catch {
       Swal.fire({ icon: "error", title: "Error", text: "Failed to load saved configurations" });
     } finally {
       setLoadingTable(false);
@@ -326,7 +324,7 @@ const ShiftOvertimeRates = () => {
         });
         // Reload the table
         loadSavedRates();
-      } catch (e) {
+      } catch {
         Swal.fire({ icon: "error", title: "Error", text: "Failed to delete configuration" });
       }
     }

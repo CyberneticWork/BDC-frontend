@@ -178,10 +178,20 @@ const employeeService = {
   async fetchEmployeeById(id) {
     try {
       const response = await axios.get(`/employees/${id}`);
-      return response.data;
+      return response.data.data; // Return the actual employee data from the wrapper
     } catch (error) {
       console.error("Error fetching employees:", error);
-      return [];
+      throw error;
+    }
+  },
+
+  async getEmployeeDetails(id) {
+    try {
+      const response = await axios.get(`/employees/${id}`);
+      return response.data.data; // Returns employee object with all relationships
+    } catch (error) {
+      console.error("Error fetching employee details:", error);
+      throw error;
     }
   },
 

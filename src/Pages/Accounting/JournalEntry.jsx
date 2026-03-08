@@ -8,7 +8,6 @@ import {
   getNextEntryNumber
 } from '@services/Account/JournalentryService';
 import { getAccountList } from '../../services/Account/AccountService';
-import { useResponsive } from '../../hooks/useResponsive';
 import {
   ResponsivePageWrapper,
   ResponsiveCard,
@@ -32,7 +31,6 @@ import {
 import AccountList from './AccountList';
 
 const JournalEntry = () => {
-  const responsive = useResponsive();
   const [journalEntries, setJournalEntries] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [showForm, setShowForm] = useState(false);
