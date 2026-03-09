@@ -169,9 +169,11 @@ const EmpPersonalDetails = ({ onNext }) => {
       clearFieldError("personal", name);
     }
 
-    updateFormData("personal", {
-      [name]: type === "checkbox" ? checked : value,
-    });
+    if (type !== "file") {
+      updateFormData("personal", {
+        [name]: type === "checkbox" ? checked : value,
+      });
+    }
 
     if (e.target.type === "file" && e.target.files[0]) {
       const file = e.target.files[0];

@@ -5,9 +5,10 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import config from "@src/config";
 
 const EmployeeFormContext = createContext();
-
+//
 const initialState = {
   personal: {
     id: "",
@@ -279,7 +280,9 @@ export const EmployeeFormProvider = ({ children }) => {
         religion: employeeData.religion || "",
         countryOfBirth: employeeData.country_of_birth || "",
         profilePicture: null,
-        profilePicturePreview: employeeData.profile_photo_path || null,
+        profilePicturePreview: employeeData.profile_photo_path && !employeeData.profile_photo_path.includes('fakepath') && !employeeData.profile_photo_path.startsWith('C:') && !employeeData.profile_photo_path.startsWith('c:')
+          ? (employeeData.profile_photo_path.startsWith('http') ? employeeData.profile_photo_path : `${config.apiBaseUrl}/storage/${employeeData.profile_photo_path}`)
+          : null,
         employmentStatus: employeeData.employment_type_id || "",
         nameWithInitial: employeeData.name_with_initials || "",
         fullName: employeeData.full_name || "",

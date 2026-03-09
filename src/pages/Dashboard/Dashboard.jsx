@@ -16,6 +16,7 @@ import {
   CreditCard,
   CheckCircle,
 } from "lucide-react";
+import config from "@src/config";
 import NotificationBell from "../../components/NotificationBell";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
@@ -479,6 +480,23 @@ const EmployeeDashboardHome = ({
           <User className="h-5 w-5 text-blue-600" />
           Employee Profile
         </h3>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-blue-200">
+            {employeeProfile.profile_photo_path ? (
+              <img
+                src={`${config.apiBaseUrl}/storage/${employeeProfile.profile_photo_path}`}
+                alt="Profile"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <User className="h-8 w-8 text-blue-400" />
+            )}
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{employeeProfile.name_with_initials || "N/A"}</p>
+            <p className="text-sm text-gray-500">{employeeProfile.organization_assignment?.designation?.name || ""}</p>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-start gap-3">
             <Briefcase className="h-5 w-5 text-gray-400 mt-0.5" />
@@ -1645,13 +1663,13 @@ const Dashboard = ({ user, onLogout }) => {
         // Home / dashboard view
         return (
           <div className="space-y-8">
-            <div className="text-center mb-8">
+            <div className="bg-gray-50 rounded-2xl shadow-lg p-8 mb-8 border border-gray-100 text-center">
               <h1 className="text-4xl font-bold text-gray-900 mb-2">
                 {user.role === "employee"
                   ? "Employee Dashboard"
                   : "HRM Dashboard"}
               </h1>
-              <p className="text-gray-600 text-lg">
+              <p className="text-gray-500 text-lg">
                 {user.role === "employee"
                   ? "Welcome to your employee portal"
                   : "Welcome to your comprehensive HR management system"}
@@ -1677,6 +1695,7 @@ const Dashboard = ({ user, onLogout }) => {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
         user={user}
+        employeeProfile={employeeProfile}
         onLogout={onLogout}
         activeItem={activeItem}
         setActiveItem={handleSetActiveItem}
