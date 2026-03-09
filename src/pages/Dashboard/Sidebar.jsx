@@ -62,8 +62,10 @@ const Sidebar = ({
 
   const menuItems = useMemo(() => [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
-    { id: "myProfile", name: "My Profile", icon: User, badge: null },
-    { id: "changePassword", name: "Change Password", icon: Key, badge: null },
+    ...(user.role === 'employee' ? [
+      { id: "myProfile", name: "My Profile", icon: User, badge: null },
+      { id: "changePassword", name: "Change Password", icon: Key, badge: null },
+    ] : []),
     { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
     // { id: "user", name: "Users", icon: User2, badge: null },
@@ -279,7 +281,7 @@ const Sidebar = ({
         { id: "leaveSettings", name: "Leave Settings" },
       ],
     },
-  ], []);
+  ], [user.role]);
 
   // NEW: auto-expand nested groups based on the current activeItem (works on reload)
   useEffect(() => {

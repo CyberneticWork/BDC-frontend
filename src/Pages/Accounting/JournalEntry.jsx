@@ -206,7 +206,7 @@ const JournalEntry = () => {
 
   const handleEdit = (entry) => {
     setEditingEntry(entry);
-    setNextEntryNumber(entry.entry_number); // Set to existing entry number
+    setNextEntryNumber(entry.entry_number);
     setFormData({
       entry_date: entry.entry_date,
       memo: entry.memo || '',
@@ -215,7 +215,6 @@ const JournalEntry = () => {
       debit: parseFloat(entry.debit) || 0,
       credit: parseFloat(entry.credit) || 0
     });
-    // Convert single entry to line format
     setEntryLines([
       { 
         account: entry.account_type || '', 
@@ -228,6 +227,8 @@ const JournalEntry = () => {
     ]);
     setShowForm(true);
   };
+
+
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this journal entry?')) {
