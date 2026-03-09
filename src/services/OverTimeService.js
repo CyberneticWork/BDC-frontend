@@ -18,7 +18,7 @@ export const approveOt = async (id, sts) => {
     return response.data;
   } catch (error) {
     console.error("Error approving overtime:", error);
-    throw error; // Re-throw the error to handle it in the calling function
+    throw error; // Re-throw the error to handle it in the calling functio
   }
 };
 
