@@ -68,6 +68,7 @@ const SalaryProcessPage = () => {
   // Allowances and deductions
   const [availableAllowances, setAvailableAllowances] = useState([]);
   const [availableDeductions, setAvailableDeductions] = useState([]);
+  const [isLoadingAllowances, setIsLoadingAllowances] = useState(false);
 
   // KPI Mode: "" | "monthly" | "6month"
   const [kpiType, setKpiType] = useState("");
@@ -86,6 +87,7 @@ const SalaryProcessPage = () => {
 
   //bonus
   const [availableBonuses, setAvailableBonuses] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
 
 
@@ -747,11 +749,7 @@ const SalaryProcessPage = () => {
     setMonth("");
     setKpiType("");
     setSearchTerm("");
-    setFromDate("");
-    setToDate("");
     setShowHistory(false);
-    setEmployeeHistoryData([]);
-    setShowingHistory(false);
   };
 
 
@@ -822,7 +820,6 @@ const SalaryProcessPage = () => {
       setSelectedEmployees([]);
       setSelectAll(false);
       setBulkActionAmount("");
-      setBulkActionName("");
     } catch (error) {
       console.log(error);
       notify.error(
@@ -1537,7 +1534,6 @@ const SalaryProcessPage = () => {
                 value={bulkActionType}
                 onChange={(e) => {
                   setBulkActionType(e.target.value);
-                  setBulkActionName("");
                   setBulkActionAmount("");
                   setBulkActionId("");
                 }}
@@ -1684,12 +1680,6 @@ const SalaryProcessPage = () => {
       const totalBonuses =
         (employee.bonuses || []).reduce(
           (sum, b) => sum + (parseFloat(b.amount) || 0),
-          0
-        );
-
-      const totalDeductions =
-        (employee.deductions || []).reduce(
-          (sum, d) => sum + (parseFloat(d.amount) || 0),
           0
         );
 
@@ -2535,7 +2525,6 @@ const SalaryProcessPage = () => {
   // Bulk actions
   const [bulkActionType, setBulkActionType] = useState("allowance");
   const [bulkActionAmount, setBulkActionAmount] = useState("");
-  const [bulkActionName, setBulkActionName] = useState("");
   const [bulkActionId, setBulkActionId] = useState("");
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -2579,6 +2568,7 @@ const SalaryProcessPage = () => {
 
   // ✅ IMPORTANT FIX: move this to component scope (prevents white page crash)
   const loadAllowancesAndDeductions = async () => {
+    setIsLoadingAllowances(true);
     try {
       const allowances = await AllowancesService.getAllAllowances();
       setAvailableAllowances(allowances || []);
@@ -2588,10 +2578,13 @@ const SalaryProcessPage = () => {
       setAvailableDeductions(deductions || []);
     } catch (error) {
       console.error("Error loading allowances and deductions:", error);
+    } finally {
+      setIsLoadingAllowances(false);
     }
   };
 
   const loadAllowancesByCompany = async (companyId) => {
+    setIsLoadingAllowances(true);
     try {
       const allowances =
         await AllowancesService.getAllowancesByCompanyOrDepartment(
@@ -2601,6 +2594,8 @@ const SalaryProcessPage = () => {
       setAvailableAllowances(allowances || []);
     } catch (error) {
       console.error("Error loading allowances by company:", error);
+    } finally {
+      setIsLoadingAllowances(false);
     }
   };
 

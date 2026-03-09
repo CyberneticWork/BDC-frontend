@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Trash2,
   DollarSign,
+  Edit,
 } from "lucide-react";
 import { useDebounce } from "@uidotdev/usehooks";
 import { useNavigate } from "react-router-dom";
@@ -66,6 +67,12 @@ const ShowEmployee = () => {
   useEffect(() => {
     loadData();
   }, [currentPage, perPage, debouncedSearchTerm]);
+
+  const handleEditEmployee = (employeeId) => {
+    localStorage.setItem("editEmployeeId", employeeId);
+    setShowModal(false);
+    navigate("/employee-add");
+  };
 
   const handleViewEmployee = async (employee) => {
     const employeeData = await employeeService.fetchEmployeeById(employee);
@@ -1161,21 +1168,18 @@ const ShowEmployee = () => {
               <div className="bg-gray-50 px-6 py-4 rounded-b-2xl">
                 <div className="flex justify-end space-x-4">
                   <button
+                    onClick={() => handleEditEmployee(selectedEmployee.id)}
+                    className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </button>
+                  <button
                     onClick={handleDeleteClick}
                     className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
-                  </button>
-                  <button
-                    onClick={() => {
-                      localStorage.setItem('editEmployeeId', selectedEmployee.id);
-                      navigate('/dashboard/employee-add');
-                    }}
-                    className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    Edit
                   </button>
                   <button
                     onClick={closeModal}

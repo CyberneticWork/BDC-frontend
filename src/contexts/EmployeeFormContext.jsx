@@ -275,7 +275,7 @@ export const EmployeeFormProvider = ({ children }) => {
         epfNo: employeeData.epf || "",
         nicNumber: employeeData.nic || "",
         dob: employeeData.dob || "",
-        gender: employeeData.gender?.charAt(0).toUpperCase() + employeeData.gender?.slice(1) || "",
+        gender: employeeData.gender ? (employeeData.gender.charAt(0).toUpperCase() + employeeData.gender.slice(1)) : "",
         religion: employeeData.religion || "",
         countryOfBirth: employeeData.country_of_birth || "",
         profilePicture: null,
@@ -284,17 +284,17 @@ export const EmployeeFormProvider = ({ children }) => {
         nameWithInitial: employeeData.name_with_initials || "",
         fullName: employeeData.full_name || "",
         displayName: employeeData.display_name || "",
-        maritalStatus: employeeData.marital_status?.charAt(0).toUpperCase() + employeeData.marital_status?.slice(1) || "",
+        maritalStatus: employeeData.marital_status ? (employeeData.marital_status.charAt(0).toUpperCase() + employeeData.marital_status.slice(1)) : "",
         relationshipType: employeeData.spouse?.type || "",
         spouseTitle: employeeData.spouse?.title || "",
         spouseName: employeeData.spouse?.name || "",
-        spouseAge: employeeData.spouse?.age || "",
+        spouseAge: employeeData.spouse?.age?.toString() || "",
         spouseDob: employeeData.spouse?.dob || "",
         spouseNic: employeeData.spouse?.nic || "",
         children: employeeData.children?.length > 0 
           ? employeeData.children.map(child => ({
               name: child.name || "",
-              age: child.age || "",
+              age: child.age?.toString() || "",
               dob: child.dob || "",
               nic: child.nic || ""
             }))
