@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { addTimeCard, fetchTimeCards } from '../../services/ApiDataService';
 import timeCardService from '../../services/timeCardService';
@@ -1126,6 +1127,7 @@ const TimeCard = () => {
                             <td className="py-4 px-3 sm:px-6 text-slate-600 text-xs sm:text-sm lg:text-base">{record.date}</td>
                             <td className="py-4 px-3 sm:px-6 text-slate-700 font-bold text-xs sm:text-sm lg:text-base">{record.entry}</td>
                             <td className="py-4 px-3 sm:px-6">
+                            {/*
                               <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border ${
                                 record.status === 'Absent'
                                   ? 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
@@ -1137,6 +1139,20 @@ const TimeCard = () => {
                               }`}>
                                 {record.status === 'Present' ? record.inOut : record.status}
                               </span>
+                              */}
+                              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border ${
+  record.status === 'Absent'
+    ? 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
+    : record.status === 'Early OUT'
+    ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-200'
+    : record.status === 'Late Coming'
+    ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border-orange-200'
+    : record.inOut === 'IN'
+    ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200'
+    : 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
+}`}>
+  {record.status}
+</span>
                             </td>
                             <td className="py-4 px-3 sm:px-6 flex gap-2">
                               <button
