@@ -107,6 +107,28 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     };
 
     loadData();
+
+    // Listen for loadDepartments event from context
+    const handleLoadDepartments = async (event) => {
+      const { companyId } = event.detail;
+      if (companyId) {
+        setIsLoadingDepartments(true);
+        try {
+          const departmentsData = await fetchDepartmentsById(companyId);
+          setDepartments(departmentsData);
+        } catch (e) {
+          console.error("Error loading departments:", e);
+        } finally {
+          setIsLoadingDepartments(false);
+        }
+      }
+    };
+
+    window.addEventListener('loadDepartments', handleLoadDepartments);
+
+    return () => {
+      window.removeEventListener('loadDepartments', handleLoadDepartments);
+    };
   }, []);
 
   // Load departments when company is selected

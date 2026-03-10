@@ -79,6 +79,10 @@ const EmployeeMaster = () => {
           title: "Success!",
           text: "Employee updated successfully!",
         });
+        // Dispatch event to update profile picture
+        window.dispatchEvent(new CustomEvent('employeeUpdated', {
+          detail: { employeeId: allEmployeeData.personal.id }
+        }));
         clearForm();
         setActiveCategory("personal");
       } else {
@@ -88,6 +92,12 @@ const EmployeeMaster = () => {
           title: "Success!",
           text: "Employee submitted successfully!",
         });
+        // Dispatch event to update profile picture for new employee
+        if (response?.data?.id) {
+          window.dispatchEvent(new CustomEvent('employeeUpdated', {
+            detail: { employeeId: response.data.id }
+          }));
+        }
         // Clear form after successful creation if desired
         clearForm();
         setActiveCategory("personal");

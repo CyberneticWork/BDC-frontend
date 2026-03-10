@@ -4,7 +4,7 @@ import AuthForm from "../../components/AuthForm/AuthForm";
 
 // Login Page Component
 const Login = ({ onSuccess, loading: parentLoading }) => {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ identifier: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({}); // field-level errors
   const [showPassword, setShowPassword] = useState(false);
