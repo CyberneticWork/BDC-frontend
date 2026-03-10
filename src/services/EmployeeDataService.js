@@ -36,11 +36,14 @@ const employeeService = {
 
       // Append documents if any
       if (formData.documents && formData.documents.length > 0) {
+        const documentsMeta = [];
         formData.documents.forEach((doc, index) => {
           if (doc.file) {
             submissionData.append(`documents[${index}]`, doc.file);
+            documentsMeta.push({ type: doc.type || 'unknown' });
           }
         });
+        submissionData.append('documents', JSON.stringify(documentsMeta));
       }
 
       const response = await axios.post("/employees", submissionData, {
@@ -51,14 +54,16 @@ const employeeService = {
 
       return response.data;
     } catch (error) {
+      console.error("Submit error:", error);
       if (error.response) {
-        // The server responded with a status code outside 2xx
+        console.error("Response status:", error.response.status);
+        console.error("Response data:", error.response.data);
         throw error;
       } else if (error.request) {
-        // The request was made but no response received
+        console.error("No response received:", error.request);
         throw new Error("No response from server");
       } else {
-        // Something happened in setting up the request
+        console.error("Error message:", error.message);
         throw new Error("Error setting up request");
       }
     }
@@ -98,11 +103,14 @@ const employeeService = {
 
       // Append documents if any
       if (formData.documents && formData.documents.length > 0) {
+        const documentsMeta = [];
         formData.documents.forEach((doc, index) => {
           if (doc.file) {
             submissionData.append(`documents[${index}]`, doc.file);
+            documentsMeta.push({ type: doc.type || 'unknown' });
           }
         });
+        submissionData.append('documents', JSON.stringify(documentsMeta));
       }
 
       const response = await axios.post(
@@ -118,14 +126,16 @@ const employeeService = {
       console.log("Update response:", JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
+      console.error("Update error:", error);
       if (error.response) {
-        // The server responded with a status code outside 2xx
+        console.error("Response status:", error.response.status);
+        console.error("Response data:", error.response.data);
         throw error;
       } else if (error.request) {
-        // The request was made but no response received
+        console.error("No response received:", error.request);
         throw new Error("No response from server");
       } else {
-        // Something happened in setting up the request
+        console.error("Error message:", error.message);
         throw new Error("Error setting up request");
       }
     }

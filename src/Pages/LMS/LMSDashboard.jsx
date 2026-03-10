@@ -306,16 +306,17 @@ const LMSDashboard = ({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">
-            Learning Management System
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Enhance your skills with our comprehensive training courses
-          </p>
-        </div>
-        <div className="flex space-x-4">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl p-8 shadow-lg mb-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">
+              Learning Management System
+            </h1>
+            <p className="text-emerald-100 text-lg">
+              Enhance your skills with our comprehensive training courses
+            </p>
+          </div>
+          <div className="hidden md:flex space-x-4">
           {/* {user && user.role !== "user" && (
             <button
               onClick={handleShowDebugResults}
@@ -362,6 +363,7 @@ const LMSDashboard = ({
               Courses
             </button>
           )}
+        </div>
         </div>
       </div>
 

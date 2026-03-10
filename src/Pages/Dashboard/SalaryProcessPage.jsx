@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import BonusService from "../../components/BonusService";
 import {
   Download, Users, Wallet, FileText, ChevronDown,
@@ -16,7 +16,7 @@ import * as DeductionService from "@services/DeductionService";
 import ImportExcelModal from "@dashboard/ImportExcelModal";
 import Swal from "sweetalert2";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "processedSalaryData";
 
@@ -28,6 +28,37 @@ const MONTHS = [
   { value: "09", label: "September" }, { value: "10", label: "October"   },
   { value: "11", label: "November"  }, { value: "12", label: "December"  },
 ];
+
+const HEADER_MAPPINGS = {
+  id: "ID", emp_no: "Employee No", full_name: "Full Name",
+  company_name: "Company", department_name: "Department",
+  sub_department_name: "Sub Department", basic_salary: "Basic Salary",
+  increment_active: "Increment Active", increment_value: "Increment Value",
+  increment_effected_date: "Increment Effective Date",
+  ot_morning: "OT Morning", ot_evening: "OT Evening",
+  enable_epf_etf: "EPF/ETF Enabled", br1: "BR1 Allowance", br2: "BR2 Allowance",
+  ot_morning_rate: "OT Morning Rate", ot_night_rate: "OT Night Rate",
+  stamp: "Stamp Fee", br_status: "BR Status",
+  total_loan_amount: "Total Loan Amount", installment_count: "Installment Count",
+  installment_amount: "Installment Amount", approved_no_pay_days: "Approved No-Pay Days",
+  allowances: "Allowances", deductions: "Deductions",
+  breakdown_basic_salary: "Basic Salary (Adjusted)", breakdown_br_allowance: "BR Allowance",
+  breakdown_ot_morning_fees: "OT Morning Fees", breakdown_ot_night_fees: "OT Night Fees",
+  breakdown_adjusted_basic: "Adjusted Basic", breakdown_per_day_salary: "Per Day Salary",
+  breakdown_no_pay_deduction: "No-Pay Deduction", breakdown_total_allowances: "Total Allowances",
+  breakdown_epf_etf_base: "EPF/ETF Base",
+  breakdown_epf_employee_deduction: "EPF Employee Deduction",
+  breakdown_epf_employer_contribution: "EPF Employer Contribution",
+  breakdown_etf_employer_contribution: "ETF Employer Contribution",
+  breakdown_total_fixed_deductions: "Total Fixed Deductions",
+  breakdown_loan_installment: "Loan Installment", breakdown_gross_salary: "Gross Salary",
+  breakdown_kpi_allowance: "KPI Allowance", breakdown_kpi_bonus_allowance: "KPI Bonus (6M)",
+  breakdown_total_deductions: "Total Deductions", breakdown_stamp: "Stamp Fee (Breakdown)",
+  breakdown_net_salary: "Net Salary",
+};
+
+const YES_NO_FIELDS = ["increment_active", "ot_morning", "ot_evening", "enable_epf_etf", "br1", "br2"];
+const NUMERIC_KEYS  = ["salary", "amount", "rate", "fee", "deduction", "contribution"];
 
 // ─── Notification helpers ─────────────────────────────────────────────────────
 
@@ -64,38 +95,8 @@ function downloadCSV(csvContent, fileName) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
-
-const HEADER_MAPPINGS = {
-  id: "ID", emp_no: "Employee No", full_name: "Full Name",
-  company_name: "Company", department_name: "Department",
-  sub_department_name: "Sub Department", basic_salary: "Basic Salary",
-  increment_active: "Increment Active", increment_value: "Increment Value",
-  increment_effected_date: "Increment Effective Date",
-  ot_morning: "OT Morning", ot_evening: "OT Evening",
-  enable_epf_etf: "EPF/ETF Enabled", br1: "BR1 Allowance", br2: "BR2 Allowance",
-  ot_morning_rate: "OT Morning Rate", ot_night_rate: "OT Night Rate",
-  stamp: "Stamp Fee", br_status: "BR Status",
-  total_loan_amount: "Total Loan Amount", installment_count: "Installment Count",
-  installment_amount: "Installment Amount", approved_no_pay_days: "Approved No-Pay Days",
-  allowances: "Allowances", deductions: "Deductions",
-  breakdown_basic_salary: "Basic Salary (Adjusted)", breakdown_br_allowance: "BR Allowance",
-  breakdown_ot_morning_fees: "OT Morning Fees", breakdown_ot_night_fees: "OT Night Fees",
-  breakdown_adjusted_basic: "Adjusted Basic", breakdown_per_day_salary: "Per Day Salary",
-  breakdown_no_pay_deduction: "No-Pay Deduction", breakdown_total_allowances: "Total Allowances",
-  breakdown_epf_etf_base: "EPF/ETF Base",
-  breakdown_epf_employee_deduction: "EPF Employee Deduction",
-  breakdown_epf_employer_contribution: "EPF Employer Contribution",
-  breakdown_etf_employer_contribution: "ETF Employer Contribution",
-  breakdown_total_fixed_deductions: "Total Fixed Deductions",
-  breakdown_loan_installment: "Loan Installment", breakdown_gross_salary: "Gross Salary",
-  breakdown_kpi_allowance: "KPI Allowance", breakdown_kpi_bonus_allowance: "KPI Bonus (6M)",
-  breakdown_total_deductions: "Total Deductions", breakdown_stamp: "Stamp Fee (Breakdown)",
-  breakdown_net_salary: "Net Salary",
-};
-
-const YES_NO_FIELDS = ["increment_active", "ot_morning", "ot_evening", "enable_epf_etf", "br1", "br2"];
-const NUMERIC_KEYS  = ["salary", "amount", "rate", "fee", "deduction", "contribution"];
 
 function convertToCSV(data) {
   if (!data?.length) return "";
@@ -143,51 +144,173 @@ function convertToCSV(data) {
   return [friendlyHeaders.join(","), ...rows].join("\n");
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── PDF Generator ────────────────────────────────────────────────────────────
+
+function generatePayslipPDF(processedData, monthName, year) {
+  const doc = new jsPDF();
+
+  processedData.forEach((emp, idx) => {
+    if (idx > 0) doc.addPage();
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Company: ${emp.company_name}`,       105, 15, { align: "center" });
+    doc.text(`Department: ${emp.department_name}`,  105, 22, { align: "center" });
+    doc.text("Payslip",                             105, 29, { align: "center" });
+    doc.text(`${monthName} ${year}`,               105, 36, { align: "center" });
+    doc.rect(10, 8, 190, 32);
+
+    let y = 50;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+
+    const field = (label, val) => {
+      doc.text(`${label} :`, 15, y);
+      doc.text(String(val), 60, y);
+      y += 6;
+    };
+    field("EPF No",     emp.employee_no                   || "N/A");
+    field("Code",       emp.employee_no                   || "N/A");
+    field("Name",       emp.full_name                     || "N/A");
+    field("Bank",       emp.compensation?.bank_name       || "N/A");
+    field("Branch",     emp.compensation?.branch_name     || "N/A");
+    field("Account No", emp.compensation?.bank_account_no || "N/A");
+    y += 4;
+
+    const fmt = (n) =>
+      (Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const right = (label, val) => {
+      doc.text(label, 15, y);
+      doc.text(fmt(val), 170, y, { align: "right" });
+      y += 6;
+    };
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Basic Salary", 15, y);
+    doc.text(fmt(emp.salary_breakdown?.basic_salary), 170, y, { align: "right" });
+    y += 10;
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Transactions for EPF", 15, y); y += 8;
+    doc.text("Allowances", 15, y); y += 6;
+
+    if (emp.allowances?.length) {
+      emp.allowances.forEach((a) => right(a.name, a.amount));
+    } else {
+      right("BRA1 Act", emp.salary_breakdown?.br_allowance);
+    }
+    y += 4;
+    right("Nopay Amount", emp.salary_breakdown?.no_pay_deduction);
+    y += 2;
+
+    doc.setFont("helvetica", "bold");
+    right("Gross for EPF", emp.salary_breakdown?.epf_etf_base);
+    y += 4;
+
+    doc.text("Overtime Details", 15, y); y += 8;
+    doc.setFont("helvetica", "normal");
+    right("Morning OT Amount", emp.salary_breakdown?.ot_morning_fees);
+    right("Evening OT Amount", emp.salary_breakdown?.ot_night_fees);
+    right("Nopay Amount",      emp.salary_breakdown?.no_pay_deduction);
+    y += 2;
+
+    doc.setFont("helvetica", "bold");
+    right("Gross Salary", emp.salary_breakdown?.gross_salary);
+    y += 4;
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Deductions", 15, y); y += 8;
+    right("EPF - Employee - 8.00%", emp.salary_breakdown?.epf_employee_deduction);
+
+    if (emp.deductions?.length) {
+      emp.deductions.forEach((d) => right(d.name, d.amount));
+    } else {
+      right("Stamp Duty", emp.salary_breakdown?.stamp);
+    }
+
+    if (emp.salary_breakdown?.loan_installment) {
+      right("Loan", emp.salary_breakdown.loan_installment);
+    }
+    y += 2;
+
+    doc.setFont("helvetica", "bold");
+    right("Total Deduction", emp.salary_breakdown?.total_deductions);
+    y += 4;
+
+    doc.setFontSize(12);
+    right("Net Salary Rs.", emp.salary_breakdown?.net_salary);
+    y += 6;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.text("Employer Contribution:", 15, y); y += 8;
+    doc.setFont("helvetica", "normal");
+    right("EPF - 12.00%", emp.salary_breakdown?.epf_employer_contribution);
+    right("ETF - 3.00%",  emp.salary_breakdown?.etf_employer_contribution);
+
+    const totalEPF =
+      (emp.salary_breakdown?.epf_employee_deduction   || 0) +
+      (emp.salary_breakdown?.epf_employer_contribution || 0);
+    right("Total EPF", totalEPF);
+    y += 9;
+
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+    doc.text("LIFEHRMS", 15, y);
+    doc.text(dateStr, 170, y, { align: "right" });
+    doc.rect(10, 45, 190, y - 40);
+  });
+
+  return doc;
+}
+
+// ─── Pure UI sub-components ───────────────────────────────────────────────────
 
 // eslint-disable-next-line no-unused-vars
-function StatCard({ label, value, icon: IconComp, colorClass }) {
+function StatCard({ label, value, icon: IconComponent, bgFrom, bgTo, borderColor, textColor, iconBg }) {
   return (
-    <div className={`bg-gradient-to-br ${colorClass} rounded-2xl border p-6 shadow-md`}>
+    <div className={`bg-gradient-to-br ${bgFrom} ${bgTo} rounded-2xl border ${borderColor} p-6 shadow-md`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium mb-1">{label}</p>
-          <p className="text-3xl font-bold">{value}</p>
+          <p className={`text-sm font-medium mb-1 ${textColor}`}>{label}</p>
+          <p className={`text-3xl font-bold ${textColor}`}>{value}</p>
         </div>
-        <div className="p-4 rounded-xl shadow">
-          <IconComp size={24} strokeWidth={2} />
+        <div className={`p-4 rounded-xl shadow ${iconBg} ${textColor}`}>
+          <IconComponent size={24} strokeWidth={2} />
         </div>
       </div>
     </div>
   );
 }
 
-function FilterButton({ label, active, onClick, icon: IconComp }) {
+function FilterButton({ label, active, onClick, icon: Icon }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
-        ${active ? "bg-blue-600 text-white shadow" : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50"}`}
+        ${active
+          ? "bg-blue-600 text-white shadow"
+          : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50"}`}
     >
-      {IconComp && <IconComp size={18} strokeWidth={2} />}
+      {Icon && <Icon size={18} strokeWidth={2} />}
       {label}
     </button>
   );
 }
 
-function SelectField({ id, label, value, onChange, disabled, children, icon: IconComp }) {
+function SelectField({ id, label, value, onChange, disabled, children }) {
   return (
     <div className="relative flex-1">
       <label htmlFor={id} className="block text-xs font-semibold text-gray-500 mb-1">{label}</label>
       <div className="relative">
-        {IconComp && <IconComp className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />}
         <select
           id={id}
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className={`appearance-none w-full ${IconComp ? "pl-10" : "pl-3"} pr-10 py-2 border border-gray-300 rounded-lg text-base
+          className={`appearance-none w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-base
             focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm
             ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
         >
@@ -199,19 +322,39 @@ function SelectField({ id, label, value, onChange, disabled, children, icon: Ico
   );
 }
 
-function Spinner() {
+function LoadingSpinner({ size = "sm" }) {
+  const dim = size === "lg" ? "h-12 w-12" : "h-4 w-4";
+  return <div className={`animate-spin rounded-full ${dim} border-t-2 border-b-2 border-blue-500`} />;
+}
+
+function LineItem({ label, value, valueCls = "" }) {
   return (
-    <div className="flex justify-center items-center py-12">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
+    <div className="flex justify-between text-sm">
+      <span className="text-gray-600">{label}</span>
+      <span className={`font-semibold ${valueCls}`}>{value}</span>
     </div>
   );
 }
 
+function DetailCard({ title, total, totalCls = "", children }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-bold text-gray-800">{title}</div>
+        <div className={`text-sm font-bold ${totalCls || "text-gray-900"}`}>{total}</div>
+      </div>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+// ─── Employee Card ────────────────────────────────────────────────────────────
+
 function EmployeeCard({ employee, isSelected, onSelect }) {
   const totalAllowances = (employee.allowances || []).reduce((s, a) => s + (parseFloat(a.amount) || 0), 0);
   const totalBonuses    = (employee.bonuses    || []).reduce((s, b) => s + (parseFloat(b.amount) || 0), 0);
-  const gross           = Number(employee.salary_breakdown?.gross_salary   || 0);
-  const net             = Number(employee.salary_breakdown?.net_salary      || 0);
+  const gross           = Number(employee.salary_breakdown?.gross_salary    || 0);
+  const net             = Number(employee.salary_breakdown?.net_salary       || 0);
   const totalDeductions = Number(employee.salary_breakdown?.total_deductions || 0);
   const otMorning       = Number(employee.salary_breakdown?.ot_morning_fees  || 0);
   const otNight         = Number(employee.salary_breakdown?.ot_night_fees    || 0);
@@ -219,8 +362,10 @@ function EmployeeCard({ employee, isSelected, onSelect }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-      {/* Header row */}
+
+      {/* Header */}
       <div className="p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
         <div className="flex items-start gap-4">
           <input
             type="checkbox"
@@ -247,10 +392,15 @@ function EmployeeCard({ employee, isSelected, onSelect }) {
               {employee.sub_department_name ? ` (${employee.sub_department_name})` : ""}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Basic: <span className="font-semibold text-gray-800">{Number(employee.basic_salary || 0).toLocaleString()}</span>
-              {employee.increment_active
-                ? <span className="ml-2">• Increment: {employee.increment_value} (eff. {employee.increment_effected_date})</span>
-                : <span className="ml-2">• No increment</span>}
+              Basic:{" "}
+              <span className="font-semibold text-gray-800">
+                {Number(employee.basic_salary || 0).toLocaleString()}
+              </span>
+              {employee.increment_active ? (
+                <span className="ml-2">• Increment: {employee.increment_value} (eff. {employee.increment_effected_date})</span>
+              ) : (
+                <span className="ml-2">• No increment</span>
+              )}
             </div>
           </div>
         </div>
@@ -258,12 +408,12 @@ function EmployeeCard({ employee, isSelected, onSelect }) {
         {/* Summary chips */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-[320px]">
           {[
-            { label: "Gross",        value: gross.toLocaleString(),            cls: "" },
-            { label: "Allowances",   value: totalAllowances.toLocaleString(),  cls: "" },
-            { label: "Deductions",   value: totalDeductions.toLocaleString(),  cls: "text-red-600" },
-            { label: "Net Salary",   value: net.toLocaleString(),              cls: "text-green-700 font-extrabold", border: "border-green-200 bg-green-50" },
+            { label: "Gross",      value: gross.toLocaleString(),           cls: "",                              border: "border-gray-200 bg-gray-50"  },
+            { label: "Allowances", value: totalAllowances.toLocaleString(), cls: "",                              border: "border-gray-200 bg-gray-50"  },
+            { label: "Deductions", value: totalDeductions.toLocaleString(), cls: "text-red-600",                  border: "border-gray-200 bg-gray-50"  },
+            { label: "Net Salary", value: net.toLocaleString(),             cls: "text-green-700 font-extrabold", border: "border-green-200 bg-green-50" },
           ].map(({ label, value, cls, border }) => (
-            <div key={label} className={`rounded-xl border p-3 ${border || "border-gray-200 bg-gray-50"}`}>
+            <div key={label} className={`rounded-xl border p-3 ${border}`}>
               <div className="text-[11px] text-gray-500">{label}</div>
               <div className={`text-sm font-bold ${cls}`}>{value}</div>
             </div>
@@ -278,25 +428,23 @@ function EmployeeCard({ employee, isSelected, onSelect }) {
         </summary>
 
         <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Allowances */}
+
           <DetailCard title="Allowances" total={totalAllowances.toLocaleString()}>
             {(employee.allowances || []).length > 0
               ? employee.allowances.map((a, i) => (
                   <LineItem key={i} label={`${a.name} (${a.code})`} value={Number(a.amount || 0).toLocaleString()} />
                 ))
-              : <EmptyRow text="No allowances" />}
+              : <p className="text-sm text-gray-500">No allowances</p>}
           </DetailCard>
 
-          {/* Bonuses */}
           <DetailCard title="Bonuses" total={totalBonuses.toLocaleString()}>
             {(employee.bonuses || []).length > 0
               ? employee.bonuses.map((b, i) => (
                   <LineItem key={i} label={`${b.name} (${b.code})`} value={Number(b.amount || 0).toLocaleString()} />
                 ))
-              : <EmptyRow text="No bonuses" />}
+              : <p className="text-sm text-gray-500">No bonuses</p>}
           </DetailCard>
 
-          {/* Deductions */}
           <DetailCard title="Deductions" total={totalDeductions.toLocaleString()} totalCls="text-red-600">
             <LineItem
               label="EPF (Employee 8%)"
@@ -324,173 +472,39 @@ function EmployeeCard({ employee, isSelected, onSelect }) {
               ))}
             </div>
             <div className="space-y-2 text-sm">
-              <LineItem label="Adj. Basic"        value={Number(employee.salary_breakdown?.adjusted_basic    || 0).toLocaleString()} />
-              <LineItem label="Per Day"            value={Number(employee.salary_breakdown?.per_day_salary   || 0).toLocaleString()} />
-              <LineItem label="No Pay Deduction"   value={Number(employee.salary_breakdown?.no_pay_deduction || 0).toLocaleString()} valueCls="text-red-600" />
-              <LineItem label="Loan"               value={Number(employee.salary_breakdown?.loan_installment || 0).toLocaleString()} valueCls="text-red-600" />
-              <LineItem label="Stamp"              value={Number(employee.salary_breakdown?.stamp            || 0).toLocaleString()} valueCls="text-red-600" />
+              <LineItem label="Adj. Basic"      value={Number(employee.salary_breakdown?.adjusted_basic    || 0).toLocaleString()} />
+              <LineItem label="Per Day"          value={Number(employee.salary_breakdown?.per_day_salary   || 0).toLocaleString()} />
+              <LineItem label="No Pay Deduction" value={Number(employee.salary_breakdown?.no_pay_deduction || 0).toLocaleString()} valueCls="text-red-600" />
+              <LineItem label="Loan"             value={Number(employee.salary_breakdown?.loan_installment || 0).toLocaleString()} valueCls="text-red-600" />
+              <LineItem label="Stamp"            value={Number(employee.salary_breakdown?.stamp            || 0).toLocaleString()} valueCls="text-red-600" />
             </div>
           </div>
+
         </div>
       </details>
     </div>
   );
 }
 
-function DetailCard({ title, total, totalCls = "", children }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-bold text-gray-800">{title}</div>
-        <div className={`text-sm font-bold ${totalCls || "text-gray-900"}`}>{total}</div>
-      </div>
-      <div className="space-y-2">{children}</div>
-    </div>
-  );
-}
-
-function LineItem({ label, value, valueCls = "" }) {
-  return (
-    <div className="flex justify-between text-sm">
-      <span className="text-gray-600">{label}</span>
-      <span className={`font-semibold ${valueCls}`}>{value}</span>
-    </div>
-  );
-}
-
-function EmptyRow({ text }) {
-  return <div className="text-sm text-gray-500">{text}</div>;
-}
-
-// ─── PDF Generator ────────────────────────────────────────────────────────────
-
-function generatePayslipPDF(processedData, monthName, year) {
-  const doc = new jsPDF();
-
-  processedData.forEach((emp, idx) => {
-    if (idx > 0) doc.addPage();
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Company: ${emp.company_name}`, 105, 15, { align: "center" });
-    doc.text(`Department: ${emp.department_name}`, 105, 22, { align: "center" });
-    doc.text("Payslip", 105, 29, { align: "center" });
-    doc.text(`${monthName} ${year}`, 105, 36, { align: "center" });
-    doc.rect(10, 8, 190, 32);
-
-    let y = 50;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-
-    const field = (label, val) => { doc.text(`${label} :`, 15, y); doc.text(`${val}`, 60, y); y += 6; };
-    field("EPF No",     emp.employee_no || "N/A");
-    field("Code",       emp.employee_no || "N/A");
-    field("Name",       emp.full_name   || "N/A");
-    field("Bank",       emp.compensation?.bank_name       || "N/A");
-    field("Branch",     emp.compensation?.branch_name     || "N/A");
-    field("Account No", emp.compensation?.bank_account_no || "N/A");
-    y += 4;
-
-    const fmt   = (n) => (n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const right = (label, val) => {
-      doc.text(label, 15, y);
-      doc.text(fmt(val), 170, y, { align: "right" });
-      y += 6;
-    };
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Basic Salary", 15, y);
-    doc.text(fmt(emp.salary_breakdown?.basic_salary), 170, y, { align: "right" });
-    y += 10;
-
-    doc.setFont("helvetica", "normal");
-    doc.text("Transactions for EPF", 15, y); y += 8;
-    doc.text("Allowances", 15, y); y += 6;
-
-    if (emp.allowances?.length) {
-      emp.allowances.forEach((a) => right(a.name, a.amount));
-    } else {
-      right("BRA1 Act", emp.salary_breakdown?.br_allowance);
-    }
-
-    y += 4;
-    right("Nopay Amount", emp.salary_breakdown?.no_pay_deduction);
-    y += 2;
-
-    doc.setFont("helvetica", "bold");
-    right("Gross for EPF", emp.salary_breakdown?.epf_etf_base);
-    y += 4;
-
-    doc.text("Overtime Details", 15, y); y += 8;
-    doc.setFont("helvetica", "normal");
-    right("Morning OT Amount", emp.salary_breakdown?.ot_morning_fees);
-    right("Evening OT Amount", emp.salary_breakdown?.ot_night_fees);
-    right("Nopay Amount", emp.salary_breakdown?.no_pay_deduction);
-    y += 2;
-
-    doc.setFont("helvetica", "bold");
-    right("Gross Salary", emp.salary_breakdown?.gross_salary);
-    y += 4;
-
-    doc.setFont("helvetica", "normal");
-    doc.text("Deductions", 15, y); y += 8;
-    right("EPF - Employee - 8.00%", emp.salary_breakdown?.epf_employee_deduction);
-
-    if (emp.deductions?.length) {
-      emp.deductions.forEach((d) => right(d.name, d.amount));
-    } else {
-      right("Stamp Duty", emp.salary_breakdown?.stamp);
-    }
-
-    if (emp.salary_breakdown?.loan_installment) right("Loan", emp.salary_breakdown.loan_installment);
-
-    y += 2;
-    doc.setFont("helvetica", "bold");
-    right("Total Deduction", emp.salary_breakdown?.total_deductions);
-    y += 4;
-
-    doc.setFontSize(12);
-    right("Net Salary Rs.", emp.salary_breakdown?.net_salary);
-    y += 6;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "italic");
-    doc.text("Employer Contribution:", 15, y); y += 8;
-    doc.setFont("helvetica", "normal");
-    right("EPF - 12.00%", emp.salary_breakdown?.epf_employer_contribution);
-    right("ETF - 3.00%",  emp.salary_breakdown?.etf_employer_contribution);
-
-    const totalEPF = (emp.salary_breakdown?.epf_employee_deduction || 0) + (emp.salary_breakdown?.epf_employer_contribution || 0);
-    right("Total EPF", totalEPF);
-    y += 9;
-
-    doc.text("LIFEHRMS", 15, y);
-    const d = new Date();
-    doc.text(`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`, 170, y, { align: "right" });
-    doc.rect(10, 45, 190, y - 40);
-  });
-
-  return doc;
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Page Component ──────────────────────────────────────────────────────
 
 const SalaryProcessPage = () => {
+
   // Filter state
-  const [month,      setMonth]      = useState("");
-  const [year,       setYear]       = useState(new Date().getFullYear().toString());
-  const [status,     setStatus]     = useState("Unprocessed");
-  const [kpiType,    setKpiType]    = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [month,        setMonth]        = useState("");
+  const [year,         setYear]         = useState(new Date().getFullYear().toString());
+  const [status,       setStatus]       = useState("Unprocessed");
+  const [kpiType,      setKpiType]      = useState("");
+  const [searchTerm,   setSearchTerm]   = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
-  // Companies / Departments
-  const [companies,           setCompanies]           = useState([]);
-  const [departments,         setDepartments]         = useState([]);
-  const [selectedCompany,     setSelectedCompany]     = useState("");
-  const [selectedDepartment,  setSelectedDepartment]  = useState("");
-  const [isLoadingCompanies,  setIsLoadingCompanies]  = useState(false);
-  const [isLoadingDepartments,setIsLoadingDepartments]= useState(false);
+  // Company / Department
+  const [companies,            setCompanies]            = useState([]);
+  const [departments,          setDepartments]          = useState([]);
+  const [selectedCompany,      setSelectedCompany]      = useState("");
+  const [selectedDepartment,   setSelectedDepartment]   = useState("");
+  const [isLoadingCompanies,   setIsLoadingCompanies]   = useState(false);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
 
   // Allowances / Deductions / Bonuses
   const [availableAllowances, setAvailableAllowances] = useState([]);
@@ -511,61 +525,66 @@ const SalaryProcessPage = () => {
   const [bulkActionId,      setBulkActionId]      = useState("");
 
   // Import modal
-  const [isImportModalOpen,   setIsImportModalOpen]   = useState(false);
+  const [isImportModalOpen,    setIsImportModalOpen]    = useState(false);
   const [importSuccessMessage, setImportSuccessMessage] = useState("");
 
-  const statusInfo = { processUser: "Admin", lastProcessDate: "2025-05-30" };
-
-  const totalSalary  = displayedData.reduce((s, e) => s + (parseFloat(e?.basic_salary) || 0), 0);
+  // Derived
+  const statusInfo    = { processUser: "Admin", lastProcessDate: "2025-05-30" };
+  const isProcessed   = status === "Processed";
+  const totalSalary   = displayedData.reduce((s, e) => s + (parseFloat(e?.basic_salary) || 0), 0);
   const employeeCount = displayedData.length;
 
-  // ── Data loading ────────────────────────────────────────────────────────────
+  // ── Data loaders ──────────────────────────────────────────────────────────
 
-  const loadAllowancesAndDeductions = async () => {
+  const loadAllowancesAndDeductions = useCallback(async () => {
     try {
       const [allowances, deductions] = await Promise.all([
         AllowancesService.getAllAllowances(),
-        DeductionService.fetchDeductions(),
+        DeductionService.fetchDeductionsByCompanyOrDepartment(),
       ]);
       setAvailableAllowances(allowances || []);
       setAvailableDeductions(deductions || []);
     } catch (err) {
       console.error("Error loading allowances/deductions:", err);
     }
-  };
+  }, []);
 
-  const loadAllowancesByCompany = async (companyId) => {
+  const loadAllowancesByCompany = useCallback(async (companyId) => {
     try {
       const allowances = await AllowancesService.getAllowancesByCompanyOrDepartment(companyId, null);
       setAvailableAllowances(allowances || []);
     } catch (err) {
       console.error("Error loading allowances by company:", err);
     }
-  };
+  }, []);
 
-  const loadBonuses = async () => {
+  const loadBonuses = useCallback(async () => {
     try {
       const res  = await BonusService.getAllBonuses();
-      const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : [];
+      const list = Array.isArray(res) ? res
+        : Array.isArray(res?.data) ? res.data
+        : Array.isArray(res?.data?.data) ? res.data.data : [];
       setAvailableBonuses(list);
     } catch (err) {
       console.error("Error loading bonuses:", err);
       setAvailableBonuses([]);
     }
-  };
+  }, []);
 
-  const loadBonusesByCompanyOrDepartment = async (companyId, departmentId) => {
+  const loadBonusesByCompanyOrDepartment = useCallback(async (companyId, departmentId) => {
     try {
       const res  = await BonusService.getBonusesByCompanyOrDepartment(companyId, departmentId);
-      const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : [];
+      const list = Array.isArray(res) ? res
+        : Array.isArray(res?.data) ? res.data
+        : Array.isArray(res?.data?.data) ? res.data.data : [];
       setAvailableBonuses(list);
     } catch (err) {
       console.error("Error loading bonuses by company/dept:", err);
       setAvailableBonuses([]);
     }
-  };
+  }, []);
 
-  const fetchSalaryData = async () => {
+  const fetchSalaryData = useCallback(async () => {
     if (!month || !year || !selectedCompany) {
       notify.warning("Missing Filters", "Please select company, month, and year before applying filters");
       return null;
@@ -577,10 +596,11 @@ const SalaryProcessPage = () => {
         company_id:    selectedCompany,
         department_id: selectedDepartment || undefined,
         kpi_type:      kpiType            || undefined,
-        search:        searchTerm         || undefined,
       });
       const rows = data?.data || [];
       setEmployeeData(rows);
+      setDisplayedData(rows);
+      setFilteredData(rows);
       return rows;
     } catch (err) {
       console.error("Error fetching salary data:", err);
@@ -589,47 +609,39 @@ const SalaryProcessPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [month, year, selectedCompany, selectedDepartment, kpiType]);
 
-  // ── Effects ─────────────────────────────────────────────────────────────────
+  // ── Effects ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoadingCompanies(true);
-      try { setCompanies((await fetchCompanies()) || []); }
-      catch (e) { console.error(e); }
-      finally { setIsLoadingCompanies(false); }
-    };
-    load();
+    let active = true;
+    setIsLoadingCompanies(true);
+    fetchCompanies()
+      .then((data) => { if (active) setCompanies(data || []); })
+      .catch(console.error)
+      .finally(() => { if (active) setIsLoadingCompanies(false); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    const load = async () => {
-      if (!selectedCompany) { setDepartments([]); setSelectedDepartment(""); return; }
-      setIsLoadingDepartments(true);
-      try { setDepartments((await fetchDepartmentsById(selectedCompany)) || []); }
-      catch (e) { console.error(e); }
-      finally { setIsLoadingDepartments(false); }
-    };
-    load();
+    if (!selectedCompany) {
+      setDepartments([]);
+      setSelectedDepartment("");
+      return;
+    }
+    let active = true;
+    setIsLoadingDepartments(true);
+    fetchDepartmentsById(selectedCompany)
+      .then((data) => { if (active) setDepartments(data || []); })
+      .catch(console.error)
+      .finally(() => { if (active) setIsLoadingDepartments(false); });
+    return () => { active = false; };
   }, [selectedCompany]);
 
   useEffect(() => {
     loadAllowancesAndDeductions();
     loadBonuses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    let dataToFilter = [...employeeData];
-    if (activeFilter === "EPF") {
-      dataToFilter = dataToFilter.filter(emp => emp.enable_epf_etf == 1);
-    } else if (activeFilter === "NonEPF") {
-      dataToFilter = dataToFilter.filter(emp => emp.enable_epf_etf != 1);
-    }
-    setDisplayedData(dataToFilter);
-    setFilteredData(dataToFilter); // Keep filteredData in sync for handleSaveData
-  }, [activeFilter, employeeData]);
+  }, [loadAllowancesAndDeductions, loadBonuses]);
 
   useEffect(() => {
     setSelectAll(displayedData.length > 0 && selectedEmployees.length === displayedData.length);
@@ -640,7 +652,7 @@ const SalaryProcessPage = () => {
     setSelectAll(false);
   }, [month, selectedCompany, selectedDepartment, kpiType]);
 
-  // ── Event handlers ──────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleCompanyChange = (e) => {
     const id = e.target.value;
@@ -657,28 +669,26 @@ const SalaryProcessPage = () => {
   };
 
   const handleSelectEmployee = (employee) => {
-    const id = `${employee.id}`;
+    const id = String(employee.id);
     setSelectedEmployees((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
   const handleSelectAll = () => {
-    setSelectedEmployees(selectAll ? [] : displayedData.map((e) => `${e.id}`));
+    setSelectedEmployees(selectAll ? [] : displayedData.map((e) => String(e.id)));
     setSelectAll(!selectAll);
   };
 
-  const handleAllowanceDeductionChange = (id) => {
-    const numericId = Number(id);
+  const handleAllowanceDeductionChange = (rawId) => {
+    const numericId = Number(rawId);
     setBulkActionId(numericId);
     const lookup =
       bulkActionType === "allowance" ? availableAllowances :
-      bulkActionType === "deduction" ? availableDeductions  : availableBonuses;
+      bulkActionType === "deduction" ? availableDeductions : availableBonuses;
     const found = lookup.find((x) => Number(x.id) === numericId);
     if (found?.amount != null) setBulkActionAmount(parseFloat(found.amount).toFixed(2));
   };
-
-  const applyFilters = () => fetchSalaryData();
 
   const resetFilter = () => {
     setActiveFilter("All");
@@ -719,8 +729,9 @@ const SalaryProcessPage = () => {
         return row;
       });
 
-      const prefix = bulkActionType === "allowance" ? "employee_allowances"
-                   : bulkActionType === "deduction" ? "employee_deductions" : "employee_bonuses";
+      const prefix =
+        bulkActionType === "allowance" ? "employee_allowances" :
+        bulkActionType === "deduction" ? "employee_deductions" : "employee_bonuses";
       downloadCSV(arrayToCSV(worksheetData), `${prefix}_${Date.now()}.csv`);
       notify.success("Download Ready", "Template downloaded successfully");
     } catch (err) {
@@ -779,6 +790,7 @@ const SalaryProcessPage = () => {
       const url  = window.URL.createObjectURL(blob);
       const a    = Object.assign(document.createElement("a"), { href: url, download: "salary_records.csv" });
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Download failed:", err);
       alert("Failed to download CSV");
@@ -790,9 +802,9 @@ const SalaryProcessPage = () => {
     try {
       const processedData = await getProcessedSalaries();
       if (!processedData?.length) { notify.info("No Data", "No processed salary data found."); return; }
-      const monthObj   = MONTHS.find((m) => m.value === month);
-      const monthName  = monthObj?.label || month;
-      const doc        = generatePayslipPDF(processedData, monthName, year);
+      const monthObj  = MONTHS.find((m) => m.value === month);
+      const monthName = monthObj?.label || month;
+      const doc       = generatePayslipPDF(processedData, monthName, year);
       doc.save(`payslips_${monthName}_${year}.pdf`);
       try {
         await updateSlaryStatus("issued");
@@ -808,9 +820,7 @@ const SalaryProcessPage = () => {
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
-
-  const isProcessed = status === "Processed";
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-blue-50 via-white to-green-50 min-h-screen">
@@ -833,16 +843,14 @@ const SalaryProcessPage = () => {
           {/* Stat cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StatCard
-              label="Total Salary Cost"
-              value={`LKR ${totalSalary.toLocaleString()}`}
-              icon={Wallet}
-              colorClass="from-blue-100 to-blue-50 border-blue-200 text-blue-700 [&>div>div:last-child]:bg-blue-200 [&>div>div:last-child]:text-blue-700"
+              label="Total Salary Cost" value={`LKR ${totalSalary.toLocaleString()}`} icon={Wallet}
+              bgFrom="from-blue-100" bgTo="to-blue-50" borderColor="border-blue-200"
+              textColor="text-blue-700" iconBg="bg-blue-200"
             />
             <StatCard
-              label="Employee Count"
-              value={employeeCount}
-              icon={Users}
-              colorClass="from-green-100 to-green-50 border-green-200 text-green-700 [&>div>div:last-child]:bg-green-200 [&>div>div:last-child]:text-green-700"
+              label="Employee Count" value={employeeCount} icon={Users}
+              bgFrom="from-green-100" bgTo="to-green-50" borderColor="border-green-200"
+              textColor="text-green-700" iconBg="bg-green-200"
             />
           </div>
 
@@ -857,7 +865,6 @@ const SalaryProcessPage = () => {
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow">
             <h3 className="text-base font-semibold text-gray-700 mb-4">Filter Employees</h3>
 
-            {/* Search */}
             <div className="relative mb-4">
               <label htmlFor="search" className="block text-xs font-semibold text-gray-500 mb-1">Search by ID or Name</label>
               <div className="relative">
@@ -873,15 +880,15 @@ const SalaryProcessPage = () => {
             </div>
 
             <div className="flex flex-col md:flex-row gap-5 mb-4">
+
               {/* Company */}
               <div className="relative flex-1">
                 <label htmlFor="company" className="block text-xs font-semibold text-gray-500 mb-1">Company</label>
                 <div className="relative">
                   <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   {isLoadingCompanies ? (
-                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
-                      <span className="ml-2 text-gray-500">Loading...</span>
+                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center gap-2">
+                      <LoadingSpinner /><span className="text-gray-500">Loading...</span>
                     </div>
                   ) : (
                     <select id="company" value={selectedCompany} onChange={handleCompanyChange}
@@ -900,14 +907,14 @@ const SalaryProcessPage = () => {
                 <div className="relative">
                   <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   {isLoadingDepartments ? (
-                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
-                      <span className="ml-2 text-gray-500">Loading...</span>
+                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center gap-2">
+                      <LoadingSpinner /><span className="text-gray-500">Loading...</span>
                     </div>
                   ) : (
                     <select id="department" value={selectedDepartment} onChange={handleDepartmentChange}
                       disabled={!selectedCompany}
-                      className={`appearance-none w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm ${!selectedCompany ? "bg-gray-100 cursor-not-allowed" : ""}`}>
+                      className={`appearance-none w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm
+                        ${!selectedCompany ? "bg-gray-100 cursor-not-allowed" : ""}`}>
                       <option value="">All Departments</option>
                       {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
@@ -929,7 +936,9 @@ const SalaryProcessPage = () => {
                   <option value="monthly">Monthly</option>
                   <option value="6month">6 Month Bonus</option>
                 </SelectField>
-                <p className="mt-1 text-[10px] text-gray-500">Monthly adds to EPF base; 6 Month Bonus adds to gross only</p>
+                <p className="mt-1 text-[10px] text-gray-500">
+                  Monthly adds to EPF base; 6 Month Bonus adds to gross only
+                </p>
               </div>
 
               {/* Year */}
@@ -942,7 +951,7 @@ const SalaryProcessPage = () => {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button type="button" onClick={applyFilters}
+              <button type="button" onClick={fetchSalaryData}
                 className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors shadow">
                 <Filter size={18} strokeWidth={2} /> Apply Filters
               </button>
@@ -975,20 +984,17 @@ const SalaryProcessPage = () => {
               <p className="text-xs font-semibold text-gray-500 mb-1">Last Process Date</p>
               <p className="font-semibold text-gray-800">{statusInfo.lastProcessDate}</p>
             </div>
-
             <div className="pt-2 space-y-3">
               <button type="button" onClick={handleSaveData} disabled={!filteredData.length}
                 className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
                   ${!filteredData.length ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-purple-600 text-white hover:bg-purple-700 shadow"}`}>
                 <FileText size={18} strokeWidth={2} /> Save Data
               </button>
-
               <button type="button" onClick={handleSalaryProcess} disabled={isProcessed}
                 className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
                   ${isProcessed ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 shadow"}`}>
                 <FileText size={18} strokeWidth={2} /> Process Salary
               </button>
-
               <button type="button" disabled={!isProcessed}
                 onClick={() => { handleDownloadAllProcessed(); handleDownloadCSV(); }}
                 className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
@@ -1007,9 +1013,7 @@ const SalaryProcessPage = () => {
             <Users className="mr-2" size={20} />
             Bulk Actions ({selectedEmployees.length} employees selected)
           </h3>
-
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            {/* Action type */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">Action Type</label>
               <select value={bulkActionType}
@@ -1020,11 +1024,10 @@ const SalaryProcessPage = () => {
                 <option value="bonus">Add Bonus</option>
               </select>
             </div>
-
-            {/* Allowance / Deduction / Bonus picker */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
-                {bulkActionType === "allowance" ? "Allowance Type" : bulkActionType === "deduction" ? "Deduction Type" : "Bonus Type"}
+                {bulkActionType === "allowance" ? "Allowance Type"
+                  : bulkActionType === "deduction" ? "Deduction Type" : "Bonus Type"}
               </label>
               <select value={bulkActionId} onChange={(e) => handleAllowanceDeductionChange(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg">
@@ -1037,16 +1040,12 @@ const SalaryProcessPage = () => {
                   <option key={b.id} value={b.id}>{b.bonus_name}</option>)}
               </select>
             </div>
-
-            {/* Amount */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">Amount</label>
               <input type="number" value={bulkActionAmount} onChange={(e) => setBulkActionAmount(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter amount" />
             </div>
-
-            {/* Action buttons */}
             <div className="flex items-end gap-2 flex-wrap">
               <button type="button" onClick={applyBulkAction}
                 className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
@@ -1062,11 +1061,9 @@ const SalaryProcessPage = () => {
               </button>
             </div>
           </div>
-
           {importSuccessMessage && (
             <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">{importSuccessMessage}</div>
           )}
-
           <div className="flex justify-end">
             <button type="button" className="text-gray-600 hover:text-gray-800 font-medium"
               onClick={() => { setSelectedEmployees([]); setSelectAll(false); }}>
@@ -1087,7 +1084,11 @@ const SalaryProcessPage = () => {
       )}
 
       {/* Loading spinner */}
-      {isLoading && <Spinner />}
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <LoadingSpinner size="lg" />
+        </div>
+      )}
 
       {/* Select-all bar */}
       {!isLoading && displayedData.length > 0 && (
@@ -1107,7 +1108,7 @@ const SalaryProcessPage = () => {
             <EmployeeCard
               key={employee.id}
               employee={employee}
-              isSelected={selectedEmployees.includes(`${employee.id}`)}
+              isSelected={selectedEmployees.includes(String(employee.id))}
               onSelect={handleSelectEmployee}
             />
           ))}

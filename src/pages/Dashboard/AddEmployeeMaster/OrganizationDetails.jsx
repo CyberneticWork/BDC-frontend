@@ -198,7 +198,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "company") {
       const selected = companies.find((c) => c.id === parsedValue);
       updateFormData("organization", {
-        company: parsedValue.toString(),
+        company: selected?.name || "",
         companyName: selected?.name || "",
         department: "",
         departmentName: "",
@@ -211,7 +211,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "department") {
       const selected = departments.find((d) => d.id === parsedValue);
       updateFormData("organization", {
-        department: parsedValue.toString(),
+        department: selected?.name || "",
         departmentName: selected?.name || "",
         subDepartment: "",
         subDepartmentName: "",
@@ -222,7 +222,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "subDepartment") {
       const selected = subDepartments.find((s) => s.id === parsedValue);
       updateFormData("organization", {
-        subDepartment: parsedValue.toString(),
+        subDepartment: selected?.name || "",
         subDepartmentName: selected?.name || "",
       });
       return;
@@ -231,7 +231,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "designation") {
       const selected = designations.find((s) => s.id === parsedValue);
       updateFormData("organization", {
-        designation: parsedValue.toString(),
+        designation: selected?.name || "",
         designationName: selected?.name || "",
       });
       return;

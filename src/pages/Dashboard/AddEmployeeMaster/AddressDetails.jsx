@@ -195,7 +195,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    NIC Number
+                    NIC Number (Login Password)
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />

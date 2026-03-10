@@ -137,15 +137,13 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Chat with System
-        </h1>
-        <p className="text-gray-600">Ask me anything about the HR system</p>
+    <>
+      <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl shadow-xl p-6 mb-6">
+        <h1 className="text-3xl font-bold mb-2">Chat with System</h1>
+        <p className="text-purple-100">Ask me anything about the HR system</p>
       </div>
-
-      <div className="flex flex-col h-[500px] border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl p-6">
+        <div className="flex flex-col h-[500px] border border-gray-200 rounded-xl overflow-hidden">
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
           {messages.map((message) => (
@@ -236,8 +234,9 @@ const Chatbot = () => {
             </button>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

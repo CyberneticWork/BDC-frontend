@@ -79,7 +79,6 @@ const EmployeeMaster = () => {
           title: "Success!",
           text: "Employee updated successfully!",
         });
-        // Dispatch event to update profile picture
         window.dispatchEvent(new CustomEvent('employeeUpdated', {
           detail: { employeeId: allEmployeeData.personal.id }
         }));
@@ -92,27 +91,21 @@ const EmployeeMaster = () => {
           title: "Success!",
           text: "Employee submitted successfully!",
         });
-        // Dispatch event to update profile picture for new employee
         if (response?.data?.id) {
           window.dispatchEvent(new CustomEvent('employeeUpdated', {
             detail: { employeeId: response.data.id }
           }));
         }
-        // Clear form after successful creation if desired
         clearForm();
         setActiveCategory("personal");
       }
       return response;
     } catch (error) {
       console.error("Update error:", error);
-      
-      // Safe access validation errors
-      const validationErrors = 
-        error.response?.data?.errors || // Laravel default
-        error.response?.data ||         // fallback
-        {};
-      
-      console.error("Validation errors:", validationErrors);
+      console.error("Full error response:", error.response?.data);
+      console.error("Validation errors:", error.response?.data?.errors);
+      console.error("Error message:", error.response?.data?.message);
+      console.error("Error status:", error.response?.status);
       
       if (error.response?.data?.errors) {
         const formattedErrors = {};
@@ -124,7 +117,7 @@ const EmployeeMaster = () => {
 
             pathParts.forEach((part, index) => {
               if (index === pathParts.length - 1) {
-                currentLevel[part] = messages[0];
+                currentLevel[part] = Array.isArray(messages) ? messages[0] : messages;
               } else {
                 currentLevel[part] = currentLevel[part] || {};
                 currentLevel = currentLevel[part];
@@ -140,10 +133,11 @@ const EmployeeMaster = () => {
           text: "Please fix the errors in the form!",
         });
       } else {
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || "Error updating employee. Please try again.!";
         Swal.fire({
           icon: "error",
           title: "Oops...",
-          text: "Error updating employee. Please try again.!",
+          text: errorMsg,
         });
       }
     } finally {
@@ -153,20 +147,27 @@ const EmployeeMaster = () => {
 
   return (
     <div>
-      <div className="flex gap-2 px-4 py-2 border-b border-gray-200 bg-white">
-        {steps.map((step) => (
-          <button
-            key={step}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-              activeCategory === step
-                ? "bg-indigo-600 text-white"
-                : "text-indigo-700 hover:bg-indigo-100"
-            }`}
-            onClick={() => setActiveCategory(step)}
-          >
-            {step.charAt(0).toUpperCase() + step.slice(1)}
-          </button>
-        ))}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg shadow-lg mb-6 mx-4 mt-4">
+        <h1 className="text-3xl font-bold mb-2">Employee Master</h1>
+        <p className="text-blue-100">Complete employee information management system</p>
+      </div>
+      <div className="flex gap-2 px-4 py-2 border-b border-gray-200 bg-white items-center justify-between">
+        <div className="flex gap-2">
+          {steps.map((step) => (
+            <button
+              key={step}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                activeCategory === step
+                  ? "bg-indigo-600 text-white"
+                  : "text-indigo-700 hover:bg-indigo-100"
+              }`}
+              onClick={() => setActiveCategory(step)}
+            >
+              {step.charAt(0).toUpperCase() + step.slice(1)}
+            </button>
+          ))}
+        </div>
+        <h1 className="text-xl font-bold text-gray-800">Edit Employee</h1>
       </div>
       <div className="p-4">
         <div className="p-4">

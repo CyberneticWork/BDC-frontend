@@ -360,7 +360,7 @@ export const EmployeeFormProvider = ({ children }) => {
         stamp: employeeData.compensation?.stamp || false,
       },
       organization: {
-        company: employeeData.organization_assignment?.company_id || "",
+        company: employeeData.organization_assignment?.company?.name || "",
         department: employeeData.organization_assignment?.department_id || "",
         subDepartment: employeeData.organization_assignment?.sub_department_id || "",
         companyName: employeeData.organization_assignment?.company?.name || "",
@@ -368,7 +368,7 @@ export const EmployeeFormProvider = ({ children }) => {
         subDepartmentName: employeeData.organization_assignment?.sub_department?.name || "",
         currentSupervisor: employeeData.organization_assignment?.current_supervisor || "",
         dateOfJoined: employeeData.organization_assignment?.date_of_joining || "",
-        designation: employeeData.organization_assignment?.designation_id || "",
+        designation: employeeData.organization_assignment?.designation?.name || "",
         designationName: employeeData.organization_assignment?.designation?.name || "",
         probationPeriod: employeeData.organization_assignment?.probationary_period || false,
         trainingPeriod: employeeData.organization_assignment?.training_period || false,

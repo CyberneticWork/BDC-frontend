@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Clock, DollarSign, UserCheck, CreditCard, Building2, Briefcase, BarChart3, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { User, Calendar, Clock, DollarSign, UserCheck, CreditCard, Building2, Briefcase, BarChart3, CheckCircle, XCircle, AlertCircle, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getLeavesByEmployee } from '@src/services/LeaveMaster';
 
 const EmployeeDashboard = ({ 
@@ -9,10 +10,18 @@ const EmployeeDashboard = ({
   lateCount,
   setActiveItem 
 }) => {
-  const [leaveRecords, setLeaveRecords] = useState([]);
-  const [leaveSummary, setLeaveSummary] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 });
-  const [isLoadingLeaves, setIsLoadingLeaves] = useState(false);
+  const navigate = useNavigate();
   const [attendanceSummary, setAttendanceSummary] = useState({ present: 0, absent: 0, late: 0, total: 0 });
+  const [leaveSummary, setLeaveSummary] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 });
+  const [leaveRecords, setLeaveRecords] = useState([]);
+  const [isLoadingLeaves, setIsLoadingLeaves] = useState(false);
+
+  const handleEditEmployee = () => {
+    if (employeeProfile?.id) {
+      localStorage.setItem('editEmployeeId', employeeProfile.id);
+      navigate('/employee-add');
+    }
+  };
 
   useEffect(() => {
     if (employeeProfile?.id) {
@@ -67,7 +76,22 @@ const EmployeeDashboard = ({
   return (
     <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
       {/* Quick Actions - Moved to Top */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <button
+          onClick={handleEditEmployee}
+          className="group bg-indigo-600 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all text-left transform hover:scale-105"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-white/20 rounded-2xl group-hover:bg-white/30 transition-colors shadow-lg">
+              <Edit className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-lg mb-1">Edit Profile</h3>
+              <p className="text-sm text-indigo-100">Personal Details</p>
+            </div>
+          </div>
+        </button>
+
         <button
           onClick={() => setActiveItem('myProfile')}
           className="group bg-white p-8 rounded-2xl shadow-lg border border-gray-200 hover:border-blue-500 hover:shadow-2xl transition-all text-left transform hover:-translate-y-1"
