@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import BonusService from "../../components/BonusService";
 import {
   Download,
@@ -20,7 +20,6 @@ import {
   UpdateAllowances,
   saveSalaryData,
   updateSlaryStatus,
-  getProcessedSalaries,
   fetchExcelData,
   importExcelData,
 } from "@services/SalaryProcessService";
@@ -95,12 +94,6 @@ const SalaryProcessPage = () => {
   const [employeeData, setEmployeeData] = useState([]);
   const [displayedData, setDisplayedData] = useState([]);
 
-  const totalSalary = (displayedData || []).reduce(
-    (sum, emp) => sum + (parseFloat(emp?.basic_salary) || 0),
-    0
-  );
-  const employeeCount = displayedData.length;
-
   const months = [
     { value: "01", label: "January" },
     { value: "02", label: "February" },
@@ -115,6 +108,82 @@ const SalaryProcessPage = () => {
     { value: "11", label: "November" },
     { value: "12", label: "December" },
   ];
+
+  const parseJsonField = (value, fallback) => {
+    if (value == null) return fallback;
+
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    return value;
+  };
+
+  const normalizeNamedItems = (items, type) => {
+    if (!Array.isArray(items)) return [];
+
+    return items.map((item) => ({
+      ...item,
+      name:
+        item?.name ||
+        item?.[`${type}_name`] ||
+        item?.title ||
+        type.charAt(0).toUpperCase() + type.slice(1),
+      code: item?.code || item?.[`${type}_code`] || "-",
+      amount: Number(item?.amount || 0),
+    }));
+  };
+
+  const normalizeEmployee = (emp) => {
+    const allowances = parseJsonField(emp?.allowances, []);
+    const bonuses = parseJsonField(emp?.bonuses, []);
+    const deductions = parseJsonField(emp?.deductions, []);
+    const salaryBreakdown = parseJsonField(emp?.salary_breakdown, {});
+
+    return {
+      ...emp,
+      allowances: normalizeNamedItems(allowances, "allowance"),
+      bonuses: normalizeNamedItems(bonuses, "bonus"),
+      deductions: normalizeNamedItems(deductions, "deduction"),
+      salary_breakdown:
+        salaryBreakdown && typeof salaryBreakdown === "object"
+          ? salaryBreakdown
+          : {},
+    };
+  };
+
+  const processedDisplayedData = useMemo(() => {
+    let rows = Array.isArray(displayedData) ? [...displayedData] : [];
+
+    if (activeFilter === "EPF") {
+      rows = rows.filter((emp) => !!emp.enable_epf_etf);
+    } else if (activeFilter === "NonEPF") {
+      rows = rows.filter((emp) => !emp.enable_epf_etf);
+    }
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
+      rows = rows.filter(
+        (emp) =>
+          String(emp?.emp_no || "").toLowerCase().includes(q) ||
+          String(emp?.employee_no || "").toLowerCase().includes(q) ||
+          String(emp?.full_name || "").toLowerCase().includes(q)
+      );
+    }
+
+    return rows;
+  }, [displayedData, activeFilter, searchTerm]);
+
+  const totalSalary = processedDisplayedData.reduce(
+    (sum, emp) => sum + (parseFloat(emp?.basic_salary) || 0),
+    0
+  );
+
+  const employeeCount = processedDisplayedData.length;
 
   const loadAllowancesAndDeductions = async () => {
     setIsLoadingAllowances(true);
@@ -185,23 +254,6 @@ const SalaryProcessPage = () => {
     }
   };
 
-
-  const parseJsonField = (value, fallback) => {
-  if (value == null) return fallback;
-
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value);
-    } catch (error) {
-      return fallback;
-    }
-  }
-
-  return value;
-};
-
-
-
   const loadBonusesByCompanyOrDepartment = async (companyId, departmentId) => {
     setIsLoadingBonuses(true);
     try {
@@ -270,221 +322,112 @@ const SalaryProcessPage = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(employeeData));
   };
 
-
-  /*
   const buildPayslipGroups = (emp) => {
-    const breakdown = emp?.salary_breakdown || {};
-    const bonuses = Array.isArray(emp?.bonuses) ? emp.bonuses : [];
+    const breakdown = parseJsonField(emp?.salary_breakdown, {});
+    const allowances = normalizeNamedItems(
+      parseJsonField(emp?.allowances, []),
+      "allowance"
+    );
+    const bonuses = normalizeNamedItems(parseJsonField(emp?.bonuses, []), "bonus");
+
     const salaryAdvance = Number(emp?.salary_advance || 0);
 
-    const basicPayslip = {
-      title: "Basic Salary Payslip",
-      paymentMethod: "Bank Transfer",
-      earnings: [
-        {
-          label: "Basic Salary",
-          amount: Number(breakdown.basic_salary || 0),
-        },
-      ].filter((item) => item.amount > 0),
-      deductions: [
-        {
-          label: "EPF Deduction (8%)",
-          amount: Number(breakdown.epf_employee_deduction || 0),
-        },
-        {
-          label: "Official No Pay Deduction",
-          amount: Number(breakdown.no_pay_deduction || 0),
-        },
-      ].filter((item) => item.amount > 0),
-    };
+    const basicEarnings = [
+      {
+        label: "Basic Salary",
+        amount: Number(breakdown.basic_salary || emp?.basic_salary || 0),
+      },
+      ...allowances.map((a) => ({
+        label: a.name || "Allowance",
+        amount: Number(a.amount || 0),
+      })),
+    ].filter((item) => item.amount > 0);
 
-    const monthlyBonusPayslip = {
-      title: "Monthly Bonus Payslip",
-      paymentMethod: "Cash",
-      earnings: [
-        ...bonuses.map((b) => ({
-          label: b.name || "Bonus",
-          amount: Number(b.amount || 0),
-        })),
-        {
-          label: "KPI Allowance",
-          amount: Number(breakdown.kpi_allowance || 0),
-        },
-        {
-          label: "KPI Bonus (6M)",
-          amount: Number(breakdown.kpi_bonus_allowance || 0),
-        },
-      ].filter((item) => item.amount > 0),
-      deductions: [
-        {
-          label: "Attendance Deduction",
-          amount: Number(breakdown.no_pay_deduction || 0),
-        },
-        {
-          label: "Late Arrival Deduction",
-          amount: Number(breakdown.late_deduction_amount || 0),
-        },
-        {
-          label: "Half Day Deduction",
-          amount:
-            Number(breakdown.half_day_count || 0) > 0
-              ? Number(breakdown.late_deduction_amount || 0)
-              : 0,
-        },
-        {
-          label: "Loan Installment / Interest",
-          amount: Number(breakdown.loan_installment || 0),
-        },
-        {
-          label: "Salary Advance",
-          amount: salaryAdvance,
-        },
-      ].filter((item) => item.amount > 0),
-    };
+    const basicOnlyDeductions = [
+      {
+        label: "EPF Deduction (8%)",
+        amount: Number(breakdown.epf_employee_deduction || 0),
+      },
+      {
+        label: "Official No Pay Deduction",
+        amount: Number(breakdown.no_pay_deduction || 0),
+      },
+    ].filter((item) => item.amount > 0);
 
-    const overtimePayslip = {
-      title: "Overtime Payslip",
-      paymentMethod: "Separate Payment",
-      earnings: [
-        {
-          label: "Morning OT",
-          amount: Number(breakdown.ot_morning_fees || 0),
-        },
-        {
-          label: "Evening OT",
-          amount: Number(breakdown.ot_night_fees || 0),
-        },
-        {
-          label: "Holiday OT",
-          amount: Number(breakdown.holiday_ot_fees || 0),
-        },
-      ].filter((item) => item.amount > 0),
-      deductions: [],
-    };
+    const bonusSideDeductions = [
+      {
+        label: "Late Arrival Deduction",
+        amount: Number(breakdown.late_deduction_amount || 0),
+      },
+      {
+        label: "Half Day Deduction",
+        amount: Number(breakdown.half_day_deduction || 0),
+      },
+      {
+        label: "Loan Installment / Interest",
+        amount: Number(breakdown.loan_installment || 0),
+      },
+      {
+        label: "Salary Advance",
+        amount: salaryAdvance,
+      },
+    ].filter((item) => item.amount > 0);
+
+    const bonusEarnings = [
+      ...bonuses.map((b) => ({
+        label: b.name || "Bonus",
+        amount: Number(b.amount || 0),
+      })),
+      {
+        label: "KPI Allowance",
+        amount: Number(breakdown.kpi_allowance || 0),
+      },
+      {
+        label: "KPI Bonus (6M)",
+        amount: Number(breakdown.kpi_bonus_allowance || 0),
+      },
+    ].filter((item) => item.amount > 0);
+
+    const hasBonus = bonusEarnings.length > 0;
 
     return {
-      basicPayslip,
-      monthlyBonusPayslip,
-      overtimePayslip,
+      basicPayslip: {
+        title: "BASIC + ALLOWANCES PAYSLIP",
+        paymentMethod: "Bank Transfer",
+        earnings: basicEarnings,
+        deductions: hasBonus
+          ? basicOnlyDeductions
+          : [...basicOnlyDeductions, ...bonusSideDeductions],
+      },
+      bonusPayslip: {
+        title: "BONUS PAYSLIP",
+        paymentMethod: "Cash",
+        earnings: bonusEarnings,
+        deductions: hasBonus ? bonusSideDeductions : [],
+      },
+      overtimePayslip: {
+        title: "OVERTIME PAYSLIP",
+        paymentMethod: "Separate Payment",
+        earnings: [
+          {
+            label: "Morning OT",
+            amount: Number(breakdown.ot_morning_fees || 0),
+          },
+          {
+            label: "Evening OT",
+            amount: Number(breakdown.ot_night_fees || 0),
+          },
+          {
+            label: "Holiday OT",
+            amount: Number(breakdown.holiday_ot_fees || 0),
+          },
+        ].filter((item) => item.amount > 0),
+        deductions: [],
+      },
+      hasBonus,
     };
   };
-*/
 
-
-const buildPayslipGroups = (emp) => {
-  const breakdown =
-    typeof emp?.salary_breakdown === "string"
-      ? JSON.parse(emp.salary_breakdown)
-      : emp?.salary_breakdown || {};
-
-  const allowances = Array.isArray(emp?.allowances)
-    ? emp.allowances
-    : typeof emp?.allowances === "string"
-    ? JSON.parse(emp.allowances || "[]")
-    : [];
-
-  const bonuses = Array.isArray(emp?.bonuses)
-    ? emp.bonuses
-    : typeof emp?.bonuses === "string"
-    ? JSON.parse(emp.bonuses || "[]")
-    : [];
-
-  const salaryAdvance = Number(emp?.salary_advance || 0);
-
-  const basicEarnings = [
-    {
-      label: "Basic Salary",
-      amount: Number(breakdown.basic_salary || emp?.basic_salary || 0),
-    },
-    ...allowances.map((a) => ({
-      label: a.name || "Allowance",
-      amount: Number(a.amount || 0),
-    })),
-  ].filter((item) => item.amount > 0);
-
-  const basicOnlyDeductions = [
-    {
-      label: "EPF Deduction (8%)",
-      amount: Number(breakdown.epf_employee_deduction || 0),
-    },
-    {
-      label: "Official No Pay Deduction",
-      amount: Number(breakdown.no_pay_deduction || 0),
-    },
-  ].filter((item) => item.amount > 0);
-
-  const bonusSideDeductions = [
-    {
-      label: "Late Arrival Deduction",
-      amount: Number(breakdown.late_deduction_amount || 0),
-    },
-    {
-      label: "Half Day Deduction",
-      amount: Number(breakdown.half_day_deduction || 0),
-    },
-    {
-      label: "Loan Installment / Interest",
-      amount: Number(breakdown.loan_installment || 0),
-    },
-    {
-      label: "Salary Advance",
-      amount: salaryAdvance,
-    },
-  ].filter((item) => item.amount > 0);
-
-  const bonusEarnings = [
-    ...bonuses.map((b) => ({
-      label: b.name || "Bonus",
-      amount: Number(b.amount || 0),
-    })),
-  ].filter((item) => item.amount > 0);
-
-  const hasBonus = bonusEarnings.length > 0;
-
-  return {
-    basicPayslip: {
-      title: "BASIC + ALLOWANCES PAYSLIP",
-      paymentMethod: "Bank Transfer",
-      earnings: basicEarnings,
-      deductions: hasBonus
-        ? basicOnlyDeductions
-        : [...basicOnlyDeductions, ...bonusSideDeductions],
-    },
-    bonusPayslip: {
-      title: "BONUS PAYSLIP",
-      paymentMethod: "Cash",
-      earnings: bonusEarnings,
-      deductions: hasBonus ? bonusSideDeductions : [],
-    },
-    overtimePayslip: {
-      title: "OVERTIME PAYSLIP",
-      paymentMethod: "Separate Payment",
-      earnings: [
-        {
-          label: "Morning OT",
-          amount: Number(breakdown.ot_morning_fees || 0),
-        },
-        {
-          label: "Evening OT",
-          amount: Number(breakdown.ot_night_fees || 0),
-        },
-        {
-          label: "Holiday OT",
-          amount: Number(breakdown.holiday_ot_fees || 0),
-        },
-      ].filter((item) => item.amount > 0),
-      deductions: [],
-    },
-    hasBonus,
-  };
-};
-
-
-
-
-
-
-/*
   const generateSinglePayslipPDF = (
     doc,
     emp,
@@ -522,7 +465,7 @@ const buildPayslipGroups = (emp) => {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Employee No :`, 15, y);
-    doc.text(`${emp.employee_no || "N/A"}`, 60, y);
+    doc.text(`${emp.employee_no || emp.emp_no || "N/A"}`, 60, y);
     y += 6;
 
     doc.text(`Name :`, 15, y);
@@ -610,178 +553,7 @@ const buildPayslipGroups = (emp) => {
 
     doc.rect(10, 45, 190, Math.max(80, y - 38));
   };
-*/
 
-const generateSinglePayslipPDF = (
-  doc,
-  emp,
-  payslip,
-  monthName,
-  selectedYear,
-  isFirstPage = false
-) => {
-  if (!isFirstPage) doc.addPage();
-
-  const earningsTotal = (payslip.earnings || []).reduce(
-    (sum, item) => sum + Number(item.amount || 0),
-    0
-  );
-
-  const deductionsTotal = (payslip.deductions || []).reduce(
-    (sum, item) => sum + Number(item.amount || 0),
-    0
-  );
-
-  const netTotal = earningsTotal - deductionsTotal;
-
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${emp.company_name || "Company"}`, 105, 15, { align: "center" });
-  doc.text(`${payslip.title}`, 105, 22, { align: "center" });
-  doc.text(`${monthName} ${selectedYear}`, 105, 29, { align: "center" });
-  doc.text(`Payment Method: ${payslip.paymentMethod}`, 105, 36, {
-    align: "center",
-  });
-  doc.rect(10, 8, 190, 34);
-
-  let y = 50;
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Employee No :`, 15, y);
-  doc.text(`${emp.employee_no || emp.emp_no || "N/A"}`, 60, y);
-  y += 6;
-
-  doc.text(`Name :`, 15, y);
-  doc.text(`${emp.full_name || "N/A"}`, 60, y);
-  y += 6;
-
-  doc.text(`Department :`, 15, y);
-  doc.text(`${emp.department_name || "N/A"}`, 60, y);
-  y += 6;
-
-  if (payslip.paymentMethod === "Bank Transfer") {
-    doc.text(`Bank :`, 15, y);
-    doc.text(`${emp.compensation?.bank_name || "N/A"}`, 60, y);
-    y += 6;
-
-    doc.text(`Branch :`, 15, y);
-    doc.text(`${emp.compensation?.branch_name || "N/A"}`, 60, y);
-    y += 6;
-
-    doc.text(`Account No :`, 15, y);
-    doc.text(`${emp.compensation?.bank_account_no || "N/A"}`, 60, y);
-    y += 8;
-  } else {
-    y += 4;
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Earnings", 15, y);
-  y += 8;
-
-  doc.setFont("helvetica", "normal");
-  if ((payslip.earnings || []).length > 0) {
-    payslip.earnings.forEach((item) => {
-      doc.text(item.label, 15, y);
-      doc.text(
-        Number(item.amount || 0).toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 6;
-    });
-  } else {
-    doc.text("No earnings", 15, y);
-    y += 6;
-  }
-
-  y += 4;
-  doc.setFont("helvetica", "bold");
-  doc.text("Deductions", 15, y);
-  y += 8;
-
-  doc.setFont("helvetica", "normal");
-  if ((payslip.deductions || []).length > 0) {
-    payslip.deductions.forEach((item) => {
-      doc.text(item.label, 15, y);
-      doc.text(
-        Number(item.amount || 0).toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-        170,
-        y,
-        { align: "right" }
-      );
-      y += 6;
-    });
-  } else {
-    doc.text("No deductions", 15, y);
-    y += 6;
-  }
-
-  y += 8;
-  doc.setFont("helvetica", "bold");
-  doc.text("Total Earnings", 15, y);
-  doc.text(
-    earningsTotal.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }),
-    170,
-    y,
-    { align: "right" }
-  );
-  y += 8;
-
-  doc.text("Total Deductions", 15, y);
-  doc.text(
-    deductionsTotal.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }),
-    170,
-    y,
-    { align: "right" }
-  );
-  y += 10;
-
-  doc.setFontSize(12);
-  doc.text("Net Amount", 15, y);
-  doc.text(
-    netTotal.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }),
-    170,
-    y,
-    { align: "right" }
-  );
-  y += 12;
-
-  doc.setFontSize(10);
-  doc.text("LIFEHRMS", 15, y);
-  const currentDate = new Date();
-  const formattedDate = `${currentDate
-    .getDate()
-    .toString()
-    .padStart(2, "0")}/${(currentDate.getMonth() + 1)
-    .toString()
-    .padStart(2, "0")}/${currentDate.getFullYear()}`;
-  doc.text(formattedDate, 170, y, { align: "right" });
-
-  doc.rect(10, 45, 190, Math.max(80, y - 38));
-};
-
-
-
-
-/*
   const handleDownloadAllProcessed = async () => {
     try {
       setIsLoading(true);
@@ -794,13 +566,13 @@ const generateSinglePayslipPDF = (
         return;
       }
 
-      const processedData = await getProcessedSalaries({ month, year });
+      const sourceData =
+        processedDisplayedData && processedDisplayedData.length > 0
+          ? processedDisplayedData
+          : [];
 
-      if (!processedData || processedData.length === 0) {
-        notify.info(
-          "No Data",
-          "No processed or issued salary data found for the selected period."
-        );
+      if (!sourceData || sourceData.length === 0) {
+        notify.info("No Data", "No salary data found for the selected period.");
         return;
       }
 
@@ -810,8 +582,8 @@ const generateSinglePayslipPDF = (
 
       let isFirstPage = true;
 
-      processedData.forEach((emp) => {
-        const { basicPayslip, monthlyBonusPayslip, overtimePayslip } =
+      sourceData.forEach((emp) => {
+        const { basicPayslip, bonusPayslip, overtimePayslip, hasBonus } =
           buildPayslipGroups(emp);
 
         generateSinglePayslipPDF(
@@ -824,36 +596,31 @@ const generateSinglePayslipPDF = (
         );
         isFirstPage = false;
 
-        generateSinglePayslipPDF(
-          doc,
-          emp,
-          monthlyBonusPayslip,
-          monthName,
-          year,
-          false
-        );
+        if (hasBonus) {
+          generateSinglePayslipPDF(
+            doc,
+            emp,
+            bonusPayslip,
+            monthName,
+            year,
+            false
+          );
+        }
 
-        generateSinglePayslipPDF(
-          doc,
-          emp,
-          overtimePayslip,
-          monthName,
-          year,
-          false
-        );
+        if ((overtimePayslip.earnings || []).length > 0) {
+          generateSinglePayslipPDF(
+            doc,
+            emp,
+            overtimePayslip,
+            monthName,
+            year,
+            false
+          );
+        }
       });
 
-      doc.save(`three_payslips_${monthName}_${year}.pdf`);
-
-      try {
-        await updateSlaryStatus("issued");
-        notify.success("Success", "3 payslips generated successfully!");
-      } catch (error) {
-        notify.error(
-          "Status Update Failed",
-          error.response?.data?.message || error.message || "Unknown error"
-        );
-      }
+      doc.save(`payslips_${monthName}_${year}.pdf`);
+      notify.success("Success", "Payslips generated successfully!");
     } catch (error) {
       console.error("Error generating payslips:", error);
       notify.error("PDF Error", "Error generating payslips. Please try again.");
@@ -861,82 +628,6 @@ const generateSinglePayslipPDF = (
       setIsLoading(false);
     }
   };
-*/
-const handleDownloadAllProcessed = async () => {
-  try {
-    setIsLoading(true);
-
-    if (!month || !year) {
-      notify.warning(
-        "Missing Filters",
-        "Please select month and year before downloading payslips."
-      );
-      return;
-    }
-
-    const sourceData =
-      displayedData && displayedData.length > 0 ? displayedData : [];
-
-    if (!sourceData || sourceData.length === 0) {
-      notify.info("No Data", "No salary data found for the selected period.");
-      return;
-    }
-
-    const doc = new jsPDF();
-    const monthObj = months.find((m) => m.value === month);
-    const monthName = monthObj ? monthObj.label : `${month}`;
-
-    let isFirstPage = true;
-
-    sourceData.forEach((emp) => {
-      const { basicPayslip, bonusPayslip, overtimePayslip, hasBonus } =
-        buildPayslipGroups(emp);
-
-      generateSinglePayslipPDF(
-        doc,
-        emp,
-        basicPayslip,
-        monthName,
-        year,
-        isFirstPage
-      );
-      isFirstPage = false;
-
-      if (hasBonus) {
-        generateSinglePayslipPDF(
-          doc,
-          emp,
-          bonusPayslip,
-          monthName,
-          year,
-          false
-        );
-      }
-
-      if ((overtimePayslip.earnings || []).length > 0) {
-        generateSinglePayslipPDF(
-          doc,
-          emp,
-          overtimePayslip,
-          monthName,
-          year,
-          false
-        );
-      }
-    });
-
-    doc.save(`three_payslips_${monthName}_${year}.pdf`);
-
-    notify.success("Success", "Payslips generated successfully!");
-  } catch (error) {
-    console.error("Error generating payslips:", error);
-    notify.error("PDF Error", "Error generating payslips. Please try again.");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
 
   const handleEPFFilter = () => setActiveFilter("EPF");
   const handleNonEPFFilter = () => setActiveFilter("NonEPF");
@@ -1015,10 +706,16 @@ const handleDownloadAllProcessed = async () => {
         kpi_type: kpiType || undefined,
       });
 
-      const rows = data?.data || [];
+      const rows = (data?.data || []).map(normalizeEmployee);
+
       setEmployeeData(rows);
       setDisplayedData(rows);
       setFilteredData(rows);
+
+      console.log("salary rows", rows);
+      console.log("first employee bonuses", rows[0]?.bonuses);
+      console.log("first employee allowances", rows[0]?.allowances);
+      console.log("first employee breakdown", rows[0]?.salary_breakdown);
 
       return rows;
     } catch (error) {
@@ -1076,7 +773,9 @@ const handleDownloadAllProcessed = async () => {
     if (selectAll) {
       setSelectedEmployees([]);
     } else {
-      const allEmployeeIds = displayedData.map((employee) => `${employee.id}`);
+      const allEmployeeIds = processedDisplayedData.map(
+        (employee) => `${employee.id}`
+      );
       setSelectedEmployees(allEmployeeIds);
     }
     setSelectAll(!selectAll);
@@ -1191,10 +890,10 @@ const handleDownloadAllProcessed = async () => {
 
   useEffect(() => {
     const allSelected =
-      displayedData.length > 0 &&
-      selectedEmployees.length === displayedData.length;
+      processedDisplayedData.length > 0 &&
+      selectedEmployees.length === processedDisplayedData.length;
     setSelectAll(allSelected);
-  }, [selectedEmployees, displayedData]);
+  }, [selectedEmployees, processedDisplayedData]);
 
   useEffect(() => {
     setSelectedEmployees([]);
@@ -1238,15 +937,23 @@ const handleDownloadAllProcessed = async () => {
 
       if (Array.isArray(item.allowances)) {
         flattened.allowances = item.allowances
-          .map((a) => `${a.name}: ${a.amount}`)
+          .map((a) => `${a.name || a.allowance_name}: ${a.amount}`)
           .join("; ");
       } else {
         flattened.allowances = "";
       }
 
+      if (Array.isArray(item.bonuses)) {
+        flattened.bonuses = item.bonuses
+          .map((b) => `${b.name || b.bonus_name}: ${b.amount}`)
+          .join("; ");
+      } else {
+        flattened.bonuses = "";
+      }
+
       if (Array.isArray(item.deductions)) {
         flattened.deductions = item.deductions
-          .map((d) => `${d.name}: ${d.amount}`)
+          .map((d) => `${d.name || d.deduction_name}: ${d.amount}`)
           .join("; ");
       } else {
         flattened.deductions = "";
@@ -1269,6 +976,7 @@ const handleDownloadAllProcessed = async () => {
         "br1",
         "br2",
       ];
+
       yesNoFields.forEach((field) => {
         if (flattened[field] !== undefined && flattened[field] !== null) {
           flattened[field] = flattened[field] == 1 ? "Yes" : "No";
@@ -1303,6 +1011,7 @@ const handleDownloadAllProcessed = async () => {
       installment_amount: "Installment Amount",
       approved_no_pay_days: "Approved No-Pay Days",
       allowances: "Allowances",
+      bonuses: "Bonuses",
       deductions: "Deductions",
       breakdown_basic_salary: "Basic Salary (Adjusted)",
       breakdown_br_allowance: "BR Allowance",
@@ -1729,7 +1438,10 @@ const handleDownloadAllProcessed = async () => {
                 }`}
                 onClick={async () => {
                   if (filteredData.length === 0) {
-                    notify.info("No Data", "No data to save. Please apply filters first.");
+                    notify.info(
+                      "No Data",
+                      "No data to save. Please apply filters first."
+                    );
                     return;
                   }
                   try {
@@ -1742,7 +1454,10 @@ const handleDownloadAllProcessed = async () => {
 
                     const csvContent = convertToCSV(filteredData);
                     const kpiSuffix = kpiType ? `_${kpiType}` : `_none`;
-                    downloadCSV(csvContent, `salary_data${kpiSuffix}_${Date.now()}.csv`);
+                    downloadCSV(
+                      csvContent,
+                      `salary_data${kpiSuffix}_${Date.now()}.csv`
+                    );
 
                     notify.success(
                       "Saved",
@@ -1943,7 +1658,7 @@ const handleDownloadAllProcessed = async () => {
         </div>
       )}
 
-      {!isLoading && displayedData.length > 0 && (
+      {!isLoading && processedDisplayedData.length > 0 && (
         <div className="space-y-4 mb-8">
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 flex items-center gap-3">
             <input
@@ -1957,53 +1672,69 @@ const handleDownloadAllProcessed = async () => {
             </span>
           </div>
 
-          {displayedData.map((employee) => {
+          {processedDisplayedData.map((employee) => {
             const empId = `${employee.id}`;
 
-            const totalAllowances = (employee.allowances || []).reduce(
+            const allowances = Array.isArray(employee.allowances)
+              ? employee.allowances
+              : [];
+            const bonuses = Array.isArray(employee.bonuses) ? employee.bonuses : [];
+            const deductions = Array.isArray(employee.deductions)
+              ? employee.deductions
+              : [];
+            const breakdown =
+              employee.salary_breakdown &&
+              typeof employee.salary_breakdown === "object"
+                ? employee.salary_breakdown
+                : {};
+
+            const totalAllowances = allowances.reduce(
               (sum, a) => sum + (parseFloat(a.amount) || 0),
               0
             );
 
-            const totalBonuses = (employee.bonuses || []).reduce(
+            const totalBonuses = bonuses.reduce(
               (sum, b) => sum + (parseFloat(b.amount) || 0),
               0
             );
 
-            const gross = Number(employee.salary_breakdown?.gross_salary || 0);
-            const net = Number(employee.salary_breakdown?.net_salary || 0);
-            const totalDeductionBreakdown = Number(
-              employee.salary_breakdown?.total_deductions || 0
-            );
+            const gross = Number(breakdown.gross_salary || 0);
+            const net = Number(breakdown.net_salary || 0);
+            const totalDeductionBreakdown = Number(breakdown.total_deductions || 0);
 
-            const otMorning = Number(employee.salary_breakdown?.ot_morning_fees || 0);
-            const otNight = Number(employee.salary_breakdown?.ot_night_fees || 0);
-            const holidayOt = Number(employee.salary_breakdown?.holiday_ot_fees || 0);
+            const otMorning = Number(breakdown.ot_morning_fees || 0);
+            const otNight = Number(breakdown.ot_night_fees || 0);
+            const holidayOt = Number(breakdown.holiday_ot_fees || 0);
 
-            const lateCountForPolicy = Number(
-              employee.salary_breakdown?.late_count_for_policy || 0
-            );
+            const lateCountForPolicy = Number(breakdown.late_count_for_policy || 0);
             const approvedLeaveLateCount = Number(
-              employee.salary_breakdown?.approved_leave_late_count || 0
+              breakdown.approved_leave_late_count || 0
             );
             const noDeductionLateCount = Number(
-              employee.salary_breakdown?.no_deduction_late_count || 0
+              breakdown.no_deduction_late_count || 0
             );
-            const shortLeaveCount = Number(
-              employee.salary_breakdown?.short_leave_count || 0
-            );
-            const halfDayCount = Number(
-              employee.salary_breakdown?.half_day_count || 0
-            );
+            const shortLeaveCount = Number(breakdown.short_leave_count || 0);
+            const halfDayCount = Number(breakdown.half_day_count || 0);
             const deductibleLateCount = Number(
-              employee.salary_breakdown?.deductible_late_count || 0
+              breakdown.deductible_late_count || 0
             );
             const lateDeductionAmount = Number(
-              employee.salary_breakdown?.late_deduction_amount || 0
+              breakdown.late_deduction_amount || 0
             );
-            const lateDates = Array.isArray(employee.salary_breakdown?.late_dates)
-              ? employee.salary_breakdown.late_dates
+            const lateDates = Array.isArray(breakdown.late_dates)
+              ? breakdown.late_dates
               : [];
+
+
+
+              console.log("CARD EMPLOYEE", {
+  id: employee.id,
+  emp_no: employee.emp_no,
+  full_name: employee.full_name,
+  allowances: employee.allowances,
+  bonuses: employee.bonuses,
+  salary_breakdown: employee.salary_breakdown,
+});
 
             return (
               <div
@@ -2064,7 +1795,7 @@ const handleDownloadAllProcessed = async () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 min-w-[320px]">
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3 min-w-[320px]">
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                       <div className="text-[11px] text-gray-500">Gross</div>
                       <div className="text-sm font-bold">{gross.toLocaleString()}</div>
@@ -2074,6 +1805,13 @@ const handleDownloadAllProcessed = async () => {
                       <div className="text-[11px] text-gray-500">Allowances</div>
                       <div className="text-sm font-bold">
                         {totalAllowances.toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-gray-200 bg-blue-50 p-3">
+                      <div className="text-[11px] text-blue-600">Bonuses</div>
+                      <div className="text-sm font-bold text-blue-700">
+                        {totalBonuses.toLocaleString()}
                       </div>
                     </div>
 
@@ -2116,14 +1854,14 @@ const handleDownloadAllProcessed = async () => {
                         </div>
                       </div>
 
-                      {(employee.allowances || []).length > 0 ? (
+                      {allowances.length > 0 ? (
                         <div className="space-y-2">
-                          {employee.allowances.map((a, idx) => (
+                          {allowances.map((a, idx) => (
                             <div key={idx} className="flex justify-between text-sm">
                               <span className="text-gray-600">
-                                {a.name}{" "}
+                                {a.name || a.allowance_name || "Allowance"}{" "}
                                 <span className="text-xs text-gray-400">
-                                  ({a.code})
+                                  ({a.code || a.allowance_code || "-"})
                                 </span>
                               </span>
                               <span className="font-semibold">
@@ -2147,14 +1885,14 @@ const handleDownloadAllProcessed = async () => {
                         </div>
                       </div>
 
-                      {(employee.bonuses || []).length > 0 ? (
+                      {bonuses.length > 0 ? (
                         <div className="space-y-2">
-                          {employee.bonuses.map((b, idx) => (
+                          {bonuses.map((b, idx) => (
                             <div key={idx} className="flex justify-between text-sm">
                               <span className="text-gray-600">
-                                {b.name}{" "}
+                                {b.name || b.bonus_name || "Bonus"}{" "}
                                 <span className="text-xs text-gray-400">
-                                  ({b.code})
+                                  ({b.code || b.bonus_code || "-"})
                                 </span>
                               </span>
                               <span className="font-semibold">
@@ -2183,17 +1921,17 @@ const handleDownloadAllProcessed = async () => {
                           <span className="text-gray-600">EPF (Employee 8%)</span>
                           <span className="font-semibold text-red-600">
                             {Number(
-                              employee.salary_breakdown?.epf_employee_deduction || 0
+                              breakdown.epf_employee_deduction || 0
                             ).toLocaleString()}
                           </span>
                         </div>
 
-                        {(employee.deductions || []).map((d, idx) => (
+                        {deductions.map((d, idx) => (
                           <div key={idx} className="flex justify-between text-sm">
                             <span className="text-gray-600">
-                              {d.name}{" "}
+                              {d.name || d.deduction_name || "Deduction"}{" "}
                               <span className="text-xs text-gray-400">
-                                ({d.code})
+                                ({d.code || d.deduction_code || "-"})
                               </span>
                             </span>
                             <span className="font-semibold text-red-600">
@@ -2241,25 +1979,19 @@ const handleDownloadAllProcessed = async () => {
                         <div className="flex justify-between">
                           <span className="text-gray-600">Adj. Basic</span>
                           <span className="font-semibold">
-                            {Number(
-                              employee.salary_breakdown?.adjusted_basic || 0
-                            ).toLocaleString()}
+                            {Number(breakdown.adjusted_basic || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Per Day</span>
                           <span className="font-semibold">
-                            {Number(
-                              employee.salary_breakdown?.per_day_salary || 0
-                            ).toLocaleString()}
+                            {Number(breakdown.per_day_salary || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">No Pay Deduction</span>
                           <span className="font-semibold text-red-600">
-                            {Number(
-                              employee.salary_breakdown?.no_pay_deduction || 0
-                            ).toLocaleString()}
+                            {Number(breakdown.no_pay_deduction || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -2271,17 +2003,13 @@ const handleDownloadAllProcessed = async () => {
                         <div className="flex justify-between">
                           <span className="text-gray-600">Loan</span>
                           <span className="font-semibold text-red-600">
-                            {Number(
-                              employee.salary_breakdown?.loan_installment || 0
-                            ).toLocaleString()}
+                            {Number(breakdown.loan_installment || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Stamp</span>
                           <span className="font-semibold text-red-600">
-                            {Number(
-                              employee.salary_breakdown?.stamp || 0
-                            ).toLocaleString()}
+                            {Number(breakdown.stamp || 0).toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -2428,7 +2156,7 @@ const handleDownloadAllProcessed = async () => {
         </div>
       )}
 
-      {!isLoading && displayedData.length === 0 && (
+      {!isLoading && processedDisplayedData.length === 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow text-center">
           <div className="mx-auto max-w-md">
             <Users className="mx-auto h-12 w-12 text-gray-400" />
