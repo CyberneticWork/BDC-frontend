@@ -68,6 +68,9 @@ export const updateSlaryStatus = async (status) => {
     throw error;
   }
 };
+
+
+/*
 export const getProcessedSalaries = async () => {
   try {
     const response = await axios.get("/salary/processed");
@@ -77,6 +80,19 @@ export const getProcessedSalaries = async () => {
     throw error;
   }
 };
+*/
+
+export const getProcessedSalaries = async (params = {}) => {
+  try {
+    const response = await axios.get("/salary/processed", { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching processed salaries:", error);
+    throw error;
+  }
+};
+
+
 export const markPayslipsAsIssued = async (employeeIds) => {
   try {
     const response = await axios.post("/salary/process/mark-issued", {

@@ -215,7 +215,6 @@ const LeaveSettings = () => {
   };
 
   const handleEmployeeTypeChange = (type) => {
-    console.log('Employee type changed to:', type);
     setFormData((prev) => ({
       ...prev,
       employee_type: type,
@@ -257,31 +256,6 @@ const LeaveSettings = () => {
         description: setting.description || "",
       });
     } else {
-      // Check if probation or permanent already exists
-      const existingProbation = settings.find(s => s.employee_type === 'probation');
-      const existingPermanent = settings.find(s => s.employee_type === 'permanent');
-      
-      // If both exist, show message
-      if (existingProbation && existingPermanent) {
-        setMessage({ 
-          type: "error", 
-          text: "Both employee types already have settings. Please edit existing settings instead." 
-        });
-        setTimeout(() => setMessage({ type: "", text: "" }), 3000);
-        return;
-      }
-      
-      // Set default employee type to the one that doesn't exist
-      const defaultType = existingProbation ? 'permanent' : 'probation';
-      
-      setFormData({
-        employee_type: defaultType,
-        annual_leave_days: 0,
-        number_of_quarters: 4,
-        quarters: defaultType === 'permanent' ? initializeQuarters(4) : [],
-        is_active: true,
-        description: "",
-      });
       resetForm();
     }
     setShowModal(true);
@@ -337,7 +311,6 @@ const LeaveSettings = () => {
       closeModal();
     } catch (error) {
       console.error("Error saving settings:", error);
-      console.error("Error response:", error.response?.data);
       setMessage({
         type: "error",
         text: error.response?.data?.message || "Failed to save leave settings",
@@ -633,12 +606,11 @@ const LeaveSettings = () => {
                   <button
                     type="button"
                     onClick={() => handleEmployeeTypeChange("probation")}
-                    disabled={editingId && formData.employee_type !== "probation"}
                     className={`p-4 rounded-lg border-2 transition-all duration-200 ${
                       formData.employee_type === "probation"
                         ? "border-orange-500 bg-orange-50"
                         : "border-gray-200 hover:border-gray-300"
-                    } ${editingId && formData.employee_type !== "probation" ? "opacity-50 cursor-not-allowed" : ""}`}
+                    }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Users
@@ -662,12 +634,11 @@ const LeaveSettings = () => {
                   <button
                     type="button"
                     onClick={() => handleEmployeeTypeChange("permanent")}
-                    disabled={editingId && formData.employee_type !== "permanent"}
                     className={`p-4 rounded-lg border-2 transition-all duration-200 ${
                       formData.employee_type === "permanent"
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"
-                    } ${editingId && formData.employee_type !== "permanent" ? "opacity-50 cursor-not-allowed" : ""}`}
+                    }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Users
@@ -689,11 +660,6 @@ const LeaveSettings = () => {
                     </div>
                   </button>
                 </div>
-                {editingId && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Employee type cannot be changed when editing
-                  </p>
-                )}
               </div>
 
               {/* Probation Settings */}
