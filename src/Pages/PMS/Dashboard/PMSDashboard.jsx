@@ -343,19 +343,19 @@ const PMSDashboard = () => {
       <div className="container mx-auto px-6 py-8 max-w-7xl">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
+          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl p-8 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <h1 className="text-3xl font-bold mb-2">
                   Performance Management System
                 </h1>
-                <p className="text-gray-600 text-lg">
+                <p className="text-indigo-100 text-lg">
                   Dashboard overview of your organization's performance metrics
                 </p>
               </div>
               <div className="hidden md:block">
-                <div className="bg-gray-100 rounded-full p-4">
-                  <BarChart3 className="h-8 w-8 text-gray-600" />
+                <div className="bg-white/20 rounded-full p-4">
+                  <BarChart3 className="h-8 w-8 text-white" />
                 </div>
               </div>
             </div>

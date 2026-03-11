@@ -1287,9 +1287,9 @@ const Department = () => {
       {!loading && (
         <>
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Department Management</h1>
-            <p className="text-gray-600">
+          <div className="mb-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+            <h1 className="text-3xl font-bold mb-2">Department Management</h1>
+            <p className="text-blue-100">
               Manage your organization's structure including companies, departments, and subdepartments.
             </p>
           </div>

@@ -584,33 +584,29 @@ const ShiftSchedule = () => {
       />
 
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
+      <div className="mb-8 bg-gradient-to-r from-cyan-600 to-blue-600 text-white p-6 rounded-lg shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-white/20 rounded-xl">
             <Calendar className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              Shift Schedule Manager
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Manage and optimize employee work schedules
-            </p>
+            <h1 className="text-3xl font-bold">Shift Schedule Manager</h1>
+            <p className="text-cyan-100 mt-1">Manage and optimize employee work schedules</p>
           </div>
         </div>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Shifts</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.total}
-                </p>
-              </div>
-              <Users className="w-8 h-8 text-blue-500" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Shifts</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.total}
+              </p>
             </div>
+            <Users className="w-8 h-8 text-blue-500" />
           </div>
         </div>
       </div>

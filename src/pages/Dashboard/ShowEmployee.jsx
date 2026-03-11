@@ -68,11 +68,7 @@ const ShowEmployee = () => {
     loadData();
   }, [currentPage, perPage, debouncedSearchTerm]);
 
-  const handleEditEmployee = (employeeId) => {
-    localStorage.setItem("editEmployeeId", employeeId);
-    setShowModal(false);
-    navigate("/employee-add");
-  };
+
 
   const handleViewEmployee = async (employee) => {
     const employeeData = await employeeService.fetchEmployeeById(employee);
@@ -222,11 +218,11 @@ const ShowEmployee = () => {
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+              <h1 className="text-3xl font-bold mb-2">
                 Employee Management
               </h1>
-              <p className="text-gray-600">
+              <p className="text-blue-100">
                 Manage and view employee information
               </p>
             </div>
@@ -279,6 +275,9 @@ const ShowEmployee = () => {
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Position
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Department
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -338,6 +337,11 @@ const ShowEmployee = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {employee.organizationAssignment?.department?.name || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(employee.is_active)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -354,10 +358,10 @@ const ShowEmployee = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => handleViewEmployee(employee.id)}
-                          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+                          className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
                         >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
                         </button>
                       </td>
                     </tr>
@@ -550,6 +554,25 @@ const ShowEmployee = () => {
 
               {/* Modal Content */}
               <div className="p-6">
+                {/* Profile Picture Section */}
+                <div className="mb-8 text-center">
+                  <div className="inline-block">
+                    <div className="h-40 w-40 rounded-lg bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden shadow-lg">
+                      {selectedEmployee.profile_photo_path ? (
+                        <img
+                          src={`${apiUrl}/storage/${selectedEmployee.profile_photo_path}`}
+                          alt="Profile photo"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white font-semibold text-6xl">
+                          {selectedEmployee.name_with_initials?.charAt(0) || "?"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Basic Information */}
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -1167,13 +1190,6 @@ const ShowEmployee = () => {
               {/* Modal Footer */}
               <div className="bg-gray-50 px-6 py-4 rounded-b-2xl">
                 <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => handleEditEmployee(selectedEmployee.id)}
-                    className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </button>
                   <button
                     onClick={handleDeleteClick}
                     className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200"

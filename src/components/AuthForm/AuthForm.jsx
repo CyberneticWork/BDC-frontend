@@ -47,24 +47,24 @@ const AuthForm = ({
       )}
       
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-          Email Address
+        <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
+          Email
         </label>
         <div className="relative">
           <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
           <input
-            id="email"
-            name="email"
+            id="identifier"
+            name="identifier"
             type="email"
             required
-            value={formData.email || ''}
+            value={formData.identifier || ''}
             onChange={onChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
             placeholder="Enter your email"
           />
         </div>
-        {errors.email && (
-          <p className="text-red-600 text-sm mt-1">{errors.email[0]}</p>
+        {errors.identifier && (
+          <p className="text-red-600 text-sm mt-1">{errors.identifier[0]}</p>
         )}
       </div>
       
