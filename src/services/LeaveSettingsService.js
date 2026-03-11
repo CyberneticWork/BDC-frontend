@@ -30,25 +30,28 @@ export const MONTHS = [
 
 // Helper to get month name from value
 export const getMonthName = (monthValue) => {
-  const month = MONTHS.find((m) => m.value === monthValue);
+  const month = MONTHS.find((m) => m.value === Number(monthValue));
   return month ? month.name : "";
 };
 
 // Helper to get month range string
 export const getMonthRangeString = (startMonth, endMonth) => {
-  const start = MONTHS.find((m) => m.value === startMonth);
-  const end = MONTHS.find((m) => m.value === endMonth);
+  const start = MONTHS.find((m) => m.value === Number(startMonth));
+  const end = MONTHS.find((m) => m.value === Number(endMonth));
+
   if (start && end) {
     return `${start.short} - ${end.short}`;
   }
+
   return "";
 };
 
 // Calculate total leave days for a quarter
 export const calculateQuarterTotalDays = (quarter) => {
-  const leaveTypes = quarter.leave_types || [];
+  const leaveTypes = quarter?.leave_types || [];
   if (!Array.isArray(leaveTypes)) return 0;
-  return leaveTypes.reduce((sum, lt) => sum + (lt.days || 0), 0);
+
+  return leaveTypes.reduce((sum, lt) => sum + Number(lt.days || 0), 0);
 };
 
 // Calculate total leave days for all quarters
@@ -63,18 +66,27 @@ export const normalizeSettingFromBackend = (setting) => {
 
   return {
     ...setting,
+    annual_leave_days:
+      setting.annual_leave_days !== null && setting.annual_leave_days !== undefined
+        ? Number(setting.annual_leave_days)
+        : null,
+    number_of_quarters:
+      setting.number_of_quarters !== null && setting.number_of_quarters !== undefined
+        ? Number(setting.number_of_quarters)
+        : null,
+    is_active: Boolean(setting.is_active),
     quarters: (setting.quarters || []).map((q) => ({
       id: q.id,
-      quarter_number: q.quarter_number,
+      quarter_number: Number(q.quarter_number),
       name: q.name,
-      start_month: q.start_month,
-      end_month: q.end_month,
-      leave_days: q.leave_days,
+      start_month: Number(q.start_month),
+      end_month: Number(q.end_month),
+      leave_days: Number(q.leave_days || 0),
       leave_types: (q.leave_types || []).map((lt) => ({
         id: lt.id,
         type: lt.type_key ?? lt.type,
         name: lt.name,
-        days: lt.days,
+        days: Number(lt.days || 0),
       })),
     })),
   };
@@ -84,21 +96,42 @@ export const normalizeSettingFromBackend = (setting) => {
 export const normalizeSettingForBackend = (formData) => {
   if (!formData) return formData;
 
-  const payload = { ...formData };
+  const payload = {
+    ...formData,
+    annual_leave_days:
+      formData.annual_leave_days !== null && formData.annual_leave_days !== undefined
+        ? Number(formData.annual_leave_days)
+        : null,
+    number_of_quarters:
+      formData.number_of_quarters !== null && formData.number_of_quarters !== undefined
+        ? Number(formData.number_of_quarters)
+        : null,
+    is_active: Boolean(formData.is_active),
+    description: formData.description || "",
+  };
 
   if (payload.quarters && Array.isArray(payload.quarters)) {
-    payload.quarters = payload.quarters.map((q) => ({
+    payload.quarters = payload.quarters.map((q, index) => ({
       id: q.id || undefined,
-      quarter_number: q.quarter_number,
-      name: q.name,
-      start_month: q.start_month,
-      end_month: q.end_month,
-      leave_days: q.leave_days,
+      quarter_number: Number(q.quarter_number || index + 1),
+      name: q.name || `Quarter ${index + 1}`,
+      start_month:
+        q.start_month !== null && q.start_month !== undefined && q.start_month !== ""
+          ? Number(q.start_month)
+          : null,
+      end_month:
+        q.end_month !== null && q.end_month !== undefined && q.end_month !== ""
+          ? Number(q.end_month)
+          : null,
+      leave_days:
+        q.leave_days !== null && q.leave_days !== undefined
+          ? Number(q.leave_days)
+          : calculateQuarterTotalDays(q),
       leave_types: (q.leave_types || []).map((lt) => ({
         id: lt.id || undefined,
         type: lt.type,
         name: lt.name,
-        days: lt.days,
+        days: Number(lt.days || 0),
       })),
     }));
   }
@@ -111,12 +144,15 @@ export const getAllLeaveSettings = async () => {
   try {
     const response = await axios.get("/leave-settings");
     const data = response.data?.data || [];
+
     return {
       ...response.data,
       data: data.map(normalizeSettingFromBackend),
     };
   } catch (error) {
     console.error("Error fetching leave settings:", error);
+    console.error("Status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
     throw error;
   }
 };
@@ -125,12 +161,15 @@ export const getAllLeaveSettings = async () => {
 export const getLeaveSettingsById = async (id) => {
   try {
     const response = await axios.get(`/leave-settings/${id}`);
+
     return {
       ...response.data,
       data: normalizeSettingFromBackend(response.data?.data),
     };
   } catch (error) {
     console.error("Error fetching leave settings:", error);
+    console.error("Status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
     throw error;
   }
 };
@@ -139,12 +178,15 @@ export const getLeaveSettingsById = async (id) => {
 export const getLeaveSettingsByType = async (employeeType) => {
   try {
     const response = await axios.get(`/leave-settings/type/${employeeType}`);
+
     return {
       ...response.data,
       data: normalizeSettingFromBackend(response.data?.data),
     };
   } catch (error) {
     console.error("Error fetching leave settings by type:", error);
+    console.error("Status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
     throw error;
   }
 };
@@ -153,13 +195,18 @@ export const getLeaveSettingsByType = async (employeeType) => {
 export const createLeaveSettings = async (data) => {
   try {
     const payload = normalizeSettingForBackend(data);
+    console.log("Create payload:", payload);
+
     const response = await axios.post("/leave-settings", payload);
+
     return {
       ...response.data,
       data: normalizeSettingFromBackend(response.data?.data),
     };
   } catch (error) {
     console.error("Error creating leave settings:", error);
+    console.error("Status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
     throw error;
   }
 };
@@ -168,13 +215,18 @@ export const createLeaveSettings = async (data) => {
 export const updateLeaveSettings = async (id, data) => {
   try {
     const payload = normalizeSettingForBackend(data);
+    console.log("Update payload:", payload);
+
     const response = await axios.put(`/leave-settings/${id}`, payload);
+
     return {
       ...response.data,
       data: normalizeSettingFromBackend(response.data?.data),
     };
   } catch (error) {
     console.error("Error updating leave settings:", error);
+    console.error("Status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
     throw error;
   }
 };
@@ -186,6 +238,8 @@ export const deleteLeaveSettings = async (id) => {
     return response.data;
   } catch (error) {
     console.error("Error deleting leave settings:", error);
+    console.error("Status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
     throw error;
   }
 };
@@ -197,6 +251,8 @@ export const getActiveLeaveSettings = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching active leave settings:", error);
+    console.error("Status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
     throw error;
   }
 };
