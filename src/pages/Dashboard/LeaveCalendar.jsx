@@ -22,10 +22,11 @@ import {
   updateLeaveEntry,
   deleteLeaveEntry,
 } from "@services/LeaveCalendar";
+import { getAllLeaves } from "@services/LeaveMaster";
 import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
 import Swal from "sweetalert2";
 
-const LeaveCalendar = () => {
+const LeaveCalendar = ({ employeeProfile }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [leaveRequests, setLeaveRequests] = useState([]);
@@ -43,6 +44,28 @@ const LeaveCalendar = () => {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Auto-select company and department for logged-in employee
+  useEffect(() => {
+    if (employeeProfile?.organization_assignment) {
+      const companyId = employeeProfile.organization_assignment.company?.id;
+      const departmentId = employeeProfile.organization_assignment.department?.id;
+      
+      if (companyId) {
+        setSelectedCompany(companyId.toString());
+        
+        // Load departments for the company
+        if (departmentId) {
+          fetchDepartmentsById(companyId)
+            .then(depts => {
+              setDepartments(depts);
+              setSelectedDepartment(departmentId.toString());
+            })
+            .catch(err => console.error('Error loading departments:', err));
+        }
+      }
+    }
+  }, [employeeProfile]);
 
   const getCurrentDate = () => {
     const today = new Date();
@@ -92,28 +115,26 @@ const LeaveCalendar = () => {
     loadDepartments();
   }, [selectedCompany]);
 
-  // Update the loadLeaveData useEffect to handle company-only and company+department filtering
-
-  useEffect(() => {
-    const loadLeaveData = async () => {
-      if (selectedCompany) {
+  // Load leave data function
+  const loadLeaveData = async () => {
+    if (selectedCompany) {
         setIsLoading(true);
         try {
-          const leaveData = await fetchLeaveCalendar();
+          // Fetch both calendar events and employee leave requests
+          const [leaveData, employeeLeaves] = await Promise.all([
+            fetchLeaveCalendar(),
+            getAllLeaves()
+          ]);
 
-          // Filter leaves based on selection:
-          // 1. If only company is selected: show company leaves with no department_id
-          // 2. If company and department are selected: show both company leaves with no department_id AND specific department leaves
+          // Filter calendar leaves based on selection
           const filteredLeaves = leaveData.filter((leave) => {
             if (selectedDepartment) {
-              // Show both company-wide leaves AND department-specific leaves
               return (
                 leave.company_id == selectedCompany &&
                 (leave.department_id == null ||
                   leave.department_id == selectedDepartment)
               );
             } else {
-              // Show only company-wide leaves (no department_id)
               return (
                 leave.company_id == selectedCompany &&
                 leave.department_id == null
@@ -121,7 +142,7 @@ const LeaveCalendar = () => {
             }
           });
 
-          // Transform filtered leave data
+          // Transform calendar leave data
           const formattedLeaveData = filteredLeaves.map((leave) => {
             const dateRange = generateDateRange(
               leave.start_date,
@@ -138,10 +159,39 @@ const LeaveCalendar = () => {
               duration: dateRange.length,
               company_id: leave.company_id,
               department_id: leave.department_id,
+              isCalendarEvent: true,
             };
           });
 
-          setLeaveRequests(formattedLeaveData);
+          // Transform approved employee leave requests
+          const approvedEmployeeLeaves = employeeLeaves
+            .filter(leave => 
+              (leave.status === 'approved' || leave.status === 'hr-approved' || leave.status === 'Approved')
+            )
+            .map((leave) => {
+              let dateRange = [];
+              if (leave.leave_date) {
+                dateRange = [leave.leave_date];
+              } else if (leave.leave_from && leave.leave_to) {
+                dateRange = generateDateRange(leave.leave_from, leave.leave_to);
+              }
+              
+              return {
+                id: `emp-${leave.id}`,
+                dates: dateRange,
+                startDate: leave.leave_date || leave.leave_from,
+                endDate: leave.leave_date || leave.leave_to,
+                description: leave.reason || "Employee Leave",
+                type: leave.leave_type || "Leave",
+                status: "Approved",
+                duration: leave.leave_duration || dateRange.length,
+                employeeName: leave.employee?.name_with_initials || "Employee",
+                isEmployeeLeave: true,
+              };
+            });
+
+          // Combine both calendar events and employee leaves
+          setLeaveRequests([...formattedLeaveData, ...approvedEmployeeLeaves]);
         } catch (error) {
           console.error("Error loading leave data:", error);
           Swal.fire({
@@ -153,13 +203,34 @@ const LeaveCalendar = () => {
           setIsLoading(false);
         }
       } else {
-        // Clear leave data if no company is selected
         setLeaveRequests([]);
       }
-    };
+  };
 
-    loadLeaveData();
-  }, [selectedCompany, selectedDepartment]); // Reload when company or department changes
+  // Load data when company/department changes and set up auto-refresh
+  useEffect(() => {
+    if (selectedCompany) {
+      loadLeaveData();
+      
+      const intervalId = setInterval(() => {
+        loadLeaveData();
+      }, 30000);
+      
+      // Listen for leave submission events
+      const handleLeaveSubmitted = () => {
+        loadLeaveData();
+      };
+      
+      window.addEventListener('leaveSubmitted', handleLeaveSubmitted);
+      
+      return () => {
+        clearInterval(intervalId);
+        window.removeEventListener('leaveSubmitted', handleLeaveSubmitted);
+      };
+    } else {
+      setLeaveRequests([]);
+    }
+  }, [selectedCompany, selectedDepartment]);
 
   const months = [
     "January",
@@ -216,6 +287,13 @@ const LeaveCalendar = () => {
       textColor: "text-gray-800",
     },
   ];
+
+  const getEmployeeLeaveColor = () => ({
+    color: "bg-gradient-to-br from-teal-500 to-cyan-600",
+    lightColor: "bg-teal-50",
+    textColor: "text-teal-800",
+    borderColor: "border-teal-300",
+  });
 
   // Get number of days in month
   const getDaysInMonth = (month, year) => {
@@ -329,6 +407,9 @@ const LeaveCalendar = () => {
                 timer: 2000,
                 showConfirmButton: false,
               });
+              
+              // Immediately refresh leave data
+              loadLeaveData();
             })
             .catch(() => {
               Swal.fire({
@@ -462,6 +543,9 @@ const LeaveCalendar = () => {
           timer: 2000,
           showConfirmButton: false,
         });
+        
+        // Immediately refresh leave data
+        await loadLeaveData();
       } catch (error) {
         console.error("Error saving leave request:", error);
         Swal.fire({
@@ -578,10 +662,11 @@ const LeaveCalendar = () => {
     return leaveTypes.find((lt) => lt.value === type) || leaveTypes[0];
   };
 
-  // Filter leave requests based on search, company and department
-  // Update the filteredLeaveRequests definition:
-
+  // Filter leave requests - show only calendar events (not employee leaves)
   const filteredLeaveRequests = leaveRequests.filter((req) => {
+    // Only show calendar events in the list
+    if (req.isEmployeeLeave) return false;
+    
     const matchesSearch =
       req.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -592,38 +677,41 @@ const LeaveCalendar = () => {
     return matchesSearch;
   });
 
+  // All leave requests for stats (including employee leaves)
+  const allLeaveRequests = leaveRequests;
+
   const calendarDays = generateCalendarDays();
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="mb-8">
+        <div className="mb-8 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-xl p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-lg">
                   <Calendar className="w-6 h-6 text-white" />
                 </div>
                 Leave Calendar
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-blue-100 mt-2">
                 Manage and track employee leave requests
               </p>
             </div>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => handleYearChange(-1)}
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-all"
               >
                 <ChevronLeft size={20} />
               </button>
-              <span className="text-lg font-semibold text-gray-900 min-w-[80px] text-center">
+              <span className="text-lg font-semibold text-white min-w-[80px] text-center">
                 {currentYear}
               </span>
               <button
                 onClick={() => handleYearChange(1)}
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-all"
               >
                 <ChevronRight size={20} />
               </button>
@@ -713,7 +801,7 @@ const LeaveCalendar = () => {
                   Total Requests
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {filteredLeaveRequests.length}
+                  {allLeaveRequests.length}
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-xl">
@@ -727,7 +815,7 @@ const LeaveCalendar = () => {
                 <p className="text-sm font-medium text-gray-600">Approved</p>
                 <p className="text-2xl font-bold text-green-600">
                   {
-                    filteredLeaveRequests.filter(
+                    allLeaveRequests.filter(
                       (req) => req.status === "Approved"
                     ).length
                   }
@@ -744,7 +832,7 @@ const LeaveCalendar = () => {
                 <p className="text-sm font-medium text-gray-600">Pending</p>
                 <p className="text-2xl font-bold text-orange-600">
                   {
-                    filteredLeaveRequests.filter(
+                    allLeaveRequests.filter(
                       (req) => req.status === "Pending"
                     ).length
                   }
@@ -761,7 +849,7 @@ const LeaveCalendar = () => {
                 <p className="text-sm font-medium text-gray-600">This Month</p>
                 <p className="text-2xl font-bold text-purple-600">
                   {
-                    filteredLeaveRequests.filter((req) => {
+                    allLeaveRequests.filter((req) => {
                       return (
                         req.dates &&
                         req.dates.some((date) => {
@@ -821,7 +909,9 @@ const LeaveCalendar = () => {
                 {calendarDays.map((day, index) => {
                   const selectedLeave = getSelectedLeave(day);
                   const leaveConfig = selectedLeave
-                    ? getLeaveTypeConfig(selectedLeave.type)
+                    ? selectedLeave.isEmployeeLeave
+                      ? getEmployeeLeaveColor()
+                      : getLeaveTypeConfig(selectedLeave.type)
                     : null;
 
                   return (
@@ -829,7 +919,7 @@ const LeaveCalendar = () => {
                       key={index}
                       onClick={() => handleDayClick(day)}
                       className={`
-                        h-20 p-3 border border-gray-200 rounded-xl cursor-pointer transition-all duration-200 relative
+                        h-20 p-3 border rounded-xl cursor-pointer transition-all duration-200 relative
                         ${
                           day
                             ? "hover:shadow-lg hover:scale-[1.02]"
@@ -837,12 +927,17 @@ const LeaveCalendar = () => {
                         }
                         ${
                           selectedLeave
-                            ? `${leaveConfig.color} text-white hover:brightness-75`
-                            : "bg-white hover:bg-gray-10 hover:border-gray-300"
+                            ? selectedLeave.isEmployeeLeave
+                              ? `${leaveConfig.color} text-white hover:brightness-90 border-teal-400 shadow-md`
+                              : `${leaveConfig.color} text-white hover:brightness-75 border-gray-300`
+                            : "bg-white hover:bg-gray-50 hover:border-gray-300 border-gray-200"
                         }
                         ${!day ? "bg-gray-50 border-gray-100" : ""}
                       `}
                     >
+                      {selectedLeave && !selectedLeave.isEmployeeLeave && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"></div>
+                      )}
                       {day && (
                         <div className="flex flex-col h-full">
                           <span
@@ -854,13 +949,19 @@ const LeaveCalendar = () => {
                           </span>
                           {selectedLeave && (
                             <div className="mt-1">
+                              {selectedLeave.isEmployeeLeave && (
+                                <span className="text-xs opacity-95 block truncate font-medium">
+                                  👤 {selectedLeave.employeeName}
+                                </span>
+                              )}
                               <span className="text-xs opacity-90 block truncate">
                                 {selectedLeave.type}
                               </span>
-                              <span className="text-xs opacity-75 block truncate">
-                                {selectedLeave.duration}d •{" "}
-                                {selectedLeave.status}
-                              </span>
+                              {!selectedLeave.isEmployeeLeave && (
+                                <span className="text-xs opacity-75 block truncate">
+                                  {selectedLeave.duration}d
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -914,8 +1015,9 @@ const LeaveCalendar = () => {
                   </div>
                 ) : (
                   filteredLeaveRequests.map((request) => {
-                    const leaveConfig = getLeaveTypeConfig(request.type);
-                    // Find company and department names for display
+                    const leaveConfig = request.isEmployeeLeave
+                      ? getEmployeeLeaveColor()
+                      : getLeaveTypeConfig(request.type);
                     const company = companies.find(
                       (c) => c.id == request.company_id
                     );
@@ -926,7 +1028,11 @@ const LeaveCalendar = () => {
                     return (
                       <div
                         key={request.id}
-                        className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                        className={`p-4 border rounded-xl transition-all ${
+                          request.isEmployeeLeave
+                            ? "border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 hover:shadow-md"
+                            : "border-gray-200 hover:bg-gray-50"
+                        }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -951,11 +1057,26 @@ const LeaveCalendar = () => {
                           </div>
                         </div>
 
-                        {/* Company and Department info */}
-                        {company && department && (
-                          <div className="text-xs text-gray-500 mb-1">
-                            {company.name} • {department.name}
+                        {request.isEmployeeLeave ? (
+                          <div className="flex items-center gap-2 mb-2 p-2 bg-white/60 rounded-lg border border-teal-200">
+                            <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                              {request.employeeName.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-teal-900">
+                                {request.employeeName}
+                              </p>
+                              <p className="text-xs text-teal-600">Employee Leave</p>
+                            </div>
                           </div>
+                        ) : (
+                          company && department && (
+                            <div className="text-xs text-gray-500 mb-1">
+                              <span>
+                                {company.name} • {department.name}
+                              </span>
+                            </div>
+                          )
                         )}
 
                         <div className="text-sm font-medium text-gray-900 mb-1">

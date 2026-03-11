@@ -159,7 +159,7 @@ const EmpPersonalDetails = ({ onNext }) => {
     if (name === "dob") {
       if (value && value > maxDob) {
         setDobError("Date of Birth must be at least 15 years before today.");
-        return; // block invalid updates
+        return;
       } else {
         if (dobError) setDobError("");
       }
@@ -167,6 +167,20 @@ const EmpPersonalDetails = ({ onNext }) => {
 
     if (errors.personal?.[name]) {
       clearFieldError("personal", name);
+    }
+
+    // Auto-calculate spouse age from DOB
+    if (name === "spouseDob" && value) {
+      const dob = new Date(value);
+      const today = new Date();
+      const age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      const calculatedAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate()) ? age - 1 : age;
+      updateFormData("personal", {
+        [name]: value,
+        spouseAge: calculatedAge.toString(),
+      });
+      return;
     }
 
     updateFormData("personal", {
@@ -191,6 +205,14 @@ const EmpPersonalDetails = ({ onNext }) => {
     const { name, value } = e.target;
     const updatedChildren = [...formData.personal.children];
     updatedChildren[idx][name] = value;
+    if (name === "dob" && value) {
+      const dob = new Date(value);
+      const today = new Date();
+      const age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      const calculatedAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate()) ? age - 1 : age;
+      updatedChildren[idx].age = calculatedAge.toString();
+    }
     updateFormData("personal", { children: updatedChildren });
   };
 
@@ -925,7 +947,7 @@ const EmpPersonalDetails = ({ onNext }) => {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Relationship Type <span className="text-red-500">*</span>
@@ -993,26 +1015,6 @@ const EmpPersonalDetails = ({ onNext }) => {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                Age <span className="text-red-500">*</span>
-              </label>
-              <input
-                name="spouseAge"
-                type="text"
-                min="0"
-                value={formData.personal.spouseAge}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
-                className={`w-full border ${
-                  errors.personal?.spouseAge
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
-                placeholder="Enter age"
-              />
-              <FieldError error={errors.personal?.spouseAge} />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
                 Date of Birth <span className="text-red-500">*</span>
               </label>
               <input
@@ -1028,6 +1030,19 @@ const EmpPersonalDetails = ({ onNext }) => {
                 } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
               />
               <FieldError error={errors.personal?.spouseDob} />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Age
+              </label>
+              <input
+                name="spouseAge"
+                type="text"
+                value={formData.personal.spouseAge}
+                readOnly
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50 text-gray-700 cursor-not-allowed"
+                placeholder="Auto-calculated"
+              />
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -1085,7 +1100,7 @@ const EmpPersonalDetails = ({ onNext }) => {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <input
                     name="name"
                     placeholder="Child name"
@@ -1093,20 +1108,6 @@ const EmpPersonalDetails = ({ onNext }) => {
                     onChange={(e) => handleChildChange(idx, e)}
                     className={`w-full border ${
                       errors.personal?.children?.[idx]?.name
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
-                  />
-                  <input
-                    name="age"
-                    type="text"
-                    min="0"
-                    placeholder="Age"
-                    value={child.age}
-                    onChange={(e) => handleChildChange(idx, e)}
-                    onKeyDown={handleKeyDown}
-                    className={`w-full border ${
-                      errors.personal?.children?.[idx]?.age
                         ? "border-red-500"
                         : "border-gray-300"
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
@@ -1123,8 +1124,16 @@ const EmpPersonalDetails = ({ onNext }) => {
                     } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   />
                   <input
+                    name="age"
+                    type="text"
+                    value={child.age}
+                    readOnly
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50 text-gray-700 cursor-not-allowed"
+                    placeholder="Auto-calculated"
+                  />
+                  <input
                     name="nic"
-                    placeholder="NIC number"
+                    placeholder="NIC number (optional)"
                     value={child.nic}
                     onChange={(e) => handleChildChange(idx, e)}
                     className={`w-full border ${

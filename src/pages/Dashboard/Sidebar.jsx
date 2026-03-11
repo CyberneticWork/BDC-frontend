@@ -29,9 +29,11 @@ import {
   Key, // Add for Change Password
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
+import config from "@src/config";
 
 const Sidebar = ({
   user,
+  employeeProfile,
   onLogout,
   activeItem,
   setActiveItem,
@@ -523,13 +525,21 @@ const Sidebar = ({
         {/* User Profile Section */}
         <div className="p-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-sm">
-                {user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </span>
+            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center overflow-hidden">
+              {employeeProfile?.profile_photo_path ? (
+                <img
+                  src={`${config.apiBaseUrl}/storage/${employeeProfile.profile_photo_path}`}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-white font-semibold text-sm">
+                  {user.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900 truncate">{user.name}</p>

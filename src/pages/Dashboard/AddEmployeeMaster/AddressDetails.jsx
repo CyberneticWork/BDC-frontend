@@ -195,6 +195,23 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
+                    NIC Number (Login Password)
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <input
+                      name="nicNumber"
+                      type="text"
+                      value={formData.personal?.nicNumber || ''}
+                      readOnly
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 bg-gray-50 text-gray-700 cursor-not-allowed"
+                      placeholder="NIC from personal details"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
                     Email <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -213,35 +230,6 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     />
                   </div>
                   <FieldError error={errors.address?.email} />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Auto-Generated Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Shield className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                    <input
-                      name="password"
-                      type="text"
-                      value={formData.address.password || ''}
-                      readOnly
-                      className="w-full border border-gray-300 rounded-lg pl-10 pr-12 py-2.5 bg-gray-50 text-gray-700 font-mono text-sm cursor-not-allowed"
-                      placeholder="Password will be auto-generated"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateFormData('address', { password: generatePassword() })}
-                      className="absolute right-3 top-2.5 text-blue-600 hover:text-blue-700 transition-colors"
-                      title="Regenerate password"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                    <Shield className="w-3 h-3" />
-                    This password will be sent to employee's email
-                  </p>
                 </div>
 
                 <div className="space-y-2">

@@ -877,11 +877,17 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Users,
+  CheckCircle,
+  XCircle,
+  Clock,
+  FileDown,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
-const AttendanceReport = () => {
+const AttendanceReport = ({ employeeProfile }) => {
   const [reportType, setReportType] = useState("date"); // date | month
   const [date, setDate] = useState("");
   const [month, setMonth] = useState("");
@@ -891,6 +897,24 @@ const AttendanceReport = () => {
   const [perPage, setPerPage] = useState(15);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [summary, setSummary] = useState({ present: 0, absent: 0, late: 0, earlyOut: 0, total: 0 });
+
+  // Auto-fill employee number and generate report if logged in as employee
+  React.useEffect(() => {
+    if (employeeProfile?.attendance_employee_no) {
+      const today = getTodayDate();
+      const currentMonth = today.slice(0, 7); // YYYY-MM format
+      
+      setReportType("month");
+      setMonth(currentMonth);
+      setSearch(employeeProfile.attendance_employee_no);
+      
+      setTimeout(() => {
+        fetchMonthlyReportWithParams(1, currentMonth, employeeProfile.attendance_employee_no);
+      }, 500);
+    }
+  }, [employeeProfile]);
 
   const getTodayDate = () => {
     const today = new Date();
@@ -921,22 +945,26 @@ const AttendanceReport = () => {
       return;
     }
 
+    await fetchReportWithParams(page, date, search);
+  };
+
+  const fetchReportWithParams = async (page, dateParam, searchParam) => {
     try {
       setLoading(true);
 
       const res =
         reportType === "date"
           ? await getAttendanceRecords({
-              date,
+              date: dateParam,
               page,
               per_page: perPage,
-              search,
+              search: searchParam,
             })
           : await getMonthlyAttendanceRecords({
               month,
               page,
               per_page: perPage,
-              search,
+              search: searchParam,
             });
 
       setData(res.data || []);
@@ -954,6 +982,281 @@ const AttendanceReport = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMonthlyReportWithParams = async (page, monthParam, searchParam) => {
+    try {
+      setLoading(true);
+
+      const res = await getMonthlyAttendanceRecords({
+        month: monthParam,
+        page,
+        per_page: perPage,
+        search: searchParam,
+      });
+
+      setData(res.data || []);
+      setMeta({
+        current_page: res.current_page || 1,
+        last_page: res.last_page || 1,
+        total: res.total || 0,
+      });
+      
+      // Calculate summary from all data
+      calculateSummary(res.data || []);
+    } catch (e) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Fetch Report",
+        text: e.response?.data?.message || e.message,
+        confirmButtonColor: "#3b82f6",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateSummary = (records) => {
+    const present = records.filter(r => r.status === 'Present' || !r.status).length;
+    const absent = records.filter(r => r.status === 'Absent' || r.status === 'NPL').length;
+    const late = records.filter(r => r.in_label && r.in_label.includes('Late')).length;
+    const earlyOut = records.filter(r => r.out_label && r.out_label.includes('Early')).length;
+    
+    setSummary({ present, absent, late, earlyOut, total: records.length });
+  };
+
+  const exportToPDF = async () => {
+    if (reportType === "date" && !date) {
+      Swal.fire({
+        icon: "warning",
+        title: "Date Required",
+        text: "Please select a date first",
+        confirmButtonColor: "#3b82f6",
+      });
+      return;
+    }
+
+    if (reportType === "month" && !month) {
+      Swal.fire({
+        icon: "warning",
+        title: "Month Required",
+        text: "Please select a month first",
+        confirmButtonColor: "#3b82f6",
+      });
+      return;
+    }
+
+    if (data.length === 0) {
+      Swal.fire({
+        icon: "info",
+        title: "No Data",
+        text: "Generate the report first to export",
+        confirmButtonColor: "#3b82f6",
+      });
+      return;
+    }
+
+    try {
+      setExportingPDF(true);
+
+      let allData = [];
+      let currentPage = 1;
+      let lastPage = 1;
+
+      do {
+        const res =
+          reportType === "date"
+            ? await getAttendanceRecords({
+                date,
+                page: currentPage,
+                per_page: 100,
+                search,
+              })
+            : await getMonthlyAttendanceRecords({
+                month,
+                page: currentPage,
+                per_page: 100,
+                search,
+              });
+
+        allData = allData.concat(res.data || []);
+        lastPage = res.last_page || 1;
+        currentPage++;
+      } while (currentPage <= lastPage);
+
+      if (allData.length === 0) {
+        Swal.fire({
+          icon: "info",
+          title: "No Records",
+          text: "No data available to export",
+          confirmButtonColor: "#3b82f6",
+        });
+        return;
+      }
+
+      // Calculate summary for PDF
+      const pdfSummary = {
+        present: allData.filter(r => r.status === 'Present' || !r.status).length,
+        absent: allData.filter(r => r.status === 'Absent' || r.status === 'NPL').length,
+        late: allData.filter(r => r.in_label && r.in_label.includes('Late')).length,
+        earlyOut: allData.filter(r => r.out_label && r.out_label.includes('Early')).length,
+        total: allData.length
+      };
+
+      const doc = new jsPDF("landscape");
+      
+      // Header with gradient effect (simulated with blue color)
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 0, 297, 35, 'F');
+      
+      doc.setFontSize(22);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold');
+      doc.text("Attendance Report", 14, 15);
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      const reportInfo = reportType === "date" ? `Date: ${date}` : `Month: ${month}`;
+      doc.text(reportInfo, 14, 23);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 29);
+
+      // Summary Section
+      doc.setFontSize(12);
+      doc.setTextColor(51, 51, 51);
+      doc.setFont(undefined, 'bold');
+      doc.text("Summary", 14, 45);
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      // Summary boxes
+      const summaryY = 50;
+      const boxWidth = 50;
+      const boxHeight = 20;
+      const spacing = 5;
+      
+      // Total Records - Blue
+      doc.setFillColor(59, 130, 246);
+      doc.roundedRect(14, summaryY, boxWidth, boxHeight, 3, 3, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold');
+      doc.text("Total Records", 17, summaryY + 7);
+      doc.setFontSize(14);
+      doc.text(String(pdfSummary.total), 17, summaryY + 15);
+      
+      // Present - Green
+      doc.setFillColor(34, 197, 94);
+      doc.roundedRect(14 + boxWidth + spacing, summaryY, boxWidth, boxHeight, 3, 3, 'F');
+      doc.setFontSize(10);
+      doc.text("Present", 17 + boxWidth + spacing, summaryY + 7);
+      doc.setFontSize(14);
+      doc.text(String(pdfSummary.present), 17 + boxWidth + spacing, summaryY + 15);
+      
+      // Absent - Red
+      doc.setFillColor(239, 68, 68);
+      doc.roundedRect(14 + (boxWidth + spacing) * 2, summaryY, boxWidth, boxHeight, 3, 3, 'F');
+      doc.setFontSize(10);
+      doc.text("Absent", 17 + (boxWidth + spacing) * 2, summaryY + 7);
+      doc.setFontSize(14);
+      doc.text(String(pdfSummary.absent), 17 + (boxWidth + spacing) * 2, summaryY + 15);
+      
+      // Late - Yellow
+      doc.setFillColor(234, 179, 8);
+      doc.roundedRect(14 + (boxWidth + spacing) * 3, summaryY, boxWidth, boxHeight, 3, 3, 'F');
+      doc.setFontSize(10);
+      doc.text("Late", 17 + (boxWidth + spacing) * 3, summaryY + 7);
+      doc.setFontSize(14);
+      doc.text(String(pdfSummary.late), 17 + (boxWidth + spacing) * 3, summaryY + 15);
+      
+      // Early Out - Orange
+      doc.setFillColor(249, 115, 22);
+      doc.roundedRect(14 + (boxWidth + spacing) * 4, summaryY, boxWidth, boxHeight, 3, 3, 'F');
+      doc.setFontSize(10);
+      doc.text("Early Out", 17 + (boxWidth + spacing) * 4, summaryY + 7);
+      doc.setFontSize(14);
+      doc.text(String(pdfSummary.earlyOut), 17 + (boxWidth + spacing) * 4, summaryY + 15);
+
+      // Attendance Records Table
+      const tableData = allData.map((r, idx) => [
+        idx + 1,
+        r.empNo || "-",
+        r.name || "-",
+        r.company || "-",
+        r.department || "-",
+        r.sub_department || "-",
+        r.date_label ? `${r.date || "-"}\n(${r.date_label})` : (r.date || "-"),
+        r.in_label ? `${r.in_time || "-"}\n(${r.in_label})` : (r.in_time || "-"),
+        r.out_label ? `${r.out_time || "-"}\n(${r.out_label})` : (r.out_time || "-"),
+        r.status || "Present",
+      ]);
+
+      doc.autoTable({
+        startY: summaryY + boxHeight + 10,
+        head: [[
+          "No.",
+          "EMP No",
+          "Name",
+          "Company",
+          "Department",
+          "Sub Dept",
+          "Date",
+          "IN Time",
+          "OUT Time",
+          "Status",
+        ]],
+        body: tableData,
+        theme: "striped",
+        headStyles: {
+          fillColor: [79, 70, 229],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 9,
+          halign: 'center',
+        },
+        bodyStyles: {
+          fontSize: 8,
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250],
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 30 },
+          5: { cellWidth: 25 },
+          6: { cellWidth: 25 },
+          7: { cellWidth: 25 },
+          8: { cellWidth: 25 },
+          9: { cellWidth: 20, halign: 'center' },
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      doc.save(
+        reportType === "date"
+          ? `Attendance_Report_${date}.pdf`
+          : `Attendance_Report_${month}.pdf`
+      );
+
+      Swal.fire({
+        icon: "success",
+        title: "Exported Successfully",
+        text: `${allData.length} records exported to PDF`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (e) {
+      Swal.fire({
+        icon: "error",
+        title: "Export Failed",
+        text: e.response?.data?.message || e.message || "Failed to export PDF",
+        confirmButtonColor: "#3b82f6",
+      });
+    } finally {
+      setExportingPDF(false);
     }
   };
 
@@ -1119,12 +1422,12 @@ const AttendanceReport = () => {
 
   return (
     <div className="p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-800 mb-2 flex items-center gap-2">
-          <Users className="w-8 h-8 text-blue-600" />
+      <div className="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-xl p-8">
+        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
+          <Users className="w-8 h-8 text-white" />
           Attendance Report
         </h1>
-        <p className="text-slate-600">
+        <p className="text-blue-100">
           Daily and monthly attendance reporting
         </p>
       </div>
@@ -1225,6 +1528,61 @@ const AttendanceReport = () => {
         </div>
       </div>
 
+      {/* Summary Cards */}
+      {data.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-semibold">Total Records</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{summary.total}</p>
+              </div>
+              <Users className="h-10 w-10 text-blue-500" />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-semibold">Present</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">{summary.present}</p>
+              </div>
+              <CheckCircle className="h-10 w-10 text-green-500" />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-red-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-semibold">Absent</p>
+                <p className="text-3xl font-bold text-red-600 mt-2">{summary.absent}</p>
+              </div>
+              <XCircle className="h-10 w-10 text-red-500" />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-yellow-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-semibold">Late</p>
+                <p className="text-3xl font-bold text-yellow-600 mt-2">{summary.late}</p>
+              </div>
+              <Clock className="h-10 w-10 text-yellow-500" />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-semibold">Early Out</p>
+                <p className="text-3xl font-bold text-orange-600 mt-2">{summary.earlyOut}</p>
+              </div>
+              <Clock className="h-10 w-10 text-orange-500" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
           <div className="text-sm font-semibold text-slate-700">
@@ -1239,18 +1597,33 @@ const AttendanceReport = () => {
             of <span className="text-blue-600">{meta.total || 0}</span> records
           </div>
 
-          <button
-            onClick={exportToExcel}
-            disabled={exporting || data.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl shadow hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm"
-          >
-            {exporting ? "Exporting..." : (
-              <>
-                <FileSpreadsheet className="w-4 h-4" />
-                Export to Excel
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToExcel}
+              disabled={exporting || data.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl shadow hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm"
+            >
+              {exporting ? "Exporting..." : (
+                <>
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Export Excel
+                </>
+              )}
+            </button>
+            
+            <button
+              onClick={exportToPDF}
+              disabled={exportingPDF || data.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl shadow hover:from-red-700 hover:to-red-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm"
+            >
+              {exportingPDF ? "Exporting..." : (
+                <>
+                  <FileDown className="w-4 h-4" />
+                  Export PDF
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

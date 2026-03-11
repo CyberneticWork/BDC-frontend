@@ -1,28 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import BonusService from "../../components/BonusService";
 import {
-  Download,
-  Users,
-  Wallet,
-  FileText,
-  ChevronDown,
-  Filter,
-  CheckCircle,
-  AlertCircle,
-  Search,
-  Building2,
-  Layers,
+  Download, Users, Wallet, FileText, ChevronDown,
+  Filter, CheckCircle, AlertCircle, Search, Building2, Layers,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
 import {
-  getSalaryData,
-  UpdateAllowances,
-  saveSalaryData,
-  updateSlaryStatus,
-  getProcessedSalaries,
-  fetchExcelData,
-  importExcelData,
+  getSalaryData, UpdateAllowances, saveSalaryData,
+  updateSlaryStatus, getProcessedSalaries, fetchExcelData, importExcelData,
 } from "@services/SalaryProcessService";
 import { fetchSalaryCSV } from "@services/SalaryService";
 import AllowancesService from "@services/AllowancesService";
@@ -30,17 +16,45 @@ import * as DeductionService from "@services/DeductionService";
 import ImportExcelModal from "@dashboard/ImportExcelModal";
 import Swal from "sweetalert2";
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const STORAGE_KEY = "processedSalaryData";
 
-const notify = {
-  success: (title, text) =>
-    Swal.fire({ icon: "success", title, text, confirmButtonColor: "#3085d6" }),
-  error: (title, text) =>
-    Swal.fire({ icon: "error", title, text, confirmButtonColor: "#d33" }),
-  warning: (title, text) =>
-    Swal.fire({ icon: "warning", title, text, confirmButtonColor: "#f59e0b" }),
-  info: (title, text) =>
-    Swal.fire({ icon: "info", title, text, confirmButtonColor: "#3085d6" }),
+const MONTHS = [
+  { value: "01", label: "January"   }, { value: "02", label: "February"  },
+  { value: "03", label: "March"     }, { value: "04", label: "April"     },
+  { value: "05", label: "May"       }, { value: "06", label: "June"      },
+  { value: "07", label: "July"      }, { value: "08", label: "August"    },
+  { value: "09", label: "September" }, { value: "10", label: "October"   },
+  { value: "11", label: "November"  }, { value: "12", label: "December"  },
+];
+
+const HEADER_MAPPINGS = {
+  id: "ID", emp_no: "Employee No", full_name: "Full Name",
+  company_name: "Company", department_name: "Department",
+  sub_department_name: "Sub Department", basic_salary: "Basic Salary",
+  increment_active: "Increment Active", increment_value: "Increment Value",
+  increment_effected_date: "Increment Effective Date",
+  ot_morning: "OT Morning", ot_evening: "OT Evening",
+  enable_epf_etf: "EPF/ETF Enabled", br1: "BR1 Allowance", br2: "BR2 Allowance",
+  ot_morning_rate: "OT Morning Rate", ot_night_rate: "OT Night Rate",
+  stamp: "Stamp Fee", br_status: "BR Status",
+  total_loan_amount: "Total Loan Amount", installment_count: "Installment Count",
+  installment_amount: "Installment Amount", approved_no_pay_days: "Approved No-Pay Days",
+  allowances: "Allowances", deductions: "Deductions",
+  breakdown_basic_salary: "Basic Salary (Adjusted)", breakdown_br_allowance: "BR Allowance",
+  breakdown_ot_morning_fees: "OT Morning Fees", breakdown_ot_night_fees: "OT Night Fees",
+  breakdown_adjusted_basic: "Adjusted Basic", breakdown_per_day_salary: "Per Day Salary",
+  breakdown_no_pay_deduction: "No-Pay Deduction", breakdown_total_allowances: "Total Allowances",
+  breakdown_epf_etf_base: "EPF/ETF Base",
+  breakdown_epf_employee_deduction: "EPF Employee Deduction",
+  breakdown_epf_employer_contribution: "EPF Employer Contribution",
+  breakdown_etf_employer_contribution: "ETF Employer Contribution",
+  breakdown_total_fixed_deductions: "Total Fixed Deductions",
+  breakdown_loan_installment: "Loan Installment", breakdown_gross_salary: "Gross Salary",
+  breakdown_kpi_allowance: "KPI Allowance", breakdown_kpi_bonus_allowance: "KPI Bonus (6M)",
+  breakdown_total_deductions: "Total Deductions", breakdown_stamp: "Stamp Fee (Breakdown)",
+  breakdown_net_salary: "Net Salary",
 };
 
 const formatMoney = (value) =>
@@ -74,107 +88,46 @@ const SalaryProcessPage = () => {
 
   const [kpiType, setKpiType] = useState("");
 
-  const [selectedEmployees, setSelectedEmployees] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
+// ─── Notification helpers ─────────────────────────────────────────────────────
 
-  const [bulkActionType, setBulkActionType] = useState("allowance");
-  const [bulkActionAmount, setBulkActionAmount] = useState("");
-  const [bulkActionId, setBulkActionId] = useState("");
+const notify = {
+  success: (title, text) => Swal.fire({ icon: "success", title, text, confirmButtonColor: "#3085d6" }),
+  error:   (title, text) => Swal.fire({ icon: "error",   title, text, confirmButtonColor: "#d33"    }),
+  warning: (title, text) => Swal.fire({ icon: "warning", title, text, confirmButtonColor: "#f59e0b" }),
+  info:    (title, text) => Swal.fire({ icon: "info",    title, text, confirmButtonColor: "#3085d6" }),
+};
 
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importSuccessMessage, setImportSuccessMessage] = useState("");
+// ─── CSV helpers ──────────────────────────────────────────────────────────────
 
-  const [availableBonuses, setAvailableBonuses] = useState([]);
-  const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
+function escapeCSVCell(value) {
+  let v = value !== undefined && value !== null ? String(value) : "";
+  if (v.includes(",") || v.includes('"') || v.includes("\n") || v.includes(";")) {
+    v = `"${v.replace(/"/g, '""')}"`;
+  }
+  return v;
+}
 
-  const [statusInfo, setStatusInfo] = useState({
-    processUser: "Admin",
-    lastProcessDate: "2025-05-30",
+function arrayToCSV(data) {
+  if (!data?.length) return "";
+  const headers = Object.keys(data[0]);
+  const rows = data.map((obj) => headers.map((h) => escapeCSVCell(obj[h])).join(","));
+  return [headers.join(","), ...rows].join("\n");
+}
+
+function downloadCSV(csvContent, fileName) {
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const link = Object.assign(document.createElement("a"), {
+    href: url, download: fileName, style: "visibility:hidden",
   });
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
-  const [employeeData, setEmployeeData] = useState([]);
-  const [displayedData, setDisplayedData] = useState([]);
-
-  const totalSalary = (displayedData || []).reduce(
-    (sum, emp) => sum + (parseFloat(emp?.basic_salary) || 0),
-    0
-  );
-  const employeeCount = displayedData.length;
-
-  const months = [
-    { value: "01", label: "January" },
-    { value: "02", label: "February" },
-    { value: "03", label: "March" },
-    { value: "04", label: "April" },
-    { value: "05", label: "May" },
-    { value: "06", label: "June" },
-    { value: "07", label: "July" },
-    { value: "08", label: "August" },
-    { value: "09", label: "September" },
-    { value: "10", label: "October" },
-    { value: "11", label: "November" },
-    { value: "12", label: "December" },
-  ];
-
-  const loadAllowancesAndDeductions = async () => {
-    setIsLoadingAllowances(true);
-    try {
-      const allowances = await AllowancesService.getAllAllowances();
-      setAvailableAllowances(allowances || []);
-
-      const deductions =
-        await DeductionService.fetchDeductionsByCompanyOrDepartment();
-      setAvailableDeductions(deductions || []);
-    } catch (error) {
-      console.error("Error loading allowances and deductions:", error);
-    } finally {
-      setIsLoadingAllowances(false);
-    }
-  };
-
-  const loadAllowancesByCompany = async (companyId) => {
-    setIsLoadingAllowances(true);
-    try {
-      const allowances =
-        await AllowancesService.getAllowancesByCompanyOrDepartment(
-          companyId,
-          null
-        );
-      setAvailableAllowances(allowances || []);
-    } catch (error) {
-      console.error("Error loading allowances by company:", error);
-    } finally {
-      setIsLoadingAllowances(false);
-    }
-  };
-
-  const handleImportExcel = async (file) => {
-    try {
-      const response = await importExcelData(file);
-      setImportSuccessMessage(
-        response.message || "Employee allowances imported successfully"
-      );
-      notify.success("Imported", "Employee allowances imported successfully");
-      return true;
-    } catch (error) {
-      console.error("Error importing Excel:", error);
-      const msg = error.response?.data?.message || "Failed to import file";
-      notify.error("Import Failed", msg);
-      throw msg;
-    }
-  };
-
-  const loadBonuses = async () => {
-    setIsLoadingBonuses(true);
-    try {
-      const res = await BonusService.getAllBonuses();
-      const list = Array.isArray(res)
-        ? res
-        : Array.isArray(res?.data)
-        ? res.data
-        : Array.isArray(res?.data?.data)
-        ? res.data.data
-        : [];
+function convertToCSV(data) {
+  if (!data?.length) return "";
 
       setAvailableBonuses(list);
     } catch (error) {
@@ -218,57 +171,23 @@ const SalaryProcessPage = () => {
         ? res.data.data
         : [];
 
-      setAvailableBonuses(list);
-    } catch (error) {
-      console.error("Error loading bonuses by company/department:", error);
-      setAvailableBonuses([]);
-    } finally {
-      setIsLoadingBonuses(false);
-    }
-  };
+    flat.allowances = Array.isArray(item.allowances)
+      ? item.allowances.map((a) => `${a.name}: ${a.amount}`).join("; ") : "";
 
-  const handleImportSuccess = (message) => {
-    setImportSuccessMessage(message);
-    notify.success("Import Successful", message || "Data imported");
-    fetchSalaryData();
-  };
+    flat.deductions = Array.isArray(item.deductions)
+      ? item.deductions.map((d) => `${d.name}: ${d.amount}`).join("; ") : "";
 
-  const handleDownloadCSV = async () => {
-    try {
-      const response = await fetchSalaryCSV();
-      const blob = await response;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "salary_records.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Download failed:", error);
-      notify.error("Download Failed", "Failed to download CSV");
-    }
-  };
-
-  const handleSalaryProcess = async () => {
-    setStatus("Processed");
-    setStatusInfo((prev) => ({
-      ...prev,
-      lastProcessDate: new Date().toISOString().split("T")[0],
-    }));
-
-    try {
-      await updateSlaryStatus("processed");
-      notify.success("Status Updated", "Salary status updated!");
-    } catch (error) {
-      notify.error(
-        "Update Failed",
-        error.response?.data?.message || error.message || "Unknown error"
-      );
+    if (item.salary_breakdown && typeof item.salary_breakdown === "object") {
+      for (const [k, v] of Object.entries(item.salary_breakdown)) flat[`breakdown_${k}`] = v;
+      delete flat.salary_breakdown;
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(employeeData));
-  };
+    YES_NO_FIELDS.forEach((f) => {
+      if (flat[f] !== undefined && flat[f] !== null) flat[f] = flat[f] == 1 ? "Yes" : "No";
+    });
+
+    return flat;
+  });
 
 
   /*
@@ -957,176 +876,94 @@ const handleDownloadAllProcessed = async () => {
     loadCompanies();
   }, []);
 
-  useEffect(() => {
-    const loadDepartments = async () => {
-      if (selectedCompany) {
-        setIsLoadingDepartments(true);
-        try {
-          const departmentsData = await fetchDepartmentsById(selectedCompany);
-          setDepartments(departmentsData || []);
-        } catch (error) {
-          console.error("Error loading departments:", error);
-        } finally {
-          setIsLoadingDepartments(false);
-        }
-      } else {
-        setDepartments([]);
-        setSelectedDepartment("");
-      }
-    };
-    loadDepartments();
-  }, [selectedCompany]);
-
-  useEffect(() => {
-    loadAllowancesAndDeductions();
-    loadBonuses();
+  const loadAllowancesByCompany = useCallback(async (companyId) => {
+    try {
+      const allowances = await AllowancesService.getAllowancesByCompanyOrDepartment(companyId, null);
+      setAvailableAllowances(allowances || []);
+    } catch (err) {
+      console.error("Error loading allowances by company:", err);
+    }
   }, []);
 
-  const handleCompanyChange = (e) => {
-    const companyId = e.target.value;
-    setSelectedCompany(companyId);
-    setSelectedDepartment("");
-
-    if (companyId) {
-      loadAllowancesByCompany(companyId);
-      loadBonusesByCompanyOrDepartment(companyId, null);
-    } else {
-      loadAllowancesAndDeductions();
-      loadBonuses();
+  const loadBonuses = useCallback(async () => {
+    try {
+      const res  = await BonusService.getAllBonuses();
+      const list = Array.isArray(res) ? res
+        : Array.isArray(res?.data) ? res.data
+        : Array.isArray(res?.data?.data) ? res.data.data : [];
+      setAvailableBonuses(list);
+    } catch (err) {
+      console.error("Error loading bonuses:", err);
+      setAvailableBonuses([]);
     }
-  };
+  }, []);
 
-  const fetchSalaryData = async () => {
+  const loadBonusesByCompanyOrDepartment = useCallback(async (companyId, departmentId) => {
+    try {
+      const res  = await BonusService.getBonusesByCompanyOrDepartment(companyId, departmentId);
+      const list = Array.isArray(res) ? res
+        : Array.isArray(res?.data) ? res.data
+        : Array.isArray(res?.data?.data) ? res.data.data : [];
+      setAvailableBonuses(list);
+    } catch (err) {
+      console.error("Error loading bonuses by company/dept:", err);
+      setAvailableBonuses([]);
+    }
+  }, []);
+
+  const fetchSalaryData = useCallback(async () => {
     if (!month || !year || !selectedCompany) {
-      notify.warning(
-        "Missing Filters",
-        "Please select company, month, and year before applying filters"
-      );
+      notify.warning("Missing Filters", "Please select company, month, and year before applying filters");
       return null;
     }
-
     setIsLoading(true);
     try {
       const data = await getSalaryData({
-        month,
-        year,
-        company_id: selectedCompany,
+        month, year,
+        company_id:    selectedCompany,
         department_id: selectedDepartment || undefined,
-        kpi_type: kpiType || undefined,
+        kpi_type:      kpiType            || undefined,
       });
-
       const rows = data?.data || [];
       setEmployeeData(rows);
       setDisplayedData(rows);
       setFilteredData(rows);
-
       return rows;
-    } catch (error) {
-      console.error("Error fetching salary data:", error);
+    } catch (err) {
+      console.error("Error fetching salary data:", err);
       notify.error("Fetch Failed", "Error fetching salary data. Please try again.");
       return null;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [month, year, selectedCompany, selectedDepartment, kpiType]);
 
-  const applyFilters = async () => {
-    await fetchSalaryData();
-  };
+  // ── Effects ───────────────────────────────────────────────────────────────
 
-  const resetFilter = () => {
-    setActiveFilter("All");
-    setEmployeeData([]);
-    setDisplayedData([]);
-    setFilteredData([]);
-    setSelectedCompany("");
-    setSelectedDepartment("");
-    setMonth("");
-    setKpiType("");
-    setSearchTerm("");
-    setShowHistory(false);
-  };
+  useEffect(() => {
+    let active = true;
+    setIsLoadingCompanies(true);
+    fetchCompanies()
+      .then((data) => { if (active) setCompanies(data || []); })
+      .catch(console.error)
+      .finally(() => { if (active) setIsLoadingCompanies(false); });
+    return () => { active = false; };
+  }, []);
 
-  const handleAllowanceDeductionChange = (id) => {
-    const numericId = Number(id);
-    setBulkActionId(numericId);
-
-    if (bulkActionType === "allowance") {
-      const a = availableAllowances.find((x) => Number(x.id) === numericId);
-      if (a?.amount != null) setBulkActionAmount(parseFloat(a.amount).toFixed(2));
-    } else if (bulkActionType === "deduction") {
-      const d = availableDeductions.find((x) => Number(x.id) === numericId);
-      if (d?.amount != null) setBulkActionAmount(parseFloat(d.amount).toFixed(2));
-    } else if (bulkActionType === "bonus") {
-      const b = availableBonuses.find((x) => Number(x.id) === numericId);
-      if (b?.amount != null) setBulkActionAmount(parseFloat(b.amount).toFixed(2));
-    }
-  };
-
-  const handleSelectEmployee = (employee) => {
-    const empId = `${employee.id}`;
-    if (selectedEmployees.includes(empId)) {
-      setSelectedEmployees(selectedEmployees.filter((id) => id !== empId));
-    } else {
-      setSelectedEmployees([...selectedEmployees, empId]);
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedEmployees([]);
-    } else {
-      const allEmployeeIds = displayedData.map((employee) => `${employee.id}`);
-      setSelectedEmployees(allEmployeeIds);
-    }
-    setSelectAll(!selectAll);
-  };
-
-  const applyBulkAction = async () => {
-    if (!bulkActionId || selectedEmployees.length === 0) {
-      notify.warning(
-        "Missing Data",
-        "Please fill all fields and select at least one employee"
-      );
+  useEffect(() => {
+    if (!selectedCompany) {
+      setDepartments([]);
+      setSelectedDepartment("");
       return;
     }
-
-    const payload = {
-      selectedEmployees,
-      bulkActionId,
-      bulkActionType,
-      bulkActionAmount: bulkActionAmount || null,
-    };
-
-    try {
-      await UpdateAllowances(payload);
-      notify.success(
-        "Success",
-        `Successfully applied ${bulkActionType} to ${selectedEmployees.length} employee(s)`
-      );
-
-      await fetchSalaryData();
-
-      setSelectedEmployees([]);
-      setSelectAll(false);
-      setBulkActionAmount("");
-    } catch (error) {
-      console.log(error);
-      notify.error(
-        "Error",
-        error.response?.data?.message || error.message || "Operation failed"
-      );
-    }
-  };
-
-  const getExcelData = async () => {
-    if (!bulkActionId || selectedEmployees.length === 0) {
-      notify.warning(
-        "Missing Data",
-        "Please fill all fields and select at least one employee"
-      );
-      return;
-    }
+    let active = true;
+    setIsLoadingDepartments(true);
+    fetchDepartmentsById(selectedCompany)
+      .then((data) => { if (active) setDepartments(data || []); })
+      .catch(console.error)
+      .finally(() => { if (active) setIsLoadingDepartments(false); });
+    return () => { active = false; };
+  }, [selectedCompany]);
 
     const payload = {
       selectedEmployees,
@@ -5381,1203 +5218,488 @@ const worksheetData = (employees || []).map((employee) => {
     }
   };
 
-  // Keep selectAll synced
   useEffect(() => {
-    const allSelected =
-      displayedData.length > 0 && selectedEmployees.length === displayedData.length;
-    setSelectAll(allSelected);
+    setSelectAll(displayedData.length > 0 && selectedEmployees.length === displayedData.length);
   }, [selectedEmployees, displayedData]);
 
-  // Reset selection when core params change (NOT searchTerm since it’s UI-only now)
   useEffect(() => {
     setSelectedEmployees([]);
     setSelectAll(false);
-  }, [location, month, selectedCompany, selectedDepartment, kpiType, showHistory]);
+  }, [month, selectedCompany, selectedDepartment, kpiType]);
 
-  // CSV helpers
-  function convertArrayToCSV(data) {
-    if (!data || data.length === 0) return "";
-    const headers = Object.keys(data[0]);
-    const rows = data.map((obj) =>
-      headers
-        .map((header) => {
-          let value = obj[header] !== undefined ? String(obj[header]) : "";
-          if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-            value = `"${value.replace(/"/g, '""')}"`;
-          }
-          return value;
-        })
-        .join(",")
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleCompanyChange = (e) => {
+    const id = e.target.value;
+    setSelectedCompany(id);
+    setSelectedDepartment("");
+    if (id) { loadAllowancesByCompany(id); loadBonusesByCompanyOrDepartment(id, null); }
+    else     { loadAllowancesAndDeductions(); loadBonuses(); }
+  };
+
+  const handleDepartmentChange = (e) => {
+    const id = e.target.value;
+    setSelectedDepartment(id);
+    if (selectedCompany) loadBonusesByCompanyOrDepartment(selectedCompany, id || null);
+  };
+
+  const handleSelectEmployee = (employee) => {
+    const id = String(employee.id);
+    setSelectedEmployees((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
-    return [headers.join(","), ...rows].join("\n");
-  }
+  };
 
-  function downloadCSV(csvContent, fileName) {
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", fileName);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
+  const handleSelectAll = () => {
+    setSelectedEmployees(selectAll ? [] : displayedData.map((e) => String(e.id)));
+    setSelectAll(!selectAll);
+  };
 
-  // Convert array of objects to CSV string, flattening salary_breakdown
-  function convertToCSV(data) {
-    if (!data || data.length === 0) return "";
+  const handleAllowanceDeductionChange = (rawId) => {
+    const numericId = Number(rawId);
+    setBulkActionId(numericId);
+    const lookup =
+      bulkActionType === "allowance" ? availableAllowances :
+      bulkActionType === "deduction" ? availableDeductions : availableBonuses;
+    const found = lookup.find((x) => Number(x.id) === numericId);
+    if (found?.amount != null) setBulkActionAmount(parseFloat(found.amount).toFixed(2));
+  };
 
-    const flattenedData = data.map((item) => {
-      const flattened = { ...item };
+  const resetFilter = () => {
+    setActiveFilter("All");
+    setEmployeeData([]); setDisplayedData([]); setFilteredData([]);
+    setSelectedCompany(""); setSelectedDepartment("");
+    setMonth(""); setKpiType(""); setSearchTerm("");
+  };
 
-      if (Array.isArray(item.allowances)) {
-        flattened.allowances = item.allowances
-          .map((a) => `${a.name}: ${a.amount}`)
-          .join("; ");
-      } else {
-        flattened.allowances = "";
-      }
+  const applyBulkAction = async () => {
+    if (!bulkActionId || !selectedEmployees.length) {
+      notify.warning("Missing Data", "Please fill all fields and select at least one employee");
+      return;
+    }
+    try {
+      await UpdateAllowances({ selectedEmployees, bulkActionId, bulkActionType, bulkActionAmount: bulkActionAmount || null });
+      notify.success("Success", `Successfully applied ${bulkActionType} to ${selectedEmployees.length} employee(s)`);
+      await fetchSalaryData();
+      setSelectedEmployees([]); setSelectAll(false); setBulkActionAmount("");
+    } catch (err) {
+      notify.error("Error", err.response?.data?.message || err.message || "Operation failed");
+    }
+  };
 
-      if (Array.isArray(item.deductions)) {
-        flattened.deductions = item.deductions
-          .map((d) => `${d.name}: ${d.amount}`)
-          .join("; ");
-      } else {
-        flattened.deductions = "";
-      }
+  const getExcelData = async () => {
+    if (!bulkActionId || !selectedEmployees.length) {
+      notify.warning("Missing Data", "Please fill all fields and select at least one employee");
+      return;
+    }
+    try {
+      const response = await fetchExcelData({ selectedEmployees, bulkActionId, bulkActionType });
+      const [employees, allowances, deductions, bonuses] = response || [];
 
-      if (item.salary_breakdown && typeof item.salary_breakdown === "object") {
-        for (const [key, value] of Object.entries(item.salary_breakdown)) {
-          flattened[`breakdown_${key}`] = value;
-        }
-        delete flattened.salary_breakdown;
-      }
-
-      const yesNoFields = [
-        "increment_active",
-        "ot_morning",
-        "ot_evening",
-        "enable_epf_etf",
-        "br1",
-        "br2",
-      ];
-      yesNoFields.forEach((field) => {
-        if (flattened[field] !== undefined && flattened[field] !== null) {
-          flattened[field] = flattened[field] == 1 ? "Yes" : "No";
-        }
+      const worksheetData = (employees || []).map((emp) => {
+        const row = { EMPLOYEE_NO: emp.attendance_employee_no, NIC: emp.nic, "Full Name": emp.full_name };
+        allowances?.forEach((a) => { row["Allowance ID"] = a.id; row["Allowance Name"] = a.allowance_name; row["Amount (LKR)"] = 0; });
+        deductions?.forEach((d) => { row["Deduction ID"] = d.id; row["Deduction Name"] = d.deduction_name; row["Amount (LKR)"] = 0; });
+        bonuses?.forEach((b)    => { row["Bonus ID"]     = b.id; row["Bonus Name"]     = b.bonus_name;     row["Amount (LKR)"] = 0; });
+        return row;
       });
 
-      return flattened;
-    });
+      const prefix =
+        bulkActionType === "allowance" ? "employee_allowances" :
+        bulkActionType === "deduction" ? "employee_deductions" : "employee_bonuses";
+      downloadCSV(arrayToCSV(worksheetData), `${prefix}_${Date.now()}.csv`);
+      notify.success("Download Ready", "Template downloaded successfully");
+    } catch (err) {
+      console.error(err);
+      notify.error("Failed", "Failed to generate Excel file");
+    }
+  };
 
-    const headerMappings = {
-      id: "ID",
-      emp_no: "Employee No",
-      full_name: "Full Name",
-      company_name: "Company",
-      department_name: "Department",
-      sub_department_name: "Sub Department",
-      basic_salary: "Basic Salary",
-      increment_active: "Increment Active",
-      increment_value: "Increment Value",
-      increment_effected_date: "Increment Effective Date",
-      ot_morning: "OT Morning",
-      ot_evening: "OT Evening",
-      enable_epf_etf: "EPF/ETF Enabled",
-      br1: "BR1 Allowance",
-      br2: "BR2 Allowance",
-      ot_morning_rate: "OT Morning Rate",
-      ot_night_rate: "OT Night Rate",
-      stamp: "Stamp Fee",
-      br_status: "BR Status",
-      total_loan_amount: "Total Loan Amount",
-      installment_count: "Installment Count",
-      installment_amount: "Installment Amount",
-      approved_no_pay_days: "Approved No-Pay Days",
-      allowances: "Allowances",
-      deductions: "Deductions",
-      breakdown_basic_salary: "Basic Salary (Adjusted)",
-      breakdown_br_allowance: "BR Allowance",
-      breakdown_ot_morning_fees: "OT Morning Fees",
-      breakdown_ot_night_fees: "OT Night Fees",
-      breakdown_adjusted_basic: "Adjusted Basic",
-      breakdown_per_day_salary: "Per Day Salary",
-      breakdown_no_pay_deduction: "No-Pay Deduction",
-      breakdown_total_allowances: "Total Allowances",
-      breakdown_epf_etf_base: "EPF/ETF Base",
-      breakdown_epf_employee_deduction: "EPF Employee Deduction",
-      breakdown_epf_employer_contribution: "EPF Employer Contribution",
-      breakdown_etf_employer_contribution: "ETF Employer Contribution",
-      breakdown_total_fixed_deductions: "Total Fixed Deductions",
-      breakdown_loan_installment: "Loan Installment",
-      breakdown_gross_salary: "Gross Salary",
-      breakdown_kpi_allowance: "KPI Allowance",
-      breakdown_kpi_bonus_allowance: "KPI Bonus (6M)",
-      breakdown_total_deductions: "Total Deductions",
-      breakdown_stamp: "Stamp Fee (Breakdown)",
-      breakdown_net_salary: "Net Salary",
-    };
+  const handleImportExcel = async (file) => {
+    try {
+      const res = await importExcelData(file);
+      setImportSuccessMessage(res.message || "Employee allowances imported successfully");
+      notify.success("Imported", "Employee allowances imported successfully");
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.message || "Failed to import file";
+      notify.error("Import Failed", msg);
+      throw msg;
+    }
+  };
 
-    const headerSet = new Set(Object.keys(flattenedData[0] || {}));
-    headerSet.add("breakdown_kpi_allowance");
-    headerSet.add("breakdown_kpi_bonus_allowance");
-    const headers = Array.from(headerSet);
+  const handleImportSuccess = (message) => {
+    setImportSuccessMessage(message);
+    notify.success("Import Successful", message || "Data imported");
+    fetchSalaryData();
+  };
 
-    const friendlyHeaders = headers.map(
-      (header) =>
-        headerMappings[header] ||
-        header.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
-    );
+  const handleSalaryProcess = async () => {
+    setStatus("Processed");
+    statusInfo.lastProcessDate = new Date().toISOString().split("T")[0];
+    try {
+      await updateSlaryStatus("processed");
+      notify.success("Status Updated", "Salary status updated!");
+      window.dispatchEvent(new CustomEvent("salaryUpdated"));
+    } catch (err) {
+      notify.error("Update Failed", err.response?.data?.message || err.message || "Unknown error");
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(employeeData));
+  };
 
-    const rows = flattenedData.map((obj) =>
-      headers
-        .map((header) => {
-          let value =
-            obj[header] !== undefined && obj[header] !== null
-              ? String(obj[header])
-              : "";
+  const handleSaveData = async () => {
+    if (!filteredData.length) { notify.info("No Data", "No data to save. Please apply filters first."); return; }
+    try {
+      await saveSalaryData(filteredData.map((item) => ({ ...item, month })));
+      const kpiSuffix = kpiType ? `_${kpiType}` : "_none";
+      downloadCSV(convertToCSV(filteredData), `salary_data${kpiSuffix}_${Date.now()}.csv`);
+      notify.success("Saved", "Salary data saved and downloaded successfully!");
+    } catch (err) {
+      notify.error("Save Failed", err.response?.data?.message || err.message || "Unknown error");
+    }
+  };
 
-          if (
-            header.includes("salary") ||
-            header.includes("amount") ||
-            header.includes("rate") ||
-            header.includes("fee") ||
-            header.includes("deduction") ||
-            header.includes("contribution")
-          ) {
-            if (!isNaN(parseFloat(value)) && isFinite(value)) {
-              value = parseFloat(value).toFixed(2);
-            }
-          }
+  const handleDownloadCSV = async () => {
+    try {
+      const blob = await fetchSalaryCSV();
+      const url  = window.URL.createObjectURL(blob);
+      const a    = Object.assign(document.createElement("a"), { href: url, download: "salary_records.csv" });
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Failed to download CSV");
+    }
+  };
 
-          if (
-            value.includes(",") ||
-            value.includes('"') ||
-            value.includes("\n") ||
-            value.includes(";")
-          ) {
-            value = `"${value.replace(/"/g, '""')}"`;
-          }
-          return value;
-        })
-        .join(",")
-    );
+  const handleDownloadAllProcessed = async () => {
+    setIsLoading(true);
+    try {
+      const processedData = await getProcessedSalaries();
+      if (!processedData?.length) { notify.info("No Data", "No processed salary data found."); return; }
+      const monthObj  = MONTHS.find((m) => m.value === month);
+      const monthName = monthObj?.label || month;
+      const doc       = generatePayslipPDF(processedData, monthName, year);
+      doc.save(`payslips_${monthName}_${year}.pdf`);
+      try {
+        await updateSlaryStatus("issued");
+        notify.success("Salary Issued", "Salary Issued!");
+      } catch (err) {
+        notify.error("Issue Update Failed", err.response?.data?.message || err.message || "Unknown error");
+      }
+    } catch (err) {
+      console.error(err);
+      notify.error("PDF Error", "Error generating PDF. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return [friendlyHeaders.join(","), ...rows].join("\n");
-  }
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-blue-50 via-white to-green-50 min-h-screen">
+
+      {/* Page header */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-          Salary Processing
-        </h1>
-        <div className="flex items-center space-x-2">
-          <span
-            className={`
-            px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border
-            ${
-              status === "Processed"
-                ? "bg-green-100 text-green-800 border-green-200"
-                : "bg-yellow-100 text-yellow-800 border-yellow-200"
-            }
-          `}
-          >
-            {status === "Processed" ? (
-              <CheckCircle className="inline mr-1 h-4 w-4" />
-            ) : (
-              <AlertCircle className="inline mr-1 h-4 w-4" />
-            )}
-            {status}
-          </span>
-        </div>
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Salary Processing</h1>
+        <span className={`px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border
+          ${isProcessed ? "bg-green-100 text-green-800 border-green-200" : "bg-yellow-100 text-yellow-800 border-yellow-200"}`}>
+          {isProcessed
+            ? <><CheckCircle className="inline mr-1 h-4 w-4" />Processed</>
+            : <><AlertCircle className="inline mr-1 h-4 w-4" />Unprocessed</>}
+        </span>
       </div>
 
-     
+      {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         <div className="lg:col-span-2 space-y-8">
+
+          {/* Stat cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl border border-blue-200 p-6 shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-700 mb-1">
-                    Total Salary Cost
-                  </p>
-                  <p className="text-3xl font-bold text-blue-900">
-                    LKR {totalSalary.toLocaleString()}
-                  </p>
-                </div>
-                <div className="p-4 rounded-xl bg-blue-200 text-blue-700 shadow">
-                  <Wallet size={24} strokeWidth={2} />
-                </div>
-              </div>
-            </div>
-            <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-2xl border border-green-200 p-6 shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-700 mb-1">
-                    Employee Count
-                  </p>
-                  <p className="text-3xl font-bold text-green-900">
-                    {employeeCount}
-                  </p>
-                </div>
-                <div className="p-4 rounded-xl bg-green-200 text-green-700 shadow">
-                  <Users size={24} strokeWidth={2} />
-                </div>
-              </div>
-            </div>
+            <StatCard
+              label="Total Salary Cost" value={`LKR ${totalSalary.toLocaleString()}`} icon={Wallet}
+              bgFrom="from-blue-100" bgTo="to-blue-50" borderColor="border-blue-200"
+              textColor="text-blue-700" iconBg="bg-blue-200"
+            />
+            <StatCard
+              label="Employee Count" value={employeeCount} icon={Users}
+              bgFrom="from-green-100" bgTo="to-green-50" borderColor="border-green-200"
+              textColor="text-green-700" iconBg="bg-green-200"
+            />
           </div>
 
-         
+          {/* EPF filter buttons */}
           <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow flex flex-wrap gap-4">
-            <button
-              className={`
-                flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
-                ${
-                  activeFilter === "All"
-                    ? "bg-blue-600 text-white shadow"
-                    : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50"
-                }
-              `}
-              onClick={handleAllEmployees}
-              type="button"
-            >
-              All Employees
-            </button>
-
-            <button
-              className={`
-                flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
-                ${
-                  activeFilter === "EPF"
-                    ? "bg-blue-600 text-white shadow"
-                    : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50"
-                }
-              `}
-              onClick={handleEPFFilter}
-              type="button"
-            >
-              <Users size={18} strokeWidth={2} />
-              EPF Employee
-            </button>
-
-            <button
-              className={`
-                flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
-                ${
-                  activeFilter === "NonEPF"
-                    ? "bg-blue-600 text-white shadow"
-                    : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50"
-                }
-              `}
-              onClick={handleNonEPFFilter}
-              type="button"
-            >
-              <Users size={18} strokeWidth={2} />
-              Non EPF Employee
-            </button>
+            <FilterButton label="All Employees"    active={activeFilter === "All"}    onClick={() => setActiveFilter("All")}    />
+            <FilterButton label="EPF Employee"     active={activeFilter === "EPF"}    onClick={() => setActiveFilter("EPF")}    icon={Users} />
+            <FilterButton label="Non EPF Employee" active={activeFilter === "NonEPF"} onClick={() => setActiveFilter("NonEPF")} icon={Users} />
           </div>
 
-
+          {/* Filter panel */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow">
-            <h3 className="text-base font-semibold text-gray-700 mb-4">
-              Filter Employees
-            </h3>
+            <h3 className="text-base font-semibold text-gray-700 mb-4">Filter Employees</h3>
 
-           
             <div className="relative mb-4">
-              <label
-                htmlFor="search"
-                className="block text-xs font-semibold text-gray-500 mb-1"
-              >
-                Search by ID or Name (UI only)
-              </label>
+              <label htmlFor="search" className="block text-xs font-semibold text-gray-500 mb-1">Search by ID or Name</label>
               <div className="relative">
                 <input
-                  type="text"
-                  id="search"
+                  type="text" id="search"
                   placeholder="Enter employee ID or name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
                 />
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               </div>
             </div>
 
             <div className="flex flex-col md:flex-row gap-5 mb-4">
+
+              {/* Company */}
               <div className="relative flex-1">
-                <label
-                  htmlFor="company"
-                  className="block text-xs font-semibold text-gray-500 mb-1"
-                >
-                  Company
-                </label>
+                <label htmlFor="company" className="block text-xs font-semibold text-gray-500 mb-1">Company</label>
                 <div className="relative">
-                  <Building2
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                    size={18}
-                  />
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   {isLoadingCompanies ? (
-                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
-                      <span className="ml-2 text-gray-500">Loading...</span>
+                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center gap-2">
+                      <LoadingSpinner /><span className="text-gray-500">Loading...</span>
                     </div>
                   ) : (
-                    <select
-                      id="company"
-                      value={selectedCompany}
-                      onChange={handleCompanyChange}
-                      className="appearance-none w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-                    >
+                    <select id="company" value={selectedCompany} onChange={handleCompanyChange}
+                      className="appearance-none w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm">
                       <option value="">Select Company</option>
-                      {companies.map((company) => (
-                        <option key={company.id} value={company.id}>
-                          {company.name}
-                        </option>
-                      ))}
+                      {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   )}
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-400" />
                 </div>
               </div>
 
+              {/* Department */}
               <div className="relative flex-1">
-                <label
-                  htmlFor="department"
-                  className="block text-xs font-semibold text-gray-500 mb-1"
-                >
-                  Department
-                </label>
+                <label htmlFor="department" className="block text-xs font-semibold text-gray-500 mb-1">Department</label>
                 <div className="relative">
-                  <Layers
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                    size={18}
-                  />
+                  <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   {isLoadingDepartments ? (
-                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
-                      <span className="ml-2 text-gray-500">Loading...</span>
+                    <div className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg flex items-center gap-2">
+                      <LoadingSpinner /><span className="text-gray-500">Loading...</span>
                     </div>
                   ) : (
-                    <select
-                      id="department"
-                      value={selectedDepartment}
-                      //onChange={(e) => setSelectedDepartment(e.target.value)}
-
-                      onChange={(e) => {
-  const deptId = e.target.value;
-  setSelectedDepartment(deptId);
-  if (selectedCompany) {
-    loadBonusesByCompanyOrDepartment(selectedCompany, deptId || null);
-  }
-}}
-
+                    <select id="department" value={selectedDepartment} onChange={handleDepartmentChange}
                       disabled={!selectedCompany}
-                      className={`appearance-none w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm ${
-                        !selectedCompany ? "bg-gray-100 cursor-not-allowed" : ""
-                      }`}
-                    >
+                      className={`appearance-none w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm
+                        ${!selectedCompany ? "bg-gray-100 cursor-not-allowed" : ""}`}>
                       <option value="">All Departments</option>
-                      {departments.map((department) => (
-                        <option key={department.id} value={department.id}>
-                          {department.name}
-                        </option>
-                      ))}
+                      {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   )}
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-400" />
                 </div>
               </div>
 
-              <div className="relative flex-1">
-                <label
-                  htmlFor="month"
-                  className="block text-xs font-semibold text-gray-500 mb-1"
-                >
-                  Month
-                </label>
-                <select
-                  id="month"
-                  value={month}
-                  onChange={(e) => setMonth(e.target.value)}
-                  className="appearance-none w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-                >
-                  <option value="">Select Month</option>
-                  {months.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-400" />
-              </div>
+              {/* Month */}
+              <SelectField id="month" label="Month" value={month} onChange={(e) => setMonth(e.target.value)}>
+                <option value="">Select Month</option>
+                {MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </SelectField>
 
+              {/* KPI Mode */}
               <div className="relative flex-1">
-                <label
-                  htmlFor="kpiMode"
-                  className="block text-xs font-semibold text-gray-500 mb-1"
-                >
-                  KPI Mode
-                </label>
-                <select
-                  id="kpiMode"
-                  value={kpiType}
-                  onChange={(e) => setKpiType(e.target.value)}
-                  className="appearance-none w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-                >
+                <SelectField id="kpiMode" label="KPI Mode" value={kpiType} onChange={(e) => setKpiType(e.target.value)}>
                   <option value="">None</option>
                   <option value="monthly">Monthly</option>
                   <option value="6month">6 Month Bonus</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-400" />
+                </SelectField>
                 <p className="mt-1 text-[10px] text-gray-500">
                   Monthly adds to EPF base; 6 Month Bonus adds to gross only
                 </p>
               </div>
 
+              {/* Year */}
               <div className="relative flex-1">
-                <label
-                  htmlFor="year"
-                  className="block text-xs font-semibold text-gray-500 mb-1"
-                >
-                  Year
-                </label>
-                <input
-                  type="number"
-                  id="year"
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                  className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-                  placeholder="Enter year"
-                />
+                <label htmlFor="year" className="block text-xs font-semibold text-gray-500 mb-1">Year</label>
+                <input type="number" id="year" value={year} onChange={(e) => setYear(e.target.value)}
+                  className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                  placeholder="Enter year" />
               </div>
             </div>
 
             <div className="flex justify-end gap-3">
-              <button
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors shadow"
-                onClick={applyFilters}
-                type="button"
-              >
-                <Filter size={18} strokeWidth={2} />
-                Apply Filters
+              <button type="button" onClick={fetchSalaryData}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors shadow">
+                <Filter size={18} strokeWidth={2} /> Apply Filters
               </button>
-
-              <button
-                className="flex items-center gap-2 px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-base font-semibold hover:bg-gray-300 transition-colors shadow"
-                onClick={resetFilter}
-                type="button"
-              >
+              <button type="button" onClick={resetFilter}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg text-base font-semibold hover:bg-gray-300 transition-colors shadow">
                 Clear
               </button>
             </div>
           </div>
         </div>
 
-        
+        {/* Process Status panel */}
         <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl border border-blue-100 p-6 shadow h-fit">
-          <h3 className="text-base font-semibold text-blue-700 mb-4">
-            Process Status
-          </h3>
+          <h3 className="text-base font-semibold text-blue-700 mb-4">Process Status</h3>
           <div className="space-y-6">
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-1">Status</p>
               <div className="flex items-center">
-                {status === "Processed" ? (
-                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
-                )}
-                <p
-                  className={`font-semibold text-lg ${
-                    status === "Processed"
-                      ? "text-green-700"
-                      : "text-yellow-700"
-                  }`}
-                >
-                  {status}
-                </p>
+                {isProcessed
+                  ? <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                  : <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />}
+                <p className={`font-semibold text-lg ${isProcessed ? "text-green-700" : "text-yellow-700"}`}>{status}</p>
               </div>
             </div>
-
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">
-                Processed By
-              </p>
-              <p className="font-semibold text-gray-800">
-                {statusInfo.processUser}
-              </p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">Processed By</p>
+              <p className="font-semibold text-gray-800">{statusInfo.processUser}</p>
             </div>
-
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">
-                Last Process Date
-              </p>
-              <p className="font-semibold text-gray-800">
-                {statusInfo.lastProcessDate}
-              </p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">Last Process Date</p>
+              <p className="font-semibold text-gray-800">{statusInfo.lastProcessDate}</p>
             </div>
-
             <div className="pt-2 space-y-3">
-              <button
-                className={`
-                  w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
-                  ${
-                    status === "Processed"
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-purple-600 text-white hover:bg-purple-700 shadow"
-                  }
-                `}
-                onClick={async () => {
-                  if (filteredData.length === 0) {
-                    notify.info("No Data", "No data to save. Please apply filters first.");
-                    return;
-                  }
-                  try {
-                    const dataWithMonth = filteredData.map((item) => ({
-                      ...item,
-                      month,
-                    }));
-
-                    await saveSalaryData(dataWithMonth);
-
-                    const csvContent = convertToCSV(filteredData);
-                    const kpiSuffix = kpiType ? `_${kpiType}` : `_none`;
-                    downloadCSV(csvContent, `salary_data${kpiSuffix}_${Date.now()}.csv`);
-
-                    notify.success("Saved", "Salary data saved and downloaded successfully!");
-                  } catch (error) {
-                    console.error("Error saving salary data:", error);
-                    notify.error(
-                      "Save Failed",
-                      error.response?.data?.message || error.message || "Unknown error"
-                    );
-                  }
-                }}
-                type="button"
-                disabled={filteredData.length === 0}
-              >
-                <FileText size={18} strokeWidth={2} />
-                Save Data
-              </button>
-
-              <button
-                className={`
-                  w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
-                  ${
-                    status === "Processed"
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-green-600 text-white hover:bg-green-700 shadow"
-                  }
-                `}
-                onClick={handleSalaryProcess}
-                disabled={status === "Processed"}
-              >
-                <FileText size={18} strokeWidth={2} />
-                Process Salary
-              </button>
-
-              <button
+              <button type="button" onClick={handleSaveData} disabled={!filteredData.length}
                 className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
-                  ${
-                    status !== "Processed"
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-purple-600 text-white hover:bg-purple-700 shadow"
-                  }`}
-                onClick={() => {
-                  handleDownloadAllProcessed();
-                  handleDownloadCSV();
-                }}
-                disabled={status !== "Processed"}
-              >
-                <Download size={18} strokeWidth={2} />
-                Download All Processed Payslips
+                  ${!filteredData.length ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-purple-600 text-white hover:bg-purple-700 shadow"}`}>
+                <FileText size={18} strokeWidth={2} /> Save Data
+              </button>
+              <button type="button" onClick={handleSalaryProcess} disabled={isProcessed}
+                className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
+                  ${isProcessed ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 shadow"}`}>
+                <FileText size={18} strokeWidth={2} /> Process Salary
+              </button>
+              <button type="button" disabled={!isProcessed}
+                onClick={() => { handleDownloadAllProcessed(); handleDownloadCSV(); }}
+                className={`w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors
+                  ${!isProcessed ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-purple-600 text-white hover:bg-purple-700 shadow"}`}>
+                <Download size={18} strokeWidth={2} /> Download All Processed Payslips
               </button>
             </div>
           </div>
         </div>
       </div>
 
-    
+      {/* Bulk actions panel */}
       {selectedEmployees.length > 0 && (
-        <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-md mb-8 animate-fadeIn">
+        <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-md mb-8">
           <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
             <Users className="mr-2" size={20} />
             Bulk Actions ({selectedEmployees.length} employees selected)
           </h3>
-
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Action Type
-              </label>
-              <select
-                value={bulkActionType}
-                onChange={(e) => {
-                  setBulkActionType(e.target.value);
-                  setBulkActionAmount("");
-                  setBulkActionId("");
-                }}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              >
+              <label className="block text-sm font-medium text-gray-700">Action Type</label>
+              <select value={bulkActionType}
+                onChange={(e) => { setBulkActionType(e.target.value); setBulkActionAmount(""); setBulkActionId(""); }}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
                 <option value="allowance">Add Allowance</option>
                 <option value="deduction">Add Deduction</option>
                 <option value="bonus">Add Bonus</option>
               </select>
             </div>
-
             <div className="space-y-1">
-          
-
               <label className="block text-sm font-medium text-gray-700">
-  {bulkActionType === "allowance"
-    ? "Allowance Type"
-    : bulkActionType === "deduction"
-    ? "Deduction Type"
-    : "Bonus Type"}
-</label>
-             
-
-              <select
-  value={bulkActionId}
-  onChange={(e) => handleAllowanceDeductionChange(e.target.value)}
-  className="w-full p-2 border border-gray-300 rounded-lg"
->
-  <option value="">Select Type</option>
-
-  {bulkActionType === "allowance" &&
-    availableAllowances.map((allowance) => (
-      <option key={allowance.id} value={allowance.id}>
-        {allowance.allowance_name}
-      </option>
-    ))}
-
-  {bulkActionType === "deduction" &&
-    availableDeductions.map((deduction) => (
-      <option key={deduction.id} value={deduction.id}>
-        {deduction.deduction_name}
-      </option>
-    ))}
-
- {bulkActionType === "bonus" &&
-  (Array.isArray(availableBonuses) ? availableBonuses : []).map((bonus) => (
-    <option key={bonus.id} value={bonus.id}>
-      {bonus.bonus_name}
-    </option>
-  ))}
-</select>
+                {bulkActionType === "allowance" ? "Allowance Type"
+                  : bulkActionType === "deduction" ? "Deduction Type" : "Bonus Type"}
+              </label>
+              <select value={bulkActionId} onChange={(e) => handleAllowanceDeductionChange(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg">
+                <option value="">Select Type</option>
+                {bulkActionType === "allowance" && availableAllowances.map((a) =>
+                  <option key={a.id} value={a.id}>{a.allowance_name}</option>)}
+                {bulkActionType === "deduction" && availableDeductions.map((d) =>
+                  <option key={d.id} value={d.id}>{d.deduction_name}</option>)}
+                {bulkActionType === "bonus" && availableBonuses.map((b) =>
+                  <option key={b.id} value={b.id}>{b.bonus_name}</option>)}
+              </select>
             </div>
-
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">Amount</label>
-              <input
-                type="number"
-                value={bulkActionAmount}
-                onChange={(e) => setBulkActionAmount(e.target.value)}
+              <input type="number" value={bulkActionAmount} onChange={(e) => setBulkActionAmount(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter amount"
-              />
+                placeholder="Enter amount" />
             </div>
-
-            <div className="flex items-end">
-              <button
-                className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200"
-                onClick={applyBulkAction}
-                type="button"
-              >
+            <div className="flex items-end gap-2 flex-wrap">
+              <button type="button" onClick={applyBulkAction}
+                className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
                 Apply to Selected
               </button>
-
-              <button
-                className="ms-2 py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200"
-                onClick={getExcelData}
-                type="button"
-              >
+              <button type="button" onClick={getExcelData}
+                className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition">
                 Download Excel
               </button>
-
-              <button
-                className="ms-2 py-2 px-4 bg-green-300 hover:bg-green-400 text-black font-medium rounded-lg transition duration-200"
-                onClick={() => setIsImportModalOpen(true)}
-                type="button"
-              >
+              <button type="button" onClick={() => setIsImportModalOpen(true)}
+                className="py-2 px-4 bg-green-300 hover:bg-green-400 text-black font-medium rounded-lg transition">
                 Import Excel
               </button>
-
-              {isImportModalOpen && (
-                <ImportExcelModal
-                  isOpen={isImportModalOpen}
-                  onClose={() => {
-                    setIsImportModalOpen(false);
-                    setImportSuccessMessage("");
-                  }}
-                  onSuccess={handleImportSuccess}
-                  onImport={handleImportExcel}
-                />
-              )}
-
-              {importSuccessMessage && (
-                <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
-                  {importSuccessMessage}
-                </div>
-              )}
             </div>
           </div>
-
+          {importSuccessMessage && (
+            <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">{importSuccessMessage}</div>
+          )}
           <div className="flex justify-end">
-            <button
-              className="text-gray-600 hover:text-gray-800 font-medium"
-              onClick={() => {
-                setSelectedEmployees([]);
-                setSelectAll(false);
-              }}
-              type="button"
-            >
+            <button type="button" className="text-gray-600 hover:text-gray-800 font-medium"
+              onClick={() => { setSelectedEmployees([]); setSelectAll(false); }}>
               Clear Selection
             </button>
           </div>
         </div>
       )}
 
-      
+      {/* Import modal */}
+      {isImportModalOpen && (
+        <ImportExcelModal
+          isOpen={isImportModalOpen}
+          onClose={() => { setIsImportModalOpen(false); setImportSuccessMessage(""); }}
+          onSuccess={handleImportSuccess}
+          onImport={handleImportExcel}
+        />
+      )}
+
+      {/* Loading spinner */}
       {isLoading && (
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <LoadingSpinner size="lg" />
         </div>
       )}
 
-     
+      {/* Select-all bar */}
       {!isLoading && displayedData.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow mb-8">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-50">
-                <tr>
-                  <th className="px-4 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectAll}
-                      onChange={handleSelectAll}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    EMP No
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Company/Dept
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Salary Details
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    EPF/ETF
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Allowances
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Deductions
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Overtime
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Salary Breakdown
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
-                    Net Salary
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="bg-white divide-y divide-gray-100">
-                {displayedData.map((employee) => {
-
-                  console.log("OT FLAGS:", employee.emp_no, employee.ot_morning, employee.ot_evening);
-  // optional: amount debug
-  console.log("OT AMOUNTS:", employee.emp_no, employee.salary_breakdown?.ot_morning_fees, employee.salary_breakdown?.ot_night_fees);
-  // optional: hours debug
-  console.log("OT HOURS:", employee.emp_no, employee.overtime_total_hours, employee.overtime_details);
-
-                  const empId = `${employee.id}`;
-
-                  const totalAllowances =
-                    employee.allowances?.reduce(
-                      (sum, allowance) => sum + (parseFloat(allowance.amount) || 0),
-                      0
-                    ) || 0;
-
-                  const totalDeductions =
-                    employee.deductions?.reduce(
-                      (sum, deduction) => sum + (parseFloat(deduction.amount) || 0),
-                      0
-                    ) || 0;
-
-                  const kpiMonthlyAllowance = employee.salary_breakdown?.kpi_allowance || 0;
-                  const kpiSixMonthBonus =
-                    employee.salary_breakdown?.kpi_bonus_allowance || 0;
-
-                  const hasKpiAllowanceInList = Array.isArray(employee.allowances)
-                    ? employee.allowances.some(
-                        (a) =>
-                          (a?.name || "").toString().toLowerCase() === "kpi allowance"
-                      )
-                    : false;
-
-                  const netSalary =
-                    employee.salary_breakdown?.net_salary ||
-                    (parseFloat(employee.basic_salary) || 0) +
-                      totalAllowances -
-                      totalDeductions;
-
-                  return (
-                    <tr
-                      key={employee.id}
-                      className="hover:bg-blue-50 transition-colors"
-                    >
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedEmployees.includes(empId)}
-                          onChange={() => handleSelectEmployee(employee)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {employee.emp_no}
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="font-medium">{employee.full_name}</div>
-                        <div className="text-xs text-gray-500">
-                          ID: {employee.id} | BR: {employee.br_status}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="font-medium">{employee.company_name}</div>
-                        <div className="text-xs text-gray-500">
-                          {employee.department_name}
-                          {employee.sub_department_name &&
-                            ` (${employee.sub_department_name})`}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          Basic:{" "}
-                          {parseFloat(employee.basic_salary || 0).toLocaleString()}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {employee.increment_active ? (
-                            <>
-                              Incr: {employee.increment_value} (eff.{" "}
-                              {employee.increment_effected_date})
-                            </>
-                          ) : (
-                            "No active increment"
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          OT: {employee.ot_morning ? "Morning" : ""}{" "}
-                          {employee.ot_evening ? "Evening" : ""}
-                        </div>
-                      </td>
-
-                     
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>{employee.enable_epf_etf ? "Yes" : "No"}</div>
-
-                        <div className="flex justify-between">
-                          <span className="text-xs">EPF Cut:</span>
-                          <span className="text-red-600">
-                            {Number(
-                              employee.salary_breakdown?.epf_employee_deduction || 0
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-xs">EPF:</span>
-                          <span className="text-yellow-600">
-                            {Number(
-                              employee.salary_breakdown?.epf_employer_contribution || 0
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-xs">ETF:</span>
-                          <span className="text-yellow-600">
-                            {Number(
-                              employee.salary_breakdown?.etf_employer_contribution || 0
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="flex flex-col space-y-1">
-                          {employee.allowances?.map((allowance) => (
-                            <div key={allowance.id} className="flex justify-between">
-                              <span className="text-xs">
-                                {allowance.name} ({allowance.code})
-                              </span>
-                              <span className="font-medium">
-                                {parseFloat(allowance.amount || 0).toLocaleString()}
-                              </span>
-                            </div>
-                          ))}
-
-                          {kpiMonthlyAllowance > 0 && !hasKpiAllowanceInList && (
-                            <div className="flex justify-between text-blue-700">
-                              <span className="text-xs">
-                                KPI Allowance{" "}
-                                <span className="text-[10px] text-gray-500">
-                                  (EPF base)
-                                </span>
-                              </span>
-                              <span className="font-medium">
-                                {Number(kpiMonthlyAllowance).toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="font-semibold border-t mt-1 pt-1">
-                            Total: {totalAllowances.toLocaleString()}
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="flex flex-col space-y-1">
-                          {employee.deductions?.map((deduction) => (
-                            <div key={deduction.id} className="flex justify-between">
-                              <span className="text-xs">
-                                {deduction.name} ({deduction.code})
-                              </span>
-                              <span className="font-medium">
-                                {parseFloat(deduction.amount || 0).toLocaleString()}
-                              </span>
-                            </div>
-                          ))}
-                          <div className="font-semibold border-t mt-1 pt-1">
-                            Total: {totalDeductions.toLocaleString()}
-                          </div>
-                        </div>
-                      </td>
-                       
-                       
-
-<td className="px-6 py-5 text-sm text-gray-900 align-top">
-  <div className="flex flex-col gap-3">
-
-   
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-      <div className="flex justify-between items-center">
-        <span className="text-xs font-medium text-gray-600">Morning</span>
-        <span className="text-sm font-semibold tabular-nums">
-          {Number(employee.salary_breakdown?.ot_morning_fees || 0).toLocaleString()}
-        </span>
-      </div>
-
-      <div className="my-2 border-t border-gray-200" />
-
-      <div className="flex justify-between items-center">
-        <span className="text-xs font-medium text-gray-600">Night</span>
-        <span className="text-sm font-semibold tabular-nums">
-          {Number(employee.salary_breakdown?.ot_night_fees || 0).toLocaleString()}
-        </span>
-      </div>
-    </div>
-
- 
-    {Array.isArray(employee.overtime_details) && employee.overtime_details.length > 0 && (
-      <div className="rounded-lg border border-gray-200 bg-white p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-xs font-semibold text-gray-700">OT Dates / Hours</div>
-          <div className="text-[11px] text-gray-500">
-            Rows: {employee.overtime_details.length}
-          </div>
+        <div className="flex items-center gap-3 px-5 py-3 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+          <input type="checkbox" checked={selectAll} onChange={handleSelectAll}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+          <span className="text-sm text-gray-600">
+            {selectAll ? "Deselect All" : `Select All (${displayedData.length})`}
+          </span>
         </div>
+      )}
 
-        <div className="max-h-40 overflow-auto pr-1 space-y-2">
-          {employee.overtime_details.map((ot, idx) => (
-            <div
-              key={idx}
-              className="flex justify-between gap-3 rounded-md bg-gray-50 px-2 py-1.5"
-            >
-              <span className="text-xs text-gray-700 truncate">
-                {ot.date} {ot.out_time ? `(${ot.out_time})` : ""}
-              </span>
-              <span className="text-xs font-semibold tabular-nums whitespace-nowrap">
-                {Number(ot.ot_hours || 0).toFixed(2)}h
-              </span>
-            </div>
+      {/* Employee cards */}
+      {!isLoading && displayedData.length > 0 && (
+        <div className="space-y-4 mb-8">
+          {displayedData.map((employee) => (
+            <EmployeeCard
+              key={employee.id}
+              employee={employee}
+              isSelected={selectedEmployees.includes(String(employee.id))}
+              onSelect={handleSelectEmployee}
+            />
           ))}
         </div>
-
-        <div className="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
-          <span className="text-xs font-semibold text-gray-700">Total Hours</span>
-          <span className="text-sm font-bold tabular-nums">
-            {Number(employee.overtime_total_hours || 0).toFixed(2)}h
-          </span>
-        </div>
-      </div>
-    )}
-
-  </div>
-</td>
-
-
-
-                                        <td className="px-6 py-5 text-sm text-gray-900 align-top">
-  <div className="flex flex-col gap-3">
-
-    
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-      <div className="flex justify-between items-center">
-        <span className="text-xs font-medium text-gray-600">Gross</span>
-        <span className="text-sm font-bold tabular-nums text-gray-900">
-          {Number(employee.salary_breakdown?.gross_salary || 0).toLocaleString()}
-        </span>
-      </div>
-
-      {kpiSixMonthBonus > 0 && (
-        <div className="mt-2 rounded-md bg-purple-50 border border-purple-100 px-2 py-1.5">
-          <div className="flex justify-between items-center text-purple-800">
-            <span className="text-[11px] font-semibold">
-              KPI Bonus (6M)
-              <span className="ml-1 text-[10px] text-gray-500 font-normal">
-                (excluded from EPF base)
-              </span>
-            </span>
-            <span className="text-xs font-bold tabular-nums">
-              {Number(kpiSixMonthBonus).toLocaleString()}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-
-
-    <div className="rounded-lg border border-gray-200 bg-white p-3">
-      <div className="text-xs font-semibold text-gray-700 mb-2">
-        Salary Breakdown
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-600">Adj. Basic</span>
-          <span className="text-xs font-semibold tabular-nums">
-            {Number(employee.salary_breakdown?.adjusted_basic || 0).toLocaleString()}
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-600">Per Day</span>
-          <span className="text-xs font-semibold tabular-nums">
-            {Number(employee.salary_breakdown?.per_day_salary || 0).toLocaleString()}
-          </span>
-        </div>
-
-        {employee.salary_breakdown?.probation_over_limit_days !== undefined && (
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-600">Probation Over Limit (days)</span>
-            <span className="text-xs font-semibold tabular-nums">
-              {Number(employee.salary_breakdown.probation_over_limit_days).toString()}
-            </span>
-          </div>
-        )}
-
-        {employee.salary_breakdown?.probation_deduction !== undefined && (
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-600">Probation Deduction</span>
-            <span className="text-xs font-semibold tabular-nums text-red-600">
-              {Number(employee.salary_breakdown.probation_deduction).toLocaleString(
-                undefined,
-                { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-              )}
-            </span>
-          </div>
-        )}
-
-        <div className="my-2 border-t border-gray-200" />
-
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-600">Loan</span>
-          <span className="text-xs font-semibold tabular-nums">
-            {Number(employee.salary_breakdown?.loan_installment || 0).toLocaleString()}
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-600">No Pay Deduction</span>
-          <span className="text-xs font-semibold tabular-nums text-red-600">
-            {Number(employee.salary_breakdown?.no_pay_deduction || 0).toLocaleString()}
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-600">Stamp</span>
-          <span className="text-xs font-semibold tabular-nums">
-            {Number(employee.stamp || 0).toLocaleString()}
-          </span>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</td>
-
-
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-700">
-                        <div>{Number(netSalary || 0).toLocaleString()}</div>
-                        <div className="text-xs font-normal text-gray-500">
-                          Deductions:{" "}
-                          {Number(
-                            employee.salary_breakdown?.total_deductions || 0
-                          ).toLocaleString()}
-                        </div>
-                      </td>
-
-                  
-
-
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
       )}
 
-    
+      {/* Empty state */}
       {!isLoading && displayedData.length === 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow text-center">
           <div className="mx-auto max-w-md">
             <Users className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium text-gray-900">
-              No employees found
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Apply filters (company/month/year) and load data
-            </p>
+            <h3 className="mt-2 text-lg font-medium text-gray-900">No employees found</h3>
+            <p className="mt-1 text-sm text-gray-500">Apply filters (company / month / year) and load data</p>
             <div className="mt-6">
-              <button
-                type="button"
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                onClick={resetFilter}
-              >
+              <button type="button" onClick={resetFilter}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 Reset
               </button>
             </div>
@@ -6589,10 +5711,3 @@ const worksheetData = (employees || []).map((employee) => {
 };
 
 export default SalaryProcessPage;
-*/
-
-
-
-
-
-
