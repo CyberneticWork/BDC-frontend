@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Calendar,
   User,
@@ -21,7 +21,7 @@ import {
 } from "../../services/LeaveMaster";
 import { fetchLeaveCalendar } from "../../services/LeaveCalendar";
 
-const LeaveMaster = () => {
+const LeaveMaster = ({ employeeProfile }) => {
   // State for form fields
   const [formData, setFormData] = useState({
     emp_id: "",
@@ -33,6 +33,7 @@ const LeaveMaster = () => {
     leaveType: "",
     leaveDateType: "fullDay",
     halfDayPeriod: "morning",
+    shortLeaveSlot: "slot1",
     leaveDate: {
       single: getCurrentDate(),
       from: getCurrentDate(),
@@ -56,6 +57,27 @@ const LeaveMaster = () => {
 
   // Add a new state to store employee data
   const [employeeData, setEmployeeData] = useState(null);
+
+  // Auto-fill logged-in employee details
+  useEffect(() => {
+    if (employeeProfile) {
+      setEmployeeData(employeeProfile);
+      setFormData(prev => ({
+        ...prev,
+        emp_id: employeeProfile.id || "",
+        attendanceNo: employeeProfile.attendance_employee_no || "",
+        epfNo: employeeProfile.epf || "",
+        employeeName: employeeProfile.name_with_initials || "",
+        department: employeeProfile.organization_assignment?.department?.name || "",
+      }));
+      
+      // Fetch leave data for logged-in employee
+      if (employeeProfile.id) {
+        fetchEmployeeLeaves(employeeProfile.id, employeeProfile);
+        fetchLeaveUsage(employeeProfile.attendance_employee_no);
+      }
+    }
+  }, [employeeProfile]);
 
 
 
@@ -523,7 +545,9 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
         leave_to: null,
         period: null,
         is_half_day: false,
-        leave_duration: 0 // Add duration field
+        is_short_leave: false,
+        short_leave_slot: null,
+        leave_duration: 0
       };
 
       if (formData.leaveDateType === "fullDay") {
@@ -536,6 +560,11 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
           formData.halfDayPeriod === "morning" ? "Morning" : "Afternoon";
         leaveData.is_half_day = true;
         leaveData.leave_duration = 0.5;
+      } else if (formData.leaveDateType === "shortLeave") {
+        leaveData.leave_date = formData.leaveDate.single;
+        leaveData.is_short_leave = true;
+        leaveData.short_leave_slot = formData.shortLeaveSlot;
+        leaveData.leave_duration = 0.25;
       } else if (formData.leaveDateType === "manual") {
         leaveData.leave_from = formData.leaveDate.from;
         leaveData.leave_to = formData.leaveDate.to;
@@ -627,6 +656,9 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
       fetchLeaveUsage(employeeData.attendance_employee_no || formData.attendanceNo),
     ]);
 
+    // Dispatch event to notify calendar to refresh
+    window.dispatchEvent(new Event('leaveSubmitted'));
+
     setSubmitSuccess(true);
     setFormData({
       ...formData,
@@ -634,6 +666,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
       leaveType: "",
       leaveDateType: "fullDay",
       halfDayPeriod: "morning",
+      shortLeaveSlot: "slot1",
       leaveDate: {
         single: getCurrentDate(),
         from: getCurrentDate(),
@@ -692,11 +725,11 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
         {/* Header Section */}
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
-          <div className="bg-gradient-to-r from-slate-800 to-gray-900 px-4 sm:px-8 py-6 sm:py-8">
+          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-4 sm:px-8 py-6 sm:py-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white text-center">
               Leave Master
             </h1>
-            <p className="text-slate-300 text-center mt-2 text-sm sm:text-base">
+            <p className="text-blue-100 text-center mt-2 text-sm sm:text-base">
               Employee Leave Management System{" "}
               {formData.attendanceNo && `- EMP No: ${formData.attendanceNo}`}
             </p>
@@ -748,25 +781,35 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
                             value={formData.attendanceNo}
                             onChange={handleDateChange}
                             required
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            disabled={!!employeeProfile}
+                            className={`w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                              employeeProfile ? 'bg-gray-50 text-gray-500' : ''
+                            }`}
                             placeholder="Enter employee number"
                           />
-                          <button
-                            type="button"
-                            className="ml-2 p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-                            onClick={fetchEmployeeDetails}
-                            disabled={isLoading}
-                          >
-                            {isLoading ? (
-                              <div className="w-5 h-5 border-t-2 border-b-2 border-blue-600 rounded-full animate-spin"></div>
-                            ) : (
-                              <Search className="w-5 h-5" />
-                            )}
-                          </button>
+                          {!employeeProfile && (
+                            <button
+                              type="button"
+                              className="ml-2 p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                              onClick={fetchEmployeeDetails}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <div className="w-5 h-5 border-t-2 border-b-2 border-blue-600 rounded-full animate-spin"></div>
+                              ) : (
+                                <Search className="w-5 h-5" />
+                              )}
+                            </button>
+                          )}
                         </div>
                         {searchError && (
                           <p className="text-xs text-red-500 mt-1">
                             {searchError}
+                          </p>
+                        )}
+                        {employeeProfile && (
+                          <p className="text-xs text-green-600 mt-1">
+                            ✓ Logged in as {formData.employeeName}
                           </p>
                         )}
                       </div>
@@ -896,6 +939,23 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
                         <div className="flex items-center">
                           <input
                             type="radio"
+                            id="shortLeave"
+                            name="leaveDateType"
+                            value="shortLeave"
+                            checked={formData.leaveDateType === "shortLeave"}
+                            onChange={handleDateChange}
+                            className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label
+                            htmlFor="shortLeave"
+                            className="text-sm text-gray-700"
+                          >
+                            Short Leave
+                          </label>
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
                             id="manual"
                             name="leaveDateType"
                             value="manual"
@@ -996,6 +1056,61 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
                             >
                               <option value="morning">Morning</option>
                               <option value="afternoon">Afternoon</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      {formData.leaveDateType === "shortLeave" && (
+                        <div className="space-y-4">
+                          <div className="relative">
+                            <label className="block text-xs text-gray-500 mb-1">
+                              Date
+                            </label>
+                            <div
+                              className="relative"
+                              onMouseEnter={() =>
+                                setHoveredDate(formData.leaveDate.single)
+                              }
+                              onMouseLeave={() => setHoveredDate(null)}
+                            >
+                              <input
+                                type="date"
+                                name="leaveDate.single"
+                                value={formData.leaveDate.single}
+                                onChange={handleDateChange}
+                                required
+                                className={getDateInputStyle(
+                                  formData.leaveDate.single
+                                )}
+                                min={getCurrentDate()}
+                                onKeyDown={(e) => e.preventDefault()}
+                              />
+                              {hoveredDate === formData.leaveDate.single &&
+                                getDateHoverContent(formData.leaveDate.single)}
+                            </div>
+                            {isDateDisabled(formData.leaveDate.single) && (
+                              <p className="mt-1 text-xs text-red-600 flex items-center">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                This date is unavailable for leave
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">
+                              Time Slot (2 hours)
+                            </label>
+                            <select
+                              name="shortLeaveSlot"
+                              value={formData.shortLeaveSlot}
+                              onChange={handleDateChange}
+                              required
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            >
+                              <option value="slot1">8:30 AM - 10:30 AM</option>
+                              <option value="slot2">10:30 AM - 12:30 PM</option>
+                              <option value="slot3">1:30 PM - 3:30 PM</option>
+                              <option value="slot4">3:30 PM - 5:30 PM</option>
                             </select>
                           </div>
                         </div>

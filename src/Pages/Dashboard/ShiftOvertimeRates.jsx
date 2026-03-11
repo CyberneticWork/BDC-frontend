@@ -332,26 +332,26 @@ const ShiftOvertimeRates = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <DollarSign className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Shift Overtime Configuration</h1>
-              <p className="text-gray-600">Configure shift parameters and overtime multipliers for dynamic rate calculation</p>
-            </div>
+    <div className="bg-gradient-to-r from-red-600 to-yellow-600 text-white rounded-xl shadow-lg p-6 mb-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-white/20 rounded-lg">
+            <DollarSign className="text-white" size={28} />
           </div>
-          <button
-            onClick={loadSavedRates}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-sm"
-          >
-            <Eye size={18} />
-            View Saved Data
-          </button>
+          <div>
+            <h1 className="text-2xl font-bold">Shift Overtime Configuration</h1>
+            <p className="text-red-100">Configure shift parameters and overtime multipliers for dynamic rate calculation</p>
+          </div>
         </div>
+        <button
+          onClick={loadSavedRates}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-red-600 font-semibold hover:bg-red-50 shadow-sm"
+        >
+          <Eye size={18} />
+          View Saved Data
+        </button>
       </div>
+    </div>
 
       {/* Independent Rate Calculator Card - keeping existing implementation */}
       <div className="bg-white rounded-xl shadow border border-gray-200 p-6">

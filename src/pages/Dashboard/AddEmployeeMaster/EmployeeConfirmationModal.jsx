@@ -46,9 +46,110 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
   };
 
   const handleSubmit = async () => {
+    const formatDateToYYYYMMDD = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    };
+
+    const isValidEmail = (email) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    };
+
+    if (!isValidEmail(formData.address.email)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Email',
+        text: 'Please enter a valid email address.',
+      });
+      return;
+    }
+
+    const requiredFields = {
+      'personal.title': formData.personal.title,
+      'personal.attendanceEmpNo': formData.personal.attendanceEmpNo,
+      'personal.epfNo': formData.personal.epfNo,
+      'personal.nicNumber': formData.personal.nicNumber,
+      'personal.dob': formData.personal.dob,
+      'personal.gender': formData.personal.gender,
+      'personal.employmentStatus': formData.personal.employmentStatus,
+      'personal.nameWithInitial': formData.personal.nameWithInitial,
+      'personal.fullName': formData.personal.fullName,
+      'personal.displayName': formData.personal.displayName,
+      'personal.maritalStatus': formData.personal.maritalStatus,
+      'address.permanentAddress': formData.address.permanentAddress,
+      'address.email': formData.address.email,
+      'address.mobileLine': formData.address.mobileLine,
+      'address.district': formData.address.district,
+      'address.province': formData.address.province,
+      'address.emergencyContact.relationship': formData.address.emergencyContact.relationship,
+      'address.emergencyContact.contactName': formData.address.emergencyContact.contactName,
+      'address.emergencyContact.contactAddress': formData.address.emergencyContact.contactAddress,
+      'address.emergencyContact.contactTel': formData.address.emergencyContact.contactTel,
+      'compensation.basicSalary': formData.compensation.basicSalary,
+      'organization.company': formData.organization.company,
+      'organization.dateOfJoined': formData.organization.dateOfJoined,
+      'organization.designation': formData.organization.designation,
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Missing Required Fields',
+        text: 'Please fill all required fields before submitting.',
+      });
+      return;
+    }
+
+    const formattedData = {
+      ...formData,
+      personal: {
+        ...formData.personal,
+        dob: formatDateToYYYYMMDD(formData.personal.dob),
+        spouseDob: formatDateToYYYYMMDD(formData.personal.spouseDob),
+        spouseAge: formData.personal.spouseAge ? parseInt(formData.personal.spouseAge) : '',
+        children: formData.personal.children.map(child => ({
+          ...child,
+          dob: formatDateToYYYYMMDD(child.dob),
+          age: child.age ? parseInt(child.age) : '',
+        })),
+      },
+      address: {
+        ...formData.address,
+        password: formData.address.password || '',
+      },
+      compensation: {
+        ...formData.compensation,
+        basicSalary: formData.compensation.basicSalary ? parseFloat(formData.compensation.basicSalary) : '',
+        incrementValue: formData.compensation.incrementValue ? parseFloat(formData.compensation.incrementValue) : '',
+        incrementEffectiveFrom: formatDateToYYYYMMDD(formData.compensation.incrementEffectiveFrom),
+        ot_morning_rate: formData.compensation.ot_morning_rate ? parseFloat(formData.compensation.ot_morning_rate) : '',
+        ot_night_rate: formData.compensation.ot_night_rate ? parseFloat(formData.compensation.ot_night_rate) : '',
+      },
+      organization: {
+        ...formData.organization,
+        company: typeof formData.organization.company === 'object' ? formData.organization.company.name : formData.organization.company,
+        designation: typeof formData.organization.designation === 'object' ? formData.organization.designation.name : formData.organization.designation,
+        dateOfJoined: formatDateToYYYYMMDD(formData.organization.dateOfJoined),
+        probationFrom: formatDateToYYYYMMDD(formData.organization.probationFrom),
+        probationTo: formatDateToYYYYMMDD(formData.organization.probationTo),
+        trainingFrom: formatDateToYYYYMMDD(formData.organization.trainingFrom),
+        trainingTo: formatDateToYYYYMMDD(formData.organization.trainingTo),
+        contractFrom: formatDateToYYYYMMDD(formData.organization.contractFrom),
+        contractTo: formatDateToYYYYMMDD(formData.organization.contractTo),
+        confirmationDate: formatDateToYYYYMMDD(formData.organization.confirmationDate),
+        resignationDate: formatDateToYYYYMMDD(formData.organization.resignationDate),
+      },
+    };
+
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit(formattedData);
     } finally {
       setIsSubmitting(false);
     }
@@ -443,14 +544,14 @@ const renderErrors = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">
-                  Auto-Generated Password
+                  Login Credentials
                 </label>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-1">
-                  <p className="text-blue-900 font-mono font-semibold text-lg">
-                    {formData.address.password || "Not generated"}
+                  <p className="text-xs text-blue-600 mb-2">
+                    Email: <span className="font-semibold text-blue-900">{formData.address.email}</span>
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    This password will be sent to the employee's email
+                  <p className="text-xs text-blue-600">
+                    Password: <span className="font-semibold text-blue-900">{formData.personal.nicNumber} (NIC Number)</span>
                   </p>
                 </div>
               </div>
