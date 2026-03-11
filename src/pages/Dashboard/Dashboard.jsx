@@ -16,6 +16,7 @@ import {
   CreditCard,
   CheckCircle,
 } from "lucide-react";
+import config from "@src/config";
 import NotificationBell from "../../components/NotificationBell";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
@@ -1128,6 +1129,7 @@ const Dashboard = ({ user, onLogout }) => {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
         user={user}
+        employeeProfile={employeeProfile}
         onLogout={onLogout}
         activeItem={activeItem}
         setActiveItem={handleSetActiveItem}
