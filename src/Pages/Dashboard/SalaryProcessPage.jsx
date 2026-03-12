@@ -790,83 +790,6 @@ const SalaryProcessPage = () => {
       return;
     }
 
-    if (bulkActionType === "allowance") {
-      const a = availableAllowances.find((x) => Number(x.id) === numericId);
-      if (a?.amount != null) setBulkActionAmount(parseFloat(a.amount).toFixed(2));
-    } else if (bulkActionType === "deduction") {
-      const d = availableDeductions.find((x) => Number(x.id) === numericId);
-      if (d?.amount != null) setBulkActionAmount(parseFloat(d.amount).toFixed(2));
-    } else if (bulkActionType === "bonus") {
-      const b = availableBonuses.find((x) => Number(x.id) === numericId);
-      if (b?.amount != null) setBulkActionAmount(parseFloat(b.amount).toFixed(2));
-    }
-  };
-
-  const handleSelectEmployee = (employee) => {
-    const empId = `${employee.id}`;
-    if (selectedEmployees.includes(empId)) {
-      setSelectedEmployees(selectedEmployees.filter((id) => id !== empId));
-    } else {
-      setSelectedEmployees([...selectedEmployees, empId]);
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedEmployees([]);
-    } else {
-      const allEmployeeIds = displayedData.map((employee) => `${employee.id}`);
-      setSelectedEmployees(allEmployeeIds);
-    }
-    setSelectAll(!selectAll);
-  };
-
-  const applyBulkAction = async () => {
-    if (!bulkActionId || selectedEmployees.length === 0) {
-      notify.warning(
-        "Missing Data",
-        "Please fill all fields and select at least one employee"
-      );
-      return;
-    }
-
-    const payload = {
-      selectedEmployees,
-      bulkActionId,
-      bulkActionType,
-      bulkActionAmount: bulkActionAmount || null,
-    };
-
-    try {
-      await UpdateAllowances(payload);
-      notify.success(
-        "Success",
-        `Successfully applied ${bulkActionType} to ${selectedEmployees.length} employee(s)`
-      );
-
-      await fetchSalaryData();
-
-      setSelectedEmployees([]);
-      setSelectAll(false);
-      setBulkActionAmount("");
-    } catch (error) {
-      console.log(error);
-      notify.error(
-        "Error",
-        error.response?.data?.message || error.message || "Operation failed"
-      );
-    }
-  };
-
-  const getExcelData = async () => {
-    if (!bulkActionId || selectedEmployees.length === 0) {
-      notify.warning(
-        "Missing Data",
-        "Please fill all fields and select at least one employee"
-      );
-      return;
-    }
-
     const payload = {
       selectedEmployees,
       bulkActionId,
@@ -6395,9 +6318,3 @@ const worksheetData = (employees || []).map((employee) => {
 
 export default SalaryProcessPage;
 */
-
-
-
-
-
-
