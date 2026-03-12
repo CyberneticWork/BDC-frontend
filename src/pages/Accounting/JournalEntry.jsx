@@ -6,7 +6,7 @@ import {
   updateJournalEntry,
   deleteJournalEntry,
   getNextEntryNumber
-} from '@services/Account/JournalentryService';
+} from '@services/Account/JournalEntryService';
 import { getAccountList } from '../../services/Account/AccountService';
 import {
   ResponsivePageWrapper,

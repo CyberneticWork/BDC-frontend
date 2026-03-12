@@ -15,7 +15,7 @@ import {
 import axios from "@utils/axios";
 import { format, parseISO } from "date-fns";
 import Swal from "sweetalert2";
-import NoPayService from "@services/NoPayService";
+import NoPayService from "@services/Nopayservice";
 
 const NoPayManagement = () => {
   const [month, setMonth] = useState("");
