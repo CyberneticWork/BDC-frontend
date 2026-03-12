@@ -131,6 +131,8 @@ const Sidebar = ({
         //add more i needed
       ],
     },
+    // Commented out - Not in use
+    /*
     {
       id: "pms",
       name: "PMS",
@@ -162,6 +164,9 @@ const Sidebar = ({
         // { id: "reports", name: "Performance Reports", icon: BarChart3 },
       ],
     },
+    */
+    // Commented out - Not in use
+    /*
     {
       id: "lms",
       name: "Learning Management",
@@ -175,6 +180,9 @@ const Sidebar = ({
         { id: "lmsUserStats", name: "User Stats", icon: BarChart3 },
       ],
     },
+    */
+    // Commented out - Not in use
+    /*
     {
       id: "accounting",
       name: "Accounting",
@@ -224,6 +232,9 @@ const Sidebar = ({
         // { id: "accountingSettings", name: "Settings" },
       ],
     },
+    */
+    // Commented out - Not in use
+    /*
     { //for inventory section
       id: "inventory",
       name: "Inventory",
@@ -255,6 +266,7 @@ const Sidebar = ({
         { id: "stockVerification", name: "Stock Verification" },
       ],
     },
+    */
     // REPLACE the plain "reports" item with a nested structure:
     {
       id: "reports",
@@ -273,7 +285,8 @@ const Sidebar = ({
         },
       ],
     },
-    { id: "utilities", name: "Utilities", icon: FileText, badge: null },
+    // Commented out - Not in use
+    // { id: "utilities", name: "Utilities", icon: FileText, badge: null },
     {
       id: "settings",
       name: "Settings",
