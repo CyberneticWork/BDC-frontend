@@ -1,7 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import Home from "./Pages/Home.jsx";
-import OTPLogin from "./Pages/Auth/OTPLogin.jsx";
+import Home from "./pages/Home.jsx";
+import OTPLogin from "./pages/Auth/OTPLogin.jsx";
 
 export default function AppRoutes() {
   return (
