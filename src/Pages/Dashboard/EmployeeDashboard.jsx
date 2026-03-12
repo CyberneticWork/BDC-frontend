@@ -15,6 +15,7 @@ const EmployeeDashboard = ({
   const [leaveSummary, setLeaveSummary] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const [leaveRecords, setLeaveRecords] = useState([]);
   const [isLoadingLeaves, setIsLoadingLeaves] = useState(false);
+  const [otSummary, setOtSummary] = useState({ totalHours: 0, totalAmount: 0 });
 
   const handleEditEmployee = () => {
     if (employeeProfile?.id) {
@@ -26,6 +27,7 @@ const EmployeeDashboard = ({
   useEffect(() => {
     if (employeeProfile?.id) {
       fetchLeaveRecords();
+      calculateOtSummary();
     }
   }, [employeeProfile]);
 
@@ -71,6 +73,14 @@ const EmployeeDashboard = ({
     const late = monthRecords.filter(r => r.late_status === 'Late').length;
     
     setAttendanceSummary({ present, absent, late, total: monthRecords.length });
+  };
+
+  const calculateOtSummary = () => {
+    if (employeeProfile?.overtimes && Array.isArray(employeeProfile.overtimes)) {
+      const totalHours = employeeProfile.overtimes.reduce((sum, ot) => sum + (parseFloat(ot.ot_hours) || 0), 0);
+      const totalAmount = employeeProfile.overtimes.reduce((sum, ot) => sum + (parseFloat(ot.total_ot_amount) || 0), 0);
+      setOtSummary({ totalHours: totalHours.toFixed(2), totalAmount: totalAmount.toFixed(2) });
+    }
   };
 
   return (
@@ -166,7 +176,7 @@ const EmployeeDashboard = ({
               <Clock className="h-6 w-6 text-blue-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">0</p>
+          <p className="text-3xl font-bold text-gray-900">{otSummary.totalHours}</p>
           <p className="text-sm text-gray-600 mt-2">OT Hours</p>
         </div>
 
@@ -221,29 +231,25 @@ const EmployeeDashboard = ({
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Basic Salary</span>
-                <span className="text-sm font-medium text-gray-900">Rs. {employeeProfile.salary_details?.basic_salary?.toLocaleString() || '0'}</span>
+                <span className="text-sm font-medium text-gray-900">Rs. {employeeProfile.compensation?.basic_salary?.toLocaleString() || '0'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Allowances</span>
-                <span className="text-sm font-medium text-green-600">+ Rs. {(employeeProfile.salary_details?.allowances || 0).toLocaleString()}</span>
+                <span className="text-sm font-medium text-green-600">+ Rs. 0</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Deductions</span>
-                <span className="text-sm font-medium text-red-600">- Rs. {(employeeProfile.salary_details?.deductions || 0).toLocaleString()}</span>
+                <span className="text-sm font-medium text-red-600">- Rs. 0</span>
               </div>
               <div className="flex justify-between pt-3 border-t border-gray-200">
                 <span className="text-base font-bold text-gray-900">Net Salary</span>
                 <span className="text-base font-bold text-green-600">
-                  Rs. {(
-                    (employeeProfile.salary_details?.basic_salary || 0) +
-                    (employeeProfile.salary_details?.allowances || 0) -
-                    (employeeProfile.salary_details?.deductions || 0)
-                  ).toLocaleString()}
+                  Rs. {(employeeProfile.compensation?.basic_salary || 0).toLocaleString()}
                 </span>
               </div>
             </div>
             <button
-              onClick={() => setActiveItem('salaryPage')}
+              onClick={() => setActiveItem('SalaryPage')}
               className="w-full mt-4 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               View Salary Slip
@@ -438,15 +444,29 @@ const EmployeeDashboard = ({
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-xs text-gray-600">Total Hours</p>
-                <p className="text-2xl font-bold text-blue-600">0</p>
+                <p className="text-2xl font-bold text-blue-600">{otSummary.totalHours}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-600">Payment</p>
-                <p className="text-xl font-bold text-green-600">Rs. 0</p>
+                <p className="text-xl font-bold text-green-600">Rs. {parseFloat(otSummary.totalAmount).toLocaleString()}</p>
               </div>
             </div>
           </div>
-          <p className="text-xs text-gray-500">Season: June - November</p>
+          {employeeProfile?.overtimes && employeeProfile.overtimes.length > 0 ? (
+            <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
+              {employeeProfile.overtimes.slice(0, 5).map((ot, index) => (
+                <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs">
+                  <div>
+                    <p className="font-medium text-gray-900">{ot.ot_hours} hrs</p>
+                    <p className="text-gray-500">Shift: {ot.shift_code}</p>
+                  </div>
+                  <span className="text-sm font-bold text-green-600">Rs. {parseFloat(ot.total_ot_amount || 0).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 mt-2">No OT records available</p>
+          )}
         </div>
 
         {/* Loan Details */}
