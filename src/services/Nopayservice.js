@@ -1,6 +1,48 @@
 import axios from "@utils/axios";
 
 const NoPayService = {
+  async getAllRecords(params = {}) {
+    const response = await axios.get("/no-pay-records", { params });
+    return response.data;
+  },
+
+  async getStats(params = {}) {
+    const response = await axios.get("/no-pay-records/stats", { params });
+    return response.data;
+  },
+
+  async updateStatus(id, status) {
+    const response = await axios.put(`/no-pay-records/${id}`, { status });
+    return response.data;
+  },
+
+  async bulkUpdateStatus(ids, status) {
+    const response = await axios.post("/no-pay-records/bulk-status", {
+      ids,
+      status,
+    });
+    return response.data;
+  },
+
+  async generateDaily(payload) {
+    const response = await axios.post("/no-pay-records/generate", payload);
+    return response.data;
+  },
+
+  async generateMonthly(payload) {
+    const response = await axios.post("/no-pay-records/generate-monthly", payload);
+    return response.data;
+  },
+};
+
+export default NoPayService;
+
+
+
+/*
+import axios from "@utils/axios";
+
+const NoPayService = {
   // Get all no pay records with pagination and filters
   getAllRecords: async (params) => {
     try {
@@ -85,3 +127,4 @@ const NoPayService = {
 };
 
 export default NoPayService;
+*/
