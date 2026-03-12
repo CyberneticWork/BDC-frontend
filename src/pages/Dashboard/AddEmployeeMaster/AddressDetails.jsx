@@ -68,12 +68,13 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
     return password;
   };
 
-  // Auto-generate password when email is entered
+  // Auto-generate password when email is entered (removed - using NIC as password)
   useEffect(() => {
     if (formData.address.email && !formData.address.password) {
-      updateFormData('address', { password: generatePassword() });
+      // Password will be NIC number, set automatically on backend
+      updateFormData('address', { password: formData.personal?.nicNumber || '' });
     }
-  }, [formData.address.email]);
+  }, [formData.address.email, formData.personal?.nicNumber]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
