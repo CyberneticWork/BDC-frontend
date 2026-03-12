@@ -141,12 +141,6 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
             formData.organization.company
           );
           setDepartments(departmentsData);
-          // Reset department and sub-department when company changes
-          updateFormData("organization", {
-            department: "",
-            subDepartment: "",
-          });
-          setSubDepartments([]);
         } catch (e) {
           console.error("Error loading departments:", e);
         } finally {
@@ -170,10 +164,6 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
             formData.organization.department
           );
           setSubDepartments(subDepartmentsData);
-          // Reset sub-department when department changes
-          updateFormData("organization", {
-            subDepartment: "",
-          });
         } catch (e) {
           console.error("Error loading sub-departments:", e);
         } finally {
@@ -198,7 +188,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "company") {
       const selected = companies.find((c) => c.id === parsedValue);
       updateFormData("organization", {
-        company: selected?.name || "",
+        company: selected?.id || "",
         companyName: selected?.name || "",
         department: "",
         departmentName: "",
@@ -211,7 +201,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "department") {
       const selected = departments.find((d) => d.id === parsedValue);
       updateFormData("organization", {
-        department: selected?.name || "",
+        department: selected?.id || "",
         departmentName: selected?.name || "",
         subDepartment: "",
         subDepartmentName: "",
@@ -222,7 +212,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "subDepartment") {
       const selected = subDepartments.find((s) => s.id === parsedValue);
       updateFormData("organization", {
-        subDepartment: selected?.name || "",
+        subDepartment: selected?.id || "",
         subDepartmentName: selected?.name || "",
       });
       return;
@@ -231,7 +221,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     if (name === "designation") {
       const selected = designations.find((s) => s.id === parsedValue);
       updateFormData("organization", {
-        designation: selected?.name || "",
+        designation: selected?.id || "",
         designationName: selected?.name || "",
       });
       return;
