@@ -443,6 +443,58 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                       />
                     </div>
                   </div>
+
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <label
+                      htmlFor="onlyEpf"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Only EPF
+                    </label>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      style={{
+                        backgroundColor: formData.compensation.onlyEpf
+                          ? "#3b82f6"
+                          : "#e5e7eb",
+                      }}
+                      onClick={() => handleToggleChange("onlyEpf")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          formData.compensation.onlyEpf
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <label
+                      htmlFor="onlyEtf"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Only ETF
+                    </label>
+                    <div
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                      style={{
+                        backgroundColor: formData.compensation.onlyEtf
+                          ? "#3b82f6"
+                          : "#e5e7eb",
+                      }}
+                      onClick={() => handleToggleChange("onlyEtf")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          formData.compensation.onlyEtf
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </div>
+                  </div>
                 </div>
                   </div>
                 )}
