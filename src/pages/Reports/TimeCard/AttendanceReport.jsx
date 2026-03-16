@@ -479,7 +479,7 @@ const AttendanceReport = () => {
                 <th className="text-left px-6 py-4 text-xs font-bold text-slate-700 uppercase tracking-wider">Leave Period</th>
                 <th className="text-left px-6 py-4 text-xs font-bold text-slate-700 uppercase tracking-wider">Late With Leave</th>
                 */}
-                <th className="text-left px-6 py-4 text-xs font-bold text-slate-700 uppercase tracking-wider"> BEFore 30 minits Approval</th>
+                <th className="text-left px-6 py-4 text-xs font-bold text-slate-700 uppercase tracking-wider"> BEFore 30 minits LATE Approval</th>
               </tr>
             </thead>
 

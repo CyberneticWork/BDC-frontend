@@ -183,130 +183,49 @@ const SalaryProcessPage = () => {
   };
 
 
-  /*
+
+
+// SalaryProcessPage.jsx functions 
+
   const buildPayslipGroups = (emp) => {
+    // 1. JSON Data Parse කිරීම
     const breakdown = parseJsonField(emp?.salary_breakdown, {});
     const allowances = normalizeNamedItems(parseJsonField(emp?.allowances, []), "allowance");
     const bonuses = normalizeNamedItems(parseJsonField(emp?.bonuses, []), "bonus");
+    const deductions = normalizeNamedItems(parseJsonField(emp?.deductions, []), "deduction"); 
     
+    // 2. Loan Details වෙන් කර ගැනීම
     const loanTarget = breakdown.loan_deduct_from || 'bonus';
     const loanPrincipal = Number(breakdown.loan_principal || 0);
     const loanInterest = Number(breakdown.loan_interest || 0);
 
+    // ==========================================
+    // BASIC PAYSLIP කොටස
+    // ==========================================
     const basicEarnings = [
       { label: "Basic Salary", amount: Number(breakdown.basic_salary || emp?.basic_salary || 0) },
-      ...allowances.map((a) => ({ label: a.name || "Allowance", amount: Number(a.amount || 0) })),
+      // Allowance වල නම එක්ක Category එකත් පෙන්වීම
+      ...allowances.map((a) => ({ label: `${a.name} (${a.category || 'General'})`, amount: Number(a.amount || 0) })),
     ].filter((item) => item.amount > 0);
 
     const basicDeductions = [
       { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
       { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
-      { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) },
+      // Loan එක Basic එකෙන් කපන්න දීලා නම් විතරක් මෙතනින් Principal එක කැපෙනවා
       ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
     ].filter((item) => item.amount > 0);
 
+    // ==========================================
+    // BONUS PAYSLIP කොටස
+    // ==========================================
     const bonusEarnings = [
-      ...bonuses.map((b) => ({ label: b.name || "Bonus", amount: Number(b.amount || 0) })),
+      // Bonus වල නම එක්ක Category එකත් පෙන්වීම
+      ...bonuses.map((b) => ({ label: `${b.name} (${b.category || 'General'})`, amount: Number(b.amount || 0) })),
       { label: "KPI Allowance", amount: Number(breakdown.kpi_allowance || 0) },
       { label: "KPI Bonus (6M)", amount: Number(breakdown.kpi_bonus_allowance || 0) },
     ].filter((item) => item.amount > 0);
 
-    const bonusDeductions = [
-      { label: "Major Late Deduction (>30m)", amount: Number(breakdown.major_late_deduction || 0) },
-      { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
-      { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
-      { label: "Loan Interest", amount: loanInterest },
-      ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
-    ].filter((item) => item.amount > 0);
-
-    const otEarnings = [
-      { label: `Morning OT (${breakdown.ot_morning_hours || 0} hrs)`, amount: Number(breakdown.ot_morning_fees || 0) },
-      { label: `Evening OT (${breakdown.ot_night_hours || 0} hrs)`, amount: Number(breakdown.ot_night_fees || 0) },
-      { label: `Holiday OT (${breakdown.holiday_ot_hours || 0} hrs)`, amount: Number(breakdown.holiday_ot_fees || 0) },
-    ].filter((item) => item.amount > 0);
-
-    return {
-      basicPayslip: { title: "BASIC + ALLOWANCES PAYSLIP", paymentMethod: "Bank Transfer", earnings: basicEarnings, deductions: basicDeductions },
-      bonusPayslip: { title: "MONTHLY BONUS PAYSLIP", paymentMethod: "Cash", earnings: bonusEarnings, deductions: bonusDeductions },
-      overtimePayslip: { title: "OVERTIME PAYSLIP", paymentMethod: "Separate Payment", earnings: otEarnings, deductions: [] },
-      fullPayslip: { title: "FULL CONSOLIDATED PAYSLIP", paymentMethod: "Combined", earnings: [...basicEarnings, ...bonusEarnings, ...otEarnings], deductions: [...basicDeductions, ...bonusDeductions] }
-    };
-  };
-
-  const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, isFirstPage = false) => {
-    if (!isFirstPage) doc.addPage();
-    const earningsTotal = (payslip.earnings || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const deductionsTotal = (payslip.deductions || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const netTotal = earningsTotal - deductionsTotal;
-
-    doc.setFontSize(12); doc.setFont("helvetica", "bold");
-    doc.text(`${emp.company_name || "Company"}`, 105, 15, { align: "center" });
-    doc.text(`${payslip.title}`, 105, 22, { align: "center" });
-    doc.text(`${monthName} ${selectedYear}`, 105, 29, { align: "center" });
-    doc.text(`Payment Method: ${payslip.paymentMethod}`, 105, 36, { align: "center" });
-    doc.rect(10, 8, 190, 34);
-
-    let y = 50; doc.setFontSize(10); doc.setFont("helvetica", "normal");
-    doc.text(`Employee No :`, 15, y); doc.text(`${emp.employee_no || emp.emp_no || "N/A"}`, 60, y); y += 6;
-    doc.text(`Name :`, 15, y); doc.text(`${emp.full_name || "N/A"}`, 60, y); y += 6;
-    doc.text(`Department :`, 15, y); doc.text(`${emp.department_name || "N/A"}`, 60, y); y += 6;
-
-    if (payslip.paymentMethod === "Bank Transfer") {
-      doc.text(`Bank :`, 15, y); doc.text(`${emp.compensation?.bank_name || "N/A"}`, 60, y); y += 6;
-      doc.text(`Branch :`, 15, y); doc.text(`${emp.compensation?.branch_name || "N/A"}`, 60, y); y += 6;
-      doc.text(`Account No :`, 15, y); doc.text(`${emp.compensation?.bank_account_no || "N/A"}`, 60, y); y += 8;
-    } else { y += 4; }
-
-    doc.setFont("helvetica", "bold"); doc.text("Earnings", 15, y); y += 8;
-    doc.setFont("helvetica", "normal");
-    if ((payslip.earnings || []).length > 0) {
-      payslip.earnings.forEach((item) => { doc.text(item.label, 15, y); doc.text(formatMoney(item.amount), 170, y, { align: "right" }); y += 6; });
-    } else { doc.text("No earnings", 15, y); y += 6; }
-
-    y += 4; doc.setFont("helvetica", "bold"); doc.text("Deductions", 15, y); y += 8;
-    doc.setFont("helvetica", "normal");
-    if ((payslip.deductions || []).length > 0) {
-      payslip.deductions.forEach((item) => { doc.text(item.label, 15, y); doc.text(formatMoney(item.amount), 170, y, { align: "right" }); y += 6; });
-    } else { doc.text("No deductions", 15, y); y += 6; }
-
-    y += 8; doc.setFont("helvetica", "bold"); doc.text("Total Earnings", 15, y); doc.text(formatMoney(earningsTotal), 170, y, { align: "right" }); y += 8;
-    doc.text("Total Deductions", 15, y); doc.text(formatMoney(deductionsTotal), 170, y, { align: "right" }); y += 10;
-    doc.setFontSize(12); doc.text("Net Amount", 15, y); doc.text(formatMoney(netTotal), 170, y, { align: "right" }); y += 12;
-    doc.setFontSize(10); doc.text("LIFEHRMS", 15, y); doc.rect(10, 45, 190, Math.max(80, y - 38));
-  };
-*/
-
-// SalaryProcessPage.jsx ෆයිල් එකේ තියෙන මේ functions දෙක මෙහෙම වෙනස් කරන්න
-
-  const buildPayslipGroups = (emp) => {
-    const breakdown = parseJsonField(emp?.salary_breakdown, {});
-    const allowances = normalizeNamedItems(parseJsonField(emp?.allowances, []), "allowance");
-    const bonuses = normalizeNamedItems(parseJsonField(emp?.bonuses, []), "bonus");
-    const deductions = normalizeNamedItems(parseJsonField(emp?.deductions, []), "deduction"); // Custom Deductions
-    
-    const loanTarget = breakdown.loan_deduct_from || 'bonus';
-    const loanPrincipal = Number(breakdown.loan_principal || 0);
-    const loanInterest = Number(breakdown.loan_interest || 0);
-
-    const basicEarnings = [
-      { label: "Basic Salary", amount: Number(breakdown.basic_salary || emp?.basic_salary || 0) },
-      ...allowances.map((a) => ({ label: a.name || "Allowance", amount: Number(a.amount || 0) })),
-    ].filter((item) => item.amount > 0);
-
-    const basicDeductions = [
-      { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
-      { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
-      { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) },
-      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
-    ].filter((item) => item.amount > 0);
-
-    const bonusEarnings = [
-      ...bonuses.map((b) => ({ label: b.name || "Bonus", amount: Number(b.amount || 0) })),
-      { label: "KPI Allowance", amount: Number(breakdown.kpi_allowance || 0) },
-      { label: "KPI Bonus (6M)", amount: Number(breakdown.kpi_bonus_allowance || 0) },
-    ].filter((item) => item.amount > 0);
-
-    // Custom Deductions අරගෙන Bonus එකට දානවා
+    // Custom Deductions වල නම එක්ක Category එකත් පෙන්වීම
     const customDeductionsList = deductions.map((d) => ({
        label: `${d.name} (${d.category || 'General'})`,
        amount: Number(d.amount || 0)
@@ -316,17 +235,26 @@ const SalaryProcessPage = () => {
       { label: "Major Late Deduction (>30m)", amount: Number(breakdown.major_late_deduction || 0) },
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
-      { label: "Loan Interest", amount: loanInterest },
+      // Early Out අයකිරීම Bonus එකට එකතු කර ඇත
+      { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
+      // Loan Interest එක අනිවාර්යයෙන්ම Bonus එකෙන් කැපේ
+      { label: "Loan Interest", amount: loanInterest }, 
+      // Loan එක Bonus එකෙන් කපන්න දීලා නම් විතරක් මෙතනින් Principal එක කැපෙනවා
       ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
-      ...customDeductionsList // Custom Deductions මෙතනින් Bonus Payslip එකට add වෙනවා
+      // වෙනම එකතු කළ (Custom) Deductions ටිකත් Bonus එකෙන්ම කැපෙනවා
+      ...customDeductionsList 
     ].filter((item) => item.amount > 0);
 
+    // ==========================================
+    // OVERTIME PAYSLIP කොටස
+    // ==========================================
     const otEarnings = [
       { label: `Morning OT (${breakdown.ot_morning_hours || 0} hrs)`, amount: Number(breakdown.ot_morning_fees || 0) },
       { label: `Evening OT (${breakdown.ot_night_hours || 0} hrs)`, amount: Number(breakdown.ot_night_fees || 0) },
       { label: `Holiday OT (${breakdown.holiday_ot_hours || 0} hrs)`, amount: Number(breakdown.holiday_ot_fees || 0) },
     ].filter((item) => item.amount > 0);
 
+    //  Payslips 4 Data 
     return {
       basicPayslip: { title: "BASIC + ALLOWANCES PAYSLIP", paymentMethod: "Bank Transfer", earnings: basicEarnings, deductions: basicDeductions },
       bonusPayslip: { title: "MONTHLY BONUS PAYSLIP", paymentMethod: "Cash", earnings: bonusEarnings, deductions: bonusDeductions },
@@ -334,6 +262,7 @@ const SalaryProcessPage = () => {
       fullPayslip: { title: "FULL CONSOLIDATED PAYSLIP", paymentMethod: "Combined", earnings: [...basicEarnings, ...bonusEarnings, ...otEarnings], deductions: [...basicDeductions, ...bonusDeductions] }
     };
   };
+
 
   const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, isFirstPage = false) => {
     if (!isFirstPage) doc.addPage();
@@ -381,6 +310,8 @@ const SalaryProcessPage = () => {
     doc.setFontSize(12); doc.text("Net Amount", 15, y); doc.text(formatMoney(netTotal), 170, y, { align: "right" }); y += 12;
     doc.setFontSize(10); doc.text("LIFEHRMS", 15, y); doc.rect(10, 45, 190, Math.max(80, y - 38));
   };
+
+
 
 
 
