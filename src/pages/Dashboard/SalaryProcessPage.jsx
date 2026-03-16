@@ -129,6 +129,592 @@ const SalaryProcessPage = () => {
     };
     loadCompanies();
     AllowancesService.getAllAllowances().then(setAvailableAllowances);
+    DeductionService.fetchDeductionsByCompanyOrDepartment().then((res) => { setAvailableDeductions(Array.isArray(res) ? res : res?.data || []); });
+    BonusService.getAllBonuses().then((res) => { setAvailableBonuses(Array.isArray(res) ? res : res?.data || []); });
+  }, []);
+
+  const handleCompanyChange = async (e) => {
+    const companyId = e.target.value;
+    setSelectedCompany(companyId);
+    setSelectedDepartment("");
+    if (companyId) {
+        const depts = await fetchDepartmentsById(companyId);
+        setDepartments(depts || []);
+    } else {
+        setDepartments([]);
+    }
+  };
+
+  const fetchSalaryData = async () => {
+    if (!month || !year) {
+      notify.warning("Filters Required", "Please select month and year.");
+      return null;
+    }
+    if (!selectedCompany && !searchTerm) {
+        notify.warning("Filters Required", "Please select a company or enter an employee ID to search.");
+        return null;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await getSalaryData({
+        month, year, company_id: selectedCompany || undefined, department_id: selectedDepartment || undefined, search: searchTerm || undefined,
+      });
+
+      const rows = (data?.data || []).map(normalizeEmployee);
+      setEmployeeData(rows);
+      setDisplayedData(rows);
+      setFilteredData(rows);
+    } catch (error) {
+      notify.error("Fetch Failed", "Error fetching salary data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSalaryProcess = async () => {
+    setStatus("Processed");
+    try {
+      await updateSlaryStatus("processed");
+      notify.success("Status Updated", "Salary status updated!");
+    } catch (error) {
+      notify.error("Update Failed", "Unknown error");
+    }
+  };
+
+  const buildPayslipGroups = (emp) => {
+    const breakdown = parseJsonField(emp?.salary_breakdown, {});
+    const allowances = normalizeNamedItems(parseJsonField(emp?.allowances, []), "allowance");
+    const bonuses = normalizeNamedItems(parseJsonField(emp?.bonuses, []), "bonus");
+    const deductions = normalizeNamedItems(parseJsonField(emp?.deductions, []), "deduction"); 
+    
+    const loanTarget = breakdown.loan_deduct_from || 'bonus';
+    const loanPrincipal = Number(breakdown.loan_principal || 0);
+    const loanInterest = Number(breakdown.loan_interest || 0);
+
+    const basicEarnings = [
+      { label: "Basic Salary", amount: Number(breakdown.basic_salary || emp?.basic_salary || 0) },
+      ...allowances.map((a) => ({ label: `${a.name} (${a.category || 'General'})`, amount: Number(a.amount || 0) })),
+    ].filter((item) => item.amount > 0);
+
+    const basicDeductions = [
+      { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
+      { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
+      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
+    ].filter((item) => item.amount > 0);
+
+    const bonusEarnings = [
+      ...bonuses.map((b) => ({ label: `${b.name} (${b.category || 'General'})`, amount: Number(b.amount || 0) })),
+      { label: "KPI Allowance", amount: Number(breakdown.kpi_allowance || 0) },
+      { label: "KPI Bonus (6M)", amount: Number(breakdown.kpi_bonus_allowance || 0) },
+    ].filter((item) => item.amount > 0);
+
+    const customDeductionsList = deductions.map((d) => ({
+       label: `${d.name} (${d.category || 'General'})`,
+       amount: Number(d.amount || 0)
+    }));
+
+    const bonusDeductions = [
+      { label: "Major Late Deduction (>30m)", amount: Number(breakdown.major_late_deduction || 0) },
+      { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
+      { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
+      { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
+      { label: "Loan Interest", amount: loanInterest }, 
+      ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
+      ...customDeductionsList 
+    ].filter((item) => item.amount > 0);
+
+    const otEarnings = [
+      { label: `Morning OT (${breakdown.ot_morning_hours || 0} hrs)`, amount: Number(breakdown.ot_morning_fees || 0) },
+      { label: `Evening OT (${breakdown.ot_night_hours || 0} hrs)`, amount: Number(breakdown.ot_night_fees || 0) },
+      { label: `Holiday OT (${breakdown.holiday_ot_hours || 0} hrs)`, amount: Number(breakdown.holiday_ot_fees || 0) },
+    ].filter((item) => item.amount > 0);
+
+    return {
+      basicPayslip: { title: "BASIC + ALLOWANCES PAYSLIP", paymentMethod: "Bank Transfer", earnings: basicEarnings, deductions: basicDeductions },
+      bonusPayslip: { title: "MONTHLY BONUS PAYSLIP", paymentMethod: "Cash", earnings: bonusEarnings, deductions: bonusDeductions },
+      overtimePayslip: { title: "OVERTIME PAYSLIP", paymentMethod: "Separate Payment", earnings: otEarnings, deductions: [] },
+      fullPayslip: { title: "FULL CONSOLIDATED PAYSLIP", paymentMethod: "Combined", earnings: [...basicEarnings, ...bonusEarnings, ...otEarnings], deductions: [...basicDeductions, ...bonusDeductions] }
+    };
+  };
+
+  const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, isFirstPage = false) => {
+    if (!isFirstPage) doc.addPage();
+    const earningsTotal = (payslip.earnings || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const deductionsTotal = (payslip.deductions || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const netTotal = earningsTotal - deductionsTotal;
+
+    doc.setFontSize(12); doc.setFont("helvetica", "bold");
+    doc.text(`${emp.company_name || "Company"}`, 105, 15, { align: "center" });
+    doc.text(`${payslip.title}`, 105, 22, { align: "center" });
+    doc.text(`${monthName} ${selectedYear}`, 105, 29, { align: "center" });
+    doc.text(`Payment Method: ${payslip.paymentMethod}`, 105, 36, { align: "center" });
+    doc.rect(10, 8, 190, 34);
+
+    let y = 50; doc.setFontSize(10); doc.setFont("helvetica", "normal");
+    doc.text(`Employee No :`, 15, y); doc.text(`${emp.employee_no || emp.emp_no || "N/A"}`, 60, y); y += 6;
+    doc.text(`Name :`, 15, y); doc.text(`${emp.full_name || "N/A"}`, 60, y); y += 6;
+    doc.text(`Department :`, 15, y); doc.text(`${emp.department_name || "N/A"}`, 60, y); y += 6;
+
+    if (payslip.paymentMethod === "Bank Transfer" || payslip.paymentMethod === "Combined") {
+      const bankName = emp.compensation?.bank_name || emp.bank_name || "N/A";
+      const branchName = emp.compensation?.branch_name || emp.branch_name || "N/A";
+      const accNo = emp.compensation?.bank_account_no || emp.bank_account_no || "N/A";
+      
+      doc.text(`Bank :`, 15, y); doc.text(`${bankName}`, 60, y); y += 6;
+      doc.text(`Branch :`, 15, y); doc.text(`${branchName}`, 60, y); y += 6;
+      doc.text(`Account No :`, 15, y); doc.text(`${accNo}`, 60, y); y += 8;
+    } else { y += 4; }
+
+    doc.setFont("helvetica", "bold"); doc.text("Earnings", 15, y); y += 8;
+    doc.setFont("helvetica", "normal");
+    if ((payslip.earnings || []).length > 0) {
+      payslip.earnings.forEach((item) => { doc.text(item.label, 15, y); doc.text(formatMoney(item.amount), 170, y, { align: "right" }); y += 6; });
+    } else { doc.text("No earnings", 15, y); y += 6; }
+
+    y += 4; doc.setFont("helvetica", "bold"); doc.text("Deductions", 15, y); y += 8;
+    doc.setFont("helvetica", "normal");
+    if ((payslip.deductions || []).length > 0) {
+      payslip.deductions.forEach((item) => { doc.text(item.label, 15, y); doc.text(formatMoney(item.amount), 170, y, { align: "right" }); y += 6; });
+    } else { doc.text("No deductions", 15, y); y += 6; }
+
+    y += 8; doc.setFont("helvetica", "bold"); doc.text("Total Earnings", 15, y); doc.text(formatMoney(earningsTotal), 170, y, { align: "right" }); y += 8;
+    doc.text("Total Deductions", 15, y); doc.text(formatMoney(deductionsTotal), 170, y, { align: "right" }); y += 10;
+    doc.setFontSize(12); doc.text("Net Amount", 15, y); doc.text(formatMoney(netTotal), 170, y, { align: "right" }); y += 12;
+    doc.setFontSize(10); doc.text("LIFEHRMS", 15, y); doc.rect(10, 45, 190, Math.max(80, y - 38));
+  };
+
+  const handleDownloadEmployeePayslips = (emp) => {
+    const doc = new jsPDF();
+    const monthObj = months.find((m) => m.value === month);
+    const monthName = monthObj ? monthObj.label : `${month}`;
+    const { basicPayslip, bonusPayslip, overtimePayslip, fullPayslip } = buildPayslipGroups(emp);
+
+    generateSinglePayslipPDF(doc, emp, basicPayslip, monthName, year, true);
+    if (bonusPayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, bonusPayslip, monthName, year, false);
+    if (overtimePayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, overtimePayslip, monthName, year, false);
+    generateSinglePayslipPDF(doc, emp, fullPayslip, monthName, year, false);
+
+    doc.save(`payslips_${emp.emp_no || emp.employee_no}_${monthName}_${year}.pdf`);
+  };
+
+  const handleDownloadAllProcessed = async () => {
+    try {
+      setIsLoading(true);
+      if (!month || !year) return;
+      const doc = new jsPDF();
+      const monthObj = months.find((m) => m.value === month);
+      const monthName = monthObj ? monthObj.label : `${month}`;
+      let isFirstPage = true;
+
+      processedDisplayedData.forEach((emp) => {
+        const { basicPayslip, bonusPayslip, overtimePayslip, fullPayslip } = buildPayslipGroups(emp);
+        generateSinglePayslipPDF(doc, emp, basicPayslip, monthName, year, isFirstPage);
+        isFirstPage = false;
+        if (bonusPayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, bonusPayslip, monthName, year, false);
+        if (overtimePayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, overtimePayslip, monthName, year, false);
+        generateSinglePayslipPDF(doc, emp, fullPayslip, monthName, year, false);
+      });
+      doc.save(`all_payslips_${monthName}_${year}.pdf`);
+      notify.success("Success", "Payslips generated successfully!");
+    } catch (error) { notify.error("PDF Error", "Error generating payslips."); } finally { setIsLoading(false); }
+  };
+
+  const handleSelectEmployee = (emp) => {
+    const empId = String(emp.id);
+    setSelectedEmployees((prev) => prev.includes(empId) ? prev.filter((id) => id !== empId) : [...prev, empId]);
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedEmployees([]);
+    } else {
+      const allEmployeeIds = processedDisplayedData.map((emp) => String(emp.id));
+      setSelectedEmployees(allEmployeeIds);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const applyBulkAction = async () => {
+    if (!bulkActionId || selectedEmployees.length === 0 || !month || !year) {
+      notify.warning("Missing Data", "Please fill all fields, select month/year, and select at least one employee");
+      return;
+    }
+
+    const payload = {
+      selectedEmployees, bulkActionId, bulkActionType, bulkActionAmount: bulkActionAmount || null, month, year
+    };
+
+    try {
+      await UpdateAllowances(payload);
+      notify.success("Success", `Successfully applied to ${selectedEmployees.length} employee(s) for ${month}/${year}`);
+      await fetchSalaryData();
+      setSelectedEmployees([]); setSelectAll(false); setBulkActionAmount(""); setBulkActionId("");
+    } catch (error) { notify.error("Error", "Operation failed"); }
+  };
+
+// තෝරපු Company, Department, මාසය සහ අවුරුද්දට අදාල අයිතමය වලංගුදැයි බැලීම (Filter Logic)
+  const isItemValidForSelectedMonth = (item) => {
+    // 1. Inactive නම් කොහොමත් පෙන්වන්නේ නෑ
+    if (item.status !== "active") return false;
+
+    // 2. Company Filter: තෝරාගත් Company එකක් තියෙනවා නම්, අයිතමය ඒ Company එකට අදාල විය යුතුයි
+    if (selectedCompany && item.company_id && String(item.company_id) !== String(selectedCompany)) {
+      return false;
+    }
+
+    // 3. Department Filter: අයිතමයට විශේෂිත Department එකක් දීලා තියෙනවා නම්, ඒක තෝරාගත් Department එකට සමාන විය යුතුයි
+    // (අයිතමයේ department_id එක null නම්, ඒක මුළු Company එකටම අදාල නිසා පෙන්වනවා)
+    if (selectedDepartment && item.department_id && String(item.department_id) !== String(selectedDepartment)) {
+      return false;
+    }
+
+    const itemType = item.allowance_type || item.deduction_type || item.bonus_type;
+
+    // 4. Fixed නම් ඕනෑම මාසෙකට වලංගුයි
+    if (itemType === "fixed") return true;
+
+    // 5. Variable නම් තෝරපු මාසය/අවුරුද්ද ඇතුළත තියෙනවාදැයි බැලීම
+    if (itemType === "variable" && month && year) {
+      const fromDateStr = item.variable_from || item.startDate;
+      const toDateStr = item.variable_to || item.endDate;
+
+      if (!fromDateStr || !toDateStr) return false;
+
+      const fromDate = new Date(fromDateStr);
+      const toDate = new Date(toDateStr);
+
+      const selectedYearMonth = parseInt(`${year}${String(month).padStart(2, '0')}`);
+      const fromYearMonth = parseInt(`${fromDate.getFullYear()}${String(fromDate.getMonth() + 1).padStart(2, '0')}`);
+      const toYearMonth = parseInt(`${toDate.getFullYear()}${String(toDate.getMonth() + 1).padStart(2, '0')}`);
+
+      return selectedYearMonth >= fromYearMonth && selectedYearMonth <= toYearMonth;
+    }
+
+    return false;
+  };
+  
+
+  return (
+    <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-blue-50 via-white to-green-50 min-h-screen">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Salary Processing</h1>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow">
+            <h3 className="text-base font-semibold text-gray-700 mb-4">Filter Employees</h3>
+            
+            <div className="relative mb-4">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Search Employee (Name / ID)</label>
+              <div className="relative">
+                <input type="text" placeholder="Enter employee ID or name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white"/>
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-5 mb-4">
+              <div className="relative flex-1">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Company</label>
+                <select value={selectedCompany} onChange={handleCompanyChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                  <option value="">All Companies</option>
+                  {companies.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                </select>
+              </div>
+
+              <div className="relative flex-1">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Department</label>
+                <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" disabled={!selectedCompany}>
+                  <option value="">All Departments</option>
+                  {departments.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-5 mb-4">
+              <div className="relative flex-1">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Month</label>
+                <select value={month} onChange={(e) => { setMonth(e.target.value); setBulkActionId(""); setBulkActionAmount(""); }} className="w-full px-3 py-2 border rounded-lg border-gray-300">
+                  <option value="">Select Month</option>
+                  {months.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
+                </select>
+              </div>
+
+              <div className="relative flex-1">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Year</label>
+                <input type="number" value={year} onChange={(e) => { setYear(e.target.value); setBulkActionId(""); setBulkActionAmount(""); }} className="w-full px-3 py-2 border rounded-lg border-gray-300"/>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button onClick={fetchSalaryData} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">Apply Filters</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl border border-blue-100 p-6 shadow h-fit">
+          <h3 className="text-base font-semibold text-blue-700 mb-4">Process Status</h3>
+          <div className="pt-2 space-y-3">
+            <button className="w-full px-5 py-2.5 bg-green-600 text-white rounded-lg font-semibold" onClick={handleSalaryProcess}>Process Salary</button>
+            <button className="w-full px-5 py-2.5 bg-purple-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2" onClick={handleDownloadAllProcessed}><Download size={18} /> Download All Payslips</button>
+          </div>
+        </div>
+      </div>
+
+      {selectedEmployees.length > 0 && (
+        <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-md mb-8 animate-fadeIn">
+          <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+            <Users className="mr-2" size={20} /> Bulk Actions ({selectedEmployees.length} selected for {months.find(m => m.value === month)?.label || month} {year})
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">Action Type</label>
+              <select 
+                value={bulkActionType} 
+                onChange={(e) => { 
+                  setBulkActionType(e.target.value); 
+                  setBulkActionAmount(""); 
+                  setBulkActionId(""); 
+                }} 
+                className="w-full p-2 border rounded-lg"
+              >
+                <option value="allowance">Add Allowance</option>
+                <option value="deduction">Add Deduction</option>
+                <option value="bonus">Add Bonus</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">Type</label>
+              <select 
+                value={bulkActionId} 
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  setBulkActionId(selectedId);
+                  
+                  // අදාළ අයිතමයේ Amount එක Auto-fill කිරීම
+                  if (selectedId) {
+                    let selectedItem = null;
+                    if (bulkActionType === "allowance") {
+                      selectedItem = availableAllowances.find(a => String(a.id) === String(selectedId));
+                    } else if (bulkActionType === "deduction") {
+                      selectedItem = availableDeductions.find(d => String(d.id) === String(selectedId));
+                    } else if (bulkActionType === "bonus") {
+                      selectedItem = availableBonuses.find(b => String(b.id) === String(selectedId));
+                    }
+                    
+                    if (selectedItem && selectedItem.amount !== null && selectedItem.amount !== undefined) {
+                      setBulkActionAmount(selectedItem.amount);
+                    } else {
+                      setBulkActionAmount("");
+                    }
+                  } else {
+                    setBulkActionAmount("");
+                  }
+                }} 
+                className="w-full p-2 border rounded-lg"
+              >
+                <option value="">Select Type</option>
+                
+                {bulkActionType === "allowance" && 
+                  availableAllowances.filter(isItemValidForSelectedMonth).map((a) => (
+                    <option key={a.id} value={a.id}>{a.allowance_name}</option>
+                  ))
+                }
+                
+                {bulkActionType === "deduction" && 
+                  availableDeductions.filter(isItemValidForSelectedMonth).map((d) => (
+                    <option key={d.id} value={d.id}>{d.deduction_name}</option>
+                  ))
+                }
+                
+                {bulkActionType === "bonus" && 
+                  availableBonuses.filter(isItemValidForSelectedMonth).map((b) => (
+                    <option key={b.id} value={b.id}>{b.bonus_name}</option>
+                  ))
+                }
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">Amount</label>
+              <input 
+                type="number" 
+                value={bulkActionAmount} 
+                onChange={(e) => setBulkActionAmount(e.target.value)} 
+                className="w-full p-2 border rounded-lg" 
+                placeholder="Amount"
+              />
+            </div>
+            <div className="flex items-end">
+              <button className="py-2 px-4 bg-blue-600 text-white rounded-lg" onClick={applyBulkAction}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div></div>
+      ) : processedDisplayedData.length > 0 ? (
+        <div className="space-y-4 mb-8">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 flex items-center gap-3">
+            <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="w-4 h-4 text-blue-600 rounded" />
+            <span className="text-sm font-medium text-gray-700">Select All Employees</span>
+          </div>
+          {processedDisplayedData.map((employee) => (
+            <EmployeeSalaryCard
+              key={employee.id}
+              employee={employee}
+              empId={String(employee.id)}
+              isSelected={selectedEmployees.includes(String(employee.id))}
+              onSelect={() => handleSelectEmployee(employee)}
+              onDownload={handleDownloadEmployeePayslips}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+export default SalaryProcessPage;
+
+
+
+
+/*
+import { useState, useEffect, useMemo } from "react";
+import BonusService from "../../components/BonusService";
+import {
+  Download, Users, Wallet, FileText, ChevronDown, Filter,
+  CheckCircle, AlertCircle, Search, Building2, Layers,
+} from "lucide-react";
+import jsPDF from "jspdf";
+import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
+import {
+  getSalaryData, UpdateAllowances, saveSalaryData,
+  updateSlaryStatus, fetchExcelData, importExcelData,
+} from "@services/SalaryProcessService";
+import { fetchSalaryCSV } from "@services/SalaryService";
+import AllowancesService from "@services/AllowancesService";
+import * as DeductionService from "@services/DeductionService";
+import ImportExcelModal from "@dashboard/ImportExcelModal";
+import Swal from "sweetalert2";
+import EmployeeSalaryCard from "../../components/EmployeeSalaryCard";
+
+const STORAGE_KEY = "processedSalaryData";
+
+const notify = {
+  success: (title, text) => Swal.fire({ icon: "success", title, text, confirmButtonColor: "#3085d6" }),
+  error: (title, text) => Swal.fire({ icon: "error", title, text, confirmButtonColor: "#d33" }),
+  warning: (title, text) => Swal.fire({ icon: "warning", title, text, confirmButtonColor: "#f59e0b" }),
+  info: (title, text) => Swal.fire({ icon: "info", title, text, confirmButtonColor: "#3085d6" }),
+};
+
+const formatMoney = (value) =>
+  Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const SalaryProcessPage = () => {
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [status, setStatus] = useState("Unprocessed");
+  const [filteredData, setFilteredData] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+
+  const [availableAllowances, setAvailableAllowances] = useState([]);
+  const [availableDeductions, setAvailableDeductions] = useState([]);
+  const [availableBonuses, setAvailableBonuses] = useState([]);
+  
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
+
+  const [bulkActionType, setBulkActionType] = useState("allowance");
+  const [bulkActionAmount, setBulkActionAmount] = useState("");
+  const [bulkActionId, setBulkActionId] = useState("");
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importSuccessMessage, setImportSuccessMessage] = useState("");
+  const [employeeData, setEmployeeData] = useState([]);
+  const [displayedData, setDisplayedData] = useState([]);
+
+  const months = [
+    { value: "01", label: "January" }, { value: "02", label: "February" },
+    { value: "03", label: "March" }, { value: "04", label: "April" },
+    { value: "05", label: "May" }, { value: "06", label: "June" },
+    { value: "07", label: "July" }, { value: "08", label: "August" },
+    { value: "09", label: "September" }, { value: "10", label: "October" },
+    { value: "11", label: "November" }, { value: "12", label: "December" },
+  ];
+
+  const parseJsonField = (value, fallback) => {
+    if (value == null) return fallback;
+    if (typeof value === "string") {
+      try { return JSON.parse(value); } catch (error) { return fallback; }
+    }
+    return value;
+  };
+
+  const normalizeNamedItems = (items, type) => {
+    if (!Array.isArray(items)) return [];
+    return items.map((item) => ({
+      ...item,
+      name: item?.name || item?.[`${type}_name`] || item?.title || type.charAt(0).toUpperCase() + type.slice(1),
+      code: item?.code || item?.[`${type}_code`] || "-",
+      amount: Number(item?.amount || 0),
+    }));
+  };
+
+  const normalizeEmployee = (emp) => {
+    const allowances = parseJsonField(emp?.allowances, []);
+    const bonuses = parseJsonField(emp?.bonuses, []);
+    const deductions = parseJsonField(emp?.deductions, []);
+    const salaryBreakdown = parseJsonField(emp?.salary_breakdown, {});
+
+    return {
+      ...emp,
+      allowances: normalizeNamedItems(allowances, "allowance"),
+      bonuses: normalizeNamedItems(bonuses, "bonus"),
+      deductions: normalizeNamedItems(deductions, "deduction"),
+      salary_breakdown: salaryBreakdown && typeof salaryBreakdown === "object" ? salaryBreakdown : {},
+    };
+  };
+
+  const processedDisplayedData = useMemo(() => {
+    let rows = Array.isArray(displayedData) ? [...displayedData] : [];
+    if (activeFilter === "EPF") {
+      rows = rows.filter((emp) => !!emp.enable_epf_etf);
+    } else if (activeFilter === "NonEPF") {
+      rows = rows.filter((emp) => !emp.enable_epf_etf);
+    }
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
+      rows = rows.filter((emp) => String(emp?.emp_no || emp?.employee_no || "").toLowerCase().includes(q) || String(emp?.full_name || "").toLowerCase().includes(q));
+    }
+    return rows;
+  }, [displayedData, activeFilter, searchTerm]);
+
+  const totalSalary = processedDisplayedData.reduce((sum, emp) => sum + (parseFloat(emp?.basic_salary) || 0), 0);
+  const employeeCount = processedDisplayedData.length;
+
+  useEffect(() => {
+    const loadCompanies = async () => {
+      setIsLoadingCompanies(true);
+      try {
+        const companiesData = await fetchCompanies();
+        setCompanies(companiesData || []);
+      } catch (error) { console.error(error); } finally { setIsLoadingCompanies(false); }
+    };
+    loadCompanies();
+    AllowancesService.getAllAllowances().then(setAvailableAllowances);
     DeductionService.fetchDeductionsByCompanyOrDepartment().then(setAvailableDeductions);
     BonusService.getAllBonuses().then((res) => { setAvailableBonuses(Array.isArray(res) ? res : res?.data || []); });
   }, []);
@@ -513,9 +1099,19 @@ const SalaryProcessPage = () => {
 };
 
 export default SalaryProcessPage;
+*/
 
 
 
+
+
+
+
+
+
+
+
+//===============================================================================================
 /*
 import { useState, useEffect, useMemo } from "react";
 import BonusService from "../../components/BonusService";
