@@ -695,9 +695,12 @@ const CreateNewBonus = () => {
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">Department</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">Amount</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">Type</th>
+                
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">Fixed Date</th>
+                  
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">Start Date</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">End Date</th>
+                  
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">Status</th>
                   <th className="text-right py-4 px-6 font-semibold text-gray-700">Actions</th>
                 </tr>
@@ -744,11 +747,11 @@ const CreateNewBonus = () => {
                       <td className="py-4 px-6 hidden lg:table-cell">
                         {bonus.department?.name || "—"}
                       </td>
-
+                    
                       <td className="py-4 px-6 hidden lg:table-cell">
                         LKR {parseFloat(bonus.amount || 0).toFixed(2)}
                       </td>
-
+                      
                       <td className="py-4 px-6 hidden lg:table-cell">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
@@ -766,7 +769,7 @@ const CreateNewBonus = () => {
                           ? formatDateForInput(bonus.fixed_date)
                           : "-"}
                       </td>
-
+                      
                       <td className="py-4 px-6 hidden sm:table-cell">
                         {bonus.bonus_type === "variable"
                           ? formatDateForInput(bonus.variable_from)
@@ -778,7 +781,7 @@ const CreateNewBonus = () => {
                           ? formatDateForInput(bonus.variable_to)
                           : "-"}
                       </td>
-
+                      
                       <td className="py-4 px-6 hidden lg:table-cell">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
