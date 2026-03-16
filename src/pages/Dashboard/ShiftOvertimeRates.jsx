@@ -353,7 +353,7 @@ const ShiftOvertimeRates = () => {
       </div>
     </div>
 
-      {/* Independent Rate Calculator Card - keeping existing implementation */}
+     
       <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -366,7 +366,7 @@ const ShiftOvertimeRates = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Input Section */}
+         
           <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
             <h4 className="text-sm font-semibold text-purple-900 mb-4">Calculation Parameters</h4>
             <div className="space-y-4">
@@ -416,9 +416,9 @@ const ShiftOvertimeRates = () => {
             </div>
           </div>
 
-          {/* Results Section - keeping existing implementation */}
+         
           <div className="space-y-4">
-            {/* Normal Rate */}
+           
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
                 <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">1</span>
@@ -440,7 +440,7 @@ const ShiftOvertimeRates = () => {
               </div>
             </div>
 
-            {/* OT Rate */}
+           
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
               <h4 className="text-sm font-semibold text-green-900 mb-3 flex items-center gap-2">
                 <span className="w-5 h-5 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">2</span>
@@ -462,7 +462,7 @@ const ShiftOvertimeRates = () => {
               </div>
             </div>
 
-            {/* Holiday Rate */}
+           
             <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
               <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
                 <span className="w-5 h-5 bg-orange-600 text-white rounded-full flex items-center justify-center text-xs">3</span>
