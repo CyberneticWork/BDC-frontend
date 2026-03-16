@@ -16,6 +16,7 @@ const EmployeeDashboard = ({
   const [leaveRecords, setLeaveRecords] = useState([]);
   const [isLoadingLeaves, setIsLoadingLeaves] = useState(false);
   const [otSummary, setOtSummary] = useState({ totalHours: 0, totalAmount: 0 });
+  const [loanSummary, setLoanSummary] = useState({ loanAmount: 0, monthlyDeduction: 0, balance: 0 });
 
   const handleEditEmployee = () => {
     if (employeeProfile?.id) {
@@ -28,6 +29,7 @@ const EmployeeDashboard = ({
     if (employeeProfile?.id) {
       fetchLeaveRecords();
       calculateOtSummary();
+      calculateLoanSummary();
     }
   }, [employeeProfile]);
 
@@ -80,6 +82,18 @@ const EmployeeDashboard = ({
       const totalHours = employeeProfile.overtimes.reduce((sum, ot) => sum + (parseFloat(ot.ot_hours) || 0), 0);
       const totalAmount = employeeProfile.overtimes.reduce((sum, ot) => sum + (parseFloat(ot.total_ot_amount) || 0), 0);
       setOtSummary({ totalHours: totalHours.toFixed(2), totalAmount: totalAmount.toFixed(2) });
+    }
+  };
+
+  const calculateLoanSummary = () => {
+    if (employeeProfile?.loans && Array.isArray(employeeProfile.loans) && employeeProfile.loans.length > 0) {
+      const activeLoan = employeeProfile.loans.find(loan => loan.status === 'active' || loan.status === 'Active');
+      if (activeLoan) {
+        const loanAmount = parseFloat(activeLoan.loan_amount) || 0;
+        const monthlyDeduction = parseFloat(activeLoan.monthly_deduction) || 0;
+        const balance = parseFloat(activeLoan.balance) || 0;
+        setLoanSummary({ loanAmount, monthlyDeduction, balance });
+      }
     }
   };
 
@@ -156,7 +170,7 @@ const EmployeeDashboard = ({
               <UserCheck className="h-6 w-6 text-green-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">18</p>
+          <p className="text-3xl font-bold text-gray-900">{attendanceSummary.present}</p>
           <p className="text-sm text-gray-600 mt-2">Present Days</p>
         </div>
 
@@ -186,7 +200,7 @@ const EmployeeDashboard = ({
               <DollarSign className="h-6 w-6 text-purple-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">Rs. 0</p>
+          <p className="text-3xl font-bold text-gray-900">Rs. {loanSummary.balance.toLocaleString()}</p>
           <p className="text-sm text-gray-600 mt-2">Loan Balance</p>
         </div>
       </div>
@@ -311,62 +325,6 @@ const EmployeeDashboard = ({
           )}
         </div>
 
-        {/* Recent Attendance */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-600" />
-            Recent Attendance
-          </h3>
-          <div className="overflow-x-auto">
-            {isLoadingAttendance ? (
-              <div className="py-8 text-center">
-                <div className="inline-block w-6 h-6 border-t-2 border-b-2 border-blue-600 rounded-full animate-spin"></div>
-              </div>
-            ) : (
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendanceRecords.length > 0 ? (
-                    attendanceRecords.slice(0, 5).map((record, index) => {
-                      const isLate = record.late_status === 'Late';
-                      const isNPL = record.status === 'NPL' || record.status === 'No Pay Leave';
-                      
-                      return (
-                        <tr key={index} className="border-b border-gray-100">
-                          <td className="px-3 py-2 text-sm text-gray-900">{record.date}</td>
-                          <td className="px-3 py-2 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              isNPL ? 'bg-red-100 text-red-800' :
-                              isLate ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {isNPL ? 'NPL' : isLate ? 'Late' : 'Present'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan="2" className="px-3 py-8 text-center text-gray-500 text-sm">
-                        <div className="flex flex-col items-center">
-                          <Clock className="h-8 w-8 text-gray-300 mb-2" />
-                          <p>No attendance records</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-
         {/* Leave Summary */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -408,25 +366,6 @@ const EmployeeDashboard = ({
                   <span className="text-lg font-bold text-gray-900">{leaveSummary.total}</span>
                 </div>
               </div>
-              {leaveRecords.length > 0 && (
-                <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
-                  {leaveRecords.slice(0, 3).map((leave, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs">
-                      <div>
-                        <p className="font-medium text-gray-900">{leave.leave_type}</p>
-                        <p className="text-gray-500">{leave.from_date} to {leave.to_date}</p>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        leave.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        leave.status === 'approved' || leave.status === 'hr-approved' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {leave.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </>
           )}
         </div>
@@ -478,15 +417,15 @@ const EmployeeDashboard = ({
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Loan Amount</span>
-              <span className="text-sm font-bold text-purple-600">Rs. 0</span>
+              <span className="text-sm font-bold text-purple-600">Rs. {loanSummary.loanAmount.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Monthly Deduction</span>
-              <span className="text-sm font-semibold text-red-600">Rs. 0</span>
+              <span className="text-sm font-semibold text-red-600">Rs. {loanSummary.monthlyDeduction.toLocaleString()}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-gray-200">
               <span className="text-sm font-semibold text-gray-700">Balance</span>
-              <span className="text-lg font-bold text-orange-600">Rs. 0</span>
+              <span className="text-lg font-bold text-orange-600">Rs. {loanSummary.balance.toLocaleString()}</span>
             </div>
           </div>
         </div>
