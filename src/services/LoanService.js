@@ -4,10 +4,11 @@ const API_PREFIX = '/loans';
 
 export const createLoan = async (loanData) => {
   try {
+    console.log('Sending loan data:', loanData);
     const response = await axios.post('/loans', loanData);
     return response.data;
   } catch (error) {
-    console.error('Error creating loan:', error);
+    console.error('Error creating loan:', error.response?.data || error.message);
     throw error;
   }
 };

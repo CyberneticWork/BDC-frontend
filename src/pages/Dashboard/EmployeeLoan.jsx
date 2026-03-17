@@ -75,19 +75,25 @@ const EmployeeLoan = () => {
       }
 
       const payload = {
-        loan_id: loanId,
         employee_id: employeeIdd,
         loan_amount: parseFloat(loanAmount),
-        interest_rate_per_annum:
-          interestType === "withInterest" ? parseFloat(interestRate) : 0,
-        installment_amount: parseFloat(installmentAmount),
-        start_from: startDate,
-        with_interest: interestType === "withInterest",
-        installment_count: loanDetails.length,
-        schedule: loanDetails,
-        deduct_from: deductFrom, // <--- අලුතින් Backend එකට යවන කොටස
+        interest_rate: interestType === "withInterest" ? parseFloat(interestRate) : 0,
+        monthly_installment: parseFloat(installmentAmount),
+        start_date: startDate,
+        has_interest: interestType === "withInterest",
+        number_of_installments: loanDetails.length,
+        deduct_from: deductFrom,
+        schedule: loanDetails.map(detail => ({
+          installment_no: detail.no,
+          due_date: detail.dueDate,
+          principal_amount: detail.capitalRepayment,
+          interest_amount: detail.interestPayment,
+          total_amount: detail.installmentAmount,
+          remaining_balance: detail.dueBalance
+        }))
       };
 
+      console.log('Sending payload:', payload);
       await createLoan(payload);
 
       showSuccessMessage(

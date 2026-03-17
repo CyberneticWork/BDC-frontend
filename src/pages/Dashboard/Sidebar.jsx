@@ -112,6 +112,8 @@ const Sidebar = ({
           subItems: [
             { id: "SalaryProcessPage", name: "Salary Process" },
             { id: "SalaryPage", name: "View Salary" },
+            ...(user.role === 'employee' ? [{ id: "salaryRecords", name: "Salary Records" }] : []),
+            ...(user.role === 'employee' ? [{ id: "downloadSalarySlip", name: "Download Salary Slip" }] : []),
           ],
         },
         {
@@ -318,7 +320,7 @@ const Sidebar = ({
       allowanceDeduction:
         path.includes("allowanceDeduction") || activeItem === "allowanceDeduction",
       loans: path.includes("loans") || activeItem === "loans",
-      salaryProcess: path.includes("salaryProcess") || activeItem === "salaryProcess",
+      salaryProcess: path.includes("salaryProcess") || activeItem === "salaryProcess" || ["SalaryProcessPage", "SalaryPage", "salaryRecords", "downloadSalarySlip"].includes(activeItem),
       timeAttendance: path.includes("timeAttendance") || activeItem === "timeAttendance",
       pms: path.includes("pms") || activeItem === "pms",
       lms: path.includes("lms") || activeItem === "lms",

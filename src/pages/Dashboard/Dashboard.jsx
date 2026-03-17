@@ -121,8 +121,9 @@ import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
 import SingleEntryReport from "@src/pages/Reports/TimeCard/SingleEntryReport";
 import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
+import EmployeeAttendanceReport from "@dashboard/EmployeeAttendanceReport";
 import LeaveSettings from "./LeaveSettings";
-import AbsentReport from "../Reports/TimeCard/AbsentReport";
+import EmployeeSalaryRecordView from "@dashboard/EmployeeSalaryRecordView";
 
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -798,13 +799,11 @@ const Dashboard = ({ user, onLogout }) => {
       case "attendanceReport":
         return (
           <ProtectedComponent module="attendanceReport" action="view">
-            <AttendanceReport />
-          </ProtectedComponent>
-        );
-      case "attendanceReport":
-        return (
-          <ProtectedComponent module="attendanceReport" action="view">
-            <AttendanceReport employeeProfile={employeeProfile} />
+            {user.role === "employee" ? (
+              <EmployeeAttendanceReport employeeProfile={employeeProfile} />
+            ) : (
+              <AttendanceReport />
+            )}
           </ProtectedComponent>
         );
       case "singleEntryReport":
@@ -1092,6 +1091,18 @@ const Dashboard = ({ user, onLogout }) => {
         );
       case "changePassword":
         return <ChangePassword />;
+      case "downloadSalarySlip":
+        return (
+          <ProtectedComponent module="downloadSalarySlip" action="view">
+            <SalaryPage employeeProfile={employeeProfile} />
+          </ProtectedComponent>
+        );
+      case "salaryRecords":
+        return (
+          <ProtectedComponent module="salaryRecords" action="view">
+            <EmployeeSalaryRecordView employeeProfile={employeeProfile} />
+          </ProtectedComponent>
+        );
 
       default:
         // Home / dashboard view
