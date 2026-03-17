@@ -64,6 +64,8 @@ const EmployeeLoan = () => {
     });
   };
 
+
+  /*
   const handleSaveLoan = async () => {
     try {
       if (!isCalculated || loanDetails.length === 0) {
@@ -106,6 +108,46 @@ const EmployeeLoan = () => {
       );
     }
   };
+*/
+
+const handleSaveLoan = async () => {
+  try {
+    if (!isCalculated || loanDetails.length === 0) {
+      showErrorMessage("Calculation Required", "Please calculate the loan before saving");
+      return;
+    }
+
+    // මෙන්න මේ පල්ලෙහා තියෙන ටික හොඳට බලන්න
+    const payload = {
+      loan_id: loanId,
+      // මෙතන 'attendance_employee_no' කියන නම අකුරක් නෑර නිවැරදි විය යුතුයි
+      attendance_employee_no: employeeNo, 
+      loan_amount: parseFloat(loanAmount),
+      interest_rate_per_annum: interestType === "withInterest" ? parseFloat(interestRate) : 0,
+      installment_amount: parseFloat(installmentAmount),
+      start_from: startDate,
+      with_interest: interestType === "withInterest", // Backend එකට boolean එකක් යනවා
+      installment_count: loanDetails.length,
+      schedule: loanDetails,
+      deduct_from: deductFrom, 
+    };
+
+    console.log("Sending Payload:", payload); // Debug කරලා බලන්න console එකේ පේනවා මොනවද යන්නේ කියලා
+
+    await createLoan(payload);
+
+    showSuccessMessage("Loan Saved!", "Employee loan has been successfully saved");
+    resetForm();
+  } catch (error) {
+    console.error("Error saving loan:", error);
+    // මෙතනින් අපිට බලාගන්න පුළුවන් හරියටම මොකක්ද backend එක කියන error එක කියලා
+    const errorMsg = error.response?.data?.message || "Failed to save loan";
+    showErrorMessage("Save Failed", errorMsg);
+  }
+};
+
+
+
 
   const resetForm = () => {
     setEmployeeNo("");
@@ -537,10 +579,10 @@ const EmployeeLoan = () => {
                 />
               </div>
 
-              {/* අලුතින් දැමූ Loan Deduct From Dropdown එක */}
+              {/* new loan */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Deduct From (කැපෙන්නේ) <span className="text-red-500 ml-1">*</span>
+                  Deduct From  <span className="text-red-500 ml-1">*</span>
                 </label>
                 <select
                   className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
@@ -548,8 +590,8 @@ const EmployeeLoan = () => {
                   onChange={(e) => setDeductFrom(e.target.value)}
                   required
                 >
-                  <option value="bonus">Monthly Bonus (බෝනස් එකෙන්)</option>
-                  <option value="basic">Basic Salary (මූලික පඩියෙන්)</option>
+                  <option value="bonus">Monthly Bonus </option>
+                  <option value="basic">Basic Salary </option>
                 </select>
               </div>
 
