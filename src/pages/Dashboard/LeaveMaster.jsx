@@ -121,52 +121,9 @@ const LeaveMaster = ({ employeeProfile }) => {
     return date.toISOString().split("T")[0];
   }
 
-  // Function to format leave record for display
-  /*
-  function formatLeaveRecord(leaveData) {
-    let leaveDateDisplay = "";
-
-    if (leaveData.leave_date) {
-      leaveDateDisplay = formatDate(leaveData.leave_date);
-      if (leaveData.period) {
-        leaveDateDisplay += ` (${leaveData.period})`;
-      }
-    } else if (leaveData.leave_from && leaveData.leave_to) {
-      leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
-        leaveData.leave_to
-      )}`;
-      if (leaveData.leave_duration > 1) {
-        leaveDateDisplay += ` (${leaveData.leave_duration} days)`;
-      }
-    }
-
-    const hasOverLimit = leaveData.over_limit && leaveData.over_limit > 0;
-
-    // "Casual Leave (Probat..." වැනි වැරදි නම් පිරිසිදු කිරීම
-    let cleanLeaveType = leaveData.leave_type || "";
-    if (cleanLeaveType.includes("(Probat")) {
-        cleanLeaveType = "Casual Leave";
-    }
-
-    return {
-      id: leaveData.id,
-      leaveDate: leaveDateDisplay,
-      reportDate: formatDate(leaveData.reporting_date),
-      fullHalfDay: leaveData.is_half_day
-        ? "Half Day"
-        : leaveData.leave_duration > 1
-        ? "Multiple Days"
-        : "Full Day",
-      leaveType: cleanLeaveType, // Clean කරපු නම මෙතනින් Table එකට යවනවා
-      status: leaveData.status,
-      duration: leaveData.leave_duration || (leaveData.is_half_day ? 0.5 : 1),
-      hasOverLimit: hasOverLimit,
-      overLimit: hasOverLimit ? leaveData.over_limit : 0,
-    };
-  }
-*/
-
-
+  
+ 
+/*
 // Function to format leave record for display
   function formatLeaveRecord(leaveData) {
     let leaveDateDisplay = "";
@@ -178,7 +135,7 @@ const LeaveMaster = ({ employeeProfile }) => {
     if (leaveData.leave_date) {
       leaveDateDisplay = formatDate(leaveData.leave_date);
       
-      // Short leave එකක් නම් ඒකේ time slot එකත් පෙන්වන්න
+      // Short leave සහ Half leave වල period එක පෙන්වීම
       if (leaveData.is_short_leave || actualDuration === 0.25) {
         const slots = {
           "slot1": "8:30 AM - 10:30 AM",
@@ -186,11 +143,15 @@ const LeaveMaster = ({ employeeProfile }) => {
           "slot3": "1:30 PM - 3:30 PM",
           "slot4": "3:30 PM - 5:30 PM"
         };
+        // Backend එකෙන් එන short_leave_slot එක අනුව පෙන්වයි
         if (leaveData.short_leave_slot) {
            leaveDateDisplay += ` (${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot})`;
         }
-      } else if (leaveData.period) {
-        leaveDateDisplay += ` (${leaveData.period})`;
+      } else if (leaveData.is_half_day || actualDuration === 0.5) {
+        // Half day එකේ Morning ද Afternoon ද යන්න පෙන්වයි
+        if (leaveData.period) {
+           leaveDateDisplay += ` (${leaveData.period})`;
+        }
       }
     } else if (leaveData.leave_from && leaveData.leave_to) {
       leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
@@ -220,9 +181,9 @@ const LeaveMaster = ({ employeeProfile }) => {
 
     return {
       id: leaveData.id,
-      leaveDate: leaveDateDisplay,
+      leaveDate: leaveDateDisplay, // <--- දැන් මෙතන Date එකත් එක්කම Morning/Time Slot එක වැටෙනවා
       reportDate: formatDate(leaveData.reporting_date),
-      fullHalfDay: displayType, // <--- දැන් මෙතනින් 100% ක් නිවැරදිව "Short Leave" වැටෙනවා
+      fullHalfDay: displayType, // <--- Short Leave, Half Day කියලා හරියටම වැටෙනවා
       leaveType: cleanLeaveType,
       status: leaveData.status,
       duration: actualDuration, 
@@ -230,7 +191,78 @@ const LeaveMaster = ({ employeeProfile }) => {
       overLimit: hasOverLimit ? leaveData.over_limit : 0,
     };
   }
-  
+*/
+
+// Function to format leave record for display
+  function formatLeaveRecord(leaveData) {
+    let leaveDateDisplay = "";
+
+    // 1. Duration එක අනිවාර්යයෙන්ම Number එකක් බවට පත් කිරීම (parseFloat)
+    const actualDuration = parseFloat(leaveData.leave_duration) || 
+                           (leaveData.is_short_leave ? 0.25 : (leaveData.is_half_day ? 0.5 : 1));
+
+    if (leaveData.leave_date) {
+      leaveDateDisplay = formatDate(leaveData.leave_date);
+      
+      // Short leave සහ Half leave වල period එක පෙන්වීම
+      // මෙතන Number(actualDuration) === 0.25 කියලා දැඩිව බලන්න ඕනේ
+      if (leaveData.is_short_leave || Number(actualDuration) === 0.25) {
+        const slots = {
+          "slot1": "8:30 AM - 10:30 AM",
+          "slot2": "10:30 AM - 12:30 PM",
+          "slot3": "1:30 PM - 3:30 PM",
+          "slot4": "3:30 PM - 5:30 PM"
+        };
+        // Backend එකෙන් එන short_leave_slot එක අනුව පෙන්වයි
+        if (leaveData.short_leave_slot) {
+           leaveDateDisplay += ` (${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot})`;
+        }
+      } else if (leaveData.is_half_day || Number(actualDuration) === 0.5) {
+        // Half day එකේ Morning ද Afternoon ද යන්න පෙන්වයි
+        if (leaveData.period) {
+           leaveDateDisplay += ` (${leaveData.period})`;
+        }
+      }
+    } else if (leaveData.leave_from && leaveData.leave_to) {
+      leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
+        leaveData.leave_to
+      )}`;
+      if (actualDuration > 1) {
+        leaveDateDisplay += ` (${actualDuration} days)`;
+      }
+    }
+
+    const hasOverLimit = leaveData.over_limit && leaveData.over_limit > 0;
+
+    let cleanLeaveType = leaveData.leave_type || "";
+    if (cleanLeaveType.includes("(Probat")) {
+        cleanLeaveType = "Casual Leave";
+    }
+
+    // 2. Type එක (Full, Half, Short) තීරණය කිරීම 
+    let displayType = "Full Day";
+    if (leaveData.is_short_leave || Number(actualDuration) === 0.25) {
+      displayType = "Short Leave";
+    } else if (leaveData.is_half_day || Number(actualDuration) === 0.5) {
+      displayType = "Half Day";
+    } else if (actualDuration > 1) {
+      displayType = "Multiple Days";
+    }
+
+    return {
+      id: leaveData.id,
+      leaveDate: leaveDateDisplay, // <--- දැන් මෙතන Date එකත් එක්කම Morning/Time Slot එක වැටෙනවා
+      reportDate: formatDate(leaveData.reporting_date),
+      fullHalfDay: displayType, // <--- Short Leave, Half Day කියලා හරියටම වැටෙනවා
+      leaveType: cleanLeaveType,
+      status: leaveData.status,
+      duration: actualDuration, 
+      hasOverLimit: hasOverLimit,
+      overLimit: hasOverLimit ? leaveData.over_limit : 0,
+    };
+  }
+
+
   // Update the getDisabledDates function to check company ID
   const getDisabledDates = (calendarData, employeeCompanyId) => {
     const dates = [];

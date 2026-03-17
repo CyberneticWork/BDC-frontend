@@ -146,6 +146,21 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
                 <span className="text-gray-600">Early Out No-Pay</span>
                 <span className="font-semibold text-red-600">{earlyOutNoPay.toLocaleString()}</span>
               </div>
+
+            {Number(breakdown.probation_deduction) > 0 && (
+  <div className="flex justify-between text-sm text-gray-600">
+    <span className="text-gray-600">Probation Leave Deduction</span>
+    <span className="font-semibold text-red-600">{formatMoney(breakdown.probation_deduction)}</span>
+  </div>
+)}
+
+{Number(breakdown.stamp_duty) > 0 && (
+  <div className="flex justify-between text-sm text-gray-600">
+    <span className="text-gray-600">Stamp Duty</span>
+    <span className="font-semibold text-red-600">{formatMoney(breakdown.stamp_duty)}</span>
+  </div>
+)}
+
               {loanTarget === 'basic' && loanPrincipal > 0 && (
                 <div className="flex justify-between">
                     <span className="text-gray-600">Loan Installment (Principal)</span>

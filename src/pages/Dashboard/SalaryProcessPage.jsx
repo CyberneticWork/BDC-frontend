@@ -197,9 +197,21 @@ const SalaryProcessPage = () => {
       ...allowances.map((a) => ({ label: `${a.name} (${a.category || 'General'})`, amount: Number(a.amount || 0) })),
     ].filter((item) => item.amount > 0);
 
+    /*
     const basicDeductions = [
       { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
       { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
+      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
+    ].filter((item) => item.amount > 0);
+    */
+
+    const basicDeductions = [
+      { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
+      { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
+      // --- අලුතින් එකතු කළ කොටස් ---
+      { label: "Probation Leave Deduction", amount: Number(breakdown.probation_deduction || 0) },
+      { label: "Stamp Duty", amount: Number(breakdown.stamp_duty || 0) },
+      // --------------------------
       ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
     ].filter((item) => item.amount > 0);
 
@@ -238,6 +250,7 @@ const SalaryProcessPage = () => {
     };
   };
 
+  /*
   const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, isFirstPage = false) => {
     if (!isFirstPage) doc.addPage();
     const earningsTotal = (payslip.earnings || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -283,6 +296,168 @@ const SalaryProcessPage = () => {
     doc.setFontSize(12); doc.text("Net Amount", 15, y); doc.text(formatMoney(netTotal), 170, y, { align: "right" }); y += 12;
     doc.setFontSize(10); doc.text("LIFEHRMS", 15, y); doc.rect(10, 45, 190, Math.max(80, y - 38));
   };
+  */
+
+const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, isFirstPage = false) => {
+    if (!isFirstPage) doc.addPage();
+    
+    const earningsTotal = (payslip.earnings || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const deductionsTotal = (payslip.deductions || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const netTotal = earningsTotal - deductionsTotal;
+
+    // Header Section
+    doc.setFontSize(12); 
+    doc.setFont("helvetica", "bold");
+    doc.text(`${emp.company_name || emp.employee?.organizationAssignment?.company?.name || "Company"}`, 105, 15, { align: "center" });
+    doc.text(`${payslip.title}`, 105, 22, { align: "center" });
+    doc.text(`${monthName} ${selectedYear}`, 105, 29, { align: "center" });
+    doc.text(`Payment Method: ${payslip.paymentMethod}`, 105, 36, { align: "center" });
+    
+    doc.rect(10, 8, 190, 34);
+
+    let y = 50; 
+    doc.setFontSize(9); 
+    doc.setFont("helvetica", "normal");
+
+    // =========================================================================
+    // මෙතනින් තමයි දත්ත හරියටම අල්ලගන්නේ (Backend එකෙන් එන ඕනෑම විදිහකට Support කරයි)
+    // =========================================================================
+    const empObj = emp.employee || emp; // Employee object එක ඇතුලෙ තිබ්බොත් ඒක ගන්නවා
+    const contactInfo = empObj.contact_detail || empObj.contactDetail || emp.contact_detail || emp.contactDetail || {};
+    const orgInfo = empObj.organization_assignment || empObj.organizationAssignment || emp.organization_assignment || emp.organizationAssignment || {};
+
+    const empNo = empObj.employee_no || empObj.emp_no || empObj.attendance_employee_no || "-";
+    const empName = empObj.full_name || empObj.name_with_initials || "-";
+    const deptName = emp.department_name || orgInfo.department?.name || "-";
+    
+    const epfNo = empObj.epf || empObj.epf_no || "-";
+    const nicNo = empObj.nic || empObj.nic_number || "-";
+    const joinedDate = orgInfo.date_of_joining || empObj.date_of_joining || "-";
+    
+    const address = contactInfo.permanent_address || empObj.address || "-";
+    const contactNo = contactInfo.mobile_line || empObj.mobile_line || "-";
+    
+    const emgName = contactInfo.emg_name || empObj.emg_name || "-";
+    const emgRel = contactInfo.emg_relationship || empObj.emg_relationship || "-";
+    const emgTel = contactInfo.emg_tel || empObj.emg_tel || "-";
+    // =========================================================================
+
+    // Row 1: Employee No & EPF No
+    doc.text(`Employee No :`, 15, y); 
+    doc.text(`${empNo}`, 45, y);
+    doc.text(`EPF/ETF No :`, 110, y); 
+    doc.text(`${epfNo}`, 140, y); 
+    y += 6;
+
+    // Row 2: Name & NIC
+    doc.text(`Name :`, 15, y); 
+    doc.text(`${empName}`, 45, y);
+    doc.text(`NIC Number :`, 110, y); 
+    doc.text(`${nicNo}`, 140, y); 
+    y += 6;
+
+    // Row 3: Department & Joined Date
+    doc.text(`Department :`, 15, y); 
+    doc.text(`${deptName}`, 45, y);
+    doc.text(`Joined Date :`, 110, y); 
+    doc.text(`${joinedDate}`, 140, y); 
+    y += 6;
+
+    // Row 4: Contact & Address
+    doc.text(`Contact No :`, 15, y); 
+    doc.text(`${contactNo}`, 45, y);
+    doc.text(`Address :`, 110, y); 
+    doc.text(`${address}`.substring(0, 45), 140, y); // දිග නම් කපා හරී
+    y += 6;
+
+    // Row 5: Emergency Contact
+    doc.text(`Emg. Contact :`, 15, y); 
+    doc.text(`${emgName} (${emgRel}) - ${emgTel}`, 45, y); 
+    y += 8;
+
+    // Bank Details
+    if (payslip.paymentMethod === "Bank Transfer" || payslip.paymentMethod === "Combined") {
+      const bankName = empObj.compensation?.bank_name || emp.bank_name || "-";
+      const branchName = empObj.compensation?.branch_name || emp.branch_name || "-";
+      const accNo = empObj.compensation?.bank_account_no || emp.bank_account_no || "-";
+      
+      doc.setFont("helvetica", "bold");
+      doc.text(`Bank / Branch :`, 15, y); 
+      doc.setFont("helvetica", "normal"); 
+      doc.text(`${bankName} / ${branchName}`, 45, y);
+      
+      doc.setFont("helvetica", "bold");
+      doc.text(`Account No :`, 110, y); 
+      doc.setFont("helvetica", "normal"); 
+      doc.text(`${accNo}`, 140, y); 
+      y += 8;
+    } else {
+       y += 2; 
+    }
+
+    doc.line(10, y-3, 200, y-3); 
+    y += 3;
+
+    // Earnings Section
+    doc.setFontSize(10); 
+    doc.setFont("helvetica", "bold"); 
+    doc.text("Earnings", 15, y); 
+    y += 8;
+    
+    doc.setFont("helvetica", "normal");
+    if ((payslip.earnings || []).length > 0) {
+      payslip.earnings.forEach((item) => { 
+        doc.text(item.label, 15, y); 
+        doc.text(formatMoney(item.amount), 170, y, { align: "right" }); 
+        y += 6; 
+      });
+    } else { 
+      doc.text("No earnings", 15, y); 
+      y += 6; 
+    }
+
+    y += 4; 
+    
+    // Deductions Section
+    doc.setFont("helvetica", "bold"); 
+    doc.text("Deductions", 15, y); 
+    y += 8;
+    
+    doc.setFont("helvetica", "normal");
+    if ((payslip.deductions || []).length > 0) {
+      payslip.deductions.forEach((item) => { 
+        doc.text(item.label, 15, y); 
+        doc.text(formatMoney(item.amount), 170, y, { align: "right" }); 
+        y += 6; 
+      });
+    } else { 
+      doc.text("No deductions", 15, y); 
+      y += 6; 
+    }
+
+    y += 8; 
+    
+    // Totals Section
+    doc.setFont("helvetica", "bold"); 
+    doc.text("Total Earnings", 15, y); 
+    doc.text(formatMoney(earningsTotal), 170, y, { align: "right" }); 
+    y += 8;
+    
+    doc.text("Total Deductions", 15, y); 
+    doc.text(formatMoney(deductionsTotal), 170, y, { align: "right" }); 
+    y += 10;
+    
+    doc.setFontSize(12); 
+    doc.text("Net Amount", 15, y); 
+    doc.text(formatMoney(netTotal), 170, y, { align: "right" }); 
+    y += 12;
+    
+    doc.setFontSize(10); 
+    doc.text("LIFEHRMS", 15, y); 
+    
+    doc.rect(10, 45, 190, Math.max(80, y - 38));
+  };
+
 
   const handleDownloadEmployeePayslips = (emp) => {
     const doc = new jsPDF();
