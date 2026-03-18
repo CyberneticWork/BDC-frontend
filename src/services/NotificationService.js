@@ -8,8 +8,16 @@ const PREFIX = ""; // base already /api from axios baseURL
  * @returns {Promise<Array>} notifications
  */
 export async function getNotifications(limit = 20) {
-  const { data } = await axios.get(`/notifications`, { params: { limit } });
-  return data;
+  try {
+    const { data } = await axios.get(`/notifications`, { params: { limit } });
+    return data;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      console.warn('Unauthorized to fetch notifications');
+      return [];
+    }
+    throw error;
+  }
 }
 
 /**
@@ -17,8 +25,16 @@ export async function getNotifications(limit = 20) {
  * @returns {Promise<number>}
  */
 export async function getUnreadCount() {
-  const { data } = await axios.get(`/notifications/unread-count`);
-  return data.unread_count ?? 0;
+  try {
+    const { data } = await axios.get(`/notifications/unread-count`);
+    return data.unread_count ?? 0;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      console.warn('Unauthorized to fetch unread count');
+      return 0;
+    }
+    throw error;
+  }
 }
 
 /**
