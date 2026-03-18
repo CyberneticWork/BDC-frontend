@@ -748,6 +748,7 @@ const NoPayManagement = () => {
             </div>
 
             <div className="mb-6 flex flex-wrap gap-3">
+            {/*
               <button
                 onClick={handleGenerateMonthlyNoPay}
                 disabled={isGeneratingMonth || !month || !year}
@@ -764,6 +765,7 @@ const NoPayManagement = () => {
               <div className="text-sm text-gray-500 flex items-center">
                 Month/Year view shows saved records. Monthly generate button will create records for the whole month.
               </div>
+              */}
             </div>
 
             <div className="relative flex-grow mb-6">

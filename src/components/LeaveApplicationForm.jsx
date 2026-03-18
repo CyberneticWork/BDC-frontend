@@ -1,18 +1,53 @@
 import React, { useState, useEffect } from "react";
 import { X, Calendar, User, FileText, Phone, Building2, Clock } from "lucide-react";
 import { useLeave } from "@src/contexts/LeaveContext";
-import { createLeave } from "@src/services/LeaveMaster";
+import { createLeave, getLeaveTypes } from "@src/services/LeaveMaster";
 import { toast } from "react-toastify";
 
 const LeaveApplicationForm = ({ isOpen, onClose, employeeProfile }) => {
   const { leaveData, updateLeaveData, loadEmployeeToLeaveForm, resetLeaveForm } = useLeave();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [isLoadingTypes, setIsLoadingTypes] = useState(false);
 
   useEffect(() => {
     if (isOpen && employeeProfile) {
       loadEmployeeToLeaveForm(employeeProfile);
+      fetchLeaveTypes();
     }
   }, [isOpen, employeeProfile, loadEmployeeToLeaveForm]);
+
+  const fetchLeaveTypes = async () => {
+    setIsLoadingTypes(true);
+    try {
+      const response = await getLeaveTypes();
+      console.log("Leave types response:", response);
+      
+      let typesArray = [];
+      
+      // Handle different response structures
+      if (Array.isArray(response)) {
+        typesArray = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        typesArray = response.data;
+      } else if (response?.leave_types && Array.isArray(response.leave_types)) {
+        typesArray = response.leave_types;
+      }
+      
+      if (typesArray.length === 0) {
+        console.warn("No leave types found in response");
+        toast.warning("No leave types available");
+      }
+      
+      setLeaveTypes(typesArray);
+    } catch (error) {
+      console.error("Error fetching leave types:", error);
+      toast.error("Failed to load leave types");
+      setLeaveTypes([]);
+    } finally {
+      setIsLoadingTypes(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,12 +56,12 @@ const LeaveApplicationForm = ({ isOpen, onClose, employeeProfile }) => {
     try {
       const submitData = {
         employee_id: leaveData.employee_id,
+        reporting_date: new Date().toISOString().split('T')[0],
         leave_type: leaveData.leave_type,
-        from_date: leaveData.from_date,
-        to_date: leaveData.to_date,
+        leave_from: leaveData.from_date,
+        leave_to: leaveData.to_date,
         reason: leaveData.reason,
-        contact_during_leave: leaveData.contact_during_leave,
-        status: "pending",
+        status: "Pending",
       };
 
       await createLeave(submitData);
@@ -118,20 +153,30 @@ const LeaveApplicationForm = ({ isOpen, onClose, employeeProfile }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Leave Type <span className="text-red-500">*</span>
               </label>
-              <select
-                value={leaveData.leave_type}
-                onChange={(e) => updateLeaveData({ leave_type: e.target.value })}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select Leave Type</option>
-                <option value="annual">Annual Leave</option>
-                <option value="sick">Sick Leave</option>
-                <option value="casual">Casual Leave</option>
-                <option value="short">Short Leave</option>
-                <option value="half_day">Half Day</option>
-                <option value="no_pay">No Pay Leave</option>
-              </select>
+              {isLoadingTypes ? (
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  Loading leave types...
+                </div>
+              ) : leaveTypes.length === 0 ? (
+                <div className="w-full px-4 py-2 border border-red-300 rounded-lg bg-red-50 text-red-600 text-sm">
+                  No leave types available. Please contact HR.
+                </div>
+              ) : (
+                <select
+                  value={leaveData.leave_type}
+                  onChange={(e) => updateLeaveData({ leave_type: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Leave Type</option>
+                  {leaveTypes.map((type) => (
+                    <option key={type.id} value={type.leave_type_name || type.name || type.type}>
+                      {type.leave_type_name || type.name || type.type}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Date Range */}

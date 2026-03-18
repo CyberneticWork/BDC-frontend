@@ -16,7 +16,6 @@ import {
   CreditCard,
   CheckCircle,
 } from "lucide-react";
-import config from "@src/config";
 import NotificationBell from "../../components/NotificationBell";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
@@ -58,6 +57,7 @@ import LeaveApproval from "@dashboard/LeaveApproval";
 import HRLeaveApproval from "@dashboard/HRLeaveApproval";
 import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
+
 import ViewLoans from "@dashboard/viewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 import UserManagement from "@dashboard/UserManagement";
@@ -121,7 +121,11 @@ import timeCardService from "../../services/timeCardService";
 import ProtectedComponent from "../../components/ProtectedComponent";
 import SingleEntryReport from "@src/pages/Reports/TimeCard/SingleEntryReport";
 import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
+import EmployeeAttendanceReport from "@dashboard/EmployeeAttendanceReport";
 import LeaveSettings from "./LeaveSettings";
+import EmployeeSalaryRecordView from "@dashboard/EmployeeSalaryRecordView";
+
+// Check if this line is missing and add it
 import AbsentReport from "../Reports/TimeCard/AbsentReport";
 
 import { useLocation, useNavigate } from "react-router-dom";
@@ -799,13 +803,21 @@ const Dashboard = ({ user, onLogout }) => {
       case "attendanceReport":
         return (
           <ProtectedComponent module="attendanceReport" action="view">
+
             <AttendanceReport />
           </ProtectedComponent>
-        ); */}
+        );
+        */}
+        
       case "attendanceReport":
         return (
           <ProtectedComponent module="attendanceReport" action="view">
             <AttendanceReport employeeProfile={employeeProfile} />
+            {user.role === "employee" ? (
+              <EmployeeAttendanceReport employeeProfile={employeeProfile} />
+            ) : (
+              <AttendanceReport />
+            )}
           </ProtectedComponent>
         );
       case "singleEntryReport":
@@ -1093,6 +1105,18 @@ const Dashboard = ({ user, onLogout }) => {
         );
       case "changePassword":
         return <ChangePassword />;
+      case "downloadSalarySlip":
+        return (
+          <ProtectedComponent module="downloadSalarySlip" action="view">
+            <SalaryPage employeeProfile={employeeProfile} />
+          </ProtectedComponent>
+        );
+      case "salaryRecords":
+        return (
+          <ProtectedComponent module="salaryRecords" action="view">
+            <EmployeeSalaryRecordView employeeProfile={employeeProfile} />
+          </ProtectedComponent>
+        );
 
       default:
         // Home / dashboard view
