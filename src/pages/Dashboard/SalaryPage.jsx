@@ -124,6 +124,11 @@ const SalaryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentRecord, setCurrentRecord] = useState(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(30);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
+  const [updatedRowIds, setUpdatedRowIds] = useState(new Set());
   const [formData, setFormData] = useState({
     basic_salary: "",
     increment_active: false,
@@ -158,18 +163,51 @@ const SalaryPage = () => {
   const rowsPerPage = 9;
 
   // Fetch salary data
-  const fetchSalaryData = async () => {
-    setIsLoading(true);
+  const fetchSalaryData = async (isAutoRefresh = false) => {
+    if (!isAutoRefresh) {
+      setIsLoading(true);
+    } else {
+      setIsAutoRefreshing(true);
+    }
 
     try {
       const response = await fetchSalaryDataAPI();
+      
+      // Detect which rows have been updated
+      if (isAutoRefresh && salaryData.length > 0) {
+        const newUpdatedIds = new Set();
+        response.forEach((newRecord) => {
+          const oldRecord = salaryData.find(r => r.id === newRecord.id);
+          if (oldRecord) {
+            // Check if any key fields changed
+            if (
+              oldRecord.basic_salary !== newRecord.basic_salary ||
+              oldRecord.status !== newRecord.status ||
+              oldRecord.salary_breakdown?.net_salary !== newRecord.salary_breakdown?.net_salary
+            ) {
+              newUpdatedIds.add(newRecord.id);
+            }
+          }
+        });
+        
+        if (newUpdatedIds.size > 0) {
+          setUpdatedRowIds(newUpdatedIds);
+          // Remove highlight after 2 seconds
+          setTimeout(() => setUpdatedRowIds(new Set()), 2000);
+        }
+      }
+      
       setSalaryData(response);
       setFilteredData(response);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("Error fetching salary data:", error);
-      // Optionally show an error message to the user
     } finally {
-      setIsLoading(false);
+      if (!isAutoRefresh) {
+        setIsLoading(false);
+      } else {
+        setIsAutoRefreshing(false);
+      }
     }
   };
 
@@ -435,6 +473,17 @@ const SalaryPage = () => {
     fetchSalaryData();
   }, []);
 
+  // Auto-refresh effect
+  useEffect(() => {
+    if (!autoRefreshEnabled) return;
+
+    const interval = setInterval(() => {
+      fetchSalaryData(true);
+    }, refreshInterval * 1000);
+
+    return () => clearInterval(interval);
+  }, [autoRefreshEnabled, refreshInterval]);
+
   // Load companies from API (all companies in DB)
   useEffect(() => {
     const loadCompanies = async () => {
@@ -585,8 +634,69 @@ const SalaryPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen bg-gray-50">
+      <style jsx>{`
+        @keyframes pulse-highlight {
+          0%, 100% { background-color: rgb(254, 243, 199); }
+          50% { background-color: rgb(253, 224, 71); }
+        }
+        .row-updated {
+          animation: pulse-highlight 0.6s ease-in-out;
+        }
+      `}</style>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Salary Records</h1>
+      </div>
+
+      {/* Auto-Refresh Controls */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="autoRefresh"
+              checked={autoRefreshEnabled}
+              onChange={(e) => setAutoRefreshEnabled(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="autoRefresh" className="text-sm font-medium text-gray-700">
+              Auto-Refresh
+            </label>
+          </div>
+
+          {autoRefreshEnabled && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="refreshInterval" className="text-sm text-gray-600">
+                Every
+              </label>
+              <select
+                id="refreshInterval"
+                value={refreshInterval}
+                onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value={10}>10 seconds</option>
+                <option value={15}>15 seconds</option>
+                <option value={30}>30 seconds</option>
+                <option value={60}>1 minute</option>
+                <option value={300}>5 minutes</option>
+              </select>
+            </div>
+          )}
+
+          <div className="flex-1 flex items-center justify-end gap-2">
+            {isAutoRefreshing && (
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <span>Updating...</span>
+              </div>
+            )}
+            {lastUpdated && (
+              <span className="text-xs text-gray-500">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -688,7 +798,12 @@ const SalaryPage = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedData.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={record.id} 
+                    className={`hover:bg-gray-50 transition-all duration-500 ${
+                      updatedRowIds.has(record.id) ? 'row-updated' : ''
+                    }`}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="ml-4">

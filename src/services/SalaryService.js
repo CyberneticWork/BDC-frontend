@@ -80,3 +80,13 @@ export const fetchSalaryRecordByIdAPI = async (id) => {
     throw error;
   }
 };
+
+export const fetchEmployeeSalaryHistory = async (employeeId) => {
+  try {
+    const response = await axios.get(`/salary/employee/${employeeId}/history`);
+    return response.data.data || [];
+  } catch (error) {
+    console.error(`Error fetching salary history for employee ${employeeId}:`, error.response?.data?.message || error.message);
+    throw error;
+  }
+};
