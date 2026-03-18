@@ -878,7 +878,8 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                 )}
               </div>
 
-              {/* Budgetary Relief Allowances */}
+              {/* Budgetary Relief Allowances - HIDDEN */}
+              {/* 
               <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 overflow-hidden">
                 <button
                   type="button"
@@ -974,6 +975,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                   </div>
                 )}
               </div>
+              */}
 
               {/* Primary Employment Basic */}
               <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200 overflow-hidden">

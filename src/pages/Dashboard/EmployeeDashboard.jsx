@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, Clock, DollarSign, UserCheck, CreditCard, Building2, Briefcase, BarChart3, CheckCircle, XCircle, AlertCircle, Edit } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { getLeavesByEmployee } from '@src/services/LeaveMaster';
 
 const EmployeeDashboard = ({ 
@@ -10,20 +9,12 @@ const EmployeeDashboard = ({
   lateCount,
   setActiveItem 
 }) => {
-  const navigate = useNavigate();
   const [attendanceSummary, setAttendanceSummary] = useState({ present: 0, absent: 0, late: 0, total: 0 });
   const [leaveSummary, setLeaveSummary] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 });
-  const [leaveRecords, setLeaveRecords] = useState([]);
   const [isLoadingLeaves, setIsLoadingLeaves] = useState(false);
   const [otSummary, setOtSummary] = useState({ totalHours: 0, totalAmount: 0 });
   const [loanSummary, setLoanSummary] = useState({ loanAmount: 0, monthlyDeduction: 0, balance: 0 });
-
-  const handleEditEmployee = () => {
-    if (employeeProfile?.id) {
-      localStorage.setItem('editEmployeeId', employeeProfile.id);
-      navigate('/employee-add');
-    }
-  };
+  const [showSalarySlip, setShowSalarySlip] = useState(false);
 
   useEffect(() => {
     if (employeeProfile?.id) {
@@ -31,7 +22,7 @@ const EmployeeDashboard = ({
       calculateOtSummary();
       calculateLoanSummary();
     }
-  }, [employeeProfile]);
+  }, [employeeProfile?.id, employeeProfile?.loans]);
 
   useEffect(() => {
     if (attendanceRecords.length > 0) {
@@ -44,7 +35,6 @@ const EmployeeDashboard = ({
     try {
       const data = await getLeavesByEmployee(employeeProfile.id);
       if (data && Array.isArray(data)) {
-        setLeaveRecords(data);
         calculateLeaveSummary(data);
       }
     } catch (error) {
@@ -93,29 +83,18 @@ const EmployeeDashboard = ({
         const monthlyDeduction = parseFloat(activeLoan.monthly_deduction) || 0;
         const balance = parseFloat(activeLoan.balance) || 0;
         setLoanSummary({ loanAmount, monthlyDeduction, balance });
+      } else {
+        setLoanSummary({ loanAmount: 0, monthlyDeduction: 0, balance: 0 });
       }
+    } else {
+      setLoanSummary({ loanAmount: 0, monthlyDeduction: 0, balance: 0 });
     }
   };
 
   return (
     <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
       {/* Quick Actions - Moved to Top */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <button
-          onClick={handleEditEmployee}
-          className="group bg-indigo-600 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all text-left transform hover:scale-105"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-4 bg-white/20 rounded-2xl group-hover:bg-white/30 transition-colors shadow-lg">
-              <Edit className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-lg mb-1">Edit Profile</h3>
-              <p className="text-sm text-indigo-100">Personal Details</p>
-            </div>
-          </div>
-        </button>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <button
           onClick={() => setActiveItem('myProfile')}
           className="group bg-white p-8 rounded-2xl shadow-lg border border-gray-200 hover:border-blue-500 hover:shadow-2xl transition-all text-left transform hover:-translate-y-1"
@@ -245,29 +224,31 @@ const EmployeeDashboard = ({
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Basic Salary</span>
-                <span className="text-sm font-medium text-gray-900">Rs. {employeeProfile.compensation?.basic_salary?.toLocaleString() || '0'}</span>
+                <span className="text-sm font-medium text-gray-900">Rs. {(parseFloat(employeeProfile.compensation?.basic_salary) || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Allowances</span>
-                <span className="text-sm font-medium text-green-600">+ Rs. 0</span>
+                <span className="text-sm font-medium text-green-600">+ Rs. 500.00</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Deductions</span>
-                <span className="text-sm font-medium text-red-600">- Rs. 0</span>
+                <span className="text-sm font-medium text-red-600">- Rs. 1,000.00</span>
               </div>
               <div className="flex justify-between pt-3 border-t border-gray-200">
                 <span className="text-base font-bold text-gray-900">Net Salary</span>
                 <span className="text-base font-bold text-green-600">
-                  Rs. {(employeeProfile.compensation?.basic_salary || 0).toLocaleString()}
+                  Rs. {(parseFloat(employeeProfile.compensation?.basic_salary || 0) + 500 - 1000).toLocaleString()}
                 </span>
               </div>
             </div>
-            <button
-              onClick={() => setActiveItem('SalaryPage')}
-              className="w-full mt-4 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              View Salary Slip
-            </button>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowSalarySlip(true)}
+                className="w-full bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                View Salary Slip
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -373,72 +354,53 @@ const EmployeeDashboard = ({
 
       {/* OT, Loan, Bonus, Paysheet Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* OT Records */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-600" />
-            OT Records
-          </h3>
-          <div className="bg-blue-50 rounded-lg p-4 mb-3">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xs text-gray-600">Total Hours</p>
-                <p className="text-2xl font-bold text-blue-600">{otSummary.totalHours}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-600">Payment</p>
-                <p className="text-xl font-bold text-green-600">Rs. {parseFloat(otSummary.totalAmount).toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-          {employeeProfile?.overtimes && employeeProfile.overtimes.length > 0 ? (
-            <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
-              {employeeProfile.overtimes.slice(0, 5).map((ot, index) => (
-                <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg text-xs">
-                  <div>
-                    <p className="font-medium text-gray-900">{ot.ot_hours} hrs</p>
-                    <p className="text-gray-500">Shift: {ot.shift_code}</p>
-                  </div>
-                  <span className="text-sm font-bold text-green-600">Rs. {parseFloat(ot.total_ot_amount || 0).toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500 mt-2">No OT records available</p>
-          )}
-        </div>
-
         {/* Loan Details */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-purple-600" />
             Loan Management
           </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Loan Amount</span>
-              <span className="text-sm font-bold text-purple-600">Rs. {loanSummary.loanAmount.toLocaleString()}</span>
+          {employeeProfile?.loans && employeeProfile.loans.length > 0 ? (
+            <div className="space-y-3">
+              {employeeProfile.loans.map((loan, index) => (
+                <div key={index}>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-xs font-semibold text-gray-600 uppercase">{loan.loan_type || 'Loan'}</span>
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${
+                      loan.status === 'active' || loan.status === 'Active'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {loan.status || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Loan Amount</span>
+                    <span className="text-sm font-bold text-purple-600">Rs. {parseFloat(loan.loan_amount || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Monthly Deduction</span>
+                    <span className="text-sm font-semibold text-red-600">Rs. {parseFloat(loan.monthly_deduction || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-gray-200">
+                    <span className="text-sm font-semibold text-gray-700">Balance</span>
+                    <span className="text-lg font-bold text-orange-600">Rs. {parseFloat(loan.balance || 0).toLocaleString()}</span>
+                  </div>
+                  {index < employeeProfile.loans.length - 1 && <div className="border-t border-gray-200 mt-3 pt-3"></div>}
+                </div>
+              ))}
+              <button
+                onClick={() => setActiveItem('loanManagement')}
+                className="w-full mt-4 bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                View Details
+              </button>
             </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Monthly Deduction</span>
-              <span className="text-sm font-semibold text-red-600">Rs. {loanSummary.monthlyDeduction.toLocaleString()}</span>
+          ) : (
+            <div className="text-center py-6 text-gray-500 text-sm">
+              No active loans
             </div>
-            <div className="flex justify-between pt-2 border-t border-gray-200">
-              <span className="text-sm font-semibold text-gray-700">Balance</span>
-              <span className="text-lg font-bold text-orange-600">Rs. {loanSummary.balance.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Bonus Records */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-yellow-600" />
-            Bonus Records
-          </h3>
-          <div className="text-center py-6 text-gray-500 text-sm">
-            No bonus records available
-          </div>
+          )}
         </div>
 
         {/* Paysheet History */}
@@ -455,6 +417,139 @@ const EmployeeDashboard = ({
           </button>
         </div>
       </div>
+
+      {/* Salary Slip Modal */}
+      {showSalarySlip && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-none shadow-2xl w-screen h-screen overflow-y-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 text-white flex justify-between items-center sticky top-0">
+              <h2 className="text-2xl font-bold">Salary Record</h2>
+              <button
+                onClick={() => setShowSalarySlip(false)}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-8 space-y-6">
+              {/* Employee & Basic Info */}
+              <div className="grid grid-cols-2 gap-6 pb-6 border-b-2 border-gray-200">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Employee Name</p>
+                  <p className="text-lg font-bold text-gray-900">{employeeProfile?.name_with_initials || 'N/A'}</p>
+                  <p className="text-sm text-gray-500 mt-1">{employeeProfile?.organization_assignment?.department?.name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Employee ID</p>
+                  <p className="text-lg font-bold text-gray-900">{employeeProfile?.attendance_employee_no || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Basic Salary</p>
+                  <p className="text-lg font-bold text-blue-600">Rs. {(employeeProfile?.compensation?.basic_salary || 0).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Status</p>
+                  <p className="text-lg font-bold text-yellow-600">Pending</p>
+                </div>
+              </div>
+
+              {/* Salary Breakdown */}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Earnings */}
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <h3 className="font-bold text-gray-900 mb-4 text-lg">Earnings</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Basic Salary</span>
+                      <span className="font-semibold text-gray-900">Rs. {(employeeProfile?.compensation?.basic_salary || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">BR Allowance</span>
+                      <span className="font-semibold text-gray-900">Rs. 0.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Other Allowances</span>
+                      <span className="font-semibold text-green-600">Rs. 500.00</span>
+                    </div>
+                    <div className="border-t border-green-300 pt-3 flex justify-between">
+                      <span className="font-bold text-gray-900">Total Earnings</span>
+                      <span className="font-bold text-green-600">Rs. {(parseFloat(employeeProfile?.compensation?.basic_salary || 0) + 500).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deductions */}
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <h3 className="font-bold text-gray-900 mb-4 text-lg">Deductions</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">EPF (8%)</span>
+                      <span className="font-semibold text-gray-900">Rs. {(((employeeProfile?.compensation?.basic_salary || 0) * 8) / 100).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Loan Installment</span>
+                      <span className="font-semibold text-gray-900">Rs. {loanSummary.monthlyDeduction.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Stamp Duty</span>
+                      <span className="font-semibold text-gray-900">Rs. 25.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Other Deductions</span>
+                      <span className="font-semibold text-gray-900">Rs. 1,000.00</span>
+                    </div>
+                    <div className="border-t border-red-300 pt-3 flex justify-between">
+                      <span className="font-bold text-gray-900">Total Deductions</span>
+                      <span className="font-bold text-red-600">Rs. {((((employeeProfile?.compensation?.basic_salary || 0) * 8) / 100) + loanSummary.monthlyDeduction + 25 + 1000).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Net Salary */}
+              <div className="bg-gradient-to-r from-blue-100 to-blue-50 rounded-lg p-6 border-2 border-blue-500">
+                <div className="flex justify-between items-center">
+                  <span className="text-xl font-bold text-gray-900">Net Salary</span>
+                  <span className="text-3xl font-bold text-blue-600">Rs. {(parseFloat(employeeProfile?.compensation?.basic_salary || 0) + 500 - (parseFloat(employeeProfile?.compensation?.basic_salary || 0) * 8) / 100 - parseFloat(loanSummary.monthlyDeduction || 0) - 25 - 1000).toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Additional Details */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-gray-600">No Pay Days</p>
+                  <p className="font-bold text-gray-900">0</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-gray-600">Probation Deduction</p>
+                  <p className="font-bold text-gray-900">Rs. 0.00</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-gray-600">Loan Balance</p>
+                  <p className="font-bold text-gray-900">Rs. {loanSummary.balance.toLocaleString()}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-gray-600">Month/Year</p>
+                  <p className="font-bold text-gray-900">03/2026</p>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowSalarySlip(false)}
+                  className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
