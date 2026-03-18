@@ -5,6 +5,309 @@ import {
   FileText,
   Download,
   Filter,
+  Eye,
+  Briefcase,
+  Calendar,
+  DollarSign,
+  Percent,
+} from "lucide-react";
+
+const ViewLoans = () => {
+  const [loans, setLoans] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchFilter, setSearchFilter] = useState("all");
+  const [filteredLoans, setFilteredLoans] = useState([]);
+  const [showDetails, setShowDetails] = useState(null);
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-LK", {
+      style: "currency",
+      currency: "LKR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  const getScheduleRows = (loan) => {
+    if (!loan) return [];
+    const s = loan.schedule;
+    if (typeof s === "string") {
+      try {
+        const parsed = JSON.parse(s);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(s) ? s : [];
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-LK", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  useEffect(() => {
+    const loadLoans = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fetchLoans();
+        setLoans(data);
+        setFilteredLoans(data);
+      } catch (err) {
+        setError("Failed to load loan data. Please try again later.");
+        console.error("Error loading loans:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadLoans();
+  }, []);
+
+  // Filter logic updated to use attendance_employee_no
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredLoans(loans);
+      return;
+    }
+
+    const filtered = loans.filter((loan) => {
+      const term = searchTerm.toLowerCase();
+      // Backend එකෙන් එන employee object එකෙන් අංකය ලබා ගැනීම
+      const empNo = loan.employee?.attendance_employee_no?.toLowerCase() || "";
+      const loanId = loan.loan_id?.toLowerCase() || "";
+
+      if (searchFilter === "all") {
+        return loanId.includes(term) || empNo.includes(term);
+      } else if (searchFilter === "loan_id") {
+        return loanId.includes(term);
+      } else if (searchFilter === "employee_id") {
+        return empNo.includes(term);
+      }
+      return true;
+    });
+
+    setFilteredLoans(filtered);
+  }, [searchTerm, searchFilter, loans]);
+
+  const showLoanDetails = (loan) => {
+    setShowDetails(loan);
+  };
+
+  // Export CSV updated
+  const exportToCSV = () => {
+    if (filteredLoans.length === 0) return;
+
+    const headers = ["Loan ID", "Employee No", "Amount", "Interest Rate", "Installment", "Start Date", "With Interest"];
+    const csvData = filteredLoans.map((loan) => [
+      loan.loan_id,
+      loan.employee?.attendance_employee_no || "N/A",
+      loan.loan_amount,
+      loan.interest_rate_per_annum + "%",
+      loan.installment_amount,
+      loan.start_from,
+      loan.with_interest ? "Yes" : "No",
+    ]);
+
+    const csvContent = [headers, ...csvData].map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `loans_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSearchFilter("all");
+  };
+
+  const totalLoans = filteredLoans.length;
+  const totalAmount = filteredLoans.reduce((sum, loan) => sum + parseFloat(loan.loan_amount || 0), 0);
+  const withInterestCount = filteredLoans.filter((loan) => loan.with_interest).length;
+  const withoutInterestCount = filteredLoans.filter((loan) => !loan.with_interest).length;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8">
+      <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-800 to-indigo-900 px-4 sm:px-8 py-6 sm:py-8">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white text-center">Employee Loans Management</h1>
+          </div>
+
+          {/* Stats Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 sm:p-6 lg:p-8">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <p className="text-sm font-medium text-gray-600">Total Loans</p>
+              <p className="text-2xl font-bold text-gray-800">{totalLoans}</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <p className="text-sm font-medium text-gray-600">Total Amount</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalAmount)}</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <p className="text-sm font-medium text-gray-600">With Interest</p>
+              <p className="text-2xl font-bold text-indigo-600">{withInterestCount}</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <p className="text-sm font-medium text-gray-600">No Interest</p>
+              <p className="text-2xl font-bold text-green-600">{withoutInterestCount}</p>
+            </div>
+          </div>
+
+          {/* Filter Section */}
+          <div className="px-4 sm:px-6 lg:px-8 pb-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative flex-1 md:col-span-2">
+                  <Search className="absolute left-3 top-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by loan ID or Employee No..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <select
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    className="p-3 border border-gray-300 rounded-xl bg-white shadow-sm"
+                  >
+                    <option value="all">All Fields</option>
+                    <option value="loan_id">Loan ID</option>
+                    <option value="employee_id">Employee No</option>
+                  </select>
+                  <button onClick={resetFilters} className="px-4 py-3 bg-gray-100 rounded-xl">Reset</button>
+                  <button onClick={exportToCSV} className="p-3 bg-green-600 text-white rounded-xl"><Download size={20}/></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="px-4 sm:px-6 lg:px-8 pb-8">
+            <div className="overflow-x-auto border rounded-xl">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Loan ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Employee No</th>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Interest</th>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Installment</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredLoans.map((loan) => (
+                    <tr key={loan.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{loan.loan_id}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800">
+                          {loan.employee?.attendance_employee_no || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-mono">{formatCurrency(loan.loan_amount)}</td>
+                      <td className="px-6 py-4 text-center text-sm">{loan.interest_rate_per_annum}%</td>
+                      <td className="px-6 py-4 text-right text-sm font-bold text-green-600">{formatCurrency(loan.installment_amount)}</td>
+                      <td className="px-6 py-4 text-center">
+                        <button onClick={() => showLoanDetails(loan)} className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                          <Eye size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showDetails && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-xl font-bold">Loan Details</h3>
+              <button onClick={() => setShowDetails(null)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            <div className="p-6">
+              <div className="flex justify-between mb-6">
+                <div>
+                  <h4 className="text-xl font-bold text-blue-900">{showDetails.loan_id}</h4>
+                  <p className="text-gray-500 font-bold">Employee No: {showDetails.employee?.attendance_employee_no || "N/A"}</p>
+                  <p className="text-sm text-gray-400">Name: {showDetails.employee?.full_name || "N/A"}</p>
+                </div>
+                <div className={`px-4 py-1 rounded-full h-fit text-sm font-bold ${showDetails.with_interest ? 'bg-indigo-100 text-indigo-800' : 'bg-green-100 text-green-800'}`}>
+                  {showDetails.with_interest ? "With Interest" : "No Interest"}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl mb-6">
+                <div><p className="text-xs text-gray-500">Amount</p><p className="font-bold">{formatCurrency(showDetails.loan_amount)}</p></div>
+                <div><p className="text-xs text-gray-500">Installment</p><p className="font-bold text-green-600">{formatCurrency(showDetails.installment_amount)}</p></div>
+                <div><p className="text-xs text-gray-500">Interest Rate</p><p className="font-bold">{showDetails.interest_rate_per_annum}%</p></div>
+                <div><p className="text-xs text-gray-500">Start Date</p><p className="font-bold">{formatDate(showDetails.start_from)}</p></div>
+              </div>
+
+              {/* Repayment Schedule Table */}
+              <h4 className="font-bold mb-3 text-gray-800">Repayment Schedule</h4>
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="p-2 text-left">No</th>
+                      <th className="p-2 text-left">Due Date</th>
+                      <th className="p-2 text-right">Installment</th>
+                      <th className="p-2 text-right">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getScheduleRows(showDetails).map((row, idx) => (
+                      <tr key={idx} className="border-t hover:bg-gray-50">
+                        <td className="p-2">{row.no || idx + 1}</td>
+                        <td className="p-2">{row.dueDate || row.due_date}</td>
+                        <td className="p-2 text-right font-bold">{formatCurrency(row.installmentAmount || row.installment_amount)}</td>
+                        <td className="p-2 text-right">{formatCurrency(row.dueBalance || row.due_balance)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="p-4 border-t bg-gray-50 text-right">
+              <button onClick={() => setShowDetails(null)} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ViewLoans;
+
+/*
+import React, { useState, useEffect } from "react";
+import { fetchLoans } from "@services/LoanService";
+import {
+  Search,
+  FileText,
+  Download,
+  Filter,
   ChevronDown,
   Eye,
   Briefcase,
@@ -174,7 +477,7 @@ const ViewLoans = () => {
     
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8"> 
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-        {/* Header Section */}
+        
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-800 to-indigo-900 px-4 sm:px-8 py-6 sm:py-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white text-center">
@@ -185,7 +488,7 @@ const ViewLoans = () => {
             </p>
           </div>
 
-          {/* Stats Section */}
+        
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 sm:p-6 lg:p-8">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
@@ -252,7 +555,7 @@ const ViewLoans = () => {
             </div>
           </div>
 
-          {/* Filter Section */}
+          
           <div className="px-4 sm:px-6 lg:px-8 pb-6">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center space-x-2 mb-4">
@@ -305,7 +608,7 @@ const ViewLoans = () => {
             </div>
           </div>
 
-          {/* Loans Table */}
+          
           <div className="px-4 sm:px-6 lg:px-8 pb-8">
             <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-800 to-indigo-900 px-6 py-4">
@@ -489,10 +792,10 @@ const ViewLoans = () => {
         </div>
       </div>
 
-      {/* Loan Details Modal */}
+    
       {showDetails && (
         <div className="fixed inset-0 bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          {/*<div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4">*/}
+         
 
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
@@ -589,17 +892,10 @@ const ViewLoans = () => {
                   </p>
                 </div>
 
-                {/* <div>
-                  <h5 className="text-sm font-medium text-gray-500 mb-1">
-                    Updated At
-                  </h5>
-                  <p className="text-lg font-medium text-gray-900">
-                    {formatDate(showDetails.updated_at)}
-                  </p>
-                </div> */}
+                
               </div>
 
-              {/* Repayment Schedule */}
+             
 {(() => {
   const rows = getScheduleRows(showDetails);
 
@@ -708,3 +1004,4 @@ const ViewLoans = () => {
 };
 
 export default ViewLoans;
+*/

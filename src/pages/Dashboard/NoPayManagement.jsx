@@ -342,7 +342,9 @@ const NoPayManagement = () => {
       response.data.skipped.slice(0, 100).forEach((item) => {
         html += `
           <tr>
-            <td style="border:1px solid #ddd; padding:6px;">${item.employee_id ?? "-"}</td>
+            <td style="border:1px solid #ddd; padding:6px;">
+            ${item.attendance_employee_no ?? item.employee_id ?? "-"}
+            </td>
             <td style="border:1px solid #ddd; padding:6px;">${item.reason ?? "-"}</td>
           </tr>
         `;
