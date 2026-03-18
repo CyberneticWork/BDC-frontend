@@ -105,6 +105,7 @@ const Sidebar = ({
             { id: "employeeLoan", name: "Employee Wise Loan" },
           ],
         },
+
         {
           id: "salaryProcess",
           name: "Salary Process",
