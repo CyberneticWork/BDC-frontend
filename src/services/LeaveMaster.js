@@ -1,5 +1,16 @@
 import axios from "@utils/axios";
 
+// Fetch all leave types (not leave records)
+export const getLeaveTypes = async () => {
+  try {
+    const response = await axios.get(`/leave-types`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching leave types:", error);
+    return [];
+  }
+};
+
 //fetch data from leave-master
 export const getAllLeaves = async () => {
   try {
