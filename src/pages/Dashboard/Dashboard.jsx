@@ -795,12 +795,13 @@ const Dashboard = ({ user, onLogout }) => {
             <AbsentReport />
           </ProtectedComponent>
         );
+        {/*
       case "attendanceReport":
         return (
           <ProtectedComponent module="attendanceReport" action="view">
             <AttendanceReport />
           </ProtectedComponent>
-        );
+        ); */}
       case "attendanceReport":
         return (
           <ProtectedComponent module="attendanceReport" action="view">
