@@ -125,6 +125,9 @@ import EmployeeAttendanceReport from "@dashboard/EmployeeAttendanceReport";
 import LeaveSettings from "./LeaveSettings";
 import EmployeeSalaryRecordView from "@dashboard/EmployeeSalaryRecordView";
 
+// Check if this line is missing and add it
+import AbsentReport from "../Reports/TimeCard/AbsentReport";
+
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   sidebarUtils,
