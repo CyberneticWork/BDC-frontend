@@ -16,7 +16,6 @@ import {
   CreditCard,
   CheckCircle,
 } from "lucide-react";
-import config from "@src/config";
 import NotificationBell from "../../components/NotificationBell";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
@@ -58,6 +57,7 @@ import LeaveApproval from "@dashboard/LeaveApproval";
 import HRLeaveApproval from "@dashboard/HRLeaveApproval";
 import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
+
 import ViewLoans from "@dashboard/viewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 import UserManagement from "@dashboard/UserManagement";
