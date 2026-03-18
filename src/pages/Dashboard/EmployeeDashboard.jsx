@@ -10,8 +10,6 @@ const EmployeeDashboard = ({
   setActiveItem 
 }) => {
   const [attendanceSummary, setAttendanceSummary] = useState({ present: 0, absent: 0, late: 0, total: 0 });
-  const [approvedLeaves, setApprovedLeaves] = useState([]);
-  const [isLoadingLeaves, setIsLoadingLeaves] = useState(false);
   const [otSummary, setOtSummary] = useState({ totalHours: 0, totalAmount: 0 });
   const [loanSummary, setLoanSummary] = useState({ loanAmount: 0, monthlyDeduction: 0, balance: 0 });
   const [showSalarySlip, setShowSalarySlip] = useState(false);
@@ -31,7 +29,6 @@ const EmployeeDashboard = ({
   }, [attendanceRecords]);
 
   const fetchLeaveRecords = async () => {
-    setIsLoadingLeaves(true);
     try {
       const data = await getLeavesByEmployee(employeeProfile.id);
       if (data && Array.isArray(data)) {
@@ -39,14 +36,11 @@ const EmployeeDashboard = ({
       }
     } catch (error) {
       console.error('Error fetching leave records:', error);
-    } finally {
-      setIsLoadingLeaves(false);
     }
   };
 
-  const calculateLeaveSummary = (leaves) => {
-    const hrApprovedLeaves = leaves.filter(l => l.status === 'approved' || l.status === 'hr-approved' || l.status === 'Approved');
-    setApprovedLeaves(hrApprovedLeaves);
+  const calculateLeaveSummary = () => {
+    // Process leave data if needed in the future
   };
 
   const calculateAttendanceSummary = (records) => {
