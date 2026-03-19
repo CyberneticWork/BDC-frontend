@@ -20,10 +20,13 @@ import {
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
 
-const AttendanceReport = () => {
-  const [reportType, setReportType] = useState("date");
+const AttendanceReport = ({ employeeProfile }) => {
+  const [reportType, setReportType] = useState("month");
   const [date, setDate] = useState("");
-  const [month, setMonth] = useState("");
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [search, setSearch] = useState("");
   const [data, setData] = useState([]);
   const [meta, setMeta] = useState({
@@ -42,6 +45,24 @@ const AttendanceReport = () => {
   const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [isHolidayWorked, setIsHolidayWorked] = useState(false);
+
+  // employeeProfile auto-fill
+  useEffect(() => {
+    if (employeeProfile?.attendance_employee_no) {
+      setSearch(employeeProfile.attendance_employee_no);
+    }
+    if (employeeProfile?.organization_assignment?.company?.id) {
+      const companyId = String(employeeProfile.organization_assignment.company.id);
+      setSelectedCompany(companyId);
+      // company departments load කරන්නම්
+      fetchDepartmentsById(companyId).then(depts => {
+        setDepartments(depts || []);
+        if (employeeProfile?.organization_assignment?.department?.id) {
+          setSelectedDepartment(String(employeeProfile.organization_assignment.department.id));
+        }
+      }).catch(() => {});
+    }
+  }, [employeeProfile]);
 
   // Component එක Load වෙද්දී Companies ටික ගෙන්න ගන්නවා
   useEffect(() => {

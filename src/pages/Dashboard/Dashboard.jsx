@@ -517,7 +517,7 @@ const Dashboard = ({ user, onLogout }) => {
     try {
       const response = await timeCardService.searchEmployeeTimeCards(empNo);
       if (response && Array.isArray(response)) {
-        setAttendanceRecords(response.slice(0, 7));
+        setAttendanceRecords(response); // full records pass කරනවා
         calculateLateCount(response);
       }
     } catch (error) {
@@ -530,15 +530,19 @@ const Dashboard = ({ user, onLogout }) => {
   const calculateLateCount = (records) => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    const lateThisMonth = records.filter((record) => {
-      const recordDate = new Date(record.date);
-      return (
-        recordDate.getMonth() === currentMonth &&
-        recordDate.getFullYear() === currentYear &&
-        record.late_status === "Late"
-      );
-    }).length;
-    setLateCount(lateThisMonth);
+    const lateDates = [...new Set(
+      records
+        .filter(record => {
+          const recordDate = new Date(record.date);
+          return (
+            recordDate.getMonth() === currentMonth &&
+            recordDate.getFullYear() === currentYear &&
+            record.status === 'Late Coming'
+          );
+        })
+        .map(r => r.date)
+    )];
+    setLateCount(lateDates.length);
   };
 
   useEffect(() => {
@@ -812,12 +816,7 @@ const Dashboard = ({ user, onLogout }) => {
       case "attendanceReport":
         return (
           <ProtectedComponent module="attendanceReport" action="view">
-            <AttendanceReport employeeProfile={employeeProfile} />
-            {user.role === "employee" ? (
-              <EmployeeAttendanceReport employeeProfile={employeeProfile} />
-            ) : (
-              <AttendanceReport />
-            )}
+            <AttendanceReport employeeProfile={user.role === "employee" ? employeeProfile : null} />
           </ProtectedComponent>
         );
       case "singleEntryReport":

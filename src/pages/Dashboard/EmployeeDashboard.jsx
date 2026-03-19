@@ -13,6 +13,7 @@ const EmployeeDashboard = ({
   const [otSummary, setOtSummary] = useState({ totalHours: 0, totalAmount: 0 });
   const [loanSummary, setLoanSummary] = useState({ loanAmount: 0, monthlyDeduction: 0, balance: 0 });
   const [showSalarySlip, setShowSalarySlip] = useState(false);
+  const [leaveRecords, setLeaveRecords] = useState([]);
 
   useEffect(() => {
     if (employeeProfile?.id) {
@@ -32,15 +33,11 @@ const EmployeeDashboard = ({
     try {
       const data = await getLeavesByEmployee(employeeProfile.id);
       if (data && Array.isArray(data)) {
-        calculateLeaveSummary(data);
+        setLeaveRecords(data);
       }
     } catch (error) {
       console.error('Error fetching leave records:', error);
     }
-  };
-
-  const calculateLeaveSummary = () => {
-    // Process leave data if needed in the future
   };
 
   const calculateAttendanceSummary = (records) => {
@@ -52,11 +49,13 @@ const EmployeeDashboard = ({
       return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
     });
 
-    const present = monthRecords.filter(r => r.status !== 'NPL' && r.status !== 'No Pay Leave').length;
-    const absent = monthRecords.filter(r => r.status === 'NPL' || r.status === 'No Pay Leave').length;
-    const late = monthRecords.filter(r => r.late_status === 'Late').length;
-    
-    setAttendanceSummary({ present, absent, late, total: monthRecords.length });
+    // unique dates ගන්නවා - IN/OUT records same day count වෙන එක avoid කරන්න
+    const uniqueDates = [...new Set(monthRecords.map(r => r.date))];
+    const absentDates = [...new Set(monthRecords.filter(r => r.status === 'Absent' || r.status === 'NPL' || r.status === 'No Pay Leave').map(r => r.date))];
+    const presentDates = uniqueDates.filter(d => !absentDates.includes(d));
+    const lateDates = [...new Set(monthRecords.filter(r => r.status === 'Late Coming').map(r => r.date))];
+
+    setAttendanceSummary({ present: presentDates.length, absent: absentDates.length, late: lateDates.length, total: uniqueDates.length });
   };
 
   const calculateOtSummary = () => {
@@ -243,6 +242,60 @@ const EmployeeDashboard = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Leave Records */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-green-600" />
+          My Leave Requests
+        </h3>
+        {leaveRecords.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">No leave records found</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Type</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Duration</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaveRecords.slice(0, 5).map((leave) => (
+                  <tr key={leave.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border text-sm">
+                      {leave.leave_date || `${leave.leave_from} to ${leave.leave_to}`}
+                    </td>
+                    <td className="px-4 py-2 border text-sm">{leave.leave_type}</td>
+                    <td className="px-4 py-2 border text-sm">
+                      {leave.is_short_leave ? 'Short Leave' : leave.is_half_day ? 'Half Day' : `${leave.leave_duration} day(s)`}
+                    </td>
+                    <td className="px-4 py-2 border text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        leave.status === 'Approved' || leave.status === 'HR_Approved'
+                          ? 'bg-green-100 text-green-800'
+                          : leave.status === 'Rejected'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {leave.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <button
+          onClick={() => setActiveItem('leaveMaster')}
+          className="w-full mt-4 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          View All / Apply Leave
+        </button>
       </div>
 
       {/* Attendance Summary */}

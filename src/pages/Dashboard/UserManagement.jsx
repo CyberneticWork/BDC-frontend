@@ -246,6 +246,7 @@ const UserManagement = () => {
     { id: "admin", name: "Administrator" },
     { id: "supervisor", name: "Supervisor" },
     { id: "hr", name: "HR" },
+    { id: "employee", name: "Employee" },
     { id: "user", name: "User" },
   ];
 
