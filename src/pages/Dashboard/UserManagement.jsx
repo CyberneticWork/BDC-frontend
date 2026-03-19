@@ -190,6 +190,7 @@ const UserFormModal = ({
                     errors.role ? "border-red-500" : "border-gray-300"
                   } rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white`}
                 >
+                  <option value="">Select Role</option>
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>
                       {role.name}

@@ -194,7 +194,7 @@ const Employeedocument = ({ onNext, onPrevious }) => {
                         <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg border-2 border-gray-200 flex flex-col items-center justify-center text-indigo-600 shadow-sm">
                           <File className="w-6 h-6 mb-1" />
                           <span className="text-xs font-medium">
-                            {doc.file.name.split(".").pop().toUpperCase()}
+                            {(doc.file?.name || doc.name || "").split(".").pop().toUpperCase()}
                           </span>
                         </div>
                       )}
