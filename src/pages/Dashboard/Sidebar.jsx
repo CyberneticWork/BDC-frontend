@@ -128,7 +128,7 @@ const Sidebar = ({
             { id: "leaveApproval", name: "Leave Approval" },
             { id: "hrLeaveApproval", name: "HR Leave Approval" },
             { id: "noPayManagement", name: "NoPay" },
-            { id: "leavecalendar", name: "Leave Calendar" },
+            ...(user.role !== 'employee' ? [{ id: "leavecalendar", name: "Leave Calendar" }] : []),
           ],
         },
         //add more i needed

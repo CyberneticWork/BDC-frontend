@@ -124,6 +124,7 @@ import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
 import EmployeeAttendanceReport from "@dashboard/EmployeeAttendanceReport";
 import LeaveSettings from "./LeaveSettings";
 import EmployeeSalaryRecordView from "@dashboard/EmployeeSalaryRecordView";
+import SalaryRecords from "@dashboard/SalaryRecords";
 
 // Check if this line is missing and add it
 import AbsentReport from "../Reports/TimeCard/AbsentReport";
@@ -1113,7 +1114,11 @@ const Dashboard = ({ user, onLogout }) => {
       case "salaryRecords":
         return (
           <ProtectedComponent module="salaryRecords" action="view">
-            <EmployeeSalaryRecordView employeeProfile={employeeProfile} />
+            {user.role === 'employee' ? (
+              <EmployeeSalaryRecordView employeeProfile={employeeProfile} />
+            ) : (
+              <SalaryRecords />
+            )}
           </ProtectedComponent>
         );
 

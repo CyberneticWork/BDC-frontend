@@ -19,11 +19,11 @@ import {
   Minus,
 } from "lucide-react";
 import {
-  fetchSalaryDataAPI,
   updateSalaryAPI,
   deleteSalaryRecordAPI,
 } from "@services/SalaryService";
-import { fetchCompanies as fetchCompaniesAPI } from "@services/ApiDataService";
+import { getSalaryData } from "@services/SalaryProcessService";
+import { fetchCompanies as fetchCompaniesAPI, fetchDepartmentsById } from "@services/ApiDataService";
 
 // Modal Component
 // Fixed Modal Component
@@ -115,11 +115,24 @@ const Modal = ({ isOpen, onClose, children }) => {
   );
 };
 
-const SalaryPage = () => {
+const SalaryPage = ({ employeeProfile }) => {
   const [salaryData, setSalaryData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [companies, setCompanies] = useState([]); // <-- new state
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [month, setMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+
+  const months = [
+    { value: '01', label: 'January' }, { value: '02', label: 'February' },
+    { value: '03', label: 'March' }, { value: '04', label: 'April' },
+    { value: '05', label: 'May' }, { value: '06', label: 'June' },
+    { value: '07', label: 'July' }, { value: '08', label: 'August' },
+    { value: '09', label: 'September' }, { value: '10', label: 'October' },
+    { value: '11', label: 'November' }, { value: '12', label: 'December' },
+  ];
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -128,7 +141,7 @@ const SalaryPage = () => {
   const [refreshInterval, setRefreshInterval] = useState(30);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
-  const [updatedRowIds, setUpdatedRowIds] = useState(new Set());
+  const [updatedRowIds] = useState(new Set());
   const [formData, setFormData] = useState({
     basic_salary: "",
     increment_active: false,
@@ -164,50 +177,33 @@ const SalaryPage = () => {
 
   // Fetch salary data
   const fetchSalaryData = async (isAutoRefresh = false) => {
-    if (!isAutoRefresh) {
-      setIsLoading(true);
-    } else {
-      setIsAutoRefreshing(true);
-    }
-
+    if (!selectedCompany || !month || !year) return;
+    if (!isAutoRefresh) setIsLoading(true);
+    else setIsAutoRefreshing(true);
     try {
-      const response = await fetchSalaryDataAPI();
-      
-      // Detect which rows have been updated
-      if (isAutoRefresh && salaryData.length > 0) {
-        const newUpdatedIds = new Set();
-        response.forEach((newRecord) => {
-          const oldRecord = salaryData.find(r => r.id === newRecord.id);
-          if (oldRecord) {
-            // Check if any key fields changed
-            if (
-              oldRecord.basic_salary !== newRecord.basic_salary ||
-              oldRecord.status !== newRecord.status ||
-              oldRecord.salary_breakdown?.net_salary !== newRecord.salary_breakdown?.net_salary
-            ) {
-              newUpdatedIds.add(newRecord.id);
-            }
-          }
-        });
-        
-        if (newUpdatedIds.size > 0) {
-          setUpdatedRowIds(newUpdatedIds);
-          // Remove highlight after 2 seconds
-          setTimeout(() => setUpdatedRowIds(new Set()), 2000);
-        }
-      }
-      
-      setSalaryData(response);
-      setFilteredData(response);
+      const data = await getSalaryData({
+        month,
+        year,
+        company_id: selectedCompany,
+        department_id: selectedDepartment || undefined,
+        search: searchTerm.trim() || undefined,
+      });
+      const rows = (data?.data || []).map(emp => ({
+        ...emp,
+        employee_no: emp.emp_no || emp.employee_no,
+        status: emp.status || 'active',
+        salary_breakdown: typeof emp.salary_breakdown === 'string'
+          ? JSON.parse(emp.salary_breakdown)
+          : (emp.salary_breakdown || {}),
+      }));
+      setSalaryData(rows);
+      setFilteredData(rows);
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Error fetching salary data:", error);
     } finally {
-      if (!isAutoRefresh) {
-        setIsLoading(false);
-      } else {
-        setIsAutoRefreshing(false);
-      }
+      if (!isAutoRefresh) setIsLoading(false);
+      else setIsAutoRefreshing(false);
     }
   };
 
@@ -421,93 +417,53 @@ const SalaryPage = () => {
     }
   };
 
-  // Filter data by company
+  // Client-side search filter
   useEffect(() => {
-    if (selectedCompany === "") {
-      setFilteredData(salaryData);
-    } else {
-      const filtered = salaryData.filter(
-        (item) => item.company_name === selectedCompany
-      );
-      setFilteredData(filtered);
-    }
-  }, [selectedCompany, salaryData]);
+    if (!salaryData || !Array.isArray(salaryData)) { setFilteredData([]); return; }
+    if (!searchTerm.trim()) { setFilteredData(salaryData); return; }
+    const term = searchTerm.toLowerCase();
+    setFilteredData(salaryData.filter(item =>
+      (item.employee_no && String(item.employee_no).toLowerCase().includes(term)) ||
+      (item.emp_no && String(item.emp_no).toLowerCase().includes(term)) ||
+      (item.full_name && item.full_name.toLowerCase().includes(term))
+    ));
+  }, [searchTerm, salaryData]);
 
-  // Replace the existing filter useEffect with this one that properly handles both filters
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, salaryData]);
+
+  // Load companies on mount
   useEffect(() => {
-    if (!salaryData || !Array.isArray(salaryData)) {
-      setFilteredData([]);
-      return;
-    }
+    fetchCompaniesAPI().then(data => setCompanies(Array.isArray(data) ? data : [])).catch(console.error);
+  }, []);
 
-    let filtered = [...salaryData];
-    
-    // Filter by company if selected
+  // Load departments when company changes
+  useEffect(() => {
     if (selectedCompany) {
-      filtered = filtered.filter(item => 
-        item.company_name === selectedCompany
-      );
+      fetchDepartmentsById(selectedCompany).then(setDepartments).catch(console.error);
+    } else {
+      setDepartments([]);
+      setSelectedDepartment("");
     }
-    
-    // Filter by employee number or name if search term exists
-    if (searchTerm && searchTerm.trim() !== "") {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(item => 
-        // Check employee_no if it exists
-        (item.employee_no && String(item.employee_no).toLowerCase().includes(term)) || 
-        // Also check full_name as a fallback
-        (item.full_name && item.full_name.toLowerCase().includes(term))
-      );
+  }, [selectedCompany]);
+
+  // Auto-fill from employeeProfile
+  useEffect(() => {
+    if (!employeeProfile) return;
+    const companyId = employeeProfile.organization_assignment?.company?.id;
+    const departmentId = employeeProfile.organization_assignment?.department?.id;
+    if (companyId) {
+      setSelectedCompany(String(companyId));
+      if (departmentId) setSelectedDepartment(String(departmentId));
+      setSearchTerm(employeeProfile.attendance_employee_no || '');
     }
-    
-    setFilteredData(filtered);
-  }, [selectedCompany, searchTerm, salaryData]);
+  }, [employeeProfile]);
 
-  // Reset current page when filters or data change
+  // Auto-load when employeeProfile company is set
   useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedCompany, searchTerm, salaryData]);
-
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchSalaryData();
-  }, []);
-
-  // Auto-refresh effect
-  useEffect(() => {
-    if (!autoRefreshEnabled) return;
-
-    const interval = setInterval(() => {
-      fetchSalaryData(true);
-    }, refreshInterval * 1000);
-
-    return () => clearInterval(interval);
-  }, [autoRefreshEnabled, refreshInterval]);
-
-  // Load companies from API (all companies in DB)
-  useEffect(() => {
-    const loadCompanies = async () => {
-      try {
-        const data = await fetchCompaniesAPI();
-        // fetchCompanies may return array of {id,name} or array of names depending on backend
-        // Normalize to array of names to keep existing filter behavior (matches company_name)
-        const normalized = Array.isArray(data)
-          ? data.map((c) => (typeof c === "string" ? c : c.name ?? ""))
-              .filter(Boolean)
-          : [];
-        setCompanies(normalized.sort());
-      } catch (err) {
-        console.error("Failed to load companies:", err);
-      }
-    };
-    loadCompanies();
-  }, []);
-
-  const handleRefresh = async () => {
-    setSelectedCompany("");
-    setSearchTerm("");
-    await fetchSalaryData();
-  };
+    if (employeeProfile && selectedCompany && month && year) {
+      fetchSalaryData();
+    }
+  }, [selectedCompany, employeeProfile]);
 
   // Paginated subset derived from filteredData
   const totalPages = Math.max(1, Math.ceil((filteredData?.length || 0) / rowsPerPage));
@@ -699,68 +655,58 @@ const SalaryPage = () => {
         </div>
       </div>
 
-      {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <label className="block text-sm font-medium text-gray-700 md:mr-3 md:mb-0">
-            Filter Records
-          </label>
-
-          <div className="flex-1 flex flex-col md:flex-row items-stretch gap-3">
-            <div className="relative flex-1">
-              <Building2
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <select
-                value={selectedCompany}
-                onChange={(e) => setSelectedCompany(e.target.value)}
-                className="w-full pl-10 pr-8 h-10 border border-gray-300 rounded-lg text-base appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="">All Companies</option>
-                {companies.map((company) => (
-                  <option key={company} value={company}>
-                    {company}
-                  </option>
-                ))}
+      {/* Filter Section - admin only */}
+      {!employeeProfile && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Company *</label>
+              <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)}
+                className="w-full px-3 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                <option value="">Select Company</option>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
-
-            {/* Employee Number Search Input */}
-            <div className="relative flex-1">
-              <User
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by employee ID..."
-                className="w-full pl-10 pr-3 h-10 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
+              <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}
+                disabled={!selectedCompany}
+                className="w-full px-3 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100">
+                <option value="">All Departments</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleRefresh}
-                className="px-4 py-2.5 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-              >
-                <RefreshCw size={18} className="mr-2" />
-                Refresh
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Month *</label>
+              <select value={month} onChange={(e) => setMonth(e.target.value)}
+                className="w-full px-3 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                {months.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Year *</label>
+              <input type="number" value={year} onChange={(e) => setYear(e.target.value)}
+                className="w-full px-3 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Search</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Name / ID..."
+                  className="w-full pl-9 pr-3 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            <div className="flex items-end">
+              <button onClick={fetchSalaryData} disabled={!selectedCompany}
+                className="w-full px-4 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm font-medium">
+                <RefreshCw size={16} />
+                Load
               </button>
-              {/* <button
-                onClick={handleDownloadCSV}
-                className="px-4 py-2.5 h-10 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
-              >
-                <FileText size={18} className="mr-2" />
-                Download CSV
-              </button> */}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Loading State */}
       {isLoading && (
@@ -853,34 +799,35 @@ const SalaryPage = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {/* Edit button - disabled for issued records */}
-                      <button
-                        onClick={() => !isIssued(record) && handleEdit(record)}
-                        className={`${isIssued(record) ? "opacity-50 cursor-not-allowed mr-4" : "text-blue-600 hover:text-blue-900 mr-4"}`}
-                        title={isIssued(record) ? "Cannot edit issued record" : "Edit"}
-                        aria-disabled={isIssued(record)}
-                        type="button"
-                      >
-                        <Edit size={18} />
-                      </button>
-
-                      {/* Delete button - disabled for issued records */}
-                      <button
-                        onClick={() => {
-                          if (isIssued(record)) {
-                            alert("This salary record cannot be deleted because it is already issued.");
-                            return;
-                          }
-                          setCurrentRecord(record);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className={`${isIssued(record) ? "opacity-50 cursor-not-allowed" : "text-red-600 hover:text-red-900"}`}
-                        title={isIssued(record) ? "Cannot delete issued record" : "Delete"}
-                        aria-disabled={isIssued(record)}
-                        type="button"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {!employeeProfile && (
+                        <>
+                          <button
+                            onClick={() => !isIssued(record) && handleEdit(record)}
+                            className={`${isIssued(record) ? "opacity-50 cursor-not-allowed mr-4" : "text-blue-600 hover:text-blue-900 mr-4"}`}
+                            title={isIssued(record) ? "Cannot edit issued record" : "Edit"}
+                            aria-disabled={isIssued(record)}
+                            type="button"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (isIssued(record)) {
+                                alert("This salary record cannot be deleted because it is already issued.");
+                                return;
+                              }
+                              setCurrentRecord(record);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className={`${isIssued(record) ? "opacity-50 cursor-not-allowed" : "text-red-600 hover:text-red-900"}`}
+                            title={isIssued(record) ? "Cannot delete issued record" : "Delete"}
+                            aria-disabled={isIssued(record)}
+                            type="button"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1100,6 +1047,7 @@ const SalaryPage = () => {
                     </div>
                   </div>
 
+                  {/* BR Status - hidden
                   <div className="bg-gray-50 p-2 rounded-md border border-gray-200">
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       BR Status
@@ -1133,6 +1081,7 @@ const SalaryPage = () => {
                       </div>
                     </div>
                   </div>
+                  */}
                 </div>
 
                 {/* Third column - Overtime and loan */}
