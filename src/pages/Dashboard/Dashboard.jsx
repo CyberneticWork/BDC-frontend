@@ -810,16 +810,17 @@ const Dashboard = ({ user, onLogout }) => {
         */}
         
       case "attendanceReport":
-        return (
-          <ProtectedComponent module="attendanceReport" action="view">
-            <AttendanceReport employeeProfile={employeeProfile} />
-            {user.role === "employee" ? (
-              <EmployeeAttendanceReport employeeProfile={employeeProfile} />
-            ) : (
-              <AttendanceReport />
-            )}
-          </ProtectedComponent>
-        );
+  return (
+    <ProtectedComponent module="attendanceReport" action="view">
+      {user.role === "employee" ? (
+        /* Employee kenek nam eyage report eka witharai */
+        <EmployeeAttendanceReport employeeProfile={employeeProfile} />
+      ) : (
+        /* Admin hari HR hari nam loku report eka witharai */
+        <AttendanceReport employeeProfile={employeeProfile} />
+      )}
+    </ProtectedComponent>
+  );
       case "singleEntryReport":
         return (
           <ProtectedComponent module="singleEntryReport" action="view">

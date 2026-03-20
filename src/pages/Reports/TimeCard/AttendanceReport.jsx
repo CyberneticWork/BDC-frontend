@@ -4,7 +4,7 @@ import {
   getMonthlyAttendanceRecords,
   updateAttendanceApprovalStatus,
 } from "@services/Reports/AttendanceReportService";
-import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService"; // අලුතින් import කළා
+import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService"; //  import 
 import {
   Calendar,
   Search,
