@@ -10,6 +10,19 @@ const getAllRosters = async () => {
   }
 };
 
+
+const getEmployeesForRoster = async (params) => {
+  try {
+    const response = await axios.get("/emp/search", { params }); 
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching employees for roster:", error);
+    throw error;
+  }
+};
+
+
+
 const createRoster = async (rosterData) => {
   try {
     const response = await axios.post(`/rosters`, rosterData);
@@ -98,4 +111,5 @@ export default {
   bulkDeleteRosters,
   getTrashedRosters,
   restoreRoster,
+  getEmployeesForRoster, //new
 };

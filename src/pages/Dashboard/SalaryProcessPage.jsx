@@ -225,7 +225,9 @@ const SalaryProcessPage = () => {
        label: `${d.name} (${d.category || 'General'})`,
        amount: Number(d.amount || 0)
     }));
+    
 
+    /*
     const bonusDeductions = [
       { label: "Major Late Deduction (>30m)", amount: Number(breakdown.major_late_deduction || 0) },
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
@@ -235,6 +237,22 @@ const SalaryProcessPage = () => {
       ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
       ...customDeductionsList 
     ].filter((item) => item.amount > 0);
+*/
+    
+
+    const bonusDeductions = [
+      { label: "Major Late Deduction (>30m)", amount: Number(breakdown.major_late_deduction || 0) },
+      { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
+      { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
+      { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
+      // --- සෙනසුරාදා No-pay එක Bonus එකෙන් කැපෙන බව පෙන්වීම ---
+      { label: "Saturday No-Pay Deduction", amount: Number(breakdown.saturday_nopay_deduction || 0) },
+      // --------------------------------------------------------
+      { label: "Loan Interest", amount: loanInterest }, 
+      ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
+      ...customDeductionsList 
+    ].filter((item) => item.amount > 0);
+
 
     const otEarnings = [
       { label: `Morning OT (${breakdown.ot_morning_hours || 0} hrs)`, amount: Number(breakdown.ot_morning_fees || 0) },

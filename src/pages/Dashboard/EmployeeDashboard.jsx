@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, Clock, DollarSign, UserCheck, CreditCard, Building2, Briefcase, BarChart3, CheckCircle, XCircle, AlertCircle, Edit } from 'lucide-react';
 import { getLeavesByEmployee } from '@src/services/LeaveMaster';
+import { fetchSalaryDataAPI } from '@src/services/SalaryService';
 
 const EmployeeDashboard = ({ 
   employeeProfile, 
@@ -13,12 +14,15 @@ const EmployeeDashboard = ({
   const [otSummary, setOtSummary] = useState({ totalHours: 0, totalAmount: 0 });
   const [loanSummary, setLoanSummary] = useState({ loanAmount: 0, monthlyDeduction: 0, balance: 0 });
   const [showSalarySlip, setShowSalarySlip] = useState(false);
+  const [leaveRecords, setLeaveRecords] = useState([]);
+  const [latestSalaryRecord, setLatestSalaryRecord] = useState(null);
 
   useEffect(() => {
     if (employeeProfile?.id) {
       fetchLeaveRecords();
       calculateOtSummary();
       calculateLoanSummary();
+      fetchLatestSalaryRecord();
     }
   }, [employeeProfile?.id, employeeProfile?.loans]);
 
@@ -28,19 +32,35 @@ const EmployeeDashboard = ({
     }
   }, [attendanceRecords]);
 
+  const fetchLatestSalaryRecord = async () => {
+    try {
+      const response = await fetchSalaryDataAPI();
+      if (response && Array.isArray(response)) {
+        const empRecords = response.filter(
+          r => r.employee_no === employeeProfile?.attendance_employee_no
+        );
+        if (empRecords.length > 0) {
+          empRecords.sort((a, b) => {
+            if (b.year !== a.year) return b.year - a.year;
+            return b.month - a.month;
+          });
+          setLatestSalaryRecord(empRecords[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching salary record:', error);
+    }
+  };
+
   const fetchLeaveRecords = async () => {
     try {
       const data = await getLeavesByEmployee(employeeProfile.id);
       if (data && Array.isArray(data)) {
-        calculateLeaveSummary(data);
+        setLeaveRecords(data);
       }
     } catch (error) {
       console.error('Error fetching leave records:', error);
     }
-  };
-
-  const calculateLeaveSummary = () => {
-    // Process leave data if needed in the future
   };
 
   const calculateAttendanceSummary = (records) => {
@@ -52,11 +72,13 @@ const EmployeeDashboard = ({
       return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
     });
 
-    const present = monthRecords.filter(r => r.status !== 'NPL' && r.status !== 'No Pay Leave').length;
-    const absent = monthRecords.filter(r => r.status === 'NPL' || r.status === 'No Pay Leave').length;
-    const late = monthRecords.filter(r => r.late_status === 'Late').length;
-    
-    setAttendanceSummary({ present, absent, late, total: monthRecords.length });
+    // unique dates ගන්නවා - IN/OUT records same day count වෙන එක avoid කරන්න
+    const uniqueDates = [...new Set(monthRecords.map(r => r.date))];
+    const absentDates = [...new Set(monthRecords.filter(r => r.status === 'Absent' || r.status === 'NPL' || r.status === 'No Pay Leave').map(r => r.date))];
+    const presentDates = uniqueDates.filter(d => !absentDates.includes(d));
+    const lateDates = [...new Set(monthRecords.filter(r => r.status === 'Late Coming').map(r => r.date))];
+
+    setAttendanceSummary({ present: presentDates.length, absent: absentDates.length, late: lateDates.length, total: uniqueDates.length });
   };
 
   const calculateOtSummary = () => {
@@ -220,16 +242,16 @@ const EmployeeDashboard = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Allowances</span>
-                <span className="text-sm font-medium text-green-600">+ Rs. 500.00</span>
+                <span className="text-sm font-medium text-green-600">+ Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_allowances || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Deductions</span>
-                <span className="text-sm font-medium text-red-600">- Rs. 1,000.00</span>
+                <span className="text-sm font-medium text-red-600">- Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_deductions || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between pt-3 border-t border-gray-200">
                 <span className="text-base font-bold text-gray-900">Net Salary</span>
                 <span className="text-base font-bold text-green-600">
-                  Rs. {(parseFloat(employeeProfile.compensation?.basic_salary || 0) + 500 - 1000).toLocaleString()}
+                  Rs. {latestSalaryRecord ? parseFloat(latestSalaryRecord.salary_breakdown?.net_salary || 0).toLocaleString() : (parseFloat(employeeProfile.compensation?.basic_salary || 0)).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -243,6 +265,60 @@ const EmployeeDashboard = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Leave Records */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-green-600" />
+          My Leave Requests
+        </h3>
+        {leaveRecords.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">No leave records found</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Type</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Duration</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaveRecords.slice(0, 5).map((leave) => (
+                  <tr key={leave.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border text-sm">
+                      {leave.leave_date || `${leave.leave_from} to ${leave.leave_to}`}
+                    </td>
+                    <td className="px-4 py-2 border text-sm">{leave.leave_type}</td>
+                    <td className="px-4 py-2 border text-sm">
+                      {leave.is_short_leave ? 'Short Leave' : leave.is_half_day ? 'Half Day' : `${leave.leave_duration} day(s)`}
+                    </td>
+                    <td className="px-4 py-2 border text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        leave.status === 'Approved' || leave.status === 'HR_Approved'
+                          ? 'bg-green-100 text-green-800'
+                          : leave.status === 'Rejected'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {leave.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <button
+          onClick={() => setActiveItem('leaveMaster')}
+          className="w-full mt-4 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          View All / Apply Leave
+        </button>
       </div>
 
       {/* Attendance Summary */}
@@ -360,11 +436,11 @@ const EmployeeDashboard = ({
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                       <span className="text-gray-700 text-sm">Other Allowances</span>
-                      <span className="font-semibold text-green-600">Rs. 500.00</span>
+                      <span className="font-semibold text-green-600">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_allowances || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center pt-3 bg-green-50 px-3 py-2 rounded-lg">
                       <span className="font-bold text-gray-900">Total Earnings</span>
-                      <span className="font-bold text-green-600 text-lg">Rs. {(parseFloat(employeeProfile?.compensation?.basic_salary || 0) + 500).toLocaleString()}</span>
+                      <span className="font-bold text-green-600 text-lg">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.gross_salary || employeeProfile?.compensation?.basic_salary || 0).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -378,23 +454,23 @@ const EmployeeDashboard = ({
                   <div className="space-y-3">
                     <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                       <span className="text-gray-700 text-sm">EPF (8%)</span>
-                      <span className="font-semibold text-gray-900">Rs. {(((employeeProfile?.compensation?.basic_salary || 0) * 8) / 100).toLocaleString()}</span>
+                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.epf_employee_deduction || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                       <span className="text-gray-700 text-sm">Loan Installment</span>
-                      <span className="font-semibold text-gray-900">Rs. {loanSummary.monthlyDeduction.toLocaleString()}</span>
+                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.loan_installment || loanSummary.monthlyDeduction || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                       <span className="text-gray-700 text-sm">Stamp Duty</span>
-                      <span className="font-semibold text-gray-900">Rs. 25.00</span>
+                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.stamp || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                       <span className="text-gray-700 text-sm">Other Deductions</span>
-                      <span className="font-semibold text-gray-900">Rs. 1,000.00</span>
+                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_fixed_deductions || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center pt-3 bg-red-50 px-3 py-2 rounded-lg">
                       <span className="font-bold text-gray-900">Total Deductions</span>
-                      <span className="font-bold text-red-600 text-lg">Rs. {((((employeeProfile?.compensation?.basic_salary || 0) * 8) / 100) + loanSummary.monthlyDeduction + 25 + 1000).toLocaleString()}</span>
+                      <span className="font-bold text-red-600 text-lg">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_deductions || 0).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -408,7 +484,7 @@ const EmployeeDashboard = ({
                     <p className="text-blue-100 text-sm mt-1">Amount to be credited</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-5xl font-bold">Rs. {(parseFloat(employeeProfile?.compensation?.basic_salary || 0) + 500 - (parseFloat(employeeProfile?.compensation?.basic_salary || 0) * 8) / 100 - parseFloat(loanSummary.monthlyDeduction || 0) - 25 - 1000).toLocaleString()}</p>
+                    <p className="text-5xl font-bold">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.net_salary || employeeProfile?.compensation?.basic_salary || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
