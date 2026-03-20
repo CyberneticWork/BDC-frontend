@@ -245,7 +245,7 @@ const SalaryProcessPage = () => {
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
       { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
-      // --- සෙනසුරාදා No-pay එක Bonus එකෙන් කැපෙන බව පෙන්වීම ---
+      
       { label: "Saturday No-Pay Deduction", amount: Number(breakdown.saturday_nopay_deduction || 0) },
       // --------------------------------------------------------
       { label: "Loan Interest", amount: loanInterest }, 
