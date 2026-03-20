@@ -1116,7 +1116,7 @@ const CreateNewAllowance = () => {
                   </div>
                 )}
               </div>
-              {/* <div>
+               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Amount *
                 </label>
@@ -1134,7 +1134,8 @@ const CreateNewAllowance = () => {
                     {formErrors.add.amount[0]}
                   </p>
                 )}
-              </div> */}
+              </div> 
+              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Company *

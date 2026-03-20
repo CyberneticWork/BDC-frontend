@@ -295,6 +295,11 @@ const CreateNewBonus = () => {
       if (!newBonus.bonus_name.trim()) errors.bonus_name = ["Bonus name is required"];
       if (!newBonus.company_id) errors.company_id = ["Company is required"];
 
+      // Amount Validation
+      if (newBonus.amount === "" || isNaN(newBonus.amount) || Number(newBonus.amount) < 0) {
+        errors.amount = ["Amount must be a valid number and >= 0"];
+      }
+
       // Date validation
       if (newBonus.bonus_type === "fixed") {
         if (!newBonus.fixed_date) errors.fixed_date = ["Fixed date is required"];
@@ -312,6 +317,7 @@ const CreateNewBonus = () => {
 
       if (Object.keys(errors).length > 0) {
         setFormErrors((prev) => ({ ...prev, add: errors }));
+        setIsProcessing(false);
         return;
       }
 
@@ -370,6 +376,11 @@ const CreateNewBonus = () => {
       if (!editBonus.bonus_name.trim()) errors.bonus_name = ["Bonus name is required"];
       if (!editBonus.company_id) errors.company_id = ["Company is required"];
 
+      // Amount Validation
+      if (editBonus.amount === "" || isNaN(editBonus.amount) || Number(editBonus.amount) < 0) {
+        errors.amount = ["Amount must be a valid number and >= 0"];
+      }
+
       // Date validation
       if (editBonus.bonus_type === "fixed") {
         if (!editBonus.fixed_date) errors.fixed_date = ["Fixed date is required"];
@@ -387,6 +398,7 @@ const CreateNewBonus = () => {
 
       if (Object.keys(errors).length > 0) {
         setFormErrors((prev) => ({ ...prev, edit: errors }));
+        setIsProcessing(false);
         return;
       }
 
@@ -445,6 +457,7 @@ const CreateNewBonus = () => {
     const formattedBonus = {
       ...bonus,
       department_id: bonus.department_id || "",
+      amount: bonus.amount || "", // Ensure amount is passed to edit form
       fixed_date: formatDateForInput(bonus.fixed_date),
       variable_from: formatDateForInput(bonus.variable_from),
       variable_to: formatDateForInput(bonus.variable_to),
@@ -892,6 +905,29 @@ const CreateNewBonus = () => {
                 )}
               </div>
 
+              {/* Amount Field Added Back */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Amount *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newBonus.amount}
+                  onChange={(e) => handleInputChange("amount", e.target.value)}
+                  className={`w-full px-4 py-3 border ${
+                    formErrors.add.amount ? "border-red-500" : "border-gray-200"
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  placeholder="Enter bonus amount"
+                />
+                {formErrors.add.amount && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {formErrors.add.amount[0]}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Bonus Type *
@@ -908,7 +944,6 @@ const CreateNewBonus = () => {
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Date Configuration *
@@ -1115,6 +1150,29 @@ const CreateNewBonus = () => {
                 )}
               </div>
 
+              {/* Amount Field Added Back */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Amount *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editBonus.amount}
+                  onChange={(e) => handleEditInputChange("amount", e.target.value)}
+                  className={`w-full px-4 py-3 border ${
+                    formErrors.edit.amount ? "border-red-500" : "border-gray-200"
+                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  placeholder="Enter bonus amount"
+                />
+                {formErrors.edit.amount && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {formErrors.edit.amount[0]}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Bonus Type *
@@ -1175,7 +1233,6 @@ const CreateNewBonus = () => {
                           <p className="mt-1 text-sm text-red-600">{formErrors.edit.variable_from[0]}</p>
                         )}
                       </div>
-
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           To Date
@@ -1197,61 +1254,6 @@ const CreateNewBonus = () => {
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Amount *
-                </label>
-                <input
-                  type="number"
-                  value={editBonus.amount}
-                  onChange={(e) => handleEditInputChange("amount", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.amount ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
-                  placeholder="Enter bonus amount"
-                />
-                {formErrors.edit.amount && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.edit.amount[0]}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Company *
-                </label>
-                <select
-                  value={editBonus.company_id}
-                  onChange={(e) => handleEditInputChange("company_id", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.company_id ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
-                >
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Department
-                </label>
-                <select
-                  value={editBonus.department_id}
-                  onChange={(e) => handleEditInputChange("department_id", e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all"
-                >
-                  <option value="">None / Select Department</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
@@ -1411,7 +1413,6 @@ const CreateNewBonus = () => {
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleImportSubmit}
                 disabled={!importFile || isProcessing}
