@@ -29,7 +29,10 @@ const createRoster = async (rosterData) => {
     return response.data.data;
   } catch (error) {
     console.error("Error creating roster:", error);
-    throw error.response?.data?.errors || error.message;
+    console.error("Error response data:", error.response?.data);
+    console.error("Error response status:", error.response?.status);
+    console.error("Error response message:", error.response?.data?.message);
+    throw error.response?.data?.errors || error.response?.data?.message || error.message;
   }
 };
 
