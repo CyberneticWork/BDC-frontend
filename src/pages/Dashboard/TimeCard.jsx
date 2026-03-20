@@ -302,6 +302,8 @@ const TimeCard = () => {
     }
   };
 
+
+  /*
   // Handle edit open
   const handleEdit = (record, index) => {
     console.log('Editing record:', record); // Debug log
@@ -420,6 +422,130 @@ const TimeCard = () => {
       });
     }
   };
+*/
+
+  // Handle edit open
+  const handleEdit = (record, index) => {
+    console.log('Editing record:', record); // Debug log
+    
+    setEditRecord({ ...record, index });
+    
+    // Set date - ensure proper format for date input (YYYY-MM-DD)
+    const formattedDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+    setEditDate(formattedDate);
+    
+    // Set entry based on record data
+    setEditEntry(record.entry || '');
+    
+    // Set status - handle both string and numeric entry values
+    let statusValue = record.status || '';
+    if (!statusValue) {
+      // Derive status from entry if status is missing
+      if (record.entry === '1' || record.entry === 1) {
+        statusValue = 'IN';
+      } else if (record.entry === '2' || record.entry === 2) {
+        statusValue = 'OUT';
+      }
+    }
+    setEditStatus(statusValue);
+    
+    // Set time based on status and inOut field
+    const timeValue = record.time || '';
+    if (record.inOut === 'IN' || statusValue === 'IN') {
+      setEditInTime(timeValue);
+      setEditOutTime(''); // Clear out time for IN records
+    } else if (record.inOut === 'OUT' || statusValue === 'OUT') {
+      setEditOutTime(timeValue);
+      setEditInTime(''); // Clear in time for OUT records
+    } else {
+      // For other statuses, set both to the same time
+      setEditInTime(timeValue);
+      setEditOutTime(timeValue);
+    }
+    
+    setShowEditModal(true);
+  };
+
+  // Handle edit save
+  const handleEditSave = async () => {
+    try {
+      // Validate required fields
+      if (!editDate) {
+        alert('Date is required');
+        return;
+      }
+      if (!editStatus) {
+        alert('Status is required');
+        return;
+      }
+      
+      // Determine the time to send based on status
+      let timeToSend = '';
+      if (editStatus === 'IN') {
+        timeToSend = editInTime;
+      } else if (editStatus === 'OUT' || editStatus === 'Early OUT') {
+        timeToSend = editOutTime;
+      } else if (editStatus === 'Absent') {
+        timeToSend = '00:00:00'; // Default time for absent records
+      }
+      
+      // Validate time for non-absent records
+      if (editStatus !== 'Absent' && !timeToSend) {
+        alert('Time is required for this status');
+        return;
+      }
+      
+      // Ensure time is in HH:MM:SS format
+      if (timeToSend && !timeToSend.includes(':')) {
+        alert('Please enter a valid time');
+        return;
+      }
+      
+      const payload = {
+        date: editDate,
+        time: formatTimeForBackend(timeToSend),
+        entry: editEntry,
+        status: editStatus,
+      };
+      
+      console.log('Saving payload:', payload); // Debug log
+      
+      await timeCardService.updateTimeCard(editRecord.id, payload);
+      
+      // Refresh data
+      const updated = await fetchTimeCards();
+
+      // PREVENT resetting to page 1 on this refresh
+      preventPaginationReset.current = true;
+      setAttendanceData(updated);
+      setFilteredData(updated);
+      
+      // Close modal
+      setShowEditModal(false);
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Attendance record updated successfully.',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (e) {
+      console.error('Error updating record:', e);
+      const errorMessage = e.response?.data?.message || e.message || 'Failed to update attendance record';
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: errorMessage,
+      });
+    }
+  };
+
+
+
+
 
   // Helper to sort by date, time, empNo, and entry
 
