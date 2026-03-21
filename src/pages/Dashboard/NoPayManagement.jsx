@@ -778,7 +778,7 @@ const NoPayManagement = () => {
                 Month/Year view shows saved records. Monthly generate button will create missing records for the whole month.
               </div>
             </div>
-
+           {/*---*/}
             <div className="relative flex-grow mb-6">
               <input
                 type="text"
