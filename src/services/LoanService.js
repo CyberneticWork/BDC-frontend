@@ -23,6 +23,16 @@ export const fetchLoans = async () => {
   }
 };
 
+export const fetchEmployeeLoans = async (employeeNo) => {
+  try {
+    const response = await axios.get(`${API_PREFIX}/by-employee/${employeeNo}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching employee loans:', error);
+    return [];
+  }
+};
+
 export const fetchEmployeeNameByNo = async (employeeNo) => {
   try {
     const response = await axios.get(`/loans/employee-by-number/${employeeNo}`);

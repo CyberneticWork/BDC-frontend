@@ -45,6 +45,7 @@ import ShiftSchedule from "@dashboard/ShiftSchedule";
 import ShiftOvertimeRates from "@dashboard/ShiftOvertimeRates";
 import CreateNewAllowance from "@dashboard/CreateNewAllowance";
 import EmployeeLoan from "@dashboard/EmployeeLoan";
+import EmployeeLoanView from "@dashboard/EmployeeLoanView";
 import TimeCard from "@dashboard/TimeCard";
 import Overtime from "@dashboard/Overtime";
 import Department from "@dashboard/Department";
@@ -667,7 +668,11 @@ const Dashboard = ({ user, onLogout }) => {
       case "viewLoans":
         return (
           <ProtectedComponent module="viewLoans" action="view">
-            <ViewLoans />
+            {user.role === 'employee' ? (
+              <EmployeeLoanView employeeProfile={employeeProfile} />
+            ) : (
+              <ViewLoans />
+            )}
           </ProtectedComponent>
         );
       case "noPayManagement":

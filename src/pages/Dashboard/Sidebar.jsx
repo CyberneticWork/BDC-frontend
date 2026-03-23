@@ -62,18 +62,52 @@ const Sidebar = ({
     settings: false,
   });
 
-  const menuItems = useMemo(() => [
+  const menuItems = useMemo(() => {
+    if (user.role === 'employee') {
+      return [
+        { id: "dashboard", name: "Dashboard", icon: Home },
+        { id: "myProfile", name: "My Profile", icon: User },
+        { id: "changePassword", name: "Change Password", icon: Key },
+        {
+          id: "hrMaster",
+          name: "My Info",
+          icon: Users,
+          subItems: [
+            {
+              id: "loans",
+              name: "Loans",
+              subItems: [
+                { id: "viewLoans", name: "My Loans" },
+              ],
+            },
+            {
+              id: "salaryProcess",
+              name: "Salary",
+              subItems: [
+                { id: "salaryRecords", name: "Salary Records & Download" },
+                { id: "downloadSalarySlip", name: "Salary Slip" },
+              ],
+            },
+            {
+              id: "timeAttendance",
+              name: "Time & Attendance",
+              subItems: [
+                { id: "leaveMaster", name: "Leave Form" },
+                { id: "attendanceReport", name: "My Attendance" },
+              ],
+            },
+          ],
+        },
+      ];
+    }
+
+    return [
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
-    ...(user.role === 'employee' ? [
-      { id: "myProfile", name: "My Profile", icon: User, badge: null },
-      { id: "changePassword", name: "Change Password", icon: Key, badge: null },
-    ] : []),
     { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
-    // { id: "user", name: "Users", icon: User2, badge: null },
     {
       id: "hrMaster",
-      name: user.role === 'employee' ? "Employee Master" : "HRM Master",
+      name: "HRM Master",
       icon: Users,
       badge: null,
       subItems: [
@@ -85,11 +119,9 @@ const Sidebar = ({
         { id: "shiftOvertimeRates", name: "Shift OT Rates" },
         { id: "resignation", name: "Resignation" },
         { id: "termination", name: "Termination" },
-        // { id: "userManagement", name: "User Management", icon: Users },
         {
           id: "allowanceDeduction",
           name: "Compensation",
-         
           subItems: [
             { id: "createNewAllowance", name: "Allowance" },
             { id: "createNewDeduction", name: "Deduction" },
@@ -99,28 +131,22 @@ const Sidebar = ({
         {
           id: "loans",
           name: "Loans",
-        
           subItems: [
             { id: "viewLoans", name: "View Loans" },
             { id: "employeeLoan", name: "Employee Wise Loan" },
           ],
         },
-
         {
           id: "salaryProcess",
           name: "Salary Process",
-         
           subItems: [
             { id: "SalaryProcessPage", name: "Salary Process" },
             { id: "SalaryPage", name: "View Salary" },
-            ...(user.role === 'employee' ? [{ id: "salaryRecords", name: "Salary Records" }] : []),
-            ...(user.role === 'employee' ? [{ id: "downloadSalarySlip", name: "Download Salary Slip" }] : []),
           ],
         },
         {
           id: "timeAttendance",
           name: "Time Attendance",
-        
           subItems: [
             { id: "TimeCard", name: "Time Card" },
             { id: "Overtime", name: "Over Time" },
@@ -128,10 +154,9 @@ const Sidebar = ({
             { id: "leaveApproval", name: "Leave Approval" },
             { id: "hrLeaveApproval", name: "HR Leave Approval" },
             { id: "noPayManagement", name: "NoPay" },
-            ...(user.role !== 'employee' ? [{ id: "leavecalendar", name: "Leave Calendar" }] : []),
+            { id: "leavecalendar", name: "Leave Calendar" },
           ],
         },
-        //add more i needed
       ],
     },
     // Commented out - Not in use
@@ -288,8 +313,6 @@ const Sidebar = ({
         },
       ],
     },
-    // Commented out - Not in use
-    // { id: "utilities", name: "Utilities", icon: FileText, badge: null },
     {
       id: "settings",
       name: "Settings",
@@ -299,7 +322,8 @@ const Sidebar = ({
         { id: "leaveSettings", name: "Leave Settings" },
       ],
     },
-  ], [user.role]);
+    ];
+  }, [user.role]);
 
   // NEW: auto-expand nested groups based on the current activeItem (works on reload)
   useEffect(() => {
@@ -459,6 +483,9 @@ const Sidebar = ({
 
   // Recursive function to filter menu items based on permissions
   const filterMenuItems = (items, ancestors = []) => {
+    // Employee role: menu already pre-filtered, skip permission checks
+    if (user.role === 'employee') return items;
+
     return items
       .map((item) => {
         // Always show these items without permission check

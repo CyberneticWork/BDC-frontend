@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import timeCardService from '@src/services/timeCardService';
 
 
 const EmployeeAttendanceReport = ({ employeeProfile }) => {
@@ -21,11 +22,33 @@ const EmployeeAttendanceReport = ({ employeeProfile }) => {
       const response = await timeCardService.searchEmployeeTimeCards(employeeProfile.attendance_employee_no);
       if (response && Array.isArray(response)) {
         const filtered = response.filter(record => {
-          const recordDate = new Date(record.date);
+          const d = record.date || record.actual_date;
+          if (!d) return false;
+          const recordDate = new Date(d);
           return recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear;
         });
-        setAttendanceRecords(filtered);
-        calculateSummary(filtered);
+        // Group by date - IN/OUT records same date ekama group karanawa
+        const grouped = {};
+        filtered.forEach(record => {
+          const dateKey = record.actual_date || record.date;
+          if (!grouped[dateKey]) {
+            grouped[dateKey] = { date: dateKey, checkIn: null, checkOut: null, status: null, isLate: false };
+          }
+          const s = record.status;
+          if (s === 'IN' || s === 'Late Coming') {
+            grouped[dateKey].checkIn = record.time;
+            grouped[dateKey].status = s;
+            if (s === 'Late Coming') grouped[dateKey].isLate = true;
+          } else if (s === 'OUT' || s === 'Early OUT') {
+            grouped[dateKey].checkOut = record.time;
+            if (!grouped[dateKey].status) grouped[dateKey].status = s;
+          } else if (s === 'NPL' || s === 'No Pay Leave' || s === 'Absent') {
+            grouped[dateKey].status = s;
+          }
+        });
+        const groupedRecords = Object.values(grouped).sort((a, b) => new Date(b.date) - new Date(a.date));
+        setAttendanceRecords(groupedRecords);
+        calculateSummary(groupedRecords);
       }
     } catch (error) {
       console.error('Error fetching attendance records:', error);
@@ -35,9 +58,9 @@ const EmployeeAttendanceReport = ({ employeeProfile }) => {
   };
 
   const calculateSummary = (records) => {
-    const present = records.filter(r => r.status !== 'NPL' && r.status !== 'No Pay Leave').length;
-    const absent = records.filter(r => r.status === 'NPL' || r.status === 'No Pay Leave').length;
-    const late = records.filter(r => r.late_status === 'Late').length;
+    const absent = records.filter(r => r.status === 'NPL' || r.status === 'No Pay Leave' || r.status === 'Absent').length;
+    const present = records.length - absent;
+    const late = records.filter(r => r.isLate).length;
     setSummary({ present, absent, late, total: records.length });
   };
 
@@ -45,12 +68,14 @@ const EmployeeAttendanceReport = ({ employeeProfile }) => {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
   const getStatusColor = (status) => {
-    if (status === 'NPL' || status === 'No Pay Leave') return 'bg-red-50 text-red-700';
+    if (status === 'NPL' || status === 'No Pay Leave' || status === 'Absent') return 'bg-red-50 text-red-700';
+    if (status === 'Late Coming') return 'bg-yellow-50 text-yellow-700';
     return 'bg-green-50 text-green-700';
   };
 
-  const getLateStatusColor = (lateStatus) => {
-    return lateStatus === 'Late' ? 'bg-yellow-50 text-yellow-700' : 'bg-gray-50 text-gray-700';
+  const getStatusLabel = (record) => {
+    if (record.status === 'NPL' || record.status === 'No Pay Leave' || record.status === 'Absent') return 'Absent';
+    return 'Present';
   };
 
   return (
@@ -186,24 +211,22 @@ const EmployeeAttendanceReport = ({ employeeProfile }) => {
                 {attendanceRecords.map((record, index) => {
                   const recordDate = new Date(record.date);
                   const dayName = recordDate.toLocaleDateString('en-US', { weekday: 'short' });
-                  const isPresent = record.status !== 'NPL' && record.status !== 'No Pay Leave';
-                  
                   return (
                     <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{recordDate.toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{dayName}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(record.status)}`}>
-                          {isPresent ? 'Present' : 'Absent'}
+                          {getStatusLabel(record)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getLateStatusColor(record.late_status)}`}>
-                          {record.late_status === 'Late' ? 'Late' : 'On Time'}
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${record.isLate ? 'bg-yellow-50 text-yellow-700' : 'bg-gray-50 text-gray-700'}`}>
+                          {record.isLate ? 'Late' : 'On Time'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{record.check_in || '-'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{record.check_out || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{record.checkIn || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{record.checkOut || '-'}</td>
                     </tr>
                   );
                 })}

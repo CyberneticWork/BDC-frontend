@@ -274,9 +274,16 @@ createNewBonus: { view: true, create: true, update: true, delete: true }
   employee: {
     dashboard: { view: true },
     myProfile: { view: true },
+    changePassword: { view: true },
+    hrMaster: { view: true },
+    loans: { view: true },
+    viewLoans: { view: true },
+    salaryProcess: { view: true },
+    salaryRecords: { view: true },
+    downloadSalarySlip: { view: true },
+    timeAttendance: { view: true },
     leaveMaster: { view: true, edit: true },
-    leavecalendar: { view: true },
-    SalaryPage: { view: true },
     attendanceReport: { view: true },
+    SalaryPage: { view: true },
   },
 };

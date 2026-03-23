@@ -1,41 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { DollarSign, Calendar, User, Building2, ChevronDown, Loader2, FileText, Download, Eye, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { DollarSign, Calendar, Loader2, FileText, Download, Eye, ArrowLeft, RefreshCw } from 'lucide-react';
 import { fetchSalaryDataAPI } from '@src/services/SalaryService';
+import jsPDF from 'jspdf';
+
+const POLL_INTERVAL = 30000; // 30 seconds
 
 const EmployeeSalaryRecordView = ({ employeeProfile }) => {
   const [salaryRecords, setSalaryRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
+  const pollRef = useRef(null);
 
-  useEffect(() => {
-    fetchEmployeeSalaryRecords();
-  }, [employeeProfile]);
-
-  const fetchEmployeeSalaryRecords = async () => {
-    setIsLoading(true);
+  const fetchEmployeeSalaryRecords = useCallback(async (silent = false) => {
+    if (!employeeProfile?.attendance_employee_no) return;
+    silent ? setIsRefreshing(true) : setIsLoading(true);
     try {
-      const response = await fetchSalaryDataAPI();
+      const response = await fetchSalaryDataAPI({ employee_no: employeeProfile.attendance_employee_no });
       if (response && Array.isArray(response)) {
-        // Filter records for current employee
-        const employeeRecords = response.filter(
-          record => record.employee_no === employeeProfile?.attendance_employee_no
+        const sorted = [...response].sort(
+          (a, b) => new Date(b.year, b.month - 1) - new Date(a.year, a.month - 1)
         );
-        // Sort by year and month descending (newest first)
-        employeeRecords.sort((a, b) => {
-          const dateA = new Date(b.year, b.month - 1);
-          const dateB = new Date(a.year, a.month - 1);
-          return dateA - dateB;
-        });
-        setSalaryRecords(employeeRecords);
+        setSalaryRecords(sorted);
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error('Error fetching salary records:', error);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  };
+  }, [employeeProfile]);
+
+  // Initial fetch + polling
+  useEffect(() => {
+    fetchEmployeeSalaryRecords(false);
+    pollRef.current = setInterval(() => fetchEmployeeSalaryRecords(true), POLL_INTERVAL);
+    return () => clearInterval(pollRef.current);
+  }, [fetchEmployeeSalaryRecords]);
 
   if (isLoading) {
     return (
@@ -73,9 +78,24 @@ const EmployeeSalaryRecordView = ({ employeeProfile }) => {
   return (
     <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl shadow-xl p-8 text-white">
-        <h1 className="text-3xl font-bold mb-2">Salary Records</h1>
-        <p className="text-green-100">View all your salary records and details</p>
+      <div className="bg-gradient-to-r from-violet-600 to-purple-700 rounded-2xl shadow-xl p-8 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Salary Records</h1>
+            <p className="text-violet-100">View all your salary records and details</p>
+            {lastUpdated && (
+              <p className="text-violet-200 text-xs mt-1">Last updated: {lastUpdated.toLocaleTimeString()}</p>
+            )}
+          </div>
+          <button
+            onClick={() => fetchEmployeeSalaryRecords(true)}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-medium transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {/* Records Table */}
@@ -103,7 +123,7 @@ const EmployeeSalaryRecordView = ({ employeeProfile }) => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    Rs. {parseFloat(record.basic_salary || 0).toLocaleString()}
+                    Rs. {parseFloat(record.salary_breakdown?.basic_salary || record.basic_salary || 0).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                     Rs. {parseFloat(record.salary_breakdown?.gross_salary || 0).toLocaleString()}
@@ -195,6 +215,126 @@ const EmployeeSalaryRecordView = ({ employeeProfile }) => {
 // Salary Record Detail Component
 const SalaryRecordDetail = ({ record, onBack }) => {
   const sb = record.salary_breakdown || {};
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = () => {
+    setIsDownloading(true);
+    try {
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const W = 210;
+      const margin = 15;
+      let y = 0;
+
+      // Header bar
+      pdf.setFillColor(109, 40, 217);
+      pdf.rect(0, 0, W, 30, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SALARY SLIP', margin, 13);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`${record.full_name}  |  ${record.employee_no}  |  ${record.month}/${record.year}`, margin, 22);
+      y = 40;
+
+      // Employee info box
+      pdf.setFillColor(245, 245, 250);
+      pdf.roundedRect(margin, y, W - margin * 2, 28, 3, 3, 'F');
+      pdf.setTextColor(60, 60, 60);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Employee', margin + 4, y + 7);
+      pdf.text('Department', margin + 60, y + 7);
+      pdf.text('Company', margin + 120, y + 7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(record.full_name || '-', margin + 4, y + 14);
+      pdf.text(record.department_name || '-', margin + 60, y + 14);
+      pdf.text(record.company_name || '-', margin + 120, y + 14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Employee ID', margin + 4, y + 22);
+      pdf.text('Period', margin + 60, y + 22);
+      pdf.text('Status', margin + 120, y + 22);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(record.employee_no || '-', margin + 4, y + 28);
+      pdf.text(`${record.month} / ${record.year}`, margin + 60, y + 28);
+      pdf.text((record.status || '-').toUpperCase(), margin + 120, y + 28);
+      y += 36;
+
+      // Earnings section
+      const colW = (W - margin * 2) / 2 - 3;
+      const drawSection = (title, color, items, total, totalLabel, xStart) => {
+        pdf.setFillColor(...color);
+        pdf.roundedRect(xStart, y, colW, 8, 2, 2, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(title, xStart + 4, y + 5.5);
+        let rowY = y + 14;
+        pdf.setTextColor(50, 50, 50);
+        pdf.setFontSize(9);
+        items.forEach(([label, val]) => {
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(label, xStart + 4, rowY);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(`Rs. ${parseFloat(val || 0).toLocaleString()}`, xStart + colW - 4, rowY, { align: 'right' });
+          rowY += 8;
+        });
+        // Total line
+        pdf.setDrawColor(...color);
+        pdf.line(xStart, rowY, xStart + colW, rowY);
+        rowY += 5;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        pdf.text(totalLabel, xStart + 4, rowY);
+        pdf.text(`Rs. ${parseFloat(total || 0).toLocaleString()}`, xStart + colW - 4, rowY, { align: 'right' });
+        return rowY + 6;
+      };
+
+      const earningsItems = [
+        ['Basic Salary', sb.basic_salary || record.basic_salary],
+        ...(sb.br_allowance > 0 ? [['BR Allowance', sb.br_allowance]] : []),
+        ...(sb.ot_morning_fees > 0 ? [['Morning OT', sb.ot_morning_fees]] : []),
+        ...(sb.ot_night_fees > 0 ? [['Evening OT', sb.ot_night_fees]] : []),
+        ...(sb.total_allowances > 0 ? [['Other Allowances', sb.total_allowances]] : []),
+      ];
+      const deductionItems = [
+        ['EPF (8%)', sb.epf_employee_deduction],
+        ...((sb.loan_principal > 0 || sb.loan_interest > 0) ? [['Loan Installment', (sb.loan_principal || 0) + (sb.loan_interest || 0)]] : []),
+        ...(sb.stamp_duty > 0 ? [['Stamp Duty', sb.stamp_duty]] : []),
+        ...(sb.total_fixed_deductions > 0 ? [['Other Deductions', sb.total_fixed_deductions]] : []),
+        ...(sb.full_day_nopay_deduction > 0 ? [['No Pay', sb.full_day_nopay_deduction]] : []),
+      ];
+
+      const maxRows = Math.max(earningsItems.length, deductionItems.length);
+      const sectionH = 14 + maxRows * 8 + 16;
+
+      drawSection('EARNINGS', [22, 163, 74], earningsItems, sb.gross_salary, 'Total Earnings', margin);
+      drawSection('DEDUCTIONS', [239, 68, 68], deductionItems, sb.total_deductions, 'Total Deductions', margin + colW + 6);
+      y += sectionH;
+
+      // Net Salary box
+      pdf.setFillColor(109, 40, 217);
+      pdf.roundedRect(margin, y, W - margin * 2, 16, 3, 3, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(13);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('NET SALARY', margin + 4, y + 10);
+      pdf.text(`Rs. ${parseFloat(sb.net_salary || 0).toLocaleString()}`, W - margin - 4, y + 10, { align: 'right' });
+      y += 24;
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.setFont('helvetica', 'italic');
+      pdf.text('This is a computer generated salary slip.', W / 2, y + 6, { align: 'center' });
+
+      pdf.save(`Salary_Slip_${record.employee_no}_${record.month}_${record.year}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
@@ -208,9 +348,9 @@ const SalaryRecordDetail = ({ record, onBack }) => {
       </button>
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl shadow-xl p-8 text-white">
+      <div className="bg-gradient-to-r from-violet-600 to-purple-700 rounded-2xl shadow-xl p-8 text-white">
         <h1 className="text-3xl font-bold mb-2">Salary Record</h1>
-        <p className="text-green-100">{record.full_name} • {record.month}/{record.year}</p>
+        <p className="text-violet-100">{record.full_name} • {record.month}/{record.year}</p>
       </div>
 
       {/* Employee & Basic Info */}
@@ -311,30 +451,22 @@ const SalaryRecordDetail = ({ record, onBack }) => {
                 <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.no_pay_deduction || 0).toLocaleString()}</span>
               </div>
             )}
-            {sb.epf_employee_deduction > 0 && (
-              <div className="flex justify-between bg-white p-3 rounded-lg">
-                <span className="text-gray-700">EPF (8%)</span>
-                <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.epf_employee_deduction || 0).toLocaleString()}</span>
-              </div>
-            )}
-            {sb.loan_installment > 0 && (
-              <div className="flex justify-between bg-white p-3 rounded-lg">
-                <span className="text-gray-700">Loan Installment</span>
-                <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.loan_installment || 0).toLocaleString()}</span>
-              </div>
-            )}
-            {sb.stamp > 0 && (
-              <div className="flex justify-between bg-white p-3 rounded-lg">
-                <span className="text-gray-700">Stamp Duty</span>
-                <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.stamp || 0).toLocaleString()}</span>
-              </div>
-            )}
-            {sb.total_fixed_deductions > 0 && (
-              <div className="flex justify-between bg-white p-3 rounded-lg">
-                <span className="text-gray-700">Other Deductions</span>
-                <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.total_fixed_deductions || 0).toLocaleString()}</span>
-              </div>
-            )}
+            <div className="flex justify-between bg-white p-3 rounded-lg">
+              <span className="text-gray-700">EPF (8%)</span>
+              <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.epf_employee_deduction || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between bg-white p-3 rounded-lg">
+              <span className="text-gray-700">Loan Installment</span>
+              <span className="font-semibold text-gray-900">Rs. {parseFloat((sb.loan_principal || 0) + (sb.loan_interest || 0)).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between bg-white p-3 rounded-lg">
+              <span className="text-gray-700">Stamp Duty</span>
+              <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.stamp_duty || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between bg-white p-3 rounded-lg">
+              <span className="text-gray-700">Other Deductions</span>
+              <span className="font-semibold text-gray-900">Rs. {parseFloat(sb.total_fixed_deductions || 0).toLocaleString()}</span>
+            </div>
             <div className="border-t-2 border-red-300 pt-3 flex justify-between bg-white p-3 rounded-lg font-bold">
               <span className="text-gray-900">Total Deductions</span>
               <span className="text-red-600">Rs. {parseFloat(sb.total_deductions || 0).toLocaleString()}</span>
@@ -461,9 +593,17 @@ const SalaryRecordDetail = ({ record, onBack }) => {
 
       {/* Download Button */}
       <div className="flex justify-center">
-        <button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all">
-          <Download className="h-5 w-5" />
-          Download Salary Slip (PDF)
+        <button
+          onClick={handleDownload}
+          disabled={isDownloading}
+          className="bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all disabled:opacity-60"
+        >
+          {isDownloading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Download className="h-5 w-5" />
+          )}
+          {isDownloading ? 'Generating PDF...' : 'Salary Slip'}
         </button>
       </div>
     </div>
