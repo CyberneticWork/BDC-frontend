@@ -750,7 +750,11 @@ const Dashboard = ({ user, onLogout }) => {
       case "SalaryPage":
         return (
           <ProtectedComponent module="SalaryPage" action="view">
-            <SalaryPage employeeProfile={employeeProfile} />
+            {user.role === 'employee' ? (
+              <SalaryPage employeeProfile={employeeProfile} />
+            ) : (
+              <SalaryRecords />
+            )}
           </ProtectedComponent>
         );
       case "resignation":
