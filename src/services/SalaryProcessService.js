@@ -84,7 +84,7 @@ export const getProcessedSalaries = async () => {
 
 export const getProcessedSalaries = async (params = {}) => {
   try {
-    const response = await axios.get("/salary/processed", { params });
+    const response = await axios.get("/salary", { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching processed salaries:", error);

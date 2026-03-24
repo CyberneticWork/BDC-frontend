@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, RefreshCw, Eye, Download, Filter, ChevronDown } from 'lucide-react';
 import { fetchCompanies, fetchDepartmentsById } from '@services/ApiDataService';
-import { getSalaryData } from '@services/SalaryProcessService';
+import { getProcessedSalaries } from '@services/SalaryProcessService';
 import Swal from 'sweetalert2';
 import jsPDF from 'jspdf';
 
@@ -44,6 +44,7 @@ const SalaryRecords = () => {
 
   useEffect(() => {
     loadCompanies();
+    loadSalaryRecords();
   }, []);
 
   const loadCompanies = async () => {
@@ -73,23 +74,15 @@ const SalaryRecords = () => {
   };
 
   const loadSalaryRecords = async () => {
-    if (!selectedCompany) {
-      notify.warning('Filter Required', 'Please select a company');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const monthStr = String(month).padStart(2, '0');
-      const data = await getSalaryData({
-        month: monthStr,
-        year: year.toString(),
-        company_id: selectedCompany,
-        department_id: selectedDepartment || undefined,
-        search: searchTerm || undefined,
-      });
+      const params = {};
+      if (selectedCompany) params.company_name = companies.find(c => c.id == selectedCompany)?.name || '';
+      if (selectedDepartment) params.department_name = departments.find(d => d.id == selectedDepartment)?.name || '';
+      if (searchTerm) params.search = searchTerm;
 
-      const salaryRecords = (data?.data || []).map((emp) => ({
+      const data = await getProcessedSalaries(params);
+      const salaryRecords = (data?.data || data || []).map((emp) => ({
         id: emp.id,
         emp_no: emp.emp_no || emp.employee_no || 'N/A',
         full_name: emp.full_name || 'N/A',
