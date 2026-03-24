@@ -44,8 +44,12 @@ const SalaryRecords = () => {
 
   useEffect(() => {
     loadCompanies();
+  }, []);
+
+  useEffect(() => {
     loadSalaryRecords();
   }, []);
+
 
   const loadCompanies = async () => {
     try {
