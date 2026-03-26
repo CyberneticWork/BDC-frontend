@@ -27,6 +27,7 @@ import {
   MessageCircle,
   Package, // Add for Inventory
   Key, // Add for Change Password
+  Briefcase, // Add for Labor Management
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext"; // Adjust path
 import config from "@src/config";
@@ -105,6 +106,7 @@ const Sidebar = ({
     { id: "dashboard", name: "Dashboard", icon: Home, badge: null },
     { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
+    { id: "laborManagement", name: "Labor Management", icon: Briefcase },
     {
       id: "hrMaster",
       name: "HRM Master",
