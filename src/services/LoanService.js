@@ -33,6 +33,16 @@ export const fetchEmployeeLoans = async (employeeNo) => {
   }
 };
 
+export const updateLoan = async (id, loanData) => {
+  try {
+    const response = await axios.put(`${API_PREFIX}/${id}`, loanData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating loan:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export const fetchEmployeeNameByNo = async (employeeNo) => {
   try {
     const response = await axios.get(`/loans/employee-by-number/${employeeNo}`);

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { fetchLoans } from "@services/LoanService";
+import { fetchLoans, updateLoan } from "@services/LoanService";
+import Swal from "sweetalert2";
 import {
   Search,
   FileText,
   Download,
   Filter,
   Eye,
+  Pencil,
   Briefcase,
   Calendar,
   DollarSign,
@@ -20,6 +22,9 @@ const ViewLoans = () => {
   const [searchFilter, setSearchFilter] = useState("all");
   const [filteredLoans, setFilteredLoans] = useState([]);
   const [showDetails, setShowDetails] = useState(null);
+  const [editLoan, setEditLoan] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-LK", {
@@ -132,6 +137,32 @@ const ViewLoans = () => {
     setSearchFilter("all");
   };
 
+  const openEdit = (loan) => {
+    setEditLoan(loan);
+    setEditForm({
+      loan_amount: loan.loan_amount,
+      installment_amount: loan.installment_amount,
+      interest_rate_per_annum: loan.interest_rate_per_annum,
+      start_from: loan.start_from ? loan.start_from.slice(0, 10) : "",
+      deduct_from: loan.deduct_from || "bonus",
+      status: loan.status || "active",
+    });
+  };
+
+  const handleEditSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateLoan(editLoan.id, editForm);
+      setLoans((prev) => prev.map((l) => l.id === editLoan.id ? { ...l, ...editForm } : l));
+      setEditLoan(null);
+      Swal.fire({ icon: "success", title: "Updated!", timer: 1500, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Update Failed", text: err.response?.data?.message || "Please try again." });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const totalLoans = filteredLoans.length;
   const totalAmount = filteredLoans.reduce((sum, loan) => sum + parseFloat(loan.loan_amount || 0), 0);
   const withInterestCount = filteredLoans.filter((loan) => loan.with_interest).length;
@@ -223,9 +254,14 @@ const ViewLoans = () => {
                       <td className="px-6 py-4 text-center text-sm">{loan.interest_rate_per_annum}%</td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-green-600">{formatCurrency(loan.installment_amount)}</td>
                       <td className="px-6 py-4 text-center">
-                        <button onClick={() => showLoanDetails(loan)} className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
-                          <Eye size={18} />
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => showLoanDetails(loan)} className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                            <Eye size={18} />
+                          </button>
+                          <button onClick={() => openEdit(loan)} className="p-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200">
+                            <Pencil size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -236,7 +272,65 @@ const ViewLoans = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Edit Modal */}
+      {editLoan && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-xl font-bold">Edit Loan — {editLoan.loan_id}</h3>
+              <button onClick={() => setEditLoan(null)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            <div className="p-6 grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Loan Amount (LKR)</label>
+                <input type="number" className="w-full p-2 border rounded-lg" value={editForm.loan_amount}
+                  onChange={(e) => setEditForm({ ...editForm, loan_amount: e.target.value })} min="0" step="0.01" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Installment Amount (LKR)</label>
+                <input type="number" className="w-full p-2 border rounded-lg" value={editForm.installment_amount}
+                  onChange={(e) => setEditForm({ ...editForm, installment_amount: e.target.value })} min="0" step="0.01" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Interest Rate (%)</label>
+                <input type="number" className="w-full p-2 border rounded-lg" value={editForm.interest_rate_per_annum}
+                  onChange={(e) => setEditForm({ ...editForm, interest_rate_per_annum: e.target.value })} min="0" step="0.01" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Start Date</label>
+                <input type="date" className="w-full p-2 border rounded-lg" value={editForm.start_from}
+                  onChange={(e) => setEditForm({ ...editForm, start_from: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Deduct From</label>
+                <select className="w-full p-2 border rounded-lg" value={editForm.deduct_from}
+                  onChange={(e) => setEditForm({ ...editForm, deduct_from: e.target.value })}>
+                  <option value="bonus">Monthly Bonus</option>
+                  <option value="basic">Basic Salary</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                <select className="w-full p-2 border rounded-lg" value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
+              <button onClick={() => setEditLoan(null)} className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</button>
+              <button onClick={handleEditSave} disabled={isSaving}
+                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {isSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
       {showDetails && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
