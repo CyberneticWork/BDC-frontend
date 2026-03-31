@@ -191,7 +191,7 @@ const SalaryPage = ({ employeeProfile }) => {
       const rows = (data?.data || []).map(emp => ({
         ...emp,
         employee_no: emp.emp_no || emp.employee_no,
-        status: emp.status || 'active',
+        status: ['pending', 'processed', 'issued', 'hold'].includes(String(emp.status).toLowerCase()) ? String(emp.status).toLowerCase() : 'pending',
         salary_breakdown: typeof emp.salary_breakdown === 'string'
           ? JSON.parse(emp.salary_breakdown)
           : (emp.salary_breakdown || {}),
@@ -231,6 +231,9 @@ const SalaryPage = ({ employeeProfile }) => {
     });
   };
 
+
+
+  /*
   // Handle edit button click
   const handleEdit = (record) => {
     // Prevent opening edit modal for issued records (UI-only; backend still enforces)
@@ -297,6 +300,100 @@ const SalaryPage = ({ employeeProfile }) => {
     setIsModalOpen(true);
   };
 
+
+  */
+
+
+// Handle edit button click
+// Handle edit button click
+  const handleEdit = (record) => {
+    // Prevent opening edit modal for issued records
+    if (isIssued(record)) {
+      alert("This salary record cannot be edited because it is already issued.");
+      return;
+    }
+    
+    // Normalize various backend formats
+    const bool = (v) => Boolean(v || v === 1 || v === "1");
+    const sb = record.salary_breakdown || {};
+    const stampChecked = bool(record.stamp) || (sb.stamp > 0);
+
+    
+    const monthlyInstallment = parseFloat(record.installment_amount) || 0;
+    
+    // 
+    const hasActiveLoan = monthlyInstallment > 0;
+    // ==========================================
+
+    setCurrentRecord(record);
+    setFormData({
+      basic_salary: record.basic_salary ?? "",
+      increment_active: bool(record.increment_active),
+      increment_value: record.increment_value ?? "",
+      increment_effected_date: record.increment_effected_date?.split("T")[0] ?? "",
+      ot_morning_enabled: Number(record.ot_morning) > 0 || bool(sb.ot_morning_fees),
+      ot_morning: sb.ot_morning_fees ?? record.ot_morning ?? 0,
+      ot_evening_enabled: Number(record.ot_evening) > 0 || bool(sb.ot_night_fees),
+      ot_evening: sb.ot_night_fees ?? record.ot_evening ?? 0,
+      enable_epf_etf: bool(record.enable_epf_etf),
+      br1: bool(record.br1),
+      br2: bool(record.br2),
+      stamp: stampChecked,
+      
+      // ==========================================
+      // Loan Details
+      // hasActiveLoan 
+      total_loan_amount: hasActiveLoan ? (record.total_loan_amount || "") : "",
+      installment_count: hasActiveLoan ? (record.installment_count || "") : "",
+      installment_amount: hasActiveLoan ? monthlyInstallment : "",
+      // ==========================================
+      
+      approved_no_pay_days: record.approved_no_pay_days ?? 0,
+
+      //status: record.status ?? "pending",
+
+     // "unprocessed" 
+      status: record.status 
+        ? (String(record.status).toLowerCase() === 'unprocessed' ? 'pending' : String(record.status).toLowerCase()) 
+        : "pending",
+      
+      // 
+      month: record.month ? String(record.month).padStart(2, '0') : String(month).padStart(2, '0'),
+      year: record.year ? String(record.year) : String(year),
+      
+      // visible preview value
+      net_salary: sb.net_salary ?? 0,
+    });
+
+    // Parse allowances and deductions from JSON strings/arrays
+    let parsedAllowances = [];
+    let parsedDeductions = [];
+
+    try {
+      parsedAllowances = Array.isArray(record.allowances)
+        ? record.allowances
+        : (record.allowances ? JSON.parse(record.allowances) : []);
+    } catch (e) {
+      console.error("Error parsing allowances:", e);
+    }
+
+    try {
+      parsedDeductions = Array.isArray(record.deductions)
+        ? record.deductions
+        : (record.deductions ? JSON.parse(record.deductions) : []);
+    } catch (e) {
+      console.error("Error parsing deductions:", e);
+    }
+
+    setAllowances(parsedAllowances);
+    setDeductions(parsedDeductions);
+
+    setIsModalOpen(true);
+  };
+
+
+
+  /*
   // Update the handleSubmit function to ensure stamp is handled consistently
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -365,6 +462,14 @@ const SalaryPage = ({ employeeProfile }) => {
         net_salary: Math.round((netSalaryPreview + Number.EPSILON) * 100) / 100,
       };
 
+
+       
+      const getMonthNumber = (monthStr) => {
+        if (!isNaN(monthStr)) return String(monthStr).padStart(2, '0');
+        const monthObj = months.find(m => m.label === monthStr || m.value === monthStr);
+        return monthObj ? monthObj.value : "01";
+      };
+
       const formattedData = {
         basic_salary: parseFloat(formData.basic_salary),
         increment_active: formData.increment_active ? 1 : 0,
@@ -375,19 +480,30 @@ const SalaryPage = ({ employeeProfile }) => {
         enable_epf_etf: formData.enable_epf_etf ? 1 : 0,
         br1: formData.br1 ? 1 : 0,
         br2: formData.br2 ? 1 : 0,
-        stamp: formData.stamp ? 1 : 0, // Boolean field as 1/0
+        stamp: formData.stamp ? 1 : 0, 
         total_loan_amount: formData.total_loan_amount ? parseFloat(formData.total_loan_amount) : 0,
         installment_count: formData.installment_count ? parseInt(formData.installment_count) : null,
         installment_amount: formData.installment_amount ? parseFloat(formData.installment_amount) : null,
         approved_no_pay_days: parseInt(formData.approved_no_pay_days || 0),
-        status: formData.status,
-        month: String(formData.month),
+        status: ['pending', 'processed', 'issued', 'hold'].includes(String(formData.status).toLowerCase().trim()) 
+            ? String(formData.status).toLowerCase().trim() 
+            : 'pending',
+        
+        // ==========================================
+       
+        month: getMonthNumber(formData.month),
+        // ==========================================
+        
         year: String(formData.year),
-        // send updated salary_breakdown as object (backend will store JSON)
         salary_breakdown: updatedSalaryBreakdown,
         allowances: allowances,
         deductions: deductions,
       };
+
+
+
+
+      
 
       await updateSalaryAPI(currentRecord.id, formattedData);
 
@@ -416,6 +532,159 @@ const SalaryPage = ({ employeeProfile }) => {
       setIsLoading(false);
     }
   };
+*/
+
+// Update the handleSubmit function to ensure stamp is handled consistently
+  // Update the handleSubmit function to ensure stamp is handled consistently
+  // Update the handleSubmit function
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateAllowancesDeductions()) {
+      alert("Please fill description and amount for all allowances and deductions.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const totalAllowances = calculateTotalAllowances();
+      const totalFixedDeductions = calculateTotalDeductions();
+
+      const basicSalaryNum = parseFloat(formData.basic_salary || 0);
+      const workingDays = (() => {
+        const y = parseInt(formData.year || currentRecord?.year || new Date().getFullYear());
+        const m = parseInt(formData.month || currentRecord?.month || (new Date().getMonth() + 1));
+        if (!isNaN(y) && !isNaN(m)) {
+          const totalDaysInMonth = new Date(y, m, 0).getDate();
+          return Math.max(1, totalDaysInMonth - 8); 
+        }
+        return 22;
+      })();
+
+      const perDaySalary = basicSalaryNum / workingDays;
+      const noPayDeduction = (parseInt(formData.approved_no_pay_days || 0) || 0) * perDaySalary;
+      const adjustedBasic = basicSalaryNum - noPayDeduction;
+
+      const epfBase = adjustedBasic + totalAllowances;
+      const epfEmployee = formData.enable_epf_etf ? epfBase * 0.08 : 0;
+      const epfEmployer = formData.enable_epf_etf ? epfBase * 0.12 : 0;
+      const etfEmployer = formData.enable_epf_etf ? epfBase * 0.03 : 0;
+
+      const morningOtVal = formData.ot_morning_enabled ? parseFloat(formData.ot_morning || 0) : 0;
+      const eveningOtVal = formData.ot_evening_enabled ? parseFloat(formData.ot_evening || 0) : 0;
+
+      const grossSalary = epfBase + morningOtVal + eveningOtVal;
+      
+      // ==========================================
+
+      // ==========================================
+      const existingBreakdown = currentRecord?.salary_breakdown || {};
+      
+      
+      const loanDeductFrom = existingBreakdown.loan_deduct_from || currentRecord?.loan_deduct_from || 'bonus';
+      const newInstallment = parseFloat(formData.installment_amount || 0) || 0;
+      // ==========================================
+
+      const totalDeductions = totalFixedDeductions + newInstallment + epfEmployee;
+      const stampVal = formData.stamp ? 25 : 0;
+      const netSalaryPreview = grossSalary - totalDeductions - stampVal;
+
+      const updatedSalaryBreakdown = {
+        ...existingBreakdown, 
+        basic_salary: basicSalaryNum,
+        br_allowance: calculateBRAllowance(),
+        ot_morning_fees: morningOtVal,
+        ot_night_fees: eveningOtVal,
+        adjusted_basic: adjustedBasic,
+        per_day_salary: perDaySalary,
+        no_pay_deduction: noPayDeduction,
+        total_allowances: totalAllowances,
+        epf_etf_base: epfBase,
+        epf_employee_deduction: epfEmployee,
+        epf_employer_contribution: epfEmployer,
+        etf_employer_contribution: etfEmployer,
+        total_fixed_deductions: totalFixedDeductions,
+        
+        // Loan එකට අදාළ අගයන්
+        loan_installment: newInstallment,
+        loan_principal: newInstallment, // Interest නැති නිසා සම්පූර්ණ ගාණම Principal එක
+        loan_deduct_from: loanDeductFrom, // Basic ද Bonus ද කියන එක
+        
+        gross_salary: grossSalary,
+        total_deductions: totalDeductions,
+        stamp: stampVal, 
+        net_salary: Math.round((netSalaryPreview + Number.EPSILON) * 100) / 100,
+      };
+
+      const getMonthNumber = (monthStr) => {
+        if (!isNaN(monthStr)) return String(monthStr).padStart(2, '0');
+        const monthObj = months.find(m => m.label === monthStr || m.value === monthStr);
+        return monthObj ? monthObj.value : "01";
+      };
+
+      const formattedData = {
+        basic_salary: parseFloat(formData.basic_salary),
+        increment_active: formData.increment_active ? 1 : 0,
+        increment_value: formData.increment_value ? parseFloat(formData.increment_value) : null,
+        increment_effected_date: formData.increment_effected_date || null,
+        ot_morning: formData.ot_morning_enabled ? parseFloat(formData.ot_morning || 0) : 0,
+        ot_evening: formData.ot_evening_enabled ? parseFloat(formData.ot_evening || 0) : 0,
+        enable_epf_etf: formData.enable_epf_etf ? 1 : 0,
+        br1: formData.br1 ? 1 : 0,
+        br2: formData.br2 ? 1 : 0,
+        stamp: formData.stamp ? 1 : 0, 
+        total_loan_amount: formData.total_loan_amount ? parseFloat(formData.total_loan_amount) : 0,
+        installment_count: formData.installment_count ? parseInt(formData.installment_count) : null,
+        installment_amount: formData.installment_amount ? parseFloat(formData.installment_amount) : null,
+        approved_no_pay_days: parseInt(formData.approved_no_pay_days || 0),
+        status: ['pending', 'processed', 'issued', 'hold'].includes(String(formData.status).toLowerCase().trim()) 
+            ? String(formData.status).toLowerCase().trim() 
+            : 'pending',
+        month: getMonthNumber(formData.month),
+        year: String(formData.year),
+        salary_breakdown: updatedSalaryBreakdown,
+        allowances: allowances,
+        deductions: deductions,
+      };
+
+      const updatedResponse = await updateSalaryAPI(currentRecord.id, formattedData);
+      const newRecordData = updatedResponse?.data || formattedData;
+
+      const updatedLocalRecord = {
+        ...currentRecord,
+        ...newRecordData,
+        salary_breakdown: updatedSalaryBreakdown,
+        allowances: allowances,
+        deductions: deductions
+      };
+
+      setSalaryData(prevData => prevData.map(item => item.id === currentRecord.id ? updatedLocalRecord : item));
+      setFilteredData(prevData => prevData.map(item => item.id === currentRecord.id ? updatedLocalRecord : item));
+
+      fetchSalaryData(true);
+
+      alert("Salary record updated successfully");
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Error updating salary record:", error);
+      if (error.response?.data?.errors) {
+        const errorMessages = Object.values(error.response?.data?.errors || {}).flat().join('\n');
+        alert(`Validation errors:\n${errorMessages}`);
+      } else {
+        alert("Failed to update record: " + (error.response?.data?.message || error.message));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+
+
+
+
+
 
   // Client-side search filter
   useEffect(() => {
@@ -945,7 +1214,8 @@ const SalaryPage = ({ employeeProfile }) => {
                       />
                     </div>
                   </div>
-
+                 
+                 {/*
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Status
@@ -957,9 +1227,31 @@ const SalaryPage = ({ employeeProfile }) => {
                       className="block w-full pl-2 pr-8 py-1.5 text-sm border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md"
                     >
                       <option value="pending">Pending</option>
-                      {/* <option value="processed">Processed</option>
-                      <option value="issued">Issued</option> */}
+                      
                       <option value="hold">Hold</option>
+                    </select>
+                  </div>
+                  */}
+
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value.toLowerCase() })} // අනිවාර්යයෙන්ම Simple අකුරු කරන්න!
+                      className="block w-full pl-2 pr-8 py-1.5 text-sm border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="processed">Processed</option>
+                      <option value="hold">Hold</option>
+                      
+                      
+                      {formData.status === 'issued' && (
+                        <option value="issued" disabled>Issued</option>
+                      )}
                     </select>
                   </div>
 
@@ -980,6 +1272,7 @@ const SalaryPage = ({ employeeProfile }) => {
                 </div>
 
                 {/* Second column - Period and checkboxes */}
+               {/* Second column - Period and checkboxes */}
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -988,14 +1281,10 @@ const SalaryPage = ({ employeeProfile }) => {
                       </label>
                       <input
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
                         name="month"
-                        value={formData.month}
-                        onChange={handleInputChange}
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full px-2 py-1.5 sm:text-sm border-gray-300 rounded-md"
-                        placeholder="MM"
-                        maxLength="2"
+                        value={months.find(m => m.value === formData.month)?.label || formData.month} // අංකය වෙනුවට නම පෙන්නන්න
+                        readOnly // <--- Edit කරන්න බැරි වෙන්න
+                        className="block w-full px-2 py-1.5 sm:text-sm border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed" // <--- අළු පාට කලා
                       />
                     </div>
                     <div>
@@ -1004,14 +1293,10 @@ const SalaryPage = ({ employeeProfile }) => {
                       </label>
                       <input
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
                         name="year"
                         value={formData.year}
-                        onChange={handleInputChange}
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full px-2 py-1.5 sm:text-sm border-gray-300 rounded-md"
-                        placeholder="YYYY"
-                        maxLength="4"
+                        readOnly // <--- Edit කරන්න බැරි වෙන්න
+                        className="block w-full px-2 py-1.5 sm:text-sm border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed" // <--- අළු පාට කලා
                       />
                     </div>
                   </div>

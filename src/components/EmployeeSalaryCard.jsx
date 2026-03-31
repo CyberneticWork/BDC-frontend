@@ -9,13 +9,19 @@ const formatMoney = (value) =>
   });
 
 const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload }) => {
-  const allowances = Array.isArray(employee.allowances) ? employee.allowances : [];
-  const bonuses = Array.isArray(employee.bonuses) ? employee.bonuses : [];
-  const deductions = Array.isArray(employee.deductions) ? employee.deductions : [];
-  const breakdown =
-    employee.salary_breakdown && typeof employee.salary_breakdown === "object"
-      ? employee.salary_breakdown
-      : {};
+  // =========================================================================
+  // වෙනස් කළ කොටස: String එකක් ආවත් හරියටම Parse කරලා Object එකක් කරගන්නවා
+  // =========================================================================
+  let allowances = [];
+  let bonuses = [];
+  let deductions = [];
+  let breakdown = {};
+
+  try { allowances = typeof employee.allowances === 'string' ? JSON.parse(employee.allowances) : (employee.allowances || []); } catch(e) {}
+  try { bonuses = typeof employee.bonuses === 'string' ? JSON.parse(employee.bonuses) : (employee.bonuses || []); } catch(e) {}
+  try { deductions = typeof employee.deductions === 'string' ? JSON.parse(employee.deductions) : (employee.deductions || []); } catch(e) {}
+  try { breakdown = typeof employee.salary_breakdown === 'string' ? JSON.parse(employee.salary_breakdown) : (employee.salary_breakdown || {}); } catch(e) {}
+  // =========================================================================
 
   const totalAllowances = allowances.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0);
   const totalBonuses = bonuses.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
@@ -26,16 +32,21 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   
   // Late & No-Pay Split
   const fullDayNoPay = Number(breakdown.full_day_nopay_deduction || 0);
-  const saturdayNoPay = Number(breakdown.saturday_nopay_deduction || 0); // අලුතින් එකතු කළ සෙනසුරාදා අගය
+  const saturdayNoPay = Number(breakdown.saturday_nopay_deduction || 0); 
   const earlyOutNoPay = Number(breakdown.early_out_nopay_deduction || 0);
   const majorLateNoPay = Number(breakdown.major_late_deduction || 0);
   const shortLeaveLate = Number(breakdown.short_leave_deduction || 0);
   const halfDayLate = Number(breakdown.half_day_deduction || 0);
-  const totalLatePenalty = shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay; // සෙනසුරාදා අගයත් Bonus Deduction වලට අදාළ නිසා Penalty එකට එකතු කරනවා
+  const totalLatePenalty = shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay; 
 
-  const loanTarget = breakdown.loan_deduct_from || 'bonus';
-  const loanPrincipal = Number(breakdown.loan_principal || 0);
+ // Capital 'Basic' 
+  // Database (employee.loan_deduct_from) 
+  const rawLoanTarget = employee.loan_deduct_from || breakdown.loan_deduct_from || 'bonus';
+  const loanTarget = String(rawLoanTarget).toLowerCase().trim();
+  
+  const loanPrincipal = Number(breakdown.loan_principal || breakdown.loan_installment || 0);
   const loanInterest = Number(breakdown.loan_interest || 0);
+
 
   const totalDeductions = Number(breakdown.total_deductions || 0);
 
@@ -76,7 +87,6 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
               Basic: <span className="font-semibold text-gray-800">{Number(employee.basic_salary || 0).toLocaleString()}</span>
             </div>
             
-            {/* Show Bank Details if Available */}
             {employee.compensation?.bank_name && (
                 <div className="text-[10px] text-gray-400 mt-1">
                   Bank: {employee.compensation.bank_name} | Acc: {employee.compensation.bank_account_no}
@@ -189,16 +199,13 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
                 <span className="font-semibold text-red-600">{earlyOutNoPay.toLocaleString()}</span>
               </div>
               
-              {/* --- අලුතින් එකතු කළ සෙනසුරාදා දවසේ No Pay එක --- */}
               {saturdayNoPay > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Saturday No-Pay Deduction</span>
                   <span className="font-semibold text-red-600">{saturdayNoPay.toLocaleString()}</span>
                 </div>
               )}
-              {/* --------------------------------------------------------- */}
 
-              {/* Custom Deductions Mapping - Shows Category Type */}
               {deductions.map((d, i) => (
                 <div key={i} className="flex justify-between">
                   <span className="text-gray-600">{d.name} <span className="text-[10px] text-gray-400">({d.category || 'General'})</span></span>
@@ -238,7 +245,6 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
               </div>
             </div>
 
-            {/* Show Category Types for Allowances and Bonuses */}
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div>
                 <div className="text-xs font-bold text-gray-700 mb-1 border-b pb-1">Allowances</div>

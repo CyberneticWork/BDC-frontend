@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import axios from "@utils/axios";
 import BonusService from "../../components/BonusService";
 import {
   Download, Users, Wallet, FileText, ChevronDown, Filter,
@@ -172,6 +173,8 @@ const SalaryProcessPage = () => {
     }
   };
 
+
+  /*
   const handleSalaryProcess = async () => {
     setStatus("Processed");
     try {
@@ -181,6 +184,53 @@ const SalaryProcessPage = () => {
       notify.error("Update Failed", "Unknown error");
     }
   };
+  */
+
+
+
+  // =========================================================================
+  // අලුතින් එකතු කළ කොටස: හැමෝගෙම පඩි ටික Database එකට Save කරන Function එක
+  // =========================================================================
+  const handleSalaryProcess = async () => {
+    if (!processedDisplayedData || processedDisplayedData.length === 0) {
+      notify.warning("No Data", "No employee data available to process!");
+      return;
+    }
+
+    if (!month || !year) {
+      notify.warning("Missing Data", "Please select Month and Year first!");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const payload = {
+        data: processedDisplayedData, // තිරයේ පෙනෙන ඔක්කොම අයගේ දත්ත ටික
+        month: month,
+        year: year
+      };
+
+      // අදාළ මාසය සහ අවුරුද්ද සමග Backend එකට යවනවා
+     const response = await axios.post('/salary-process/store', payload);
+      
+      if (response.status === 200 || response.status === 201) {
+        notify.success("Success", "All salaries have been processed and saved successfully!");
+        // Save වුණාට පස්සේ ආයෙත් දත්ත ටික Refresh කරගන්නවා
+        await fetchSalaryData();
+      }
+    } catch (error) {
+      console.error("Error processing salaries:", error);
+      
+      // Backend එකෙන් එවන ඇත්තම Error එක අල්ලගන්නවා
+      const errorMsg = error.response?.data?.message || error.response?.data?.errors || error.message;
+      
+      // ඒ Error එක Alert එකක් විදිහට පෙන්නනවා
+      alert(`Save Failed! Reason: ${JSON.stringify(errorMsg)}`);
+      setIsLoading(false);
+    }
+  };
+  // =========================================================================
 
   const buildPayslipGroups = (emp) => {
     const breakdown = parseJsonField(emp?.salary_breakdown, {});
