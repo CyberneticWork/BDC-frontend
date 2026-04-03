@@ -62,6 +62,7 @@ import Termination from "@dashboard/Termination";
 import ViewLoans from "@dashboard/viewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
 import UserManagement from "@dashboard/UserManagement";
+import LaborManagement from "@dashboard/LaborManagement";
 import Chatbot from "./Chatbot";
 // Import PMS components
 import { PMSDashboard, PerformanceReviews, KPIs } from "../PMS";
@@ -767,6 +768,12 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="userManagement" action="view">
             <UserManagement />
+          </ProtectedComponent>
+        );
+      case "laborManagement":
+        return (
+          <ProtectedComponent module="laborManagement" action="view">
+            <LaborManagement />
           </ProtectedComponent>
         );
       case "pmsDashboard":
