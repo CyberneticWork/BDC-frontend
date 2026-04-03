@@ -21,9 +21,14 @@ const EmployeeSalaryRecordView = ({ employeeProfile }) => {
     try {
       const response = await fetchSalaryDataAPI({ employee_no: employeeProfile.attendance_employee_no });
       if (response && Array.isArray(response)) {
-        const sorted = [...response].sort(
-          (a, b) => new Date(b.year, b.month - 1) - new Date(a.year, a.month - 1)
-        );
+        const sorted = [...response]
+          .map(r => ({
+            ...r,
+            salary_breakdown: typeof r.salary_breakdown === 'string' ? JSON.parse(r.salary_breakdown) : (r.salary_breakdown || {}),
+            allowances: typeof r.allowances === 'string' ? JSON.parse(r.allowances) : (r.allowances || []),
+            deductions: typeof r.deductions === 'string' ? JSON.parse(r.deductions) : (r.deductions || []),
+          }))
+          .sort((a, b) => new Date(b.year, b.month - 1) - new Date(a.year, a.month - 1));
         setSalaryRecords(sorted);
         setLastUpdated(new Date());
       }

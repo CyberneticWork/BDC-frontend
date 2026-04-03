@@ -44,7 +44,11 @@ const EmployeeDashboard = ({
             if (b.year !== a.year) return b.year - a.year;
             return b.month - a.month;
           });
-          setLatestSalaryRecord(empRecords[0]);
+          const latest = empRecords[0];
+          setLatestSalaryRecord({
+            ...latest,
+            salary_breakdown: typeof latest.salary_breakdown === 'string' ? JSON.parse(latest.salary_breakdown) : (latest.salary_breakdown || {}),
+          });
         }
       }
     } catch (error) {
@@ -238,7 +242,7 @@ const EmployeeDashboard = ({
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Basic Salary</span>
-                <span className="text-sm font-medium text-gray-900">Rs. {(parseFloat(employeeProfile.compensation?.basic_salary) || 0).toLocaleString()}</span>
+                <span className="text-sm font-medium text-gray-900">Rs. {(parseFloat(latestSalaryRecord?.salary_breakdown?.basic_salary || latestSalaryRecord?.basic_salary || employeeProfile.compensation?.basic_salary) || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Allowances</span>
@@ -251,7 +255,7 @@ const EmployeeDashboard = ({
               <div className="flex justify-between pt-3 border-t border-gray-200">
                 <span className="text-base font-bold text-gray-900">Net Salary</span>
                 <span className="text-base font-bold text-green-600">
-                  Rs. {latestSalaryRecord ? parseFloat(latestSalaryRecord.salary_breakdown?.net_salary || 0).toLocaleString() : (parseFloat(employeeProfile.compensation?.basic_salary || 0)).toLocaleString()}
+                  Rs. {latestSalaryRecord ? parseFloat(latestSalaryRecord.salary_breakdown?.net_salary || 0).toLocaleString() : (parseFloat(latestSalaryRecord?.salary_breakdown?.basic_salary || latestSalaryRecord?.basic_salary || employeeProfile.compensation?.basic_salary || 0)).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -376,161 +380,191 @@ const EmployeeDashboard = ({
       </div>
 
       {/* Salary Slip Modal */}
-      {showSalarySlip && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-8 text-white flex justify-between items-center sticky top-0 rounded-t-2xl">
-              <div>
-                <h2 className="text-3xl font-bold">Salary Slip</h2>
-                <p className="text-blue-100 text-sm mt-1">Monthly Salary Record</p>
-              </div>
-              <button
-                onClick={() => setShowSalarySlip(false)}
-                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-8 space-y-6">
-              {/* Employee Header Section */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                <div className="grid grid-cols-4 gap-6">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee Name</p>
-                    <p className="text-lg font-bold text-gray-900 mt-1">{employeeProfile?.name_with_initials || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Employee ID</p>
-                    <p className="text-lg font-bold text-gray-900 mt-1">{employeeProfile?.attendance_employee_no || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Department</p>
-                    <p className="text-lg font-bold text-gray-900 mt-1">{employeeProfile?.organization_assignment?.department?.name || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Month/Year</p>
-                    <p className="text-lg font-bold text-gray-900 mt-1">03/2026</p>
-                  </div>
+      {showSalarySlip && (() => {
+        const sb = latestSalaryRecord?.salary_breakdown || {};
+        const basicSalary = parseFloat(sb.basic_salary || latestSalaryRecord?.basic_salary || employeeProfile?.compensation?.basic_salary || 0);
+        const brAllowance = parseFloat(sb.br_allowance || 0);
+        const otMorning = parseFloat(sb.ot_morning_fees || 0);
+        const otNight = parseFloat(sb.ot_night_fees || 0);
+        const otherAllowances = parseFloat(sb.total_allowances || 0);
+        const grossSalary = parseFloat(sb.gross_salary || basicSalary);
+        const epf = parseFloat(sb.epf_employee_deduction || 0);
+        const loanInstallment = parseFloat((sb.loan_principal || 0) + (sb.loan_interest || 0)) || parseFloat(loanSummary.monthlyDeduction || 0);
+        const stampDuty = parseFloat(sb.stamp_duty || sb.stamp || 0);
+        const noPay = parseFloat(sb.full_day_nopay_deduction || sb.no_pay_deduction || 0);
+        const otherDeductions = parseFloat(sb.total_fixed_deductions || 0);
+        const totalDeductions = parseFloat(sb.total_deductions || 0);
+        const netSalary = parseFloat(sb.net_salary || basicSalary);
+        const period = latestSalaryRecord ? `${latestSalaryRecord.month}/${latestSalaryRecord.year}` : `${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
+        const status = latestSalaryRecord?.status || 'N/A';
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white flex justify-between items-center sticky top-0 rounded-t-2xl">
+                <div>
+                  <h2 className="text-2xl font-bold">Salary Slip</h2>
+                  <p className="text-blue-100 text-sm mt-1">Period: {period}</p>
                 </div>
+                <button onClick={() => setShowSalarySlip(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">✕</button>
               </div>
 
-              {/* Salary Breakdown Section */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* Earnings */}
-                <div className="bg-white rounded-xl p-6 border-2 border-green-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-1 h-6 bg-green-500 rounded"></div>
-                    <h3 className="font-bold text-gray-900 text-lg">Earnings</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-700 text-sm">Basic Salary</span>
-                      <span className="font-semibold text-gray-900">Rs. {(employeeProfile?.compensation?.basic_salary || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-700 text-sm">BR Allowance</span>
-                      <span className="font-semibold text-gray-900">Rs. 0.00</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-700 text-sm">Other Allowances</span>
-                      <span className="font-semibold text-green-600">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_allowances || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-3 bg-green-50 px-3 py-2 rounded-lg">
-                      <span className="font-bold text-gray-900">Total Earnings</span>
-                      <span className="font-bold text-green-600 text-lg">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.gross_salary || employeeProfile?.compensation?.basic_salary || 0).toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Deductions */}
-                <div className="bg-white rounded-xl p-6 border-2 border-red-200 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-1 h-6 bg-red-500 rounded"></div>
-                    <h3 className="font-bold text-gray-900 text-lg">Deductions</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-700 text-sm">EPF (8%)</span>
-                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.epf_employee_deduction || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-700 text-sm">Loan Installment</span>
-                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.loan_installment || loanSummary.monthlyDeduction || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-700 text-sm">Stamp Duty</span>
-                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.stamp || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="text-gray-700 text-sm">Other Deductions</span>
-                      <span className="font-semibold text-gray-900">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_fixed_deductions || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-3 bg-red-50 px-3 py-2 rounded-lg">
-                      <span className="font-bold text-gray-900">Total Deductions</span>
-                      <span className="font-bold text-red-600 text-lg">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_deductions || 0).toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Net Salary Summary */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-8 text-white shadow-lg">
-                <div className="flex justify-between items-center">
+              <div className="p-6 space-y-5">
+                {/* Employee Info */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-blue-100 text-sm font-semibold uppercase tracking-wide">Net Salary</p>
-                    <p className="text-blue-100 text-sm mt-1">Amount to be credited</p>
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Name</p>
+                    <p className="font-bold text-gray-900 mt-1">{employeeProfile?.name_with_initials || 'N/A'}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-5xl font-bold">Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.net_salary || employeeProfile?.compensation?.basic_salary || 0).toLocaleString()}</p>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Employee ID</p>
+                    <p className="font-bold text-gray-900 mt-1">{employeeProfile?.attendance_employee_no || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Department</p>
+                    <p className="font-bold text-gray-900 mt-1">{employeeProfile?.organization_assignment?.department?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
+                    <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      status === 'processed' ? 'bg-green-100 text-green-800' :
+                      status === 'issued' ? 'bg-blue-100 text-blue-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>{status}</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Additional Details */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">No Pay Days</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">0</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Probation Deduction</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">Rs. 0.00</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Loan Balance</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">Rs. {loanSummary.balance.toLocaleString()}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</p>
-                  <p className="text-2xl font-bold text-yellow-600 mt-2">Pending</p>
-                </div>
-              </div>
+                {/* Earnings & Deductions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Earnings */}
+                  <div className="border-2 border-green-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1 h-5 bg-green-500 rounded"></div>
+                      <h3 className="font-bold text-gray-900">Earnings</h3>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between py-1 border-b border-gray-100">
+                        <span className="text-gray-600">Basic Salary</span>
+                        <span className="font-semibold">Rs. {basicSalary.toLocaleString()}</span>
+                      </div>
+                      {brAllowance > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">BR Allowance</span>
+                          <span className="font-semibold">Rs. {brAllowance.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {otMorning > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">OT Morning</span>
+                          <span className="font-semibold">Rs. {otMorning.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {otNight > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">OT Night</span>
+                          <span className="font-semibold">Rs. {otNight.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {otherAllowances > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">Other Allowances</span>
+                          <span className="font-semibold text-green-600">Rs. {otherAllowances.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between py-2 bg-green-50 px-2 rounded-lg font-bold">
+                        <span>Gross Salary</span>
+                        <span className="text-green-600">Rs. {grossSalary.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Footer */}
-              <div className="border-t-2 border-gray-200 pt-6 flex justify-between items-center">
-                <p className="text-xs text-gray-500">Generated on {new Date().toLocaleDateString()}</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => window.print()}
-                    className="px-6 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium transition-colors"
-                  >
-                    Print
-                  </button>
-                  <button
-                    onClick={() => setShowSalarySlip(false)}
-                    className="px-6 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors"
-                  >
+                  {/* Deductions */}
+                  <div className="border-2 border-red-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1 h-5 bg-red-500 rounded"></div>
+                      <h3 className="font-bold text-gray-900">Deductions</h3>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      {epf > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">EPF (8%)</span>
+                          <span className="font-semibold">Rs. {epf.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {loanInstallment > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">Loan Installment</span>
+                          <span className="font-semibold">Rs. {loanInstallment.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {stampDuty > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">Stamp Duty</span>
+                          <span className="font-semibold">Rs. {stampDuty.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {noPay > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">No Pay</span>
+                          <span className="font-semibold">Rs. {noPay.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {otherDeductions > 0 && (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-600">Other Deductions</span>
+                          <span className="font-semibold">Rs. {otherDeductions.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between py-2 bg-red-50 px-2 rounded-lg font-bold">
+                        <span>Total Deductions</span>
+                        <span className="text-red-600">Rs. {totalDeductions.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Net Salary */}
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white flex justify-between items-center">
+                  <div>
+                    <p className="text-blue-100 text-sm font-semibold uppercase">Net Salary</p>
+                    <p className="text-blue-100 text-xs mt-1">Amount to be credited</p>
+                  </div>
+                  <p className="text-4xl font-bold">Rs. {netSalary.toLocaleString()}</p>
+                </div>
+
+                {/* Extra Info */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Working Days</p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">{sb.working_days || '—'}</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">No Pay Days</p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">{sb.no_pay_days || 0}</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Loan Balance</p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">Rs. {loanSummary.balance.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">EPF/ETF</p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">{latestSalaryRecord?.enable_epf_etf ? 'Enabled' : 'Disabled'}</p>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-200 pt-4 flex justify-between items-center">
+                  <p className="text-xs text-gray-400">Generated on {new Date().toLocaleDateString()}</p>
+                  <button onClick={() => setShowSalarySlip(false)}
+                    className="px-5 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors text-sm">
                     Close
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
