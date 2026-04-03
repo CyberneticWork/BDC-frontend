@@ -110,7 +110,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                   <div className="p-6 pt-0">
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Basic Salary <span className="text-red-500">*</span>
+                        Basic Salary / Daily Salary <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
