@@ -54,6 +54,17 @@ const SalaryDropdown = ({ comp }) => {
 };
 
 /* ── Attendance View ───────────────────────────────────────────────── */
+const getWeekRange = (offset = 0) => {
+  const today = new Date();
+  const day = today.getDay(); // 0=Sun
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((day + 6) % 7) + offset * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d) => d.toISOString().split("T")[0];
+  return { from: fmt(monday), to: fmt(sunday) };
+};
+
 const AttendanceView = ({ employees }) => {
   const [selectedEmp, setSelectedEmp] = useState("");
   const [fromDate, setFromDate] = useState(() => {
@@ -62,8 +73,38 @@ const AttendanceView = ({ employees }) => {
     return d.toISOString().split("T")[0];
   });
   const [toDate, setToDate] = useState(new Date().toISOString().split("T")[0]);
+  const [activeQuick, setActiveQuick] = useState("");
   const [records, setRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const applyQuick = (key) => {
+    setActiveQuick(key);
+    const today = new Date().toISOString().split("T")[0];
+    if (key === "today") {
+      setFromDate(today); setToDate(today);
+    } else if (key === "this_week") {
+      const r = getWeekRange(0); setFromDate(r.from); setToDate(r.to);
+    } else if (key === "last_week") {
+      const r = getWeekRange(-1); setFromDate(r.from); setToDate(r.to);
+    } else if (key === "this_month") {
+      const d = new Date();
+      const first = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
+      setFromDate(first); setToDate(today);
+    } else if (key === "last_month") {
+      const d = new Date();
+      const first = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split("T")[0];
+      const last = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().split("T")[0];
+      setFromDate(first); setToDate(last);
+    }
+  };
+
+  const quickBtns = [
+    { key: "today", label: "Today" },
+    { key: "this_week", label: "This Week" },
+    { key: "last_week", label: "Last Week" },
+    { key: "this_month", label: "This Month" },
+    { key: "last_month", label: "Last Month" },
+  ];
 
   const load = async () => {
     if (!selectedEmp) return;
@@ -132,6 +173,23 @@ const AttendanceView = ({ employees }) => {
 
   return (
     <div>
+      {/* Quick select buttons */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {quickBtns.map((b) => (
+          <button
+            key={b.key}
+            onClick={() => applyQuick(b.key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              activeQuick === b.key
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-white text-gray-600 border-gray-300 hover:bg-blue-50 hover:border-blue-400"
+            }`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="bg-white rounded-xl shadow border border-gray-100 p-4 mb-5 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[180px]">
@@ -151,12 +209,12 @@ const AttendanceView = ({ employees }) => {
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">From Date</label>
-          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+          <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setActiveQuick(""); }}
             className="p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">To Date</label>
-          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
+          <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setActiveQuick(""); }}
             className="p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
         </div>
         <button
