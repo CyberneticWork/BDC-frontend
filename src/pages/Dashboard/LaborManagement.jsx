@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "@utils/axios";
 import timeCardService from "@services/timeCardService";
+import { getProcessedSalaries } from "@services/SalaryProcessService";
 import {
   Search, Users, Briefcase, RefreshCw,
-  ChevronDown, ChevronUp, Clock, ArrowLeftRight,
+  ChevronDown, ChevronUp, Clock, DollarSign, Eye,
 } from "lucide-react";
 
 const formatLKR = (val) =>
@@ -304,9 +305,254 @@ const AttendanceView = ({ employees }) => {
   );
 };
 
+/* ── Salary View ────────────────────────────────────────────────────── */
+const MONTHS = [
+  { v: "01", l: "January" },  { v: "02", l: "February" }, { v: "03", l: "March" },
+  { v: "04", l: "April" },    { v: "05", l: "May" },       { v: "06", l: "June" },
+  { v: "07", l: "July" },     { v: "08", l: "August" },   { v: "09", l: "September" },
+  { v: "10", l: "October" },  { v: "11", l: "November" }, { v: "12", l: "December" },
+];
+
+const SalaryView = ({ employees }) => {
+  const now = new Date();
+  const [month, setMonth]       = useState(String(now.getMonth() + 1).padStart(2, "0"));
+  const [year, setYear]         = useState(String(now.getFullYear()));
+  const [selectedEmp, setSelectedEmp] = useState("");
+  const [records, setRecords]   = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [detail, setDetail]     = useState(null);
+
+  const load = async () => {
+    setIsLoading(true);
+    try {
+      const params = { month, year };
+      if (selectedEmp) params.employee_no = selectedEmp;
+      const data = await getProcessedSalaries(params);
+      const raw = Array.isArray(data) ? data : (data?.data || []);
+      const laborNos = new Set(employees.map(e => e.attendance_employee_no));
+      const filtered = raw.filter(r => laborNos.has(r.employee_no || r.emp_no));
+      setRecords(filtered.map(r => ({
+        ...r,
+        salary_breakdown: typeof r.salary_breakdown === "string" ? JSON.parse(r.salary_breakdown) : (r.salary_breakdown || {}),
+        allowances:       typeof r.allowances  === "string" ? JSON.parse(r.allowances)  : (r.allowances  || []),
+        deductions:       typeof r.deductions  === "string" ? JSON.parse(r.deductions)  : (r.deductions  || []),
+      })));
+    } catch (err) {
+      console.error("Salary load error:", err);
+      setRecords([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const totalNet   = records.reduce((s, r) => s + parseFloat(r.salary_breakdown?.net_salary   || 0), 0);
+  const totalBasic = records.reduce((s, r) => s + parseFloat(r.basic_salary || 0), 0);
+  const totalOT    = records.reduce((s, r) => s + parseFloat(r.ot_morning || 0) + parseFloat(r.ot_evening || 0), 0);
+
+  const statusColor = s => ({ processed:"bg-blue-100 text-blue-700", issued:"bg-green-100 text-green-700", pending:"bg-yellow-100 text-yellow-700", hold:"bg-red-100 text-red-700" }[s] || "bg-gray-100 text-gray-600");
+
+  return (
+    <div>
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow border border-gray-100 p-4 mb-5 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Month</label>
+          <select value={month} onChange={e => setMonth(e.target.value)}
+            className="p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            {MONTHS.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Year</label>
+          <input type="number" value={year} onChange={e => setYear(e.target.value)}
+            className="w-24 p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Employee (optional)</label>
+          <select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)}
+            className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Labor Employees</option>
+            {employees.map(e => (
+              <option key={e.id} value={e.attendance_employee_no}>{e.full_name} ({e.attendance_employee_no})</option>
+            ))}
+          </select>
+        </div>
+        <button onClick={load} disabled={isLoading}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">
+          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          {isLoading ? "Loading..." : "Load"}
+        </button>
+      </div>
+
+      {/* Summary cards */}
+      {records.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {[
+            { label: "Employees",   value: records.length,        color: "text-blue-700" },
+            { label: "Total Basic", value: formatLKR(totalBasic), color: "text-gray-700" },
+            { label: "Total OT",    value: formatLKR(totalOT),    color: "text-purple-700" },
+            { label: "Total Net",   value: formatLKR(totalNet),   color: "text-green-700" },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-xl p-4 shadow border border-gray-100">
+              <p className="text-xs text-gray-500">{s.label}</p>
+              <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+        {isLoading ? (
+          <div className="flex justify-center items-center py-16">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+          </div>
+        ) : records.length === 0 ? (
+          <div className="text-center py-16">
+            <DollarSign className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+            <p className="text-gray-500 font-medium">No salary records found</p>
+            <p className="text-gray-400 text-sm mt-1">Select month / year and click Load</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left   text-xs font-bold text-gray-500 uppercase">Employee</th>
+                  <th className="px-4 py-3 text-right  text-xs font-bold text-gray-500 uppercase">Basic</th>
+                  <th className="px-4 py-3 text-right  text-xs font-bold text-gray-500 uppercase">OT Morning</th>
+                  <th className="px-4 py-3 text-right  text-xs font-bold text-gray-500 uppercase">OT Night</th>
+                  <th className="px-4 py-3 text-right  text-xs font-bold text-gray-500 uppercase">Allowances</th>
+                  <th className="px-4 py-3 text-right  text-xs font-bold text-gray-500 uppercase">Deductions</th>
+                  <th className="px-4 py-3 text-right  text-xs font-bold text-gray-500 uppercase">Gross</th>
+                  <th className="px-4 py-3 text-right  text-xs font-bold text-green-600 uppercase">Net</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Details</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {records.map(r => {
+                  const sb = r.salary_breakdown;
+                  return (
+                    <tr key={r.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-gray-900">{r.full_name}</p>
+                        <p className="text-xs text-gray-400">{r.employee_no}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">{formatLKR(r.basic_salary)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-purple-700">{formatLKR(r.ot_morning)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-purple-700">{formatLKR(r.ot_evening)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-blue-700">{formatLKR(sb?.total_allowances)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-red-600">{formatLKR(sb?.total_deductions)}</td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold">{formatLKR(sb?.gross_salary)}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-green-700">{formatLKR(sb?.net_salary)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${statusColor(r.status)}`}>{r.status}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button onClick={() => setDetail(r)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Detail Modal */}
+      {detail && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{detail.full_name}</h3>
+                <p className="text-xs text-gray-400">{detail.employee_no} &bull; {MONTHS.find(m => m.v === detail.month)?.l || detail.month} {detail.year}</p>
+              </div>
+              <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Earnings */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Earnings</p>
+                <div className="space-y-1.5">
+                  {[
+                    ["Basic Salary",  detail.basic_salary],
+                    ["OT Morning",    detail.ot_morning],
+                    ["OT Night",      detail.ot_evening],
+                    ["BR Allowance",  detail.salary_breakdown?.br_allowance],
+                    ...(detail.allowances || []).map(a => [a.name || "Allowance", a.amount]),
+                  ].map(([label, val], i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{label}</span>
+                      <span className="font-mono font-semibold text-gray-800">{formatLKR(val)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
+                    <span>Gross Salary</span>
+                    <span className="font-mono">{formatLKR(detail.salary_breakdown?.gross_salary)}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Deductions */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Deductions</p>
+                <div className="space-y-1.5">
+                  {[
+                    ["EPF (8%)",         detail.salary_breakdown?.epf_employee_deduction],
+                    ["No Pay",           detail.salary_breakdown?.no_pay_deduction],
+                    ["Loan Installment", detail.salary_breakdown?.loan_installment],
+                    ["Stamp",            detail.salary_breakdown?.stamp],
+                    ...(detail.deductions || []).map(d => [d.name || "Deduction", d.amount]),
+                  ].map(([label, val], i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{label}</span>
+                      <span className="font-mono font-semibold text-red-600">{formatLKR(val)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
+                    <span>Total Deductions</span>
+                    <span className="font-mono text-red-600">{formatLKR(detail.salary_breakdown?.total_deductions)}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Net */}
+              <div className="bg-green-50 rounded-xl p-4 flex justify-between items-center">
+                <span className="text-base font-bold text-gray-800">Net Salary</span>
+                <span className="text-xl font-bold text-green-700 font-mono">{formatLKR(detail.salary_breakdown?.net_salary)}</span>
+              </div>
+              {/* EPF/ETF employer */}
+              {detail.enable_epf_etf && (
+                <div className="bg-blue-50 rounded-xl p-3 space-y-1">
+                  <p className="text-xs font-bold text-blue-700 uppercase mb-1">Employer Contributions</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">EPF Employer (12%)</span>
+                    <span className="font-mono">{formatLKR(detail.salary_breakdown?.epf_employer_contribution)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">ETF (3%)</span>
+                    <span className="font-mono">{formatLKR(detail.salary_breakdown?.etf_employer_contribution)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50 text-right rounded-b-2xl">
+              <button onClick={() => setDetail(null)}
+                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── Main Component ────────────────────────────────────────────────── */
 const LaborManagement = () => {
-  const [view, setView] = useState("list"); // "list" | "attendance"
+  const [view, setView] = useState("list"); // "list" | "attendance" | "salary"
   const [employees, setEmployees] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState("");
@@ -346,8 +592,9 @@ const LaborManagement = () => {
   }, [search, employees]);
 
   const tabs = [
-    { id: "list", label: "Employee List", icon: Users },
+    { id: "list",       label: "Employee List",        icon: Users },
     { id: "attendance", label: "Attendance (IN / OUT)", icon: Clock },
+    { id: "salary",     label: "Salary View",           icon: DollarSign },
   ];
 
   return (
@@ -481,6 +728,11 @@ const LaborManagement = () => {
         {/* ── ATTENDANCE VIEW ── */}
         {view === "attendance" && (
           <AttendanceView employees={employees} />
+        )}
+
+        {/* ── SALARY VIEW ── */}
+        {view === "salary" && (
+          <SalaryView employees={employees} />
         )}
 
       </div>
