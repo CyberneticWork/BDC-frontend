@@ -76,9 +76,8 @@ const WeeklySalaryView = ({ employees }) => {
       const workedDays = Object.values(byDate).filter(d => d.in !== null).length;
       const totalDays  = Object.keys(byDate).length;
 
-      // 4. Per-day rate = basicSalary directly (it IS the daily rate for Daily Wages employees)
-      const workingDaysPerMonth = 26;
-      const perDayRate  = round2(basicMonthly); // Daily Salary = per day rate directly
+      // 4. Per-day rate = basicSalary directly (Daily Wages employees' basic_salary IS the daily rate)
+      const perDayRate  = round2(basicMonthly);
       const basicEarned = round2(perDayRate * workedDays);
 
       // 5. OT calculation from working_hours
