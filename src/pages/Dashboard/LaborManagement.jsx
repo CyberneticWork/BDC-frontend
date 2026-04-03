@@ -4,7 +4,7 @@ import timeCardService from "@services/timeCardService";
 import { getProcessedSalaries } from "@services/SalaryProcessService";
 import {
   Search, Users, Briefcase, RefreshCw,
-  ChevronDown, ChevronUp, Clock, DollarSign, Eye,
+  ChevronDown, ChevronUp, Clock, DollarSign, Eye, Calculator,
 } from "lucide-react";
 
 const formatLKR = (val) =>
@@ -12,7 +12,297 @@ const formatLKR = (val) =>
     ? new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", minimumFractionDigits: 2 }).format(val)
     : "—";
 
-/* ── Salary Dropdown (inside employee row) ─────────────────────────── */
+const round2 = (v) => Math.round((Number(v) + Number.EPSILON) * 100) / 100;
+
+/* ── Weekly Salary Calculator ─────────────────────────────────────── */
+const WeeklySalaryView = ({ employees }) => {
+  const [selectedEmp, setSelectedEmp]   = useState("");
+  const [fromDate, setFromDate]         = useState(() => getWeekRange(0).from);
+  const [toDate, setToDate]             = useState(() => getWeekRange(0).to);
+  const [activeQuick, setActiveQuick]   = useState("this_week");
+  const [isLoading, setIsLoading]       = useState(false);
+  const [result, setResult]             = useState(null);
+
+  const applyQuick = (key) => {
+    setActiveQuick(key);
+    const today = new Date().toISOString().split("T")[0];
+    if (key === "this_week")  { const r = getWeekRange(0);  setFromDate(r.from); setToDate(r.to); }
+    if (key === "last_week")  { const r = getWeekRange(-1); setFromDate(r.from); setToDate(r.to); }
+    if (key === "2_weeks")    { const r = getWeekRange(-1); setFromDate(r.from); setToDate(getWeekRange(0).to); }
+    if (key === "this_month") {
+      const d = new Date();
+      setFromDate(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0]);
+      setToDate(today);
+    }
+  };
+
+  const quickBtns = [
+    { key: "this_week",  label: "This Week" },
+    { key: "last_week",  label: "Last Week" },
+    { key: "2_weeks",    label: "Last 2 Weeks" },
+    { key: "this_month", label: "This Month" },
+  ];
+
+  const calculate = async () => {
+    if (!selectedEmp) return;
+    setIsLoading(true);
+    setResult(null);
+    try {
+      // 1. Get employee compensation data
+      const emp = employees.find(e => e.attendance_employee_no === selectedEmp);
+      if (!emp) throw new Error("Employee not found");
+      const comp = emp.compensation;
+      const basicMonthly = parseFloat(comp?.basic_salary || 0);
+
+      // 2. Get attendance records for the date range
+      const data = await timeCardService.searchEmployeeTimeCards(selectedEmp);
+      const arr  = Array.isArray(data) ? data : [];
+      const rangeRecords = arr.filter(r => {
+        const d = r.date || r.actual_date;
+        return d && d >= fromDate && d <= toDate;
+      });
+
+      // 3. Group by date - count worked days (days that have at least one IN record)
+      const byDate = {};
+      rangeRecords.forEach(r => {
+        const d = r.date || r.actual_date;
+        if (!byDate[d]) byDate[d] = { in: null, out: null, working_hours: null, status: null };
+        if (r.entry?.toLowerCase().includes("in"))  byDate[d].in  = r.time || "—";
+        if (r.entry?.toLowerCase().includes("out")) byDate[d].out = r.time || "—";
+        if (r.working_hours) byDate[d].working_hours = r.working_hours;
+        if (r.status)        byDate[d].status = r.status;
+      });
+
+      const workedDays = Object.values(byDate).filter(d => d.in !== null).length;
+      const totalDays  = Object.keys(byDate).length;
+
+      // 4. Calculate per-day rate (monthly basic / 26 working days)
+      const workingDaysPerMonth = 26;
+      const perDayRate  = round2(basicMonthly / workingDaysPerMonth);
+      const basicEarned = round2(perDayRate * workedDays);
+
+      // 5. OT calculation from working_hours
+      // working_hours format: "8.5" or "8:30" - parse to decimal hours
+      const parseHours = (wh) => {
+        if (!wh) return 0;
+        if (wh.includes(":")) {
+          const [h, m] = wh.split(":").map(Number);
+          return h + (m || 0) / 60;
+        }
+        return parseFloat(wh) || 0;
+      };
+
+      const standardHoursPerDay = 8;
+      let totalOTHours = 0;
+      const dailyRows = [];
+
+      Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).forEach(([date, d]) => {
+        const hrs = parseHours(d.working_hours);
+        const otHrs = Math.max(0, round2(hrs - standardHoursPerDay));
+        totalOTHours = round2(totalOTHours + otHrs);
+        dailyRows.push({ date, in: d.in, out: d.out, working_hours: d.working_hours || "—", status: d.status, otHrs });
+      });
+
+      // OT rate: use compensation OT morning rate per hour
+      const otRatePerHour = parseFloat(comp?.ot_morning_rate || 0);
+      const otAmount = round2(totalOTHours * otRatePerHour);
+
+      // 6. EPF deduction (8% of basic earned)
+      const epfDeduction = comp?.enable_epf_etf ? round2(basicEarned * 0.08) : 0;
+
+      // 7. Net
+      const grossSalary = round2(basicEarned + otAmount);
+      const netSalary   = round2(grossSalary - epfDeduction);
+
+      setResult({
+        emp,
+        fromDate, toDate,
+        workedDays, totalDays,
+        basicMonthly, perDayRate, basicEarned,
+        totalOTHours, otRatePerHour, otAmount,
+        epfDeduction,
+        grossSalary, netSalary,
+        dailyRows,
+        comp,
+      });
+    } catch (err) {
+      console.error("Weekly salary calc error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const statusBadge = (s) => {
+    const c = { "Present":"bg-green-100 text-green-700", "Late Coming":"bg-yellow-100 text-yellow-700", "Absent":"bg-red-100 text-red-700", "Early Going":"bg-orange-100 text-orange-700" };
+    return s ? <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c[s] || "bg-gray-100 text-gray-600"}`}>{s}</span> : null;
+  };
+
+  return (
+    <div>
+      {/* Quick buttons */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {quickBtns.map(b => (
+          <button key={b.key} onClick={() => applyQuick(b.key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              activeQuick === b.key ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:bg-blue-50"
+            }`}>{b.label}</button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow border border-gray-100 p-4 mb-5 flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Employee</label>
+          <select value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)}
+            className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">-- Select Employee --</option>
+            {employees.map(e => (
+              <option key={e.id} value={e.attendance_employee_no}>{e.full_name} ({e.attendance_employee_no})</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">From</label>
+          <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setActiveQuick(""); }}
+            className="p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">To</label>
+          <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setActiveQuick(""); }}
+            className="p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <button onClick={calculate} disabled={!selectedEmp || isLoading}
+          className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-semibold">
+          <Calculator className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          {isLoading ? "Calculating..." : "Calculate"}
+        </button>
+      </div>
+
+      {/* Result */}
+      {result && (
+        <div className="space-y-5">
+          {/* Employee info + period */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-5 text-white">
+            <div className="flex justify-between items-start flex-wrap gap-3">
+              <div>
+                <p className="text-lg font-bold">{result.emp.full_name}</p>
+                <p className="text-blue-200 text-sm">{result.emp.attendance_employee_no} &bull; {result.emp.organizationAssignment?.department?.name || "—"}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-blue-200">Period</p>
+                <p className="font-semibold">{result.fromDate} → {result.toDate}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Worked Days",    value: `${result.workedDays} days`,       color: "text-blue-700",   bg: "bg-blue-50" },
+              { label: "Per Day Rate",   value: formatLKR(result.perDayRate),      color: "text-gray-700",   bg: "bg-gray-50" },
+              { label: "Total OT Hrs",   value: `${result.totalOTHours} hrs`,      color: "text-purple-700", bg: "bg-purple-50" },
+              { label: "Net Salary",     value: formatLKR(result.netSalary),       color: "text-green-700",  bg: "bg-green-50" },
+            ].map(s => (
+              <div key={s.label} className={`${s.bg} rounded-xl p-4 border border-gray-100`}>
+                <p className="text-xs text-gray-500 mb-1">{s.label}</p>
+                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Daily attendance breakdown */}
+          <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3 bg-gray-50 border-b">
+              <p className="text-sm font-bold text-gray-700">Daily Attendance Breakdown</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left   text-xs font-bold text-gray-500 uppercase">Date</th>
+                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">IN</th>
+                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">OUT</th>
+                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Working Hrs</th>
+                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">OT Hrs</th>
+                    <th className="px-4 py-2 text-right  text-xs font-bold text-gray-500 uppercase">Day Salary</th>
+                    <th className="px-4 py-2 text-right  text-xs font-bold text-purple-600 uppercase">OT Amount</th>
+                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {result.dailyRows.map((row, i) => {
+                    const worked = row.in !== null;
+                    const daySalary = worked ? result.perDayRate : 0;
+                    const otAmt    = round2(row.otHrs * result.otRatePerHour);
+                    return (
+                      <tr key={i} className={worked ? "hover:bg-gray-50" : "bg-red-50"}>
+                        <td className="px-4 py-2.5 font-medium text-gray-800">
+                          {new Date(row.date).toLocaleDateString("en-LK", { weekday: "short", month: "short", day: "numeric" })}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {row.in ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-bold">{row.in}</span> : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {row.out ? <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{row.out}</span> : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-center font-mono text-gray-700">{row.working_hours}</td>
+                        <td className="px-4 py-2.5 text-center font-mono text-purple-700">{row.otHrs > 0 ? row.otHrs : "—"}</td>
+                        <td className="px-4 py-2.5 text-right font-mono">{worked ? formatLKR(daySalary) : <span className="text-red-400">No Pay</span>}</td>
+                        <td className="px-4 py-2.5 text-right font-mono text-purple-700">{otAmt > 0 ? formatLKR(otAmt) : "—"}</td>
+                        <td className="px-4 py-2.5 text-center">{statusBadge(row.status)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Salary Calculation Summary */}
+          <div className="bg-white rounded-xl shadow border border-gray-100 p-5">
+            <p className="text-sm font-bold text-gray-700 mb-4">Salary Calculation Summary</p>
+            <div className="space-y-2">
+              {[
+                ["Monthly Basic Salary",                    formatLKR(result.basicMonthly),   "text-gray-700"],
+                [`Per Day Rate (÷ 26 days)`,                formatLKR(result.perDayRate),      "text-gray-700"],
+                [`Basic Earned (${result.workedDays} days × ${formatLKR(result.perDayRate)})`, formatLKR(result.basicEarned), "text-gray-800"],
+                [`OT (${result.totalOTHours} hrs × ${formatLKR(result.otRatePerHour)}/hr)`,    formatLKR(result.otAmount),    "text-purple-700"],
+              ].map(([label, val, color], i) => (
+                <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-100">
+                  <span className="text-gray-600">{label}</span>
+                  <span className={`font-mono font-semibold ${color}`}>{val}</span>
+                </div>
+              ))}
+              <div className="flex justify-between text-sm py-1 border-b border-gray-100">
+                <span className="font-semibold text-gray-800">Gross Salary</span>
+                <span className="font-mono font-bold text-gray-900">{formatLKR(result.grossSalary)}</span>
+              </div>
+              {result.epfDeduction > 0 && (
+                <div className="flex justify-between text-sm py-1 border-b border-gray-100">
+                  <span className="text-gray-600">EPF Deduction (8%)</span>
+                  <span className="font-mono font-semibold text-red-600">- {formatLKR(result.epfDeduction)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center mt-2 pt-2">
+                <span className="text-base font-bold text-gray-900">Net Salary</span>
+                <span className="text-xl font-bold text-green-700 font-mono">{formatLKR(result.netSalary)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!result && !isLoading && (
+        <div className="text-center py-16 bg-white rounded-xl shadow border border-gray-100">
+          <Calculator className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+          <p className="text-gray-500 font-medium">Select employee & period, then click Calculate</p>
+          <p className="text-gray-400 text-sm mt-1">Salary is calculated based on attendance records</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SalaryDropdown = ({ comp }) => {
   if (!comp) return <p className="text-gray-400 text-sm">No salary data available.</p>;
   return (
@@ -592,9 +882,10 @@ const LaborManagement = () => {
   }, [search, employees]);
 
   const tabs = [
-    { id: "list",       label: "Employee List",        icon: Users },
-    { id: "attendance", label: "Attendance (IN / OUT)", icon: Clock },
-    { id: "salary",     label: "Salary View",           icon: DollarSign },
+    { id: "list",           label: "Employee List",        icon: Users },
+    { id: "attendance",     label: "Attendance (IN / OUT)", icon: Clock },
+    { id: "weeklySalary",   label: "Weekly Salary",         icon: Calculator },
+    { id: "salary",         label: "Salary View",           icon: DollarSign },
   ];
 
   return (
@@ -726,14 +1017,13 @@ const LaborManagement = () => {
         )}
 
         {/* ── ATTENDANCE VIEW ── */}
-        {view === "attendance" && (
-          <AttendanceView employees={employees} />
-        )}
+        {view === "attendance" && <AttendanceView employees={employees} />}
+
+        {/* ── WEEKLY SALARY VIEW ── */}
+        {view === "weeklySalary" && <WeeklySalaryView employees={employees} />}
 
         {/* ── SALARY VIEW ── */}
-        {view === "salary" && (
-          <SalaryView employees={employees} />
-        )}
+        {view === "salary" && <SalaryView employees={employees} />}
 
       </div>
     </div>
