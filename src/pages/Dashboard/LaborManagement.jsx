@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import axios from "@utils/axios";
 import timeCardService from "@services/timeCardService";
 import { getProcessedSalaries } from "@services/SalaryProcessService";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Search, Users, Briefcase, RefreshCw,
-  ChevronDown, ChevronUp, Clock, DollarSign, Eye, Calculator,
+  ChevronDown, ChevronUp, Clock, DollarSign, Eye, Calculator, Download,
 } from "lucide-react";
 
 const formatLKR = (val) =>
@@ -131,6 +133,135 @@ const WeeklySalaryView = ({ employees }) => {
     return s ? <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c[s] || "bg-gray-100 text-gray-600"}`}>{s}</span> : null;
   };
 
+  const downloadPDF = () => {
+    if (!result) return;
+    const doc = new jsPDF();
+    const r = result;
+    const empName = r.emp.full_name;
+    const empNo   = r.emp.attendance_employee_no;
+    const dept    = r.emp.organizationAssignment?.department?.name || "—";
+    const period  = `${r.fromDate} to ${r.toDate}`;
+
+    // Header
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("LABOR SALARY SHEET", 105, 15, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Employee : ${empName} (${empNo})`, 14, 25);
+    doc.text(`Department : ${dept}`, 14, 31);
+    doc.text(`Period : ${period}`, 14, 37);
+    doc.text(`Daily Rate : ${formatLKR(r.perDayRate)}`, 14, 43);
+    doc.line(14, 47, 196, 47);
+
+    let y = 52;
+
+    // Week breakdown table (if multiple weeks)
+    if (weekBreakdown.length > 1) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Week-by-Week Breakdown", 14, y);
+      y += 4;
+      autoTable(doc, {
+        startY: y,
+        head: [["Week", "Period", "Worked Days", "Basic Earned", "OT Hrs", "OT Amount", "Gross", "Net"]],
+        body: [
+          ...weekBreakdown.map((w, i) => [
+            `Week ${i + 1}`,
+            `${w.wFrom} → ${w.wTo}`,
+            w.workedDays,
+            formatLKR(w.basicEarned),
+            w.totalOTHours || "—",
+            w.otAmount > 0 ? formatLKR(w.otAmount) : "—",
+            formatLKR(w.grossSalary),
+            formatLKR(w.netSalary),
+          ]),
+          [
+            { content: "TOTAL", styles: { fontStyle: "bold" } },
+            "",
+            { content: weekBreakdown.reduce((s,w)=>s+w.workedDays,0), styles: { fontStyle: "bold" } },
+            { content: formatLKR(weekBreakdown.reduce((s,w)=>s+w.basicEarned,0)), styles: { fontStyle: "bold" } },
+            { content: round2(weekBreakdown.reduce((s,w)=>s+w.totalOTHours,0)), styles: { fontStyle: "bold" } },
+            { content: formatLKR(weekBreakdown.reduce((s,w)=>s+w.otAmount,0)), styles: { fontStyle: "bold" } },
+            { content: formatLKR(weekBreakdown.reduce((s,w)=>s+w.grossSalary,0)), styles: { fontStyle: "bold" } },
+            { content: formatLKR(weekBreakdown.reduce((s,w)=>s+w.netSalary,0)), styles: { fontStyle: "bold", textColor: [22,163,74] } },
+          ],
+        ],
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // Daily attendance table
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Daily Attendance", 14, y);
+    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [["Date", "IN", "OUT", "Working Hrs", "OT Hrs", "Day Salary", "OT Amount", "Status"]],
+      body: r.dailyRows.map(row => {
+        const worked = row.in !== null;
+        const otAmt  = round2(row.otHrs * r.otRatePerHour);
+        return [
+          new Date(row.date).toLocaleDateString("en-LK", { weekday: "short", month: "short", day: "numeric" }),
+          row.in  || "—",
+          row.out || "—",
+          row.working_hours,
+          row.otHrs > 0 ? row.otHrs : "—",
+          worked ? formatLKR(r.perDayRate) : "No Pay",
+          otAmt > 0 ? formatLKR(otAmt) : "—",
+          row.status || "—",
+        ];
+      }),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [99, 102, 241] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.cell.raw === "No Pay")
+          data.cell.styles.textColor = [220, 38, 38];
+      },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+
+    // Salary summary
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Salary Calculation Summary", 14, y);
+    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [["Description", "Amount"]],
+      body: [
+        ["Daily Salary (Rate)",                                    formatLKR(r.basicMonthly)],
+        [`Basic Earned (${r.workedDays} days × ${formatLKR(r.perDayRate)})`, formatLKR(r.basicEarned)],
+        [`OT (${r.totalOTHours} hrs × ${formatLKR(r.otRatePerHour)}/hr)`,    formatLKR(r.otAmount)],
+        ["Gross Salary",                                           formatLKR(r.grossSalary)],
+        ...(r.epfDeduction > 0 ? [["EPF Deduction (8%)", `- ${formatLKR(r.epfDeduction)}`]] : []),
+        [{ content: "NET SALARY", styles: { fontStyle: "bold", fontSize: 10 } },
+         { content: formatLKR(r.netSalary), styles: { fontStyle: "bold", fontSize: 10, textColor: [22,163,74] } }],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [31, 41, 55] },
+      columnStyles: { 1: { halign: "right" } },
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(150);
+      doc.text(`Generated on ${new Date().toLocaleDateString("en-LK")}`, 14, doc.internal.pageSize.height - 8);
+      doc.text(`Page ${i} of ${pageCount}`, 196, doc.internal.pageSize.height - 8, { align: "right" });
+    }
+
+    doc.save(`salary_sheet_${empNo}_${r.fromDate}_${r.toDate}.pdf`);
+  };
+
   return (
     <div>
       {/* Quick buttons */}
@@ -182,9 +313,16 @@ const WeeklySalaryView = ({ employees }) => {
                 <p className="text-lg font-bold">{result.emp.full_name}</p>
                 <p className="text-blue-200 text-sm">{result.emp.attendance_employee_no} &bull; {result.emp.organizationAssignment?.department?.name || "—"}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-blue-200">Period</p>
-                <p className="font-semibold">{result.fromDate} → {result.toDate}</p>
+              <div className="flex items-start gap-3">
+                <div className="text-right">
+                  <p className="text-xs text-blue-200">Period</p>
+                  <p className="font-semibold">{result.fromDate} → {result.toDate}</p>
+                </div>
+                <button onClick={downloadPDF}
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg text-sm font-semibold transition-all">
+                  <Download className="h-4 w-4" />
+                  PDF
+                </button>
               </div>
             </div>
           </div>
