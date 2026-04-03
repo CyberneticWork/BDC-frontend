@@ -22,6 +22,7 @@ const WeeklySalaryView = ({ employees }) => {
   const [activeQuick, setActiveQuick]   = useState("this_week");
   const [isLoading, setIsLoading]       = useState(false);
   const [result, setResult]             = useState(null);
+  const [weekBreakdown, setWeekBreakdown] = useState([]);
 
   const applyQuick = (key) => {
     setActiveQuick(key);
@@ -43,87 +44,81 @@ const WeeklySalaryView = ({ employees }) => {
     { key: "this_month", label: "This Month" },
   ];
 
+  const calcWeek = (allRecords, wFrom, wTo, comp, perDayRate, otRatePerHour) => {
+    const parseHours = (wh) => {
+      if (!wh) return 0;
+      if (String(wh).includes(":")) { const [h, m] = String(wh).split(":").map(Number); return h + (m || 0) / 60; }
+      return parseFloat(wh) || 0;
+    };
+    const rangeRecs = allRecords.filter(r => { const d = r.date || r.actual_date; return d && d >= wFrom && d <= wTo; });
+    const byDate = {};
+    rangeRecs.forEach(r => {
+      const d = r.date || r.actual_date;
+      if (!byDate[d]) byDate[d] = { in: null, out: null, working_hours: null, status: null };
+      if (r.entry?.toLowerCase().includes("in"))  byDate[d].in  = r.time || "—";
+      if (r.entry?.toLowerCase().includes("out")) byDate[d].out = r.time || "—";
+      if (r.working_hours) byDate[d].working_hours = r.working_hours;
+      if (r.status)        byDate[d].status = r.status;
+    });
+    const workedDays = Object.values(byDate).filter(d => d.in !== null).length;
+    const basicEarned = round2(perDayRate * workedDays);
+    let totalOTHours = 0;
+    const dailyRows = [];
+    Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).forEach(([date, d]) => {
+      const hrs = parseHours(d.working_hours);
+      const otHrs = Math.max(0, round2(hrs - 8));
+      totalOTHours = round2(totalOTHours + otHrs);
+      dailyRows.push({ date, in: d.in, out: d.out, working_hours: d.working_hours || "—", status: d.status, otHrs });
+    });
+    const otAmount    = round2(totalOTHours * otRatePerHour);
+    const grossSalary = round2(basicEarned + otAmount);
+    const epfDeduction = comp?.enable_epf_etf ? round2(basicEarned * 0.08) : 0;
+    const netSalary   = round2(grossSalary - epfDeduction);
+    return { wFrom, wTo, workedDays, basicEarned, totalOTHours, otAmount, grossSalary, epfDeduction, netSalary, dailyRows };
+  };
+
   const calculate = async () => {
     if (!selectedEmp) return;
     setIsLoading(true);
     setResult(null);
+    setWeekBreakdown([]);
     try {
-      // 1. Get employee compensation data
       const emp = employees.find(e => e.attendance_employee_no === selectedEmp);
       if (!emp) throw new Error("Employee not found");
-      const comp = emp.compensation;
-      const basicMonthly = parseFloat(comp?.basic_salary || 0);
+      const comp          = emp.compensation;
+      const basicMonthly  = parseFloat(comp?.basic_salary || 0);
+      const perDayRate    = round2(basicMonthly);
+      const otRatePerHour = parseFloat(comp?.ot_morning_rate || 0);
 
-      // 2. Get attendance records for the date range
       const data = await timeCardService.searchEmployeeTimeCards(selectedEmp);
       const arr  = Array.isArray(data) ? data : [];
-      const rangeRecords = arr.filter(r => {
-        const d = r.date || r.actual_date;
-        return d && d >= fromDate && d <= toDate;
-      });
 
-      // 3. Group by date - count worked days (days that have at least one IN record)
-      const byDate = {};
-      rangeRecords.forEach(r => {
-        const d = r.date || r.actual_date;
-        if (!byDate[d]) byDate[d] = { in: null, out: null, working_hours: null, status: null };
-        if (r.entry?.toLowerCase().includes("in"))  byDate[d].in  = r.time || "—";
-        if (r.entry?.toLowerCase().includes("out")) byDate[d].out = r.time || "—";
-        if (r.working_hours) byDate[d].working_hours = r.working_hours;
-        if (r.status)        byDate[d].status = r.status;
-      });
+      // Split date range into ISO weeks (Mon-Sun)
+      const weeks = [];
+      let cur = new Date(fromDate);
+      const end = new Date(toDate);
+      while (cur <= end) {
+        const wMon = new Date(cur);
+        const wSun = new Date(cur);
+        wSun.setDate(wMon.getDate() + 6);
+        const wFrom = wMon.toISOString().split("T")[0];
+        const wTo   = (wSun > end ? end : wSun).toISOString().split("T")[0];
+        weeks.push(calcWeek(arr, wFrom, wTo, comp, perDayRate, otRatePerHour));
+        cur.setDate(cur.getDate() + 7);
+      }
 
-      const workedDays = Object.values(byDate).filter(d => d.in !== null).length;
-      const totalDays  = Object.keys(byDate).length;
+      // Combined totals
+      const workedDays   = weeks.reduce((s, w) => s + w.workedDays,   0);
+      const basicEarned  = round2(weeks.reduce((s, w) => s + w.basicEarned,  0));
+      const totalOTHours = round2(weeks.reduce((s, w) => s + w.totalOTHours, 0));
+      const otAmount     = round2(weeks.reduce((s, w) => s + w.otAmount,     0));
+      const grossSalary  = round2(weeks.reduce((s, w) => s + w.grossSalary,  0));
+      const epfDeduction = round2(weeks.reduce((s, w) => s + w.epfDeduction, 0));
+      const netSalary    = round2(weeks.reduce((s, w) => s + w.netSalary,    0));
+      const dailyRows    = weeks.flatMap(w => w.dailyRows).sort((a, b) => a.date.localeCompare(b.date));
 
-      // 4. Per-day rate = basicSalary directly (Daily Wages employees' basic_salary IS the daily rate)
-      const perDayRate  = round2(basicMonthly);
-      const basicEarned = round2(perDayRate * workedDays);
-
-      // 5. OT calculation from working_hours
-      // working_hours format: "8.5" or "8:30" - parse to decimal hours
-      const parseHours = (wh) => {
-        if (!wh) return 0;
-        if (wh.includes(":")) {
-          const [h, m] = wh.split(":").map(Number);
-          return h + (m || 0) / 60;
-        }
-        return parseFloat(wh) || 0;
-      };
-
-      const standardHoursPerDay = 8;
-      let totalOTHours = 0;
-      const dailyRows = [];
-
-      Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).forEach(([date, d]) => {
-        const hrs = parseHours(d.working_hours);
-        const otHrs = Math.max(0, round2(hrs - standardHoursPerDay));
-        totalOTHours = round2(totalOTHours + otHrs);
-        dailyRows.push({ date, in: d.in, out: d.out, working_hours: d.working_hours || "—", status: d.status, otHrs });
-      });
-
-      // OT rate: use compensation OT morning rate per hour
-      const otRatePerHour = parseFloat(comp?.ot_morning_rate || 0);
-      const otAmount = round2(totalOTHours * otRatePerHour);
-
-      // 6. EPF deduction (8% of basic earned)
-      const epfDeduction = comp?.enable_epf_etf ? round2(basicEarned * 0.08) : 0;
-
-      // 7. Net
-      const grossSalary = round2(basicEarned + otAmount);
-      const netSalary   = round2(grossSalary - epfDeduction);
-
-      setResult({
-        emp,
-        fromDate, toDate,
-        workedDays, totalDays,
-        basicMonthly, perDayRate, basicEarned,
-        totalOTHours, otRatePerHour, otAmount,
-        epfDeduction,
-        grossSalary, netSalary,
-        dailyRows,
-        comp,
-      });
+      setWeekBreakdown(weeks.length > 1 ? weeks : []);
+      setResult({ emp, fromDate, toDate, workedDays, basicMonthly, perDayRate, basicEarned, totalOTHours, otRatePerHour, otAmount, epfDeduction, grossSalary, netSalary, dailyRows, comp });
     } catch (err) {
       console.error("Weekly salary calc error:", err);
     } finally {
@@ -256,6 +251,57 @@ const WeeklySalaryView = ({ employees }) => {
               </table>
             </div>
           </div>
+
+          {/* Week-by-week breakdown (only when multiple weeks) */}
+          {weekBreakdown.length > 1 && (
+            <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+              <div className="px-5 py-3 bg-indigo-50 border-b">
+                <p className="text-sm font-bold text-indigo-700">Week-by-Week Breakdown</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left   text-xs font-bold text-gray-500 uppercase">Week</th>
+                      <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Worked Days</th>
+                      <th className="px-4 py-2 text-right  text-xs font-bold text-gray-500 uppercase">Basic Earned</th>
+                      <th className="px-4 py-2 text-center text-xs font-bold text-purple-600 uppercase">OT Hrs</th>
+                      <th className="px-4 py-2 text-right  text-xs font-bold text-purple-600 uppercase">OT Amount</th>
+                      <th className="px-4 py-2 text-right  text-xs font-bold text-gray-500 uppercase">Gross</th>
+                      <th className="px-4 py-2 text-right  text-xs font-bold text-green-600 uppercase">Net</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {weekBreakdown.map((w, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-4 py-2.5 text-xs text-gray-600">
+                          <span className="font-semibold text-indigo-700">Week {i + 1}</span>
+                          <br />
+                          <span className="text-gray-400">{w.wFrom} → {w.wTo}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-center font-semibold text-blue-700">{w.workedDays}</td>
+                        <td className="px-4 py-2.5 text-right font-mono">{formatLKR(w.basicEarned)}</td>
+                        <td className="px-4 py-2.5 text-center font-mono text-purple-700">{w.totalOTHours > 0 ? w.totalOTHours : "—"}</td>
+                        <td className="px-4 py-2.5 text-right font-mono text-purple-700">{w.otAmount > 0 ? formatLKR(w.otAmount) : "—"}</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-semibold">{formatLKR(w.grossSalary)}</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-green-700">{formatLKR(w.netSalary)}</td>
+                      </tr>
+                    ))}
+                    {/* Total row */}
+                    <tr className="bg-green-50 font-bold">
+                      <td className="px-4 py-3 text-sm text-gray-800">Total ({weekBreakdown.reduce((s,w)=>s+w.workedDays,0)} days)</td>
+                      <td className="px-4 py-3 text-center text-blue-700">{weekBreakdown.reduce((s,w)=>s+w.workedDays,0)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatLKR(weekBreakdown.reduce((s,w)=>s+w.basicEarned,0))}</td>
+                      <td className="px-4 py-3 text-center font-mono text-purple-700">{round2(weekBreakdown.reduce((s,w)=>s+w.totalOTHours,0))}</td>
+                      <td className="px-4 py-3 text-right font-mono text-purple-700">{formatLKR(weekBreakdown.reduce((s,w)=>s+w.otAmount,0))}</td>
+                      <td className="px-4 py-3 text-right font-mono">{formatLKR(weekBreakdown.reduce((s,w)=>s+w.grossSalary,0))}</td>
+                      <td className="px-4 py-3 text-right font-mono text-green-700 text-base">{formatLKR(weekBreakdown.reduce((s,w)=>s+w.netSalary,0))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Salary Calculation Summary */}
           <div className="bg-white rounded-xl shadow border border-gray-100 p-5">
