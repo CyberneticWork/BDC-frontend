@@ -76,9 +76,9 @@ const WeeklySalaryView = ({ employees }) => {
       const workedDays = Object.values(byDate).filter(d => d.in !== null).length;
       const totalDays  = Object.keys(byDate).length;
 
-      // 4. Calculate per-day rate (monthly basic / 26 working days)
+      // 4. Per-day rate = basicSalary directly (it IS the daily rate for Daily Wages employees)
       const workingDaysPerMonth = 26;
-      const perDayRate  = round2(basicMonthly / workingDaysPerMonth);
+      const perDayRate  = round2(basicMonthly); // Daily Salary = per day rate directly
       const basicEarned = round2(perDayRate * workedDays);
 
       // 5. OT calculation from working_hours
@@ -263,8 +263,8 @@ const WeeklySalaryView = ({ employees }) => {
             <p className="text-sm font-bold text-gray-700 mb-4">Salary Calculation Summary</p>
             <div className="space-y-2">
               {[
-                ["Monthly Basic Salary",                    formatLKR(result.basicMonthly),   "text-gray-700"],
-                [`Per Day Rate (÷ 26 days)`,                formatLKR(result.perDayRate),      "text-gray-700"],
+                ["Daily Salary",                           formatLKR(result.basicMonthly),   "text-gray-700"],
+                [`Per Day Rate`,                           formatLKR(result.perDayRate),      "text-gray-700"],
                 [`Basic Earned (${result.workedDays} days × ${formatLKR(result.perDayRate)})`, formatLKR(result.basicEarned), "text-gray-800"],
                 [`OT (${result.totalOTHours} hrs × ${formatLKR(result.otRatePerHour)}/hr)`,    formatLKR(result.otAmount),    "text-purple-700"],
               ].map(([label, val, color], i) => (
