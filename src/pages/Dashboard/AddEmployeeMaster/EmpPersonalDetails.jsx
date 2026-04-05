@@ -818,6 +818,7 @@ const EmpPersonalDetails = ({ onNext }) => {
               { value: "2", label: "Training" },
               { value: "3", label: "Contract Basis" },
               { value: "4", label: "Daily Wages Salary" },
+              { value: "5", label: "Probation" },
             ].map((item) => (
               <label
                 key={item.value}
@@ -936,7 +937,7 @@ const EmpPersonalDetails = ({ onNext }) => {
           </div>
         </div>
 
-        {/* Spouse Details */}
+        {/*
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="bg-gradient-to-r from-rose-500 to-pink-500 p-2 rounded-lg">
@@ -1063,6 +1064,136 @@ const EmpPersonalDetails = ({ onNext }) => {
             </div>
           </div>
         </div>
+        */}
+
+        {/* Spouse Details */}
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-gradient-to-r from-rose-500 to-pink-500 p-2 rounded-lg">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Relationship Details
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Relationship Type
+              </label>
+              <select
+                name="relationshipType"
+                value={formData.personal.relationshipType || ""}
+                onChange={handleChange}
+                className={`w-full border ${
+                  errors.personal?.relationshipType
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
+              >
+                {relationshipOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <FieldError error={errors.personal?.relationshipType} />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Title
+              </label>
+              <select
+                name="spouseTitle"
+                value={formData.personal.spouseTitle || ""}
+                onChange={handleChange}
+                className={`w-full border ${
+                  errors.personal?.spouseTitle
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
+              >
+                <option value="">Select Title</option>
+                <option>Mr</option>
+                <option>Mrs</option>
+                <option>Miss</option>
+                <option>Ms</option>
+                <option>Dr</option>
+              </select>
+              <FieldError error={errors.personal?.spouseTitle} />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Name
+              </label>
+              <input
+                name="spouseName"
+                value={formData.personal.spouseName}
+                onChange={handleChange}
+                className={`w-full border ${
+                  errors.personal?.spouseName
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                placeholder="Enter name"
+              />
+              <FieldError error={errors.personal?.spouseName} />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Date of Birth
+              </label>
+              <input
+                name="spouseDob"
+                type="date"
+                value={formData.personal.spouseDob}
+                onChange={handleChange}
+                max={maxDob}
+                className={`w-full border ${
+                  errors.personal?.spouseDob
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+              />
+              <FieldError error={errors.personal?.spouseDob} />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Age
+              </label>
+              <input
+                name="spouseAge"
+                type="text"
+                value={formData.personal.spouseAge}
+                readOnly
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50 text-gray-700 cursor-not-allowed"
+                placeholder="Auto-calculated"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                NIC
+              </label>
+              <input
+                name="spouseNic"
+                value={formData.personal.spouseNic}
+                onChange={handleChange}
+                className={`w-full border ${
+                  errors.personal?.spouseNic
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                placeholder="Enter NIC number"
+              />
+              <FieldError error={errors.personal?.spouseNic} />
+            </div>
+          </div>
+        </div>
+
+
 
         {/* Children Details - Dynamic */}
         <div className="bg-white rounded-2xl shadow-xl p-6">

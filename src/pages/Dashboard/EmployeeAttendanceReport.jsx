@@ -9,6 +9,8 @@ const EmployeeAttendanceReport = ({ employeeProfile }) => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [summary, setSummary] = useState({ present: 0, absent: 0, late: 0, total: 0 });
 
+  const [employeeCategory, setEmployeeCategory] = useState("");
+
   useEffect(() => {
     if (employeeProfile?.attendance_employee_no) {
       fetchAttendanceRecords();

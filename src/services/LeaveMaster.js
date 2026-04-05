@@ -118,6 +118,26 @@ export const getPendingLeaves = async () => {
   }
 };
 
+
+/*
+// add new supervisor
+export const getSupervisorPendingLeaves = async () => {
+  try {
+    const response = await axios.get("/leave-master/supervisor-pending");
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+*/
+
+
+export const getSupervisorLeaves = async () => {
+  const response = await axios.get("/leave-master/supervisor-leaves");
+  return response.data;
+};
+
+
 // Get approved leave records
 export const getApprovedLeaves = async () => {
   try {

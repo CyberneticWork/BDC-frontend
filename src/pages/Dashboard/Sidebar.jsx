@@ -122,6 +122,7 @@ const Sidebar = ({
             { id: "Overtime", name: "Over Time" },
             { id: "leaveMaster", name: "Leave Form" },
             { id: "leaveApproval", name: "Leave Approval" },
+            { id: "supervisorLeaveApproval", name: "Supervisor Leave Approval" },//new one
             { id: "midShiftBreaks", name: "Mid-Shift Breaks" },
             { id: "hrLeaveApproval", name: "HR Leave Approval" },
             { id: "noPayManagement", name: "NoPay" },
@@ -189,7 +190,11 @@ const Sidebar = ({
         path.includes("allowanceDeduction") || activeItem === "allowanceDeduction",
       loans: path.includes("loans") || activeItem === "loans",
       salaryProcess: path.includes("salaryProcess") || activeItem === "salaryProcess" || ["SalaryProcessPage", "SalaryPage", "salaryRecords", "downloadSalarySlip"].includes(activeItem),
-      timeAttendance: path.includes("timeAttendance") || activeItem === "timeAttendance",
+      //timeAttendance: path.includes("timeAttendance") || activeItem === "timeAttendance",
+      timeAttendance: 
+        path.includes("timeAttendance") || 
+        activeItem === "timeAttendance" || 
+        ["supervisorLeaveApproval"].includes(activeItem), // new one
       pms: path.includes("pms") || activeItem === "pms",
       lms: path.includes("lms") || activeItem === "lms",
       accounting: path.includes("accounting") || activeItem === "accounting",

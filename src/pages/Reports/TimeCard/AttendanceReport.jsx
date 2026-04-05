@@ -23,6 +23,7 @@ import * as XLSX from "xlsx";
 const AttendanceReport = ({ employeeProfile }) => {
   const [reportType, setReportType] = useState("month");
   const [date, setDate] = useState("");
+  const [employeeCategory, setEmployeeCategory] = useState("");
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -102,6 +103,10 @@ const AttendanceReport = ({ employeeProfile }) => {
     return `${year}-${monthVal}-${day}`;
   };
 
+
+
+  /*
+
   const fetchReport = async (page = 1) => {
     if (reportType === "date" && !date) {
       Swal.fire({
@@ -133,6 +138,7 @@ const AttendanceReport = ({ employeeProfile }) => {
         search,
         company_id: selectedCompany || undefined,
         department_id: selectedDepartment || undefined,
+        employee_category: employeeCategory || undefined,
         holiday_worked: isHolidayWorked ? 1 : 0,
       };
 
@@ -201,7 +207,50 @@ const AttendanceReport = ({ employeeProfile }) => {
       setStatusUpdatingId(null);
     }
   };
+*/
 
+const fetchReport = async (page = 1) => {
+    if (reportType === "date" && !date) {
+      Swal.fire({ icon: "warning", title: "Date Required", text: "Please select a date to generate the report", confirmButtonColor: "#3b82f6" });
+      return;
+    }
+    if (reportType === "month" && !month) {
+      Swal.fire({ icon: "warning", title: "Month Required", text: "Please select a month to generate the report", confirmButtonColor: "#3b82f6" });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const apiParams = {
+        page,
+        per_page: perPage,
+        search,
+        company_id: selectedCompany || undefined,
+        department_id: selectedDepartment || undefined,
+        employee_category: employeeCategory || undefined, // 🔥 Added Here
+        holiday_worked: isHolidayWorked ? 1 : 0,
+      };
+
+      const res = reportType === "date"
+          ? await getAttendanceRecords({ ...apiParams, date })
+          : await getMonthlyAttendanceRecords({ ...apiParams, month });
+
+      setData(res.data || []);
+      setMeta({
+        current_page: res.current_page || 1,
+        last_page: res.last_page || 1,
+        total: res.total || 0,
+      });
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "Failed to Fetch Report", text: e.response?.data?.message || e.message, confirmButtonColor: "#3b82f6" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+/*
   const exportToExcel = async () => {
     if (reportType === "date" && !date) {
       Swal.fire({
@@ -331,6 +380,152 @@ const AttendanceReport = ({ employeeProfile }) => {
       setExporting(false);
     }
   };
+  */
+
+  const exportToExcel = async () => {
+    // 1. අනිවාර්යයෙන්ම Date හෝ Month තෝරලා තියෙන්න ඕනේ
+    if (reportType === "date" && !date) {
+      Swal.fire({
+        icon: "warning",
+        title: "Date Required",
+        text: "Please select a date first",
+        confirmButtonColor: "#3b82f6",
+      });
+      return;
+    }
+
+    if (reportType === "month" && !month) {
+      Swal.fire({
+        icon: "warning",
+        title: "Month Required",
+        text: "Please select a month first",
+        confirmButtonColor: "#3b82f6",
+      });
+      return;
+    }
+
+    // 2. Export කරන්න Data තියෙනවද කියලා බලනවා
+    if (data.length === 0) {
+      Swal.fire({
+        icon: "info",
+        title: "No Data",
+        text: "Generate the report first to export",
+        confirmButtonColor: "#3b82f6",
+      });
+      return;
+    }
+
+    try {
+      setExporting(true);
+
+      let allData = [];
+      let currentPage = 1;
+      let lastPage = 1;
+
+      // 🔥 3. Backend එකට යවන Parameters (අලුත් Category Filter එකත් එක්ක)
+      const apiParams = {
+        per_page: 100, // Excel එකට ගද්දි එක පාර ගොඩක් ගන්න 100 දැම්මා
+        search,
+        company_id: selectedCompany || undefined,
+        department_id: selectedDepartment || undefined,
+        employee_category: employeeCategory || undefined, // මෙන්න අලුත් Filter එක
+        holiday_worked: isHolidayWorked ? 1 : 0,
+      };
+
+      // 4. හැම පිටුවකම තියෙන Data ටික එකතු කරගන්නවා (Loop එකක් හරහා)
+      do {
+        const res =
+          reportType === "date"
+            ? await getAttendanceRecords({ ...apiParams, date, page: currentPage })
+            : await getMonthlyAttendanceRecords({ ...apiParams, month, page: currentPage });
+
+        allData = allData.concat(res.data || []);
+        lastPage = res.last_page || 1;
+        currentPage++;
+      } while (currentPage <= lastPage);
+
+      // 5. Data මුකුත් ආවේ නැත්නම් නවත්තනවා
+      if (allData.length === 0) {
+        Swal.fire({
+          icon: "info",
+          title: "No Records",
+          text: "No data available to export",
+          confirmButtonColor: "#3b82f6",
+        });
+        return;
+      }
+
+      // 6. Excel එකට ඕන විදිහට Data ටික ලස්සනට හදාගන්නවා
+      const exportData = allData.map((r, idx) => ({
+        "No.": idx + 1,
+        "EMP No": r.empNo || "-",
+        "Name": r.name || "-",
+        "Company": r.company || "-",
+        "Department": r.department || "-",
+        "Sub Department": r.sub_department || "-",
+        "Date": r.date_label ? `${r.date || "-"} (${r.date_label})` : r.date || "-",
+        "IN Time": r.in_label
+          ? `${r.in_time || "-"} (${r.in_label})`
+          : r.in_time || "-",
+        "OUT Time": r.out_label
+          ? `${r.out_time || "-"} (${r.out_label})`
+          : r.out_time || "-",
+        "Status": r.status || "Present",
+        "Late Day No": r.late_day_number || "-",
+        "Late Action": r.is_grace_period_late ? "Pending" : r.late_policy_action || "-",
+        "Monthly Late Count": r.monthly_late_count ?? "-",
+        "Approval": r.is_grace_period_late ? r.approval_status || "Pending" : "-",
+      }));
+
+      // 7. Excel File එක හදනවා (XLSX Library එක පාවිච්චි කරලා)
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance Report");
+
+      // 8. Excel එකේ Columns වල පළල (Width) Auto හදාගන්නවා
+      const maxWidth = exportData.reduce((w, r) => {
+        Object.keys(r).forEach((key) => {
+          const len = String(r[key]).length;
+          w[key] = Math.max(w[key] || 10, len);
+        });
+        return w;
+      }, {});
+
+      ws["!cols"] = Object.keys(maxWidth).map((key) => ({
+        wch: maxWidth[key] + 2,
+      }));
+
+      // 9. File එක Download කරනවා
+      XLSX.writeFile(
+        wb,
+        reportType === "date"
+          ? `Attendance_Report_${date}.xlsx`
+          : `Attendance_Report_${month}.xlsx`
+      );
+
+      // 10. Success Message එක පෙන්වනවා
+      Swal.fire({
+        icon: "success",
+        title: "Exported Successfully",
+        text: `${allData.length} records exported`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+    } catch (e) {
+      // Error එකක් ආවොත් පෙන්වනවා
+      Swal.fire({
+        icon: "error",
+        title: "Export Failed",
+        text: e.response?.data?.message || e.message || "Failed to export data",
+        confirmButtonColor: "#3b82f6",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+
 
   const goToPage = (page) => {
     if (page >= 1 && page <= meta.last_page) {
@@ -485,6 +680,22 @@ const AttendanceReport = ({ employeeProfile }) => {
               ))}
             </select>
           </div>
+
+          {/* Employee Category Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+            <select
+              value={employeeCategory}
+              onChange={(e) => setEmployeeCategory(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Categories</option>
+              <option value="Executive">Executive</option>
+              <option value="Non-Executive">Non-Executive</option>
+            </select>
+          </div>
+
+
 
           <div className="flex items-center h-full pb-3">
             <label className="flex items-center space-x-3 cursor-pointer">

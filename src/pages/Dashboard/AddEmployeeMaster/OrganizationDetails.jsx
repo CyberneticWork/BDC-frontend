@@ -581,7 +581,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 <Layers className="text-gray-500" size={16} />
                 Day Off
               </label>
-              <div className="relative">
+              <div className="relative mb-4">
                 <select
                   name="dayOff"
                   value={formData.organization.dayOff || ""}
@@ -605,6 +605,36 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 </select>
               </div>
               <FieldError error={errors.organization?.dayOff} />
+
+              {/* Employee Category (Executive / Non-Executive) */}
+            <div className="mb-4">
+              <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
+                <Briefcase className="text-gray-500" size={16} />
+                Employee Category <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  name="employeeCategory"
+                  value={formData.organization.employeeCategory || ""}
+                  onChange={handleChange}
+                  className={`w-full pl-8 pr-3 py-2 border ${
+                    errors.organization?.employeeCategory
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  required
+                >
+                  <option value="">Select Category</option>
+                  <option value="Executive">Executive</option>
+                  <option value="Non-Executive">Non-Executive</option>
+                </select>
+                <Briefcase
+                  className="absolute left-2 top-2.5 text-gray-400"
+                  size={16}
+                />
+              </div>
+              <FieldError error={errors.organization?.employeeCategory} />
+            </div>
             </div>
           </div>
         </div>

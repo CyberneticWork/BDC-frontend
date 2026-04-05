@@ -12,4 +12,13 @@ const getMonthlyReportData = async (month, year) => {
   }
 };
 
-export default { getMonthlyReportData };
+
+const saveCoinageData = async (coinageData) => {
+  const response = await axios.post(`/reports/save-coinage`, { coinage_data: coinageData });
+  return response.data;
+};
+
+export default { 
+  getMonthlyReportData,
+  saveCoinageData,
+ };

@@ -136,6 +136,8 @@ import DinnerAllowance from "@dashboard/DinnerAllowance";
 
 import MidShiftBreaks from "@dashboard/MidShiftBreaks";
 
+import SupervisorLeaveApproval from "@dashboard/SupervisorLeaveApproval";
+
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   sidebarUtils,
@@ -803,6 +805,13 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="myKPIs" action="view">
             <EmployeeKPIView />
+          </ProtectedComponent>
+        );
+
+        case "supervisorLeaveApproval":
+        return (
+          <ProtectedComponent module="supervisorLeaveApproval" action="view">
+            <SupervisorLeaveApproval />
           </ProtectedComponent>
         );
 
