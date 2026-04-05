@@ -280,12 +280,43 @@ const LeaveCalendar = ({ employeeProfile }) => {
       lightColor: "bg-purple-100",
       textColor: "text-purple-800",
     },
+
+    {
+      value: "Poya Day",
+      color: "bg-orange-500",
+      lightColor: "bg-orange-100",
+      textColor: "text-orange-800",
+    },
+
+    {
+      value: "Mercantile Holiday",
+      color: "bg-green-500",
+      lightColor: "bg-green-100",
+      textColor: "text-green-800",
+    },
+
+     {
+      value: "Saterday Holiday",
+      color: "bg-yellow-500",
+      lightColor: "bg-yellow-100",
+      textColor: "text-yellow-800",
+    },
+
+    {
+      value: "Sunday Holiday",
+      color: "bg-pink-500",
+      lightColor: "bg-pink-100",
+      textColor: "text-pink-800",
+    },
+
+
     {
       value: "Other",
       color: "bg-gray-500",
       lightColor: "bg-gray-100",
       textColor: "text-gray-800",
     },
+    
   ];
 
   const getEmployeeLeaveColor = () => ({

@@ -131,6 +131,15 @@ import SalaryRecords from "@dashboard/SalaryRecords";
 // Check if this line is missing and add it
 import AbsentReport from "../Reports/TimeCard/AbsentReport";
 
+import AllowancessPaymentFull from "../Dashboard/Allowancess_payment_full";
+
+import DinnerAllowance from "@dashboard/DinnerAllowance"; 
+
+
+import MidShiftBreaks from "@dashboard/MidShiftBreaks";
+
+import SupervisorLeaveApproval from "@dashboard/SupervisorLeaveApproval";
+
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   sidebarUtils,
@@ -814,6 +823,21 @@ const Dashboard = ({ user, onLogout }) => {
             <EmployeeKPIView />
           </ProtectedComponent>
         );
+
+        case "supervisorLeaveApproval":
+        return (
+          <ProtectedComponent module="supervisorLeaveApproval" action="view">
+            <SupervisorLeaveApproval />
+          </ProtectedComponent>
+        );
+
+        // renderContent case :
+case "midShiftBreaks":
+   return (
+      <ProtectedComponent module="midShiftBreaks" action="view">
+         <MidShiftBreaks />
+      </ProtectedComponent>
+   );
       case "absentReport":
         return (
           <ProtectedComponent module="absentReport" action="view">
@@ -1119,6 +1143,12 @@ const Dashboard = ({ user, onLogout }) => {
             <LeaveSettings />
           </ProtectedComponent>
         );
+      case "dinnerAllowance":
+        return (
+          <ProtectedComponent module="dinnerAllowance" action="view">
+            <DinnerAllowance />
+          </ProtectedComponent>
+        );
       case "chatbot":
         return (
           <ProtectedComponent module="chatbot" action="view">
@@ -1133,6 +1163,14 @@ const Dashboard = ({ user, onLogout }) => {
             <SalaryPage employeeProfile={employeeProfile} />
           </ProtectedComponent>
         );
+
+        case "allowancesReport": 
+        return (
+          <ProtectedComponent module="allowancesReport" action="view">
+             <AllowancessPaymentFull />
+          </ProtectedComponent>
+        );
+
       case "salaryRecords":
         return (
           <ProtectedComponent module="salaryRecords" action="view">

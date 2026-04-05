@@ -3,6 +3,1137 @@ import {
   Calendar,
   Search,
   Plus,
+  Trash2,
+  X,
+  Eye,
+  AlertTriangle,
+} from "lucide-react";
+import ShiftScheduleService from "@services/ShiftScheduleService";
+import RosterService from "@services/RosterService";
+import {
+  fetchCompanies,
+  fetchDepartments,
+  fetchSubDepartments,
+  employeesBySubDepartment,
+  employeesByCompany,
+} from "@services/ApiDataService";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+import axios from "@utils/axios";
+
+const RosterManagementSystem = () => {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [rosterDate, setRosterDate] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [selectedSubDepartment, setSelectedSubDepartment] = useState("");
+  const [assignMode, setAssignMode] = useState("designation");
+  const [rosterAssignments, setRosterAssignments] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showAllRostersModal, setShowAllRostersModal] = useState(false);
+  const [allRosters, setAllRosters] = useState([]);
+  const [loadingAllRosters, setLoadingAllRosters] = useState(false);
+  const [deletingRoster, setDeletingRoster] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const [companies, setCompanies] = useState([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [subDepartments, setSubDepartments] = useState([]);
+  const [isLoadingSubDepartments, setIsLoadingSubDepartments] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
+  const [shifts, setShifts] = useState([]);
+  const [isLoadingShifts, setIsLoadingShifts] = useState(false);
+  const [selectedShifts, setSelectedShifts] = useState(new Set());
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [shiftSearchTerm, setShiftSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
+  const [rosterSearchParams, setRosterSearchParams] = useState({
+    date_from: "",
+    date_to: "",
+    company_id: "",
+    department_id: "",
+    employee_id: "",
+  });
+  const [searchedRosters, setSearchedRosters] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [rosterSearchPerformed, setRosterSearchPerformed] = useState(false);
+  const [isCompanyWise, setIsCompanyWise] = useState(false);
+  const [selectedRosterIds, setSelectedRosterIds] = useState(new Set());
+  const [selectAllRosters, setSelectAllRosters] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  useEffect(() => {
+    const today = new Date();
+    const defaultDateFrom = today.toISOString().split("T")[0];
+    const defaultDateTo = new Date(today.setDate(today.getDate() + 30))
+      .toISOString()
+      .split("T")[0];
+    setDateFrom(defaultDateFrom);
+    setDateTo(defaultDateTo);
+    setRosterDate(defaultDateFrom);
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    await fetchCompaniesData();
+    await fetchShiftsData();
+  };
+
+  const fetchCompaniesData = async () => {
+    setIsLoadingCompanies(true);
+    try {
+      const data = await fetchCompanies();
+      setCompanies(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingCompanies(false);
+    }
+  };
+
+  const fetchDepartmentsData = async () => {
+    setIsLoadingDepartments(true);
+    try {
+      const data = await fetchDepartments();
+      setDepartments(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingDepartments(false);
+    }
+  };
+
+  const fetchSubDepartmentsData = async () => {
+    setIsLoadingSubDepartments(true);
+    try {
+      const data = await fetchSubDepartments();
+      setSubDepartments(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingSubDepartments(false);
+    }
+  };
+
+  const fetchEmployeesData = async () => {
+    try {
+      setIsLoadingEmployees(true);
+      let data = [];
+      if (isCompanyWise) {
+        data = await employeesByCompany(selectedCompany);
+      } else if (selectedSubDepartment) {
+        data = await employeesBySubDepartment(selectedSubDepartment);
+      } else {
+        const filters = {};
+        if (selectedCompany) filters.company_id = selectedCompany;
+        if (selectedDepartment) filters.department_id = selectedDepartment;
+        data = await RosterService.getEmployeesForRoster(filters);
+      }
+
+      setEmployees(
+        data.map((emp) => {
+          let empName = emp.full_name || emp.name_with_initials || emp.first_name;
+          if (!empName && emp.first_name && emp.last_name) {
+            empName = `${emp.first_name} ${emp.last_name}`;
+          }
+
+          return {
+            id: emp.id,
+            empCode:
+              emp.employee_code || emp.attendance_employee_no || `ID:${emp.id}`,
+            name: empName || "Unknown Employee",
+            department_id: emp.department_id?.toString(),
+            sub_department_id: emp.sub_department_id?.toString(),
+          };
+        })
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingEmployees(false);
+    }
+  };
+
+  const fetchShiftsData = async () => {
+    try {
+      setIsLoadingShifts(true);
+      const data = await ShiftScheduleService.getAllShifts();
+      setShifts(
+        data.map((shift) => ({
+          id: shift.id,
+          scode: shift.shift_code,
+          shiftName: shift.shift_name || shift.shift_description,
+          shiftStart: shift.start_time.substring(0, 5),
+          shiftEnd: shift.end_time.substring(0, 5),
+        }))
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingShifts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCompany) fetchDepartmentsData();
+    else setSelectedDepartment("");
+  }, [selectedCompany]);
+  useEffect(() => {
+    if (selectedDepartment) fetchSubDepartmentsData();
+    else setSelectedSubDepartment("");
+  }, [selectedDepartment]);
+  useEffect(() => {
+    if (selectedCompany) fetchEmployeesData();
+    else setEmployees([]);
+  }, [
+    selectedCompany,
+    selectedDepartment,
+    selectedSubDepartment,
+    isCompanyWise,
+  ]);
+
+  const filteredDepartments = useMemo(
+    () =>
+      departments.filter((dep) =>
+        selectedCompany ? dep.company_id?.toString() === selectedCompany : true
+      ),
+    [selectedCompany, departments]
+  );
+  const filteredSubDepartments = useMemo(
+    () =>
+      subDepartments.filter((sub) =>
+        selectedDepartment
+          ? sub.department_id?.toString() === selectedDepartment
+          : true
+      ),
+    [selectedDepartment, subDepartments]
+  );
+
+  const filteredEmployees = useMemo(() => {
+    let filtered = employees;
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (emp) =>
+          (emp.name &&
+            emp.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (emp.empCode &&
+            emp.empCode.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    return filtered;
+  }, [employees, searchTerm]);
+
+  const filteredAndPaginatedShifts = useMemo(() => {
+    const filtered = shifts.filter(
+      (shift) =>
+        shift.scode.toLowerCase().includes(shiftSearchTerm.toLowerCase()) ||
+        shift.shiftName.toLowerCase().includes(shiftSearchTerm.toLowerCase())
+    );
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return {
+      shifts: filtered.slice(startIndex, startIndex + rowsPerPage),
+      totalShifts: filtered.length,
+    };
+  }, [shifts, shiftSearchTerm, currentPage]);
+
+  const getCompanyName = (id) =>
+    companies.find((c) => c.id.toString() === id)?.name || "";
+  const getDepartmentName = (id) =>
+    departments.find((d) => d.id.toString() === id)?.name || "";
+  const getSubDepartmentName = (id) =>
+    subDepartments.find((s) => s.id.toString() === id)?.name || "";
+
+  const toggleShiftSelection = (shift) => {
+    setSelectedShifts((prev) => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(shift.id)) newSelected.delete(shift.id);
+      else newSelected.add(shift.id);
+      return newSelected;
+    });
+  };
+
+  const handleAddShift = () => {
+    if (selectedShifts.size === 0) return;
+    if (!selectedCompany) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing Information",
+        text: "Please select a company",
+      });
+      return;
+    }
+
+    let employeesToAssign =
+      assignMode === "designation"
+        ? filteredEmployees.map((e) => e.id)
+        : Array.from(selectedEmployees);
+    if (employeesToAssign.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "No Employees",
+        text: "Select at least one employee",
+      });
+      return;
+    }
+
+    const shiftsToAssign = shifts.filter((shift) =>
+      selectedShifts.has(shift.id)
+    );
+    const newAssignments = shiftsToAssign.map((shift) => ({
+      company: selectedCompany,
+      department: isCompanyWise ? "0" : selectedDepartment,
+      subDepartment: isCompanyWise ? "0" : selectedSubDepartment,
+      employees: employeesToAssign,
+      shift: shift,
+      dateFrom,
+      dateTo,
+    }));
+
+    setRosterAssignments((prev) => [...prev, ...newAssignments]);
+    setSelectedShifts(new Set());
+    setSelectedEmployees(new Set());
+  };
+
+  const handleRemoveAssignment = (idx) =>
+    setRosterAssignments((prev) => prev.filter((_, i) => i !== idx));
+
+  const handleEmployeeSelect = (empId) => {
+    if (assignMode !== "employee") return;
+    setSelectedEmployees((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(empId)) newSet.delete(empId);
+      else newSet.add(empId);
+      return newSet;
+    });
+  };
+
+  const handleSaveRoster = async (isOverwrite = false) => {
+    if (rosterAssignments.length === 0) {
+      Swal.fire({
+        icon: "error",
+        title: "No Assignments",
+        text: "Please add a shift assignment.",
+      });
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const rosterEntries = [];
+      const rosterId = Date.now();
+
+      for (const assignment of rosterAssignments) {
+        assignment.employees.forEach((employeeId) => {
+          rosterEntries.push({
+            roster_id: rosterId,
+            shift_code: assignment.shift.id,
+            company_id: parseInt(assignment.company),
+            department_id:
+              assignment.department === "0"
+                ? null
+                : parseInt(assignment.department),
+            sub_department_id:
+              assignment.subDepartment === "0"
+                ? null
+                : parseInt(assignment.subDepartment),
+            employee_id: parseInt(employeeId),
+            date_from: assignment.dateFrom,
+            date_to: assignment.dateTo,
+          });
+        });
+      }
+
+      await axios.post(`/rosters/bulk?overwrite=${isOverwrite}`, rosterEntries);
+
+      Swal.fire({
+        icon: "success",
+        title: "Assigned!",
+        text: "Roster assignments saved successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      setRosterAssignments([]);
+      setSelectedCompany("");
+      setSelectedDepartment("");
+      setSelectedShifts(new Set());
+      setSelectedEmployees(new Set());
+    } catch (error) {
+      if (error.response && error.response.status === 409) {
+        const conflicts = error.response.data.conflicts || [];
+
+        let conflictText = `<div style="text-align: left; font-size: 14px;" class="p-3 bg-orange-50 text-orange-900 border border-orange-200 rounded">`;
+        conflictText += `<p class="font-bold mb-2">The following employees already have shifts assigned on these dates:</p><ul class="list-disc pl-5 max-h-40 overflow-y-auto mb-3">`;
+
+        conflicts.slice(0, 8).forEach((c) => {
+          conflictText += `<li><b>${c.employee}</b> on <b>${c.date}</b> (${c.shift})</li>`;
+        });
+
+        if (conflicts.length > 8)
+          conflictText += `<li>... and ${
+            conflicts.length - 8
+          } more overlaps.</li>`;
+
+        conflictText += `</ul><p class="font-bold text-gray-800 border-t pt-2 mt-2">Do you want to overwrite these existing shifts?</p></div>`;
+
+        Swal.fire({
+          title: "Schedule Conflict!",
+          html: conflictText,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#d33",
+          cancelButtonColor: "#3085d6",
+          confirmButtonText: "Yes, Overwrite them!",
+          cancelButtonText: "No, Cancel",
+        }).then((result) => {
+          if (result.isConfirmed) handleSaveRoster(true);
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Error!",
+          text: "Failed to save roster. Please try again.",
+        });
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleViewAllRosters = async () => {
+    setShowAllRostersModal(true);
+    setLoadingAllRosters(true);
+    try {
+      const data = await RosterService.getAllRosters();
+      setAllRosters(normalizeRosterItems(Array.isArray(data) ? data : []));
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load rosters",
+      });
+      setAllRosters([]);
+    } finally {
+      setLoadingAllRosters(false);
+    }
+  };
+
+  const normalizeRosterItems = (items) => {
+    if (!Array.isArray(items)) return [];
+    return items.map((item) => {
+      const rd = item.roster_details || item.roster || {};
+      const org = item.organization_details || {};
+      const emp = item.employee_details || {};
+      const company = org.company || item.company || {};
+      const dept = org.department || item.department || {};
+
+      return {
+        id: rd.id ?? item.id,
+        roster_id: rd.roster_id ?? item.roster_id ?? rd.id ?? item.id,
+        shift_code: rd.shift_code ?? item.shift_code ?? "",
+        shift_name: rd.shift_name ?? item.shift_name ?? "",
+        start_time: rd.start_time ?? item.start_time ?? null,
+        end_time: rd.end_time ?? item.end_time ?? null,
+        company_name: company.name ?? item.company_name ?? "",
+        department_name: dept.name ?? item.department_name ?? "",
+        employee_id: emp.id ?? item.employee_id ?? null,
+        employee_code: emp.employee_code ?? item.employee_code ?? "-",
+        employee_name:
+          emp.full_name ?? emp.name ?? item.employee_name ?? "Unknown",
+        date_from: rd.date_from ?? item.date_from ?? "",
+        date_to: rd.date_to ?? item.date_to ?? "",
+      };
+    });
+  };
+
+  const handleRosterSearch = async (e) => {
+    e.preventDefault();
+    setIsSearching(true);
+    setRosterSearchPerformed(true);
+    try {
+      const cleanParams = {};
+      Object.keys(rosterSearchParams).forEach((key) => {
+        if (rosterSearchParams[key] && rosterSearchParams[key].trim() !== "")
+          cleanParams[key] = rosterSearchParams[key].trim();
+      });
+      const data = await RosterService.searchRosters(cleanParams);
+      const flattenedRosters = normalizeRosterItems(
+        Array.isArray(data) ? data : []
+      );
+      setSearchedRosters(flattenedRosters);
+    } catch (error) {
+      setSearchedRosters([]);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to search rosters",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const resetRosterSearch = () => {
+    setRosterSearchParams({
+      date_from: "",
+      date_to: "",
+      company_id: "",
+      department_id: "",
+      employee_id: "",
+    });
+    setSearchedRosters([]);
+    setRosterSearchPerformed(false);
+  };
+
+  const handleDeleteConfirm = (roster) => {
+    setDeletingRoster(roster);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteRoster = async () => {
+    if (!deletingRoster) return;
+    try {
+      await RosterService.deleteRoster(deletingRoster.id);
+      setAllRosters((prev) =>
+        prev.filter((r) => r.id !== deletingRoster.id)
+      );
+      setSearchedRosters((prev) =>
+        prev.filter((r) => r.id !== deletingRoster.id)
+      );
+      toast.success("Roster deleted successfully");
+      setShowDeleteConfirm(false);
+      setDeletingRoster(null);
+    } catch (error) {
+      toast.error("Failed to delete roster");
+    }
+  };
+
+  const handleSelectAllRosters = () => {
+    if (selectAllRosters) {
+      setSelectedRosterIds(new Set());
+    } else {
+      const currentRosters = rosterSearchPerformed
+        ? searchedRosters
+        : allRosters;
+      setSelectedRosterIds(new Set(currentRosters.map((r) => r.id)));
+    }
+    setSelectAllRosters(!selectAllRosters);
+  };
+
+  const handleSelectRoster = (rosterId) => {
+    const newSelected = new Set(selectedRosterIds);
+    if (newSelected.has(rosterId)) newSelected.delete(rosterId);
+    else newSelected.add(rosterId);
+    setSelectedRosterIds(newSelected);
+  };
+
+  const handleBulkDeleteRosters = async () => {
+    if (selectedRosterIds.size === 0) return;
+    const result = await Swal.fire({
+      title: "Delete Selected?",
+      text: `Delete ${selectedRosterIds.size} roster(s)?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Yes, delete!",
+    });
+    if (!result.isConfirmed) return;
+
+    setIsBulkDeleting(true);
+    try {
+      await RosterService.bulkDeleteRosters(Array.from(selectedRosterIds));
+      setAllRosters((prev) =>
+        prev.filter((r) => !selectedRosterIds.has(r.id))
+      );
+      setSearchedRosters((prev) =>
+        prev.filter((r) => !selectedRosterIds.has(r.id))
+      );
+      setSelectedRosterIds(new Set());
+      setSelectAllRosters(false);
+      Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error!",
+        text: "Failed to delete",
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleCloseAllRostersModal = () => {
+    setShowAllRostersModal(false);
+    setSelectedRosterIds(new Set());
+    setSelectAllRosters(false);
+  };
+
+  return (
+    <div className="bg-gray-100 flex flex-col">
+      {/* Top Header */}
+      <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-md">
+        <h1 className="text-xl font-bold">Roster Management System</h1>
+        <button
+          className="bg-white text-blue-700 px-4 py-2 rounded shadow hover:bg-blue-100 font-semibold"
+          onClick={handleViewAllRosters}
+        >
+          View All Rosters
+        </button>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel - Filters */}
+        <div className="w-80 bg-white border-r border-gray-300 flex flex-col shadow-sm">
+          {/* Date Range Section */}
+          <div className="p-4 border-b border-gray-300">
+            <div className="bg-gradient-to-r from-orange-100 to-orange-50 border border-orange-300 rounded-lg p-4 mb-4 shadow-sm">
+              <h3 className="font-semibold text-sm mb-3 text-orange-800 flex items-center">
+                <Calendar className="w-4 h-4 mr-2" />
+                Roster Date
+              </h3>
+              <input
+                type="date"
+                value={rosterDate}
+                className="w-full px-3 py-2 border border-orange-300 rounded-md text-sm bg-gray-50 cursor-not-allowed"
+                readOnly
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Date From
+                </label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Date To
+                </label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Company/Department/SubDepartment Dropdowns */}
+          <div className="p-4 border-b border-gray-300">
+            <h3 className="font-semibold text-sm mb-3 text-gray-800">
+              Select Company / Department / Sub Department
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Company
+                </label>
+                <select
+                  value={selectedCompany}
+                  onChange={(e) => {
+                    setSelectedCompany(e.target.value);
+                    setSelectedDepartment("");
+                    setSelectedSubDepartment("");
+                    setSelectedShifts(new Set());
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Company</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Department {!isCompanyWise && <span className="text-red-500">*</span>}
+                </label>
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => {
+                    setSelectedDepartment(e.target.value);
+                    setSelectedSubDepartment("");
+                  }}
+                  disabled={!selectedCompany || isCompanyWise}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isCompanyWise ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <option value="">
+                    {isCompanyWise ? "Not required in company mode" : "Select Department"}
+                  </option>
+                  {filteredDepartments.map((dep) => (
+                    <option key={dep.id} value={dep.id}>
+                      {dep.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Sub Department {!isCompanyWise && <span className="text-red-500">*</span>}
+                </label>
+                <select
+                  value={selectedSubDepartment}
+                  onChange={(e) => setSelectedSubDepartment(e.target.value)}
+                  disabled={!selectedDepartment || isCompanyWise}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isCompanyWise ? "bg-gray-100 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <option value="">
+                    {isCompanyWise ? "Not required" : "Select Sub Department"}
+                  </option>
+                  {filteredSubDepartments.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Assign Mode */}
+          <div className="p-4 border-b border-gray-300">
+            <div className="flex space-x-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  name="wise"
+                  id="employee"
+                  checked={assignMode === "employee"}
+                  onChange={() => setAssignMode("employee")}
+                  className="w-3 h-3 text-blue-600"
+                />
+                <label htmlFor="employee" className="text-xs font-medium text-gray-700">
+                  Employee Wise
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  name="wise"
+                  id="designation"
+                  checked={assignMode === "designation"}
+                  onChange={() => setAssignMode("designation")}
+                  className="w-3 h-3 text-blue-600"
+                />
+                <label htmlFor="designation" className="text-xs font-medium text-gray-700">
+                  Designation Wise
+                </label>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="companyWise"
+                  checked={isCompanyWise}
+                  onChange={() => {
+                    if (!isCompanyWise) {
+                      setSelectedDepartment("");
+                      setSelectedSubDepartment("");
+                    }
+                    setIsCompanyWise(!isCompanyWise);
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <label htmlFor="companyWise" className="text-sm font-medium text-gray-700">
+                  Company Wise
+                </label>
+                {isCompanyWise && selectedCompany && (
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full ml-2">
+                    {employees.length} employees
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Panel */}
+        <div className="w-[400px] min-w-[400px] max-w-[400px] p-4 border-r border-gray-300 bg-gray-50">
+          <div className="flex items-center justify-between mb-2 p-4 border-b border-gray-300 bg-gray-50 sticky top-0 z-10">
+            <div>
+              <span className="text-xs text-gray-500">Selected: </span>
+              <span className="font-semibold text-blue-700">
+                {selectedCompany && getCompanyName(selectedCompany)}
+                {!isCompanyWise && selectedDepartment && ` > ${getDepartmentName(selectedDepartment)}`}
+                {!isCompanyWise && selectedSubDepartment && ` > ${getSubDepartmentName(selectedSubDepartment)}`}
+              </span>
+            </div>
+            {((selectedDepartment && selectedSubDepartment) || (isCompanyWise && selectedCompany)) && filteredEmployees.length > 0 && (
+              <button
+                className="flex items-center text-blue-600 hover:underline text-xs"
+                onClick={() => setShowEmployeeModal(true)}
+              >
+                <Eye className="w-4 h-4 mr-1" /> View All ({filteredEmployees.length})
+              </button>
+            )}
+          </div>
+
+          <div className="p-4">
+            <h3 className="font-semibold text-sm mb-3 text-gray-800">
+              {isCompanyWise && selectedCompany ? "Employees" : "Employees"}
+            </h3>
+            <div className="h-[calc(100vh-280px)] overflow-y-auto">
+              {/* Employee search */}
+              {((isCompanyWise && selectedCompany) || (selectedDepartment && selectedSubDepartment)) && (
+                <div className="mb-3 relative sticky top-0 z-10 bg-gray-50 pb-2">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search employees..."
+                    className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {isLoadingEmployees ? (
+                  <div className="flex items-center justify-center p-4">
+                    <div className="h-6 w-6 mr-2 rounded-full border-2 border-t-blue-500 animate-spin"></div>
+                    <span>Loading...</span>
+                  </div>
+                ) : filteredEmployees.length === 0 && (selectedCompany || selectedDepartment) ? (
+                  <div className="p-4 text-center text-gray-500">No employees found</div>
+                ) : (
+                  filteredEmployees.slice(0, 15).map((emp) => (
+                    <div
+                      key={emp.id}
+                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                        selectedEmployees.has(emp.id.toString())
+                          ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
+                          : "hover:bg-gray-100 border border-gray-300 bg-white"
+                      }`}
+                      onClick={() => assignMode === "employee" && handleEmployeeSelect(emp.id.toString())}
+                    >
+                      <div className="truncate pr-2">
+                        <span className="text-sm font-medium text-gray-700 block truncate">
+                          {emp.name}
+                        </span>
+                        {emp.empCode && (
+                          <span className="text-xs text-gray-500 block truncate">
+                            ID: {emp.empCode}
+                          </span>
+                        )}
+                      </div>
+                      {assignMode === "employee" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedEmployees.has(emp.id.toString())}
+                          readOnly
+                          className="w-4 h-4 flex-shrink-0 text-blue-600 border-gray-300 rounded"
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel */}
+        <div className="flex-1 bg-white flex flex-col">
+          <div className="p-4 border-b border-gray-300 bg-gradient-to-r from-orange-50 to-orange-25">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-lg text-gray-800">Shift Selection</h3>
+            </div>
+            <div className="text-sm text-gray-600">
+              <span className="font-semibold">{dateFrom} - {dateTo}</span>
+            </div>
+          </div>
+          
+          <div className="p-4 flex-1 flex flex-col">
+            <div className="flex-1 overflow-hidden border border-gray-300 rounded-lg shadow mb-4 flex flex-col">
+              <div className="p-4 border-b border-gray-300">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search shifts by code or name..."
+                    className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={shiftSearchTerm}
+                    onChange={(e) => {
+                      setShiftSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold border-r border-blue-500">Code</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold border-r border-blue-500">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold border-r border-blue-500">Start</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold border-r border-blue-500">End</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold">Select</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndPaginatedShifts.shifts.map((shift, index) => (
+                      <tr
+                        key={shift.id}
+                        className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors duration-150 border-b border-gray-300`}
+                      >
+                        <td className="px-4 py-3 border-r border-gray-300 font-mono text-blue-600 font-bold">{shift.scode}</td>
+                        <td className="px-4 py-3 border-r border-gray-300 font-medium">{shift.shiftName}</td>
+                        <td className="px-4 py-3 border-r border-gray-300 text-green-600 font-mono font-semibold">{shift.shiftStart}</td>
+                        <td className="px-4 py-3 border-r border-gray-300 text-red-600 font-mono font-semibold">{shift.shiftEnd}</td>
+                        <td className="px-4 py-3 text-center border-gray-300">
+                          <button
+                            onClick={() => toggleShiftSelection(shift)}
+                            className={`w-6 h-6 rounded-full flex items-center justify-center mx-auto ${selectedShifts.has(shift.id) ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"}`}
+                          >
+                            {selectedShifts.has(shift.id) ? "✓" : "+"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <button
+              className="w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200 transform hover:scale-105 mb-4 disabled:opacity-50 disabled:scale-100"
+              onClick={handleAddShift}
+              disabled={selectedShifts.size === 0 || filteredEmployees.length === 0 || (assignMode === "employee" && selectedEmployees.size === 0)}
+            >
+              Add to Pending List {selectedShifts.size > 0 && `(${selectedShifts.size} shifts)`}
+            </button>
+
+            <div className="h-32 overflow-y-auto border border-gray-300 rounded p-2 mb-3 bg-gray-50">
+              <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Pending Assignments</h4>
+              {rosterAssignments.length === 0 ? (
+                <div className="text-xs text-gray-400">No shifts added yet.</div>
+              ) : (
+                rosterAssignments.map((a, idx) => (
+                  <div key={idx} className="flex justify-between items-center bg-white border border-gray-300 p-2 rounded mb-1 text-sm shadow-sm">
+                    <div>
+                      <span className="font-bold text-blue-700">{a.shift.shiftName}</span> <span className="text-xs text-gray-500">({a.dateFrom} to {a.dateTo})</span>
+                      <div className="text-xs text-gray-600">{a.employees.length} employees</div>
+                    </div>
+                    <button onClick={() => handleRemoveAssignment(idx)} className="text-red-500 hover:text-red-700 p-1"><Trash2 className="w-4 h-4"/></button>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className="flex space-x-2 mt-2">
+              <button className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200" onClick={() => setShowSummaryModal(true)}>
+                View Summary
+              </button>
+              <button
+                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200 disabled:opacity-50"
+                onClick={() => handleSaveRoster(false)}
+                disabled={isSaving || rosterAssignments.length === 0}
+              >
+                {isSaving ? "Saving..." : "Save Roster to Database"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* View Summary Modal */}
+      {showSummaryModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full p-6 relative">
+            <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-700" onClick={() => setShowSummaryModal(false)}>
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-lg font-bold mb-4">Pending Roster Summary</h2>
+            <div className="overflow-x-auto max-h-[70vh] border border-gray-300 rounded">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-2 border-b border-gray-300">Company</th>
+                    <th className="px-4 py-2 border-b border-gray-300">Shift</th>
+                    <th className="px-4 py-2 border-b border-gray-300">Employees</th>
+                    <th className="px-4 py-2 border-b border-gray-300">Date Range</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rosterAssignments.length === 0 ? (
+                    <tr><td colSpan="4" className="text-center p-4 text-gray-500">No pending assignments.</td></tr>
+                  ) : (
+                    rosterAssignments.map((a, idx) => (
+                      <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="px-4 py-2 border-b border-gray-300">{getCompanyName(a.company)}</td>
+                        <td className="px-4 py-2 border-b border-gray-300 font-medium text-blue-700">{a.shift.shiftName}</td>
+                        <td className="px-4 py-2 border-b border-gray-300 text-center">{a.employees.length}</td>
+                        <td className="px-4 py-2 border-b border-gray-300">{a.dateFrom} <br/>to<br/> {a.dateTo}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ALL ROSTERS MODAL */}
+      {showAllRostersModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl max-w-[90%] w-[1200px] p-6 relative h-[90vh] flex flex-col border border-gray-300">
+            <button className="absolute top-4 right-4 text-gray-500 hover:text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors" onClick={handleCloseAllRostersModal}>
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Manage All Rosters</h2>
+
+            {/* Search Filters */}
+            <div className="mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50 shadow-sm">
+              <form onSubmit={handleRosterSearch} className="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Company</label>
+                  <select value={rosterSearchParams.company_id} onChange={(e) => setRosterSearchParams({...rosterSearchParams, company_id: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">All Companies</option>
+                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Department</label>
+                  <select value={rosterSearchParams.department_id} onChange={(e) => setRosterSearchParams({...rosterSearchParams, department_id: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">All Departments</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date From</label><input type="date" value={rosterSearchParams.date_from} onChange={(e) => setRosterSearchParams({...rosterSearchParams, date_from: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date To</label><input type="date" value={rosterSearchParams.date_to} onChange={(e) => setRosterSearchParams({...rosterSearchParams, date_to: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Emp No / ID</label><input type="text" placeholder="e.g. EMP003" value={rosterSearchParams.employee_id} onChange={(e) => setRosterSearchParams({...rosterSearchParams, employee_id: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+                
+                <div className="col-span-2 md:col-span-5 flex justify-end space-x-3 mt-2">
+                  <button type="button" onClick={resetRosterSearch} className="px-4 py-2 border border-gray-400 rounded text-sm text-gray-700 bg-white hover:bg-gray-100 font-semibold shadow-sm">Reset</button>
+                  <button type="submit" disabled={isSearching} className="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 shadow-md flex items-center justify-center min-w-[100px]">
+                    {isSearching ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Search"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Bulk Delete Button */}
+            {selectedRosterIds.size > 0 && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center shadow-sm">
+                <span className="text-red-700 font-bold">{selectedRosterIds.size} Rosters Selected</span>
+                <button onClick={handleBulkDeleteRosters} disabled={isBulkDeleting} className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 flex items-center gap-2 font-bold shadow-sm">
+                  {isBulkDeleting ? "Deleting..." : <><Trash2 className="w-4 h-4"/> Delete Selected</>}
+                </button>
+              </div>
+            )}
+
+            {/* Roster Table */}
+            <div className="flex-1 overflow-y-auto border border-gray-300 rounded-lg shadow-sm">
+              <table className="min-w-full text-sm border-collapse">
+                <thead className="bg-gray-200 sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    <th className="p-3 border-b border-r border-gray-300 text-center w-12"><input type="checkbox" checked={selectAllRosters} onChange={handleSelectAllRosters} className="w-4 h-4 text-blue-600 rounded cursor-pointer"/></th>
+                    <th className="p-3 border-b border-r border-gray-300 text-left font-bold text-gray-700">Emp No (ID)</th>
+                    <th className="p-3 border-b border-r border-gray-300 text-left font-bold text-gray-700">Employee Name</th>
+                    <th className="p-3 border-b border-r border-gray-300 text-left font-bold text-gray-700">Shift</th>
+                    <th className="p-3 border-b border-r border-gray-300 text-center font-bold text-gray-700">Date From</th>
+                    <th className="p-3 border-b border-r border-gray-300 text-center font-bold text-gray-700">Date To</th>
+                    <th className="p-3 border-b border-gray-300 text-center font-bold text-gray-700 w-20">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingAllRosters ? (
+                     <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">Loading rosters...</td></tr>
+                  ) : (rosterSearchPerformed ? searchedRosters : allRosters).length === 0 ? (
+                     <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">No rosters found.</td></tr>
+                  ) : (
+                    (rosterSearchPerformed ? searchedRosters : allRosters).map((roster, idx) => (
+                      <tr key={roster.id} className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors`}>
+                        <td className="p-3 border-b border-r border-gray-200 text-center">
+                          <input type="checkbox" checked={selectedRosterIds.has(roster.id)} onChange={() => handleSelectRoster(roster.id)} className="w-4 h-4 text-blue-600 rounded cursor-pointer"/>
+                        </td>
+                        <td className="p-3 border-b border-r border-gray-200 font-mono font-bold text-blue-700">
+                          {roster.employee_code && roster.employee_code !== "-" ? roster.employee_code : `ID: ${roster.employee_id}`}
+                        </td>
+                        <td className="p-3 border-b border-r border-gray-200 font-medium text-gray-800">{roster.employee_name || "-"}</td>
+                        <td className="p-3 border-b border-r border-gray-200">
+                          <span className="bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded text-xs font-bold mr-2">{roster.shift_code}</span>
+                          <span className="text-gray-600 text-xs font-mono">({roster.start_time} - {roster.end_time})</span>
+                        </td>
+                        <td className="p-3 border-b border-r border-gray-200 text-center text-green-700 font-medium font-mono">{roster.date_from || "-"}</td>
+                        <td className="p-3 border-b border-r border-gray-200 text-center text-red-700 font-medium font-mono">{roster.date_to || "-"}</td>
+                        <td className="p-3 border-b border-gray-200 text-center">
+                          <button onClick={() => handleDeleteConfirm(roster)} className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 p-1.5 rounded transition-colors shadow-sm"><Trash2 className="w-4 h-4" /></button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="mt-4 flex justify-end pt-4 border-t border-gray-200">
+               <button className="bg-gray-500 text-white px-6 py-2 rounded shadow hover:bg-gray-600 font-bold" onClick={handleCloseAllRostersModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Popup */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-96 text-center border border-gray-200">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Delete Roster?</h3>
+            <p className="text-gray-600 mb-6 text-sm">Are you sure you want to remove <b>{deletingRoster?.employee_name}</b>'s shift on <b>{deletingRoster?.date_from}</b>?</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-5 py-2 border border-gray-300 text-gray-700 rounded font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={handleDeleteRoster} className="px-5 py-2 bg-red-600 text-white rounded font-semibold shadow hover:bg-red-700">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RosterManagementSystem;
+
+
+
+
+
+/*
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  Calendar,
+  Search,
+  Plus,
   Edit,
   Trash2,
   Save,
@@ -864,13 +1995,11 @@ const RosterManagementSystem = () => {
 
   return (
     <div className=" bg-gray-100 flex flex-col">
-      {/* Top Header */}
+      
       <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <h1 className="text-xl font-bold">Roster Management System</h1>
         <div className="flex items-center space-x-4">
-          {/* <span className="text-sm bg-blue-700 px-3 py-1 rounded-full">
-            Filtering Options
-          </span> */}
+          
           <button
             className="bg-white text-blue-700 px-4 py-2 rounded shadow hover:bg-blue-100 font-semibold"
             onClick={handleViewAllRosters}
@@ -881,9 +2010,9 @@ const RosterManagementSystem = () => {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Filters */}
+        
         <div className="w-80 bg-white border-r border-gray-300 flex flex-col shadow-sm">
-          {/* Date Range Section */}
+         
           <div className="p-4 border-b border-gray-200">
             <div className="bg-gradient-to-r from-orange-100 to-orange-50 border border-orange-300 rounded-lg p-4 mb-4 shadow-sm">
               <h3 className="font-semibold text-sm mb-3 text-orange-800 flex items-center">
@@ -924,13 +2053,13 @@ const RosterManagementSystem = () => {
             </div>
           </div>
 
-          {/* Company/Department/SubDepartment Dropdowns */}
+          
           <div className="p-4 border-b border-gray-200">
             <h3 className="font-semibold text-sm mb-3 text-gray-800">
               Select Company / Department / Sub Department
             </h3>
             <div className="space-y-3">
-              {/* Company Dropdown */}
+             
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Company
@@ -964,7 +2093,7 @@ const RosterManagementSystem = () => {
                   </select>
                 )}
               </div>
-              {/* Department Dropdown */}
+           
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Department
@@ -1008,7 +2137,7 @@ const RosterManagementSystem = () => {
                   </select>
                 )}
               </div>
-              {/* Sub Department Dropdown */}
+           
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Sub Department
@@ -1052,7 +2181,7 @@ const RosterManagementSystem = () => {
             </div>
           </div>
 
-          {/* Assign Mode */}
+         
           <div className="p-4 border-b border-gray-200">
             <div className="flex space-x-4">
               <div className="flex items-center space-x-2">
@@ -1089,7 +2218,7 @@ const RosterManagementSystem = () => {
               </div>
             </div>
 
-            {/* Add Company Wise checkbox */}
+            
             <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="flex items-center space-x-2">
                 <input
@@ -1129,12 +2258,12 @@ const RosterManagementSystem = () => {
             </div>
           </div>
 
-          {/* Company Wise Toggle - Removed duplicate section */}
+          
         </div>
 
-        {/* Middle Panel - Show appropriate content based on selection */}
+     
         <div className="w-[400px] min-w-[400px] max-w-[400px] p-4 border-b border-gray-200 bg-gray-50">
-          {/* Top: Show current selection as a summary */}
+         
           <div className="flex items-center justify-between mb-2 p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
             <div>
               <span className="text-xs text-gray-500">Selected: </span>
@@ -1180,9 +2309,9 @@ const RosterManagementSystem = () => {
                 : "Employees"}
             </h3>
 
-            {/* Fixed height container for scrollable content */}
+           
             <div className="h-[calc(100vh-280px)] overflow-y-auto">
-              {/* Company-wise employees */}
+            
               {isCompanyWise && selectedCompany && (
                 <div>
                   <div className="mb-3 relative sticky top-0 z-10 bg-white pb-2">
@@ -1259,7 +2388,7 @@ const RosterManagementSystem = () => {
                 </div>
               )}
 
-              {/* Other content sections - keep existing code with similar fixed sizing */}
+             
               {!isCompanyWise && selectedCompany && !selectedDepartment && (
                 <div className="space-y-2">
                   {isLoadingDepartments ? (
@@ -1295,7 +2424,7 @@ const RosterManagementSystem = () => {
                 </div>
               )}
 
-              {/* Keep existing code for sub-departments and normal employee selection */}
+              
               {!isCompanyWise &&
                 selectedDepartment &&
                 !selectedSubDepartment && (
@@ -1336,7 +2465,7 @@ const RosterManagementSystem = () => {
                   </div>
                 )}
 
-              {/* Show employees (normal mode) */}
+             
               {!isCompanyWise &&
                 selectedDepartment &&
                 selectedSubDepartment && (
@@ -1376,7 +2505,7 @@ const RosterManagementSystem = () => {
           </div>
         </div>
 
-        {/* Employee Modal */}
+       
         {showEmployeeModal && (
           <div className="fixed inset-0 backdrop-blur-sm bg-opacity-40 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 relative">
@@ -1443,7 +2572,7 @@ const RosterManagementSystem = () => {
           </div>
         )}
 
-        {/* Right Panel - Shift Table and Add to Roster */}
+        
         <div className="flex-1 bg-white flex flex-col">
           <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-orange-25">
             <div className="flex items-center justify-between mb-2">
@@ -1465,9 +2594,9 @@ const RosterManagementSystem = () => {
             </div>
           </div>
           <div className="p-4 flex-1 flex flex-col">
-            {/* Shift Table */}
+           
             <div className="flex-1 overflow-hidden border border-gray-300 rounded-lg shadow mb-4 flex flex-col">
-              {/* Search bar */}
+             
               <div className="p-4 border-b border-gray-200">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -1484,7 +2613,7 @@ const RosterManagementSystem = () => {
                 </div>
               </div>
 
-              {/* Table container with scroll */}
+             
               <div className="flex-1 overflow-y-auto">
                 {isLoadingShifts ? (
                   <div className="p-8 text-center">
@@ -1587,7 +2716,7 @@ const RosterManagementSystem = () => {
                 )}
               </div>
             </div>
-            {/* Add to Roster Button */}
+           
             <button
               className="w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200 transform hover:scale-105"
               onClick={handleAddShift}
@@ -1601,7 +2730,7 @@ const RosterManagementSystem = () => {
               {selectedShifts.size > 0 && `(${selectedShifts.size} shifts)`}
             </button>
 
-            {/* Pending Assignments (added) */}
+          
             <div className="mt-4">
               <h4 className="text-sm font-semibold text-gray-800 mb-2">
                 Pending Assignments
@@ -1660,7 +2789,7 @@ const RosterManagementSystem = () => {
               )}
             </div>
 
-            {/* Save Roster Button */}
+           
             <div className="flex space-x-2 mt-2">
               <button
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200"
@@ -1689,7 +2818,7 @@ const RosterManagementSystem = () => {
         </div>
       </div>
 
-      {/* Add this modal component just before the closing div of your return statement */}
+      
       {showSummaryModal && (
         <div className="fixed inset-0 backdrop-blur-sm bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full p-6 relative">
@@ -1760,7 +2889,7 @@ const RosterManagementSystem = () => {
         </div>
       )}
 
-      {/* All Rosters Modal - Updated with Bulk Delete */}
+    
       {showAllRostersModal && (
         <div className="fixed inset-0 backdrop-blur-sm bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full p-6 relative max-h-[90vh] overflow-hidden flex flex-col">
@@ -1772,7 +2901,7 @@ const RosterManagementSystem = () => {
             </button>
             <h2 className="text-lg font-bold mb-4">All Rosters</h2>
 
-            {/* Search Form */}
+          
             <div className="mb-6 border rounded-lg p-4 bg-gray-50">
               <h3 className="text-md font-semibold mb-3">Search Rosters</h3>
               <form onSubmit={handleRosterSearch} className="grid grid-cols-3 gap-4">
@@ -1895,7 +3024,7 @@ const RosterManagementSystem = () => {
               </form>
             </div>
 
-            {/* Bulk Operations Panel */}
+           
             {selectedRosterIds.size > 0 && (
               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center justify-between">
@@ -1925,7 +3054,7 @@ const RosterManagementSystem = () => {
               </div>
             )}
 
-            {/* Results Table */}
+           
             <div className="flex-1 overflow-y-auto">
               {loadingAllRosters ? (
                 <div className="p-8 text-center">
@@ -1991,7 +3120,7 @@ const RosterManagementSystem = () => {
                             </td>
                           </tr>
                         ))}
-                        {/* Handle empty states */}
+                       
                         {rosterSearchPerformed && searchedRosters.length === 0 && (
                           <tr>
                             <td colSpan="10" className="px-4 py-8 text-center text-gray-500">
@@ -2019,7 +3148,7 @@ const RosterManagementSystem = () => {
               )}
             </div>
 
-            {/* Footer */}
+            
             <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-500">
                 {searchedRosters.length > 0
@@ -2044,7 +3173,7 @@ const RosterManagementSystem = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+    
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -2089,3 +3218,4 @@ const RosterManagementSystem = () => {
 };
 
 export default RosterManagementSystem;
+*/

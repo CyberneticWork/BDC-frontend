@@ -97,9 +97,14 @@ export const permissions = {
     productType: { view: true, edit: true },
     pendingApprovals: { view: true, edit: true },
     leaveSettings: { view: true, edit: true },
+    supervisorLeaveApproval: { view: true, approve: true },
+    midShiftBreaks: { view: true, edit: true },
+
+    allowancesReport: { view: true },
 
     // permissions map / roles file
-createNewBonus: { view: true, create: true, update: true, delete: true }
+createNewBonus: { view: true, create: true, update: true, delete: true },
+dinnerAllowance: { view: true, edit: true, approve: true },
   },
   hr: {
     chatbot: { view: true },
@@ -178,9 +183,13 @@ createNewBonus: { view: true, create: true, update: true, delete: true }
     productList: { view: true, edit: true },
     discountLevel: { view: true, edit: true },
     leaveSettings: { view: true, edit: true },
-
+    dinnerAllowance: { view: true, edit: true, approve: true },
+     
+    allowancesReport: { view: true },
     // permissions map / roles file
-createNewBonus: { view: true, create: true, update: true, delete: true }
+createNewBonus: { view: true, create: true, update: true, delete: true },
+supervisorLeaveApproval: { view: true, approve: true },
+
   },
   supervisor: {
     chatbot: { view: true },
@@ -191,6 +200,8 @@ createNewBonus: { view: true, create: true, update: true, delete: true }
     departmentMaster: { view: true },
     leaveApproval: { view: true, approve: true },
     hrLeaveApproval: { view: true, approve: true },
+
+    supervisorLeaveApproval: { view: true, approve: true },
     leaveMaster: { view: true },
     leavecalendar: { view: true },
     reports: { view: true },
@@ -208,6 +219,8 @@ createNewBonus: { view: true, create: true, update: true, delete: true }
     accounting: { view: true },
     accountingDashboard: { view: true },
    
+
+    midShiftBreaks: { view: true, edit: true },
     transactions: { view: true },
     customer: { view: true, edit: true },
     center: { view: true, edit: true },
@@ -244,9 +257,11 @@ createNewBonus: { view: true, create: true, update: true, delete: true }
     accountingReports: { view: true },
     inventory: { view: true, edit: true },
     // attendanceReport: { view: true },
-
+    
+    allowancesReport: { view: true },
     // permissions map / roles file
-createNewBonus: { view: true, create: true, update: true, delete: true }
+createNewBonus: { view: true, create: true, update: true, delete: true },
+dinnerAllowance: { view: true, edit: true, approve: true },
   },
   user: {
     chatbot: { view: true },

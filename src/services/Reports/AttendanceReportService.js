@@ -1,4 +1,3 @@
-
 import axios from "@utils/axios";
 
 export async function getAttendanceRecords({
@@ -8,6 +7,7 @@ export async function getAttendanceRecords({
   search = "",
   company_id = "",
   department_id = "",
+  employee_category = "", // 🔥 අලුතින් එකතු කළා
   holiday_worked = false,
 } = {}) {
   if (!date) throw new Error("Date is required");
@@ -19,6 +19,7 @@ export async function getAttendanceRecords({
   if (search) params.search = search;
   if (company_id) params.company_id = company_id;
   if (department_id) params.department_id = department_id;
+  if (employee_category) params.employee_category = employee_category; // 🔥 අලුතින් එකතු කළා
   if (holiday_worked) params.holiday_worked = holiday_worked ? 1 : 0;
 
   const res = await axios.get("/reports/time-cards/attendance", { params });
@@ -32,6 +33,7 @@ export async function getMonthlyAttendanceRecords({
   search = "",
   company_id = "",
   department_id = "",
+  employee_category = "", // 🔥 අලුතින් එකතු කළා
   holiday_worked = false,
 } = {}) {
   if (!month) throw new Error("Month is required");
@@ -43,6 +45,7 @@ export async function getMonthlyAttendanceRecords({
   if (search) params.search = search;
   if (company_id) params.company_id = company_id;
   if (department_id) params.department_id = department_id;
+  if (employee_category) params.employee_category = employee_category; // 🔥 අලුතින් එකතු කළා
   if (holiday_worked) params.holiday_worked = holiday_worked ? 1 : 0;
 
   const res = await axios.get("/reports/time-cards/attendance/monthly", {
@@ -67,6 +70,7 @@ export async function updateAttendanceApprovalStatus({
 
   return res.data;
 }
+
 
 
 /*
@@ -77,11 +81,20 @@ export async function getAttendanceRecords({
   page = 1,
   per_page = 15,
   search = "",
+  company_id = "",
+  department_id = "",
+  holiday_worked = false,
 } = {}) {
   if (!date) throw new Error("Date is required");
 
+  // Basic parameters
   const params = { date, page, per_page };
+  
+  // Optional filters
   if (search) params.search = search;
+  if (company_id) params.company_id = company_id;
+  if (department_id) params.department_id = department_id;
+  if (holiday_worked) params.holiday_worked = holiday_worked ? 1 : 0;
 
   const res = await axios.get("/reports/time-cards/attendance", { params });
   return res.data;
@@ -92,11 +105,20 @@ export async function getMonthlyAttendanceRecords({
   page = 1,
   per_page = 15,
   search = "",
+  company_id = "",
+  department_id = "",
+  holiday_worked = false,
 } = {}) {
   if (!month) throw new Error("Month is required");
 
+  // Basic parameters
   const params = { month, page, per_page };
+  
+  // Optional filters
   if (search) params.search = search;
+  if (company_id) params.company_id = company_id;
+  if (department_id) params.department_id = department_id;
+  if (holiday_worked) params.holiday_worked = holiday_worked ? 1 : 0;
 
   const res = await axios.get("/reports/time-cards/attendance/monthly", {
     params,
@@ -120,5 +142,4 @@ export async function updateAttendanceApprovalStatus({
 
   return res.data;
 }
-
 */
