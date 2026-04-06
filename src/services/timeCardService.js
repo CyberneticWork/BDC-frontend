@@ -104,6 +104,11 @@ const timeCardService = {
     return response.data;
   },
 
+  async fetchWeeklyAttendanceStats() {
+    const response = await axios.get('/dashboard/stats/weekly');
+    return response.data;
+  },
+
   async fetchAbsentees({ date, search = "" }) {
     const response = await axios.get('/attendance/absentees', {
       params: { date, search }

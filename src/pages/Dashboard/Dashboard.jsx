@@ -260,16 +260,14 @@ const DashboardCharts = () => {
   useEffect(() => {
     async function fetchChartData() {
       try {
-        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        const presentCounts = [45, 48, 46, 50, 47, 20, 15];
-        const absentCounts = [5, 2, 4, 0, 3, 30, 35];
+        const weekly = await timeCardService.fetchWeeklyAttendanceStats();
 
         setAttendanceData({
-          labels: days,
+          labels: weekly.days,
           datasets: [
             {
               label: "Present",
-              data: presentCounts,
+              data: weekly.present,
               backgroundColor: "rgba(16, 185, 129, 0.8)",
               borderColor: "rgba(16, 185, 129, 1)",
               borderWidth: 2,
@@ -278,7 +276,7 @@ const DashboardCharts = () => {
             },
             {
               label: "Absent",
-              data: absentCounts,
+              data: weekly.absent,
               backgroundColor: "rgba(239, 68, 68, 0.8)",
               borderColor: "rgba(239, 68, 68, 1)",
               borderWidth: 2,
@@ -289,13 +287,8 @@ const DashboardCharts = () => {
         });
 
         const departments = await fetchDepartments();
-        const employees = await employeeService.fetchEmployees();
         const deptLabels = departments.map((d) => d.name);
-        const deptCounts = departments.map(
-          (d) =>
-            employees.filter((e) => e.organization?.department === d.name)
-              .length
-        );
+        const deptCounts = departments.map((d) => d.employees || 0);
 
         setDepartmentData({
           labels: deptLabels,
