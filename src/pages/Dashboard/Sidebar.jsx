@@ -27,6 +27,7 @@ import {
   MessageCircle,
   Package,
   Key,
+  Briefcase,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import config from "@src/config";
@@ -72,6 +73,7 @@ const Sidebar = ({
     ] : []),
     { id: "chatbot", name: "Chat with System", icon: MessageCircle },
     { id: "userManagement", name: "User Management", icon: Users },
+    ...(user?.role !== 'employee' ? [{ id: "laborManagement", name: "Labor Management", icon: Briefcase }] : []),
     {
       id: "hrMaster",
       name: user?.role === 'employee' ? "Employee Master" : "HRM Master",
