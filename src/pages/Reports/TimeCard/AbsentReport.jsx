@@ -11,7 +11,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   UserX,
-  Briefcase, // 🔥 අලුතින් Icon එකක් ගත්තා
+  Briefcase, //  Icon එකක් ගත්තා
 } from "lucide-react";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
