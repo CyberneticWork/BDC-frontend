@@ -541,6 +541,7 @@ const getWeekRange = (offset = 0) => {
 
 const AttendanceView = ({ employees }) => {
   const [selectedEmp, setSelectedEmp] = useState("");
+  const [viewMode, setViewMode] = useState("weekly"); // "daily" | "weekly" | "monthly"
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -580,6 +581,44 @@ const AttendanceView = ({ employees }) => {
     { key: "last_month", label: "Last Month" },
   ];
 
+  const isInRecord  = (r) => r.inOut === "IN"  || ["IN", "Late Coming"].includes(r.status);
+  const isOutRecord = (r) => r.inOut === "OUT" || ["OUT", "Early OUT"].includes(r.status);
+
+  // Weekly summary — group by ISO week
+  const weeklySummary = (() => {
+    const weeks = {};
+    records.forEach(r => {
+      const d = r.actual_date || r.date;
+      if (!d) return;
+      const date = new Date(d);
+      const day = date.getDay();
+      const monday = new Date(date);
+      monday.setDate(date.getDate() - ((day + 6) % 7));
+      const wKey = monday.toISOString().split("T")[0];
+      if (!weeks[wKey]) weeks[wKey] = { wFrom: wKey, days: {} };
+      if (!weeks[wKey].days[d]) weeks[wKey].days[d] = { date: d, in: null, out: null, working_hours: null, status: null };
+      if (isInRecord(r))  { weeks[wKey].days[d].in = r.time; weeks[wKey].days[d].status = r.status; }
+      if (isOutRecord(r)) { weeks[wKey].days[d].out = r.time; weeks[wKey].days[d].working_hours = r.working_hours; }
+    });
+    return Object.entries(weeks).sort(([a], [b]) => a.localeCompare(b)).map(([wKey, w]) => ({
+      wFrom: wKey,
+      wTo: (() => { const d = new Date(wKey); d.setDate(d.getDate() + 6); return d.toISOString().split("T")[0]; })(),
+      days: Object.values(w.days).sort((a, b) => a.date.localeCompare(b.date)),
+      workedDays: Object.values(w.days).filter(d => d.in).length,
+    }));
+  })();
+
+  // Monthly summary grouped by date
+  const monthlySummary = Object.entries(
+    records.reduce((acc, r) => {
+      const d = r.actual_date || r.date || "Unknown";
+      if (!acc[d]) acc[d] = { date: d, in: null, out: null, working_hours: null, status: null };
+      if (isInRecord(r))  { acc[d].in = r.time; acc[d].status = r.status; }
+      if (isOutRecord(r)) { acc[d].out = r.time; acc[d].working_hours = r.working_hours; }
+      return acc;
+    }, {})
+  ).sort(([a], [b]) => a.localeCompare(b));
+
   const load = async () => {
     if (!selectedEmp) return;
     setIsLoading(true);
@@ -610,14 +649,15 @@ const AttendanceView = ({ employees }) => {
 
   useEffect(() => {
     if (selectedEmp) load();
-  }, [selectedEmp]);
+  }, [selectedEmp, fromDate, toDate]);
 
-  const entryBadge = (entry) => {
-    if (!entry) return <span className="text-gray-400 text-xs">—</span>;
-    const isIn = entry.toLowerCase().includes("in");
+  const entryBadge = (inOut, entry, status) => {
+    const isIn = isInRecord({ inOut, entry, status });
+    const label = inOut || status || entry;
+    if (!label) return <span className="text-gray-400 text-xs">—</span>;
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-bold ${isIn ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-        {entry}
+        {label}
       </span>
     );
   };
@@ -637,9 +677,9 @@ const AttendanceView = ({ employees }) => {
     );
   };
 
-  // group by date to show IN/OUT pairs
+  // group by date — actual_date (night shift) or date
   const grouped = records.reduce((acc, r) => {
-    const d = r.date || r.actual_date || "Unknown";
+    const d = r.actual_date || r.date || "Unknown";
     if (!acc[d]) acc[d] = [];
     acc[d].push(r);
     return acc;
@@ -647,6 +687,22 @@ const AttendanceView = ({ employees }) => {
 
   return (
     <div>
+      {/* View Mode Toggle */}
+      <div className="flex gap-2 mb-3">
+        <button onClick={() => setViewMode("weekly")}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            viewMode === "weekly" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:bg-blue-50"
+          }`}>Weekly View</button>
+        <button onClick={() => setViewMode("daily")}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            viewMode === "daily" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:bg-blue-50"
+          }`}>Daily Records</button>
+        <button onClick={() => setViewMode("monthly")}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            viewMode === "monthly" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:bg-blue-50"
+          }`}>Monthly Summary</button>
+      </div>
+
       {/* Quick select buttons */}
       <div className="flex flex-wrap gap-2 mb-3">
         {quickBtns.map((b) => (
@@ -735,6 +791,78 @@ const AttendanceView = ({ employees }) => {
             <p className="text-gray-500 font-medium">No attendance records found</p>
             <p className="text-gray-400 text-sm mt-1">Try adjusting the date range</p>
           </div>
+        ) : viewMode === "weekly" ? (
+          <div className="space-y-4 p-4">
+            {weeklySummary.length === 0 ? (
+              <div className="text-center py-10 text-gray-400">No records found for selected range</div>
+            ) : weeklySummary.map((week, wi) => (
+              <div key={week.wFrom} className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-indigo-50 px-4 py-2.5 flex justify-between items-center">
+                  <span className="text-sm font-bold text-indigo-700">Week {wi + 1} &nbsp;·&nbsp; {week.wFrom} → {week.wTo}</span>
+                  <span className="text-xs font-semibold text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">{week.workedDays} days worked</span>
+                </div>
+                <table className="min-w-full divide-y divide-gray-100 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Date</th>
+                      <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">IN</th>
+                      <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">OUT</th>
+                      <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Working Hrs</th>
+                      <th className="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {week.days.map(row => (
+                      <tr key={row.date} className={row.in ? "hover:bg-gray-50" : "bg-red-50"}>
+                        <td className="px-4 py-2.5 font-medium text-gray-800">
+                          {new Date(row.date).toLocaleDateString("en-LK", { weekday: "short", month: "short", day: "numeric" })}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {row.in ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-bold">{row.in}</span> : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {row.out ? <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{row.out}</span> : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-center font-mono text-gray-700">{row.working_hours || "—"}</td>
+                        <td className="px-4 py-2.5 text-center">{statusBadge(row.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        ) : viewMode === "monthly" ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">IN Time</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">OUT Time</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Working Hours</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {monthlySummary.map(([date, row]) => (
+                  <tr key={date} className={row.in ? "hover:bg-gray-50" : "bg-red-50"}>
+                    <td className="px-6 py-3 font-medium text-gray-800">
+                      {new Date(date).toLocaleDateString("en-LK", { weekday: "short", month: "short", day: "numeric" })}
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      {row.in ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-bold">{row.in}</span> : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      {row.out ? <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">{row.out}</span> : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-6 py-3 text-center font-mono text-gray-700">{row.working_hours || "—"}</td>
+                    <td className="px-6 py-3 text-center">{statusBadge(row.status)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -758,8 +886,8 @@ const AttendanceView = ({ employees }) => {
                     </tr>
                     {rows.map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 text-sm text-gray-600">{r.date || r.actual_date || "—"}</td>
-                        <td className="px-6 py-3 text-center">{entryBadge(r.entry)}</td>
+                        <td className="px-6 py-3 text-sm text-gray-600">{r.actual_date || r.date || "—"}</td>
+                        <td className="px-6 py-3 text-center">{entryBadge(r.inOut, r.entry, r.status)}</td>
                         <td className="px-6 py-3 text-center text-sm font-mono font-semibold text-gray-800">
                           {r.time || (r.fingerprint_clock ? r.fingerprint_clock.split(" ")[1]?.slice(0, 5) : "—")}
                         </td>
