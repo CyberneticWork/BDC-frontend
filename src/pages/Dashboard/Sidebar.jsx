@@ -78,7 +78,7 @@ const Sidebar = ({
               name: "Attendance",
               subItems: [
                 { id: "leaveMaster", name: "Apply Leave" },
-                { id: "TimeCard", name: "My Time Card" },
+                // { id: "TimeCard", name: "My Time Card" },
               ],
             },
           ],

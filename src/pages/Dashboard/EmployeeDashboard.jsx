@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Calendar, Clock, DollarSign, UserCheck, CreditCard, Building2, Briefcase, BarChart3, CheckCircle, XCircle, AlertCircle, Edit } from 'lucide-react';
 import { getLeavesByEmployee } from '@src/services/LeaveMaster';
 import { fetchSalaryDataAPI } from '@src/services/SalaryService';
+import timeCardService from '@src/services/timeCardService';
 
 const EmployeeDashboard = ({ 
   employeeProfile, 
@@ -23,6 +24,7 @@ const EmployeeDashboard = ({
       calculateOtSummary();
       calculateLoanSummary();
       fetchLatestSalaryRecord();
+      fetchMyAttendance();
     }
   }, [employeeProfile?.id, employeeProfile?.loans]);
 
@@ -56,6 +58,18 @@ const EmployeeDashboard = ({
     }
   };
 
+  const fetchMyAttendance = async () => {
+    if (!employeeProfile?.attendance_employee_no) return;
+    try {
+      const response = await timeCardService.searchEmployeeTimeCards(employeeProfile.attendance_employee_no);
+      if (response && Array.isArray(response)) {
+        calculateAttendanceSummary(response);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    }
+  };
+
   const fetchLeaveRecords = async () => {
     try {
       const data = await getLeavesByEmployee(employeeProfile.id);
@@ -72,15 +86,16 @@ const EmployeeDashboard = ({
     const currentYear = new Date().getFullYear();
     
     const monthRecords = records.filter(record => {
-      const recordDate = new Date(record.date);
+      const d = record.date || record.actual_date;
+      if (!d) return false;
+      const recordDate = new Date(d);
       return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
     });
 
-    // unique dates ගන්නවා - IN/OUT records same day count වෙන එක avoid කරන්න
-    const uniqueDates = [...new Set(monthRecords.map(r => r.date))];
-    const absentDates = [...new Set(monthRecords.filter(r => r.status === 'Absent' || r.status === 'NPL' || r.status === 'No Pay Leave').map(r => r.date))];
+    const uniqueDates = [...new Set(monthRecords.map(r => r.date || r.actual_date))];
+    const absentDates = [...new Set(monthRecords.filter(r => r.status === 'Absent' || r.status === 'NPL' || r.status === 'No Pay Leave').map(r => r.date || r.actual_date))];
     const presentDates = uniqueDates.filter(d => !absentDates.includes(d));
-    const lateDates = [...new Set(monthRecords.filter(r => r.status === 'Late Coming').map(r => r.date))];
+    const lateDates = [...new Set(monthRecords.filter(r => r.status === 'Late Coming').map(r => r.date || r.actual_date))];
 
     setAttendanceSummary({ present: presentDates.length, absent: absentDates.length, late: lateDates.length, total: uniqueDates.length });
   };
