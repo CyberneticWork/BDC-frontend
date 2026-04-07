@@ -763,8 +763,8 @@ const AttendanceView = ({ employees }) => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { label: "Total Records", value: records.length, color: "text-blue-700" },
-            { label: "IN Records", value: records.filter(r => r.entry?.toLowerCase().includes("in")).length, color: "text-green-700" },
-            { label: "OUT Records", value: records.filter(r => r.entry?.toLowerCase().includes("out")).length, color: "text-red-700" },
+            { label: "IN Records", value: records.filter(r => isInRecord(r)).length, color: "text-green-700" },
+            { label: "OUT Records", value: records.filter(r => isOutRecord(r)).length, color: "text-red-700" },
             { label: "Days", value: Object.keys(grouped).length, color: "text-purple-700" },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl p-4 shadow border border-gray-100">
