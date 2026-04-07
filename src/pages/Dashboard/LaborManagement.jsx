@@ -57,10 +57,11 @@ const WeeklySalaryView = ({ employees }) => {
     rangeRecs.forEach(r => {
       const d = r.date || r.actual_date;
       if (!byDate[d]) byDate[d] = { in: null, out: null, working_hours: null, status: null };
-      if (r.entry?.toLowerCase().includes("in"))  byDate[d].in  = r.time || "—";
-      if (r.entry?.toLowerCase().includes("out")) byDate[d].out = r.time || "—";
+      const isIn  = r.inOut === "IN"  || ["IN", "Late Coming"].includes(r.status);
+      const isOut = r.inOut === "OUT" || ["OUT", "Early OUT"].includes(r.status);
+      if (isIn)  { byDate[d].in  = r.time || "—"; byDate[d].status = r.status; }
+      if (isOut) { byDate[d].out = r.time || "—"; }
       if (r.working_hours) byDate[d].working_hours = r.working_hours;
-      if (r.status)        byDate[d].status = r.status;
     });
     const workedDays = Object.values(byDate).filter(d => d.in !== null).length;
     const basicEarned = round2(perDayRate * workedDays);
