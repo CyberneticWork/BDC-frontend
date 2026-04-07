@@ -69,7 +69,7 @@ const Sidebar = ({
               id: "salaryProcess",
               name: "Payroll",
               subItems: [
-                { id: "salaryRecords", name: "Salary History" },
+                // { id: "salaryRecords", name: "Salary History" },
                 { id: "downloadSalarySlip", name: "Download Pay Slip" },
               ],
             },

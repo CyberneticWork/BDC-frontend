@@ -69,6 +69,14 @@ const EmployeeAttendanceReport = ({ employeeProfile }) => {
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
+  if (!employeeProfile) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
   const getStatusColor = (status) => {
     if (status === 'NPL' || status === 'No Pay Leave' || status === 'Absent') return 'bg-red-50 text-red-700';
     if (status === 'Late Coming') return 'bg-yellow-50 text-yellow-700';
@@ -104,11 +112,11 @@ const EmployeeAttendanceReport = ({ employeeProfile }) => {
           </div>
           <div>
             <p className="text-sm text-gray-600 mb-1">Department</p>
-            <p className="text-lg font-bold text-gray-900">{employeeProfile?.organization_assignment?.department?.name || 'N/A'}</p>
+            <p className="text-lg font-bold text-gray-900">{employeeProfile?.organization_assignment?.department?.name || employeeProfile?.organizationAssignment?.department?.name || 'N/A'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600 mb-1">Designation</p>
-            <p className="text-lg font-bold text-gray-900">{employeeProfile?.organization_assignment?.designation?.name || 'N/A'}</p>
+            <p className="text-lg font-bold text-gray-900">{employeeProfile?.organization_assignment?.designation?.name || employeeProfile?.organizationAssignment?.designation?.name || 'N/A'}</p>
           </div>
         </div>
       </div>
