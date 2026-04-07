@@ -928,12 +928,12 @@ const SalaryView = ({ employees }) => {
   const load = async () => {
     setIsLoading(true);
     try {
-      const params = { month, year };
+      const params = { month: parseInt(month, 10), year };
       if (selectedEmp) params.employee_no = selectedEmp;
       const data = await getProcessedSalaries(params);
       const raw = Array.isArray(data) ? data : (data?.data || []);
       const laborNos = new Set(employees.map(e => e.attendance_employee_no));
-      const filtered = raw.filter(r => laborNos.has(r.employee_no || r.emp_no));
+      const filtered = raw.filter(r => laborNos.has(r.employee_no));
       setRecords(filtered.map(r => ({
         ...r,
         salary_breakdown: typeof r.salary_breakdown === "string" ? JSON.parse(r.salary_breakdown) : (r.salary_breakdown || {}),
