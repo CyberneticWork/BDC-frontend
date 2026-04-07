@@ -207,8 +207,8 @@ const SalaryProcessPage = () => {
       
       const payload = {
         data: processedDisplayedData, // තිරයේ පෙනෙන ඔක්කොම අයගේ දත්ත ටික
-        month: month,
-        year: year
+        month: parseInt(month, 10),
+        year: parseInt(year, 10)
       };
 
       // අදාළ මාසය සහ අවුරුද්ද සමග Backend එකට යවනවා
