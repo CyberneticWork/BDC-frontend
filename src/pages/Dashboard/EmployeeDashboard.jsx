@@ -158,7 +158,7 @@ const EmployeeDashboard = ({
           </div>
         </button>
 
-        <button
+        {/* <button
           onClick={() => setActiveItem('attendanceReport')}
           className="group bg-white p-8 rounded-2xl shadow-lg border border-gray-200 hover:border-indigo-500 hover:shadow-2xl transition-all text-left transform hover:-translate-y-1"
         >
@@ -171,7 +171,7 @@ const EmployeeDashboard = ({
               <p className="text-sm text-gray-600">View report</p>
             </div>
           </div>
-        </button>
+        </button> */}
       </div>
 
       {/* Stats Grid */}
@@ -383,12 +383,12 @@ const EmployeeDashboard = ({
                   <span className="text-lg font-bold text-gray-900">{attendanceSummary.total}</span>
                 </div>
               </div>
-              <button
+              {/* <button
                 onClick={() => setActiveItem('attendanceReport')}
                 className="w-full mt-4 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 View Full Report
-              </button>
+              </button> */}
             </>
           )}
         </div>
