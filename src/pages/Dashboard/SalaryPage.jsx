@@ -17,7 +17,10 @@ import {
   RefreshCw,
   Plus,
   Minus,
+  Download,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   updateSalaryAPI,
   deleteSalaryRecordAPI,
@@ -857,6 +860,57 @@ const SalaryPage = ({ employeeProfile }) => {
     return !(hasAllowanceError || hasDeductionError);
   };
 
+  // Download Pay Slip as PDF
+  const downloadPaySlip = (record) => {
+    const doc = new jsPDF();
+    const sb = typeof record.salary_breakdown === 'string' ? JSON.parse(record.salary_breakdown) : (record.salary_breakdown || {});
+    const monthName = months.find(m => String(m.value) === String(record.month).padStart(2,'0'))?.label || record.month;
+
+    doc.setFontSize(14); doc.setFont("helvetica", "bold");
+    doc.text("SALARY SLIP", 105, 15, { align: "center" });
+    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+    doc.text(`Employee : ${record.full_name} (${record.employee_no})`, 14, 25);
+    doc.text(`Company  : ${record.company_name}`, 14, 31);
+    doc.text(`Department: ${record.department_name}`, 14, 37);
+    doc.text(`Period   : ${monthName} ${record.year}`, 14, 43);
+    doc.line(14, 47, 196, 47);
+
+    autoTable(doc, {
+      startY: 52,
+      head: [["Description", "Amount (LKR)"]],
+      body: [
+        ["Basic Salary", parseFloat(sb.basic_salary || record.basic_salary || 0).toFixed(2)],
+        ["BR Allowance", parseFloat(sb.br_allowance || 0).toFixed(2)],
+        ["OT Morning", parseFloat(sb.ot_morning_fees || record.ot_morning || 0).toFixed(2)],
+        ["OT Night", parseFloat(sb.ot_night_fees || record.ot_evening || 0).toFixed(2)],
+        ["Other Allowances", parseFloat(sb.total_allowances || 0).toFixed(2)],
+        [{ content: "Gross Salary", styles: { fontStyle: "bold" } }, { content: parseFloat(sb.gross_salary || 0).toFixed(2), styles: { fontStyle: "bold" } }],
+        ["", ""],
+        ["EPF (8%)", `- ${parseFloat(sb.epf_employee_deduction || 0).toFixed(2)}`],
+        ["No Pay Deduction", `- ${parseFloat(sb.no_pay_deduction || sb.full_day_nopay_deduction || 0).toFixed(2)}`],
+        ["Loan Installment", `- ${parseFloat(sb.loan_installment || sb.loan_principal || 0).toFixed(2)}`],
+        ["Stamp Duty", `- ${parseFloat(sb.stamp_duty || sb.stamp || 0).toFixed(2)}`],
+        ["Other Deductions", `- ${parseFloat(sb.total_fixed_deductions || 0).toFixed(2)}`],
+        [{ content: "Total Deductions", styles: { fontStyle: "bold" } }, { content: `- ${parseFloat(sb.total_deductions || 0).toFixed(2)}`, styles: { fontStyle: "bold" } }],
+        ["", ""],
+        [{ content: "NET SALARY", styles: { fontStyle: "bold", fontSize: 11 } }, { content: parseFloat(sb.net_salary || 0).toFixed(2), styles: { fontStyle: "bold", fontSize: 11, textColor: [22, 163, 74] } }],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [31, 41, 55] },
+      columnStyles: { 1: { halign: "right" } },
+    });
+
+    const y = doc.lastAutoTable.finalY + 10;
+    if (record.enable_epf_etf) {
+      doc.setFontSize(8); doc.setTextColor(100);
+      doc.text(`EPF Employer (12%): LKR ${parseFloat(sb.epf_employer_contribution || 0).toFixed(2)}`, 14, y);
+      doc.text(`ETF Employer (3%): LKR ${parseFloat(sb.etf_employer_contribution || 0).toFixed(2)}`, 14, y + 5);
+    }
+    doc.setFontSize(8); doc.setTextColor(150);
+    doc.text(`Generated on ${new Date().toLocaleDateString("en-LK")}`, 14, doc.internal.pageSize.height - 8);
+    doc.save(`payslip_${record.employee_no}_${monthName}_${record.year}.pdf`);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen bg-gray-50">
       <style jsx>{`
@@ -1068,6 +1122,17 @@ const SalaryPage = ({ employeeProfile }) => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {employeeProfile && (
+                        <button
+                          onClick={() => downloadPaySlip(record)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium"
+                          title="Download Pay Slip"
+                        >
+                          <Download size={14} />
+                          Download
+                        </button>
+                      )}
+                      )}
                       {!employeeProfile && (
                         <>
                           <button
