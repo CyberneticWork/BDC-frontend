@@ -625,10 +625,11 @@ const AttendanceView = ({ employees }) => {
     try {
       const data = await timeCardService.searchEmployeeTimeCards(selectedEmp);
       const arr = Array.isArray(data) ? data : [];
+      console.log("All records from API:", arr.length, arr.slice(0,3));
       // filter by date range
       const filtered = arr.filter((r) => {
         const d = r.date || r.actual_date;
-        if (!d) return true;
+        if (!d) return false;
         return d >= fromDate && d <= toDate;
       });
       // sort by date desc then time
