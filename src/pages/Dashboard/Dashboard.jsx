@@ -705,7 +705,11 @@ const Dashboard = ({ user, onLogout }) => {
       case "TimeCard":
         return (
           <ProtectedComponent module="TimeCard" action="view">
-            <TimeCard />
+            {user.role === 'employee' ? (
+              <EmployeeAttendanceReport employeeProfile={employeeProfile} />
+            ) : (
+              <TimeCard employeeProfile={null} />
+            )}
           </ProtectedComponent>
         );
       case "Overtime":

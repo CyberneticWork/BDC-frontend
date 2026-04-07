@@ -122,7 +122,7 @@ const filterFirstInLastOut = (records) => {
 // ==============================================================================
 // ==============================================================================
 
-const TimeCard = () => {
+const TimeCard = ({ employeeProfile }) => {
   // Form state
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -262,14 +262,27 @@ const TimeCard = () => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const data = await fetchTimeCards();
-      const filtered = filterFirstInLastOut(data); // මැද ඒවා අයින් කරලා First/Last විතරක් ගත්තා
-      setAttendanceData(filtered);
-      setFilteredData(filtered);
+      if (employeeProfile?.attendance_employee_no) {
+        // Employee view — load only their records
+        try {
+          const data = await timeCardService.searchEmployeeTimeCards(employeeProfile.attendance_employee_no);
+          const arr = Array.isArray(data) ? data : [];
+          const filtered = filterFirstInLastOut(arr);
+          setAttendanceData(filtered);
+          setFilteredData(filtered);
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        const data = await fetchTimeCards();
+        const filtered = filterFirstInLastOut(data);
+        setAttendanceData(filtered);
+        setFilteredData(filtered);
+      }
       setIsLoading(false);
     };
     loadData();
-  }, []);
+  }, [employeeProfile]);
 
   // Fetch companies from backend (example)
   useEffect(() => {
