@@ -1198,7 +1198,7 @@ const LaborManagement = () => {
     { id: "list",           label: "Employee List",        icon: Users },
     { id: "attendance",     label: "Attendance (IN / OUT)", icon: Clock },
     { id: "weeklySalary",   label: "Weekly Salary",         icon: Calculator },
-    { id: "salary",         label: "Salary View",           icon: DollarSign },
+    // { id: "salary",         label: "Salary View",           icon: DollarSign },
   ];
 
   return (
