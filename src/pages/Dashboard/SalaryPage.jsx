@@ -25,7 +25,7 @@ import {
   updateSalaryAPI,
   deleteSalaryRecordAPI,
 } from "@services/SalaryService";
-import { getSalaryData } from "@services/SalaryProcessService";
+import { getSalaryData, getProcessedSalaries } from "@services/SalaryProcessService";
 import { fetchCompanies as fetchCompaniesAPI, fetchDepartmentsById } from "@services/ApiDataService";
 
 // Modal Component
@@ -180,25 +180,32 @@ const SalaryPage = ({ employeeProfile }) => {
 
   // Fetch salary data
   const fetchSalaryData = async (isAutoRefresh = false) => {
-    if (!selectedCompany || !month || !year) return;
+    if (!employeeProfile && (!selectedCompany || !month || !year)) return;
+    if (employeeProfile && (!month || !year)) return;
     if (!isAutoRefresh) setIsLoading(true);
     else setIsAutoRefreshing(true);
     try {
-      const data = await getSalaryData({
-        month,
-        year,
-        company_id: selectedCompany,
-        department_id: selectedDepartment || undefined,
-        search: searchTerm.trim() || undefined,
-      });
-      const rows = (data?.data || []).map(emp => ({
-        ...emp,
-        employee_no: emp.emp_no || emp.employee_no,
-        status: ['pending', 'processed', 'issued', 'hold'].includes(String(emp.status).toLowerCase()) ? String(emp.status).toLowerCase() : 'pending',
-        salary_breakdown: typeof emp.salary_breakdown === 'string'
-          ? JSON.parse(emp.salary_breakdown)
-          : (emp.salary_breakdown || {}),
-      }));
+      let rows = [];
+      if (employeeProfile) {
+        // Employee view — all records, no month filter
+        const data = await getProcessedSalaries({ employee_no: employeeProfile.attendance_employee_no });
+        const raw = Array.isArray(data) ? data : (data?.data || []);
+        rows = raw.map(emp => ({
+          ...emp,
+          employee_no: emp.employee_no || emp.emp_no,
+          status: ['pending','processed','issued','hold'].includes(String(emp.status).toLowerCase()) ? String(emp.status).toLowerCase() : 'pending',
+          salary_breakdown: typeof emp.salary_breakdown === 'string' ? JSON.parse(emp.salary_breakdown) : (emp.salary_breakdown || {}),
+        }));
+      } else {
+        // Admin view — use /salaryCal/employees endpoint
+        const data = await getSalaryData({ month, year, company_id: selectedCompany, department_id: selectedDepartment || undefined, search: searchTerm.trim() || undefined });
+        rows = (data?.data || []).map(emp => ({
+          ...emp,
+          employee_no: emp.emp_no || emp.employee_no,
+          status: ['pending','processed','issued','hold'].includes(String(emp.status).toLowerCase()) ? String(emp.status).toLowerCase() : 'pending',
+          salary_breakdown: typeof emp.salary_breakdown === 'string' ? JSON.parse(emp.salary_breakdown) : (emp.salary_breakdown || {}),
+        }));
+      }
       setSalaryData(rows);
       setFilteredData(rows);
       setLastUpdated(new Date());
@@ -726,16 +733,16 @@ const SalaryPage = ({ employeeProfile }) => {
     if (companyId) {
       setSelectedCompany(String(companyId));
       if (departmentId) setSelectedDepartment(String(departmentId));
-      setSearchTerm(employeeProfile.attendance_employee_no || '');
     }
+    setSearchTerm(employeeProfile.attendance_employee_no || '');
   }, [employeeProfile]);
 
-  // Auto-load when employeeProfile company is set
+  // Auto-load when employeeProfile is set
   useEffect(() => {
-    if (employeeProfile && selectedCompany && month && year) {
+    if (employeeProfile && month && year) {
       fetchSalaryData();
     }
-  }, [selectedCompany, employeeProfile]);
+  }, [employeeProfile, month, year]);
 
   // Paginated subset derived from filteredData
   const totalPages = Math.max(1, Math.ceil((filteredData?.length || 0) / rowsPerPage));
@@ -1131,7 +1138,6 @@ const SalaryPage = ({ employeeProfile }) => {
                           <Download size={14} />
                           Download
                         </button>
-                      )}
                       )}
                       {!employeeProfile && (
                         <>
