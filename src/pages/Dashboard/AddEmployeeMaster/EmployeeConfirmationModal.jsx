@@ -106,17 +106,31 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
       return;
     }
 
+    const hasSpouse = !!formData.personal.spouseName || !!formData.personal.spouseType;
+    const validChildren = (formData.personal.children || []).filter(
+      (child) => child.name || child.dob
+    );
+
+    console.log(hasSpouse);
+
     const formattedData = {
       ...formData,
       personal: {
         ...formData.personal,
         dob: formatDateToYYYYMMDD(formData.personal.dob),
-        spouseDob: formatDateToYYYYMMDD(formData.personal.spouseDob),
-        spouseAge: formData.personal.spouseAge ? parseInt(formData.personal.spouseAge) : '',
-        children: formData.personal.children.map(child => ({
+
+        spouseType: hasSpouse ? (formData.personal.spouseType || '') : null,
+        spouseTitle: hasSpouse ? (formData.personal.spouseTitle || '') : null,
+        spouseName: hasSpouse ? (formData.personal.spouseName || '') : null,
+        spouseNic: hasSpouse ? (formData.personal.spouseNic || '') : null,
+        spouseDob: hasSpouse ? formatDateToYYYYMMDD(formData.personal.spouseDob) : null,
+        spouseAge: hasSpouse && formData.personal.spouseAge ? parseInt(formData.personal.spouseAge) : null,
+
+        children: validChildren.map(child => ({
           ...child,
+          name: child.name || '',
           dob: formatDateToYYYYMMDD(child.dob),
-          age: child.age ? parseInt(child.age) : '',
+          age: child.age ? parseInt(child.age) : null,
         })),
       },
       address: {
@@ -165,104 +179,104 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
   };
 
   // Function to display errors in a user-friendly way
- // In EmployeeConfirmationModal.jsx, replace the renderErrors function:
+  // In EmployeeConfirmationModal.jsx, replace the renderErrors function:
 
-const renderErrors = () => {
-  if (!errors) return null;
+  const renderErrors = () => {
+    if (!errors) return null;
 
-  const _errorMessages = [];
+    const _errorMessages = [];
 
-  // Flatten all error messages
-  const flattenErrors = (obj, prefix = "") => {
-    return Object.entries(obj).reduce((acc, [key, value]) => {
-      const prefixedKey = prefix ? `${prefix}.${key}` : key;
-      if (typeof value === "object" && value !== null) {
-        return [...acc, ...flattenErrors(value, prefixedKey)];
-      } else {
-        return [...acc, { field: prefixedKey, message: value }];
-      }
-    }, []);
-  };
-
-  const allErrors = flattenErrors(errors);
-
-  if (allErrors.length === 0) return null;
-
-  // Format field names for display
-  const formatFieldName = (fieldPath) => {
-    const fieldMap = {
-      'personal.title': 'Title',
-      'personal.attendanceEmpNo': 'Attendance employee number',
-      'personal.epfNo': 'EPF number',
-      'personal.nicNumber': 'NIC number',
-      'personal.dob': 'Date of birth',
-      'personal.gender': 'Gender',
-      'personal.employmentStatus': 'Employment status',
-      'personal.nameWithInitial': 'Name with initials',
-      'personal.fullName': 'Full name',
-      'personal.displayName': 'Display name',
-      'personal.maritalStatus': 'Marital status',
-      'personal.relationshipType': 'Relationship type',
-      'personal.spouseTitle': 'Spouse title',
-      'personal.spouseName': 'Spouse name',
-      'personal.spouseAge': 'Spouse age',
-      'personal.spouseDob': 'Spouse date of birth',
-      'personal.spouseNic': 'Spouse NIC',
-      'address.permanentAddress': 'Permanent address',
-      'address.email': 'Email',
-      'address.district': 'District',
-      'address.province': 'Province',
-      'address.emergencyContact.relationship': 'Emergency contact relationship',
-      'address.emergencyContact.contactName': 'Emergency contact name',
-      'address.emergencyContact.contactAddress': 'Emergency contact address',
-      'address.emergencyContact.contactTel': 'Emergency contact telephone',
-      'compensation.basicSalary': 'Basic salary',
-      'compensation.bankName': 'Bank name',
-      'compensation.branchName': 'Branch name',
-      'compensation.bankCode': 'Bank code',
-      'compensation.branchCode': 'Branch code',
-      'compensation.bankAccountNo': 'Bank account number',
-      'organization.company': 'Company',
-      'organization.dateOfJoined': 'Date of joining',
-      'organization.designation': 'Designation',
+    // Flatten all error messages
+    const flattenErrors = (obj, prefix = "") => {
+      return Object.entries(obj).reduce((acc, [key, value]) => {
+        const prefixedKey = prefix ? `${prefix}.${key}` : key;
+        if (typeof value === "object" && value !== null) {
+          return [...acc, ...flattenErrors(value, prefixedKey)];
+        } else {
+          return [...acc, { field: prefixedKey, message: value }];
+        }
+      }, []);
     };
 
-    // Return mapped name or format the path
-    return fieldMap[fieldPath] || fieldPath
-      .split('.')
-      .map(part => part
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, str => str.toUpperCase())
-        .replace('Emp', 'Employee')
-        .replace('No', 'Number')
-        .replace('Nic', 'NIC')
-      )
-      .join(' → ');
-  };
+    const allErrors = flattenErrors(errors);
 
-  return (
-    <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
-      <div className="flex items-center">
-        <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-        <h3 className="text-lg font-medium text-red-800">
-          There were errors with your submission
-        </h3>
+    if (allErrors.length === 0) return null;
+
+    // Format field names for display
+    const formatFieldName = (fieldPath) => {
+      const fieldMap = {
+        'personal.title': 'Title',
+        'personal.attendanceEmpNo': 'Attendance employee number',
+        'personal.epfNo': 'EPF number',
+        'personal.nicNumber': 'NIC number',
+        'personal.dob': 'Date of birth',
+        'personal.gender': 'Gender',
+        'personal.employmentStatus': 'Employment status',
+        'personal.nameWithInitial': 'Name with initials',
+        'personal.fullName': 'Full name',
+        'personal.displayName': 'Display name',
+        'personal.maritalStatus': 'Marital status',
+        'personal.relationshipType': 'Relationship type',
+        'personal.spouseTitle': 'Spouse title',
+        'personal.spouseName': 'Spouse name',
+        'personal.spouseAge': 'Spouse age',
+        'personal.spouseDob': 'Spouse date of birth',
+        'personal.spouseNic': 'Spouse NIC',
+        'address.permanentAddress': 'Permanent address',
+        'address.email': 'Email',
+        'address.district': 'District',
+        'address.province': 'Province',
+        'address.emergencyContact.relationship': 'Emergency contact relationship',
+        'address.emergencyContact.contactName': 'Emergency contact name',
+        'address.emergencyContact.contactAddress': 'Emergency contact address',
+        'address.emergencyContact.contactTel': 'Emergency contact telephone',
+        'compensation.basicSalary': 'Basic salary',
+        'compensation.bankName': 'Bank name',
+        'compensation.branchName': 'Branch name',
+        'compensation.bankCode': 'Bank code',
+        'compensation.branchCode': 'Branch code',
+        'compensation.bankAccountNo': 'Bank account number',
+        'organization.company': 'Company',
+        'organization.dateOfJoined': 'Date of joining',
+        'organization.designation': 'Designation',
+      };
+
+      // Return mapped name or format the path
+      return fieldMap[fieldPath] || fieldPath
+        .split('.')
+        .map(part => part
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, str => str.toUpperCase())
+          .replace('Emp', 'Employee')
+          .replace('No', 'Number')
+          .replace('Nic', 'NIC')
+        )
+        .join(' → ');
+    };
+
+    return (
+      <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+        <div className="flex items-center">
+          <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+          <h3 className="text-lg font-medium text-red-800">
+            There were errors with your submission
+          </h3>
+        </div>
+        <div className="mt-2 text-sm text-red-700">
+          <ul className="list-disc pl-5 space-y-1">
+            {allErrors.map((error, index) => (
+              <li key={index}>
+                <span className="font-medium">
+                  {formatFieldName(error.field)}:
+                </span>{" "}
+                {error.message}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-      <div className="mt-2 text-sm text-red-700">
-        <ul className="list-disc pl-5 space-y-1">
-          {allErrors.map((error, index) => (
-            <li key={index}>
-              <span className="font-medium">
-                {formatFieldName(error.field)}:
-              </span>{" "}
-              {error.message}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-};
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -476,8 +490,8 @@ const renderErrors = () => {
                   Children
                 </label>
                 {formData.personal.children &&
-                formData.personal.children.length > 0 &&
-                formData.personal.children[0].name ? (
+                  formData.personal.children.length > 0 &&
+                  formData.personal.children[0].name ? (
                   <div className="mt-2 space-y-2">
                     {formData.personal.children.map((child, index) => (
                       <div key={index} className="bg-gray-50 p-3 rounded-lg">
@@ -770,11 +784,10 @@ const renderErrors = () => {
                     Probation Period{" "}
                   </label>
                   <span
-                    className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${
-                      formData.organization.probationPeriod
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
+                    className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${formData.organization.probationPeriod
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                      }`}
                   >
                     {formatBoolean(formData.organization.probationPeriod)}
                   </span>
@@ -785,11 +798,10 @@ const renderErrors = () => {
                   </label>
 
                   <span
-                    className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${
-                      formData.organization.trainingPeriod
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
+                    className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${formData.organization.trainingPeriod
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                      }`}
                   >
                     {formatBoolean(formData.organization.trainingPeriod)}
                   </span>
@@ -800,11 +812,10 @@ const renderErrors = () => {
                   </label>
 
                   <span
-                    className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${
-                      formData.organization.contractPeriod
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
+                    className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${formData.organization.contractPeriod
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                      }`}
                   >
                     {formatBoolean(formData.organization.contractPeriod)}
                   </span>
@@ -1023,31 +1034,29 @@ const renderErrors = () => {
           </button>
           {formData.personal.id ? (
             <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className={`px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200 flex items-center space-x-2 ${
-              isSubmitting ? "opacity-75 cursor-not-allowed" : ""
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                <span>Submitting...</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                <span>Confirm & Update</span>
-              </>
-            )}
-          </button>
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className={`px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200 flex items-center space-x-2 ${isSubmitting ? "opacity-75 cursor-not-allowed" : ""
+                }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  <span>Submitting...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  <span>Confirm & Update</span>
+                </>
+              )}
+            </button>
           ) : (
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className={`px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200 flex items-center space-x-2 ${
-                isSubmitting ? "opacity-75 cursor-not-allowed" : ""
-              }`}
+              className={`px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200 flex items-center space-x-2 ${isSubmitting ? "opacity-75 cursor-not-allowed" : ""
+                }`}
             >
               {isSubmitting ? (
                 <>

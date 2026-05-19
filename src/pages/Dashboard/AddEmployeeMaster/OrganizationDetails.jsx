@@ -21,6 +21,7 @@ import {
 } from "@services/ApiDataService";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
+import DatePickerInput from "../../../components/DatePickerInput";
 
 const OrganizationDetails = ({ onNext, onPrevious }) => {
   const { formData, updateFormData, errors, clearFieldError } =
@@ -263,14 +264,12 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
         aria-label={`Toggle ${label}`}
       />
       <div
-        className={`w-11 h-6 rounded-full transition-colors ${
-          enabled ? "bg-blue-600" : "bg-gray-300"
-        } peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 peer-focus:ring-offset-2`}
+        className={`w-11 h-6 rounded-full transition-colors ${enabled ? "bg-blue-600" : "bg-gray-300"
+          } peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 peer-focus:ring-offset-2`}
       ></div>
       <div
-        className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-          enabled ? "translate-x-5" : "translate-x-0"
-        }`}
+        className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${enabled ? "translate-x-5" : "translate-x-0"
+          }`}
       ></div>
     </label>
   );
@@ -310,11 +309,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                     name="company"
                     value={formData.organization.company}
                     onChange={handleChange}
-                    className={`w-full pl-8 pr-3 py-2 border ${
-                      errors.organization?.company
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.company
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">Select Company</option>
                     {companies.map((c) => (
@@ -347,15 +345,13 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                     disabled={
                       !formData.organization.company || isLoadingDepartments
                     }
-                    className={`w-full pl-8 pr-3 py-2 border ${
-                      errors.organization?.department
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !formData.organization.company
+                    className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.department
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!formData.organization.company
                         ? "bg-gray-100 cursor-not-allowed"
                         : ""
-                    }`}
+                      }`}
                   >
                     <option value="">Select Department</option>
                     {departments.map((d) => (
@@ -389,15 +385,13 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                       !formData.organization.department ||
                       isLoadingSubDepartments
                     }
-                    className={`w-full pl-8 pr-3 py-2 border ${
-                      errors.organization?.subDepartment
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !formData.organization.department
+                    className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.subDepartment
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!formData.organization.department
                         ? "bg-gray-100 cursor-not-allowed"
                         : ""
-                    }`}
+                      }`}
                     required
                   >
                     <option value="">Select Sub Department</option>
@@ -424,11 +418,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   value={formData.organization.currentSupervisor}
                   onChange={handleChange}
                   placeholder="e.g., John Doe"
-                  className={`w-full pl-8 pr-3 py-2 border ${
-                    errors.organization?.currentSupervisor
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.currentSupervisor
+                    ? "border-red-500"
+                    : "border-gray-300"
+                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
                 <User
                   className="absolute left-2 top-2.5 text-gray-400"
@@ -444,17 +437,15 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 Date of Joined <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input
-                  type="date"
+                <DatePickerInput
                   name="dateOfJoined"
                   value={formData.organization.dateOfJoined}
                   max={new Date().toISOString().split("T")[0]}
                   onChange={handleChange}
-                  className={`w-full pl-8 pr-3 py-2 border ${
-                    errors.organization?.dateOfJoined
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.dateOfJoined
+                    ? "border-red-500"
+                    : "border-gray-300"
+                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
               </div>
               <FieldError error={errors.organization?.dateOfJoined} />
@@ -476,11 +467,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                       name="designation"
                       value={formData.organization.designation}
                       onChange={handleDesignationChange}
-                      className={`w-full pl-8 pr-3 py-2 border ${
-                        errors.organization?.designation
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.designation
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       required
                     >
                       <option value="">Select designation</option>
@@ -586,11 +576,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   name="dayOff"
                   value={formData.organization.dayOff || ""}
                   onChange={handleChange}
-                  className={`w-full pl-8 pr-3 py-2 border ${
-                    errors.organization?.dayOff
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.dayOff
+                    ? "border-red-500"
+                    : "border-gray-300"
+                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   required
                 >
                   <option value="">Select Day Off</option>
@@ -607,34 +596,33 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
               <FieldError error={errors.organization?.dayOff} />
 
               {/* Employee Category (Executive / Non-Executive) */}
-            <div className="mb-4">
-              <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
-                <Briefcase className="text-gray-500" size={16} />
-                Employee Category <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  name="employeeCategory"
-                  value={formData.organization.employeeCategory || ""}
-                  onChange={handleChange}
-                  className={`w-full pl-8 pr-3 py-2 border ${
-                    errors.organization?.employeeCategory
+              <div className="mb-4">
+                <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
+                  <Briefcase className="text-gray-500" size={16} />
+                  Employee Category <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="employeeCategory"
+                    value={formData.organization.employeeCategory || ""}
+                    onChange={handleChange}
+                    className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.employeeCategory
                       ? "border-red-500"
                       : "border-gray-300"
-                  } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  required
-                >
-                  <option value="">Select Category</option>
-                  <option value="Executive">Executive</option>
-                  <option value="Non-Executive">Non-Executive</option>
-                </select>
-                <Briefcase
-                  className="absolute left-2 top-2.5 text-gray-400"
-                  size={16}
-                />
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    required
+                  >
+                    <option value="">Select Category</option>
+                    <option value="Executive">Executive</option>
+                    <option value="Non-Executive">Non-Executive</option>
+                  </select>
+                  <Briefcase
+                    className="absolute left-2 top-2.5 text-gray-400"
+                    size={16}
+                  />
+                </div>
+                <FieldError error={errors.organization?.employeeCategory} />
               </div>
-              <FieldError error={errors.organization?.employeeCategory} />
-            </div>
             </div>
           </div>
         </div>
@@ -660,11 +648,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 </h3>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-sm ${
-                      formData.organization.probationPeriod
-                        ? "text-blue-600"
-                        : "text-red-400"
-                    }`}
+                    className={`text-sm ${formData.organization.probationPeriod
+                      ? "text-blue-600"
+                      : "text-red-400"
+                      }`}
                   >
                     {formData.organization.probationPeriod
                       ? "Enabled"
@@ -682,28 +669,25 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 <div>
                   <label className="block text-gray-600 mb-1">From Date</label>
                   <div className="relative">
-                    <input
-                      type="date"
+                    <DatePickerInput
                       name="probationFrom"
                       value={formData.organization.probationFrom}
                       onChange={handleChange}
                       min={formData.organization.dateOfJoined || ""}
                       max={formData.organization.probationTo || ""}
                       disabled={!formData.organization.probationPeriod}
-                      className={`w-full pl-8 pr-3 py-2 border ${
-                        !formData.organization.probationPeriod
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : errors.organization?.probationFrom
+                      className={`w-full pl-8 pr-3 py-2 border ${!formData.organization.probationPeriod
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : errors.organization?.probationFrom
                           ? "border-red-500"
                           : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
                     <Calendar
-                      className={`absolute left-2 top-2.5 ${
-                        formData.organization.probationPeriod
-                          ? "text-gray-400"
-                          : "text-gray-300"
-                      }`}
+                      className={`absolute left-2 top-2.5 ${formData.organization.probationPeriod
+                        ? "text-gray-400"
+                        : "text-gray-300"
+                        }`}
                       size={16}
                     />
                   </div>
@@ -712,27 +696,24 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 <div>
                   <label className="block text-gray-600 mb-1">To Date</label>
                   <div className="relative">
-                    <input
-                      type="date"
+                    <DatePickerInput
                       name="probationTo"
                       value={formData.organization.probationTo}
                       onChange={handleChange}
                       min={formData.organization.probationFrom || ""}
                       disabled={!formData.organization.probationPeriod}
-                      className={`w-full pl-8 pr-3 py-2 border ${
-                        !formData.organization.probationPeriod
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : errors.organization?.probationTo
+                      className={`w-full pl-8 pr-3 py-2 border ${!formData.organization.probationPeriod
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : errors.organization?.probationTo
                           ? "border-red-500"
                           : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
                     <Calendar
-                      className={`absolute left-2 top-2.5 ${
-                        formData.organization.probationPeriod
-                          ? "text-gray-400"
-                          : "text-gray-300"
-                      }`}
+                      className={`absolute left-2 top-2.5 ${formData.organization.probationPeriod
+                        ? "text-gray-400"
+                        : "text-gray-300"
+                        }`}
                       size={16}
                     />
                   </div>
@@ -751,11 +732,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 </h3>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-sm ${
-                      formData.organization.trainingPeriod
-                        ? "text-blue-600"
-                        : "text-red-400"
-                    }`}
+                    className={`text-sm ${formData.organization.trainingPeriod
+                      ? "text-blue-600"
+                      : "text-red-400"
+                      }`}
                   >
                     {formData.organization.trainingPeriod
                       ? "Enabled"
@@ -773,28 +753,25 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 <div>
                   <label className="block text-gray-600 mb-1">From Date</label>
                   <div className="relative">
-                    <input
-                      type="date"
+                    <DatePickerInput
                       name="trainingFrom"
                       value={formData.organization.trainingFrom}
                       onChange={handleChange}
                       min={formData.organization.dateOfJoined || ""}
                       max={formData.organization.trainingTo || ""}
                       disabled={!formData.organization.trainingPeriod}
-                      className={`w-full pl-8 pr-3 py-2 border ${
-                        !formData.organization.trainingPeriod
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : errors.organization?.trainingFrom
+                      className={`w-full pl-8 pr-3 py-2 border ${!formData.organization.trainingPeriod
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : errors.organization?.trainingFrom
                           ? "border-red-500"
                           : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
                     <Calendar
-                      className={`absolute left-2 top-2.5 ${
-                        formData.organization.trainingPeriod
-                          ? "text-gray-400"
-                          : "text-gray-300"
-                      }`}
+                      className={`absolute left-2 top-2.5 ${formData.organization.trainingPeriod
+                        ? "text-gray-400"
+                        : "text-gray-300"
+                        }`}
                       size={16}
                     />
                   </div>
@@ -803,27 +780,24 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 <div>
                   <label className="block text-gray-600 mb-1">To Date</label>
                   <div className="relative">
-                    <input
-                      type="date"
+                    <DatePickerInput
                       name="trainingTo"
                       value={formData.organization.trainingTo}
                       onChange={handleChange}
                       min={formData.organization.trainingFrom || ""}
                       disabled={!formData.organization.trainingPeriod}
-                      className={`w-full pl-8 pr-3 py-2 border ${
-                        !formData.organization.trainingPeriod
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : errors.organization?.trainingTo
+                      className={`w-full pl-8 pr-3 py-2 border ${!formData.organization.trainingPeriod
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : errors.organization?.trainingTo
                           ? "border-red-500"
                           : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
                     <Calendar
-                      className={`absolute left-2 top-2.5 ${
-                        formData.organization.trainingPeriod
-                          ? "text-gray-400"
-                          : "text-gray-300"
-                      }`}
+                      className={`absolute left-2 top-2.5 ${formData.organization.trainingPeriod
+                        ? "text-gray-400"
+                        : "text-gray-300"
+                        }`}
                       size={16}
                     />
                   </div>
@@ -842,11 +816,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 </h3>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-sm ${
-                      formData.organization.contractPeriod
-                        ? "text-blue-600"
-                        : "text-red-400"
-                    }`}
+                    className={`text-sm ${formData.organization.contractPeriod
+                      ? "text-blue-600"
+                      : "text-red-400"
+                      }`}
                   >
                     {formData.organization.contractPeriod
                       ? "Enabled"
@@ -864,28 +837,25 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 <div>
                   <label className="block text-gray-600 mb-1">From Date</label>
                   <div className="relative">
-                    <input
-                      type="date"
+                    <DatePickerInput
                       name="contractFrom"
                       value={formData.organization.contractFrom}
                       onChange={handleChange}
                       min={formData.organization.dateOfJoined || ""}
                       max={formData.organization.contractTo || ""}
                       disabled={!formData.organization.contractPeriod}
-                      className={`w-full pl-8 pr-3 py-2 border ${
-                        !formData.organization.contractPeriod
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : errors.organization?.contractFrom
+                      className={`w-full pl-8 pr-3 py-2 border ${!formData.organization.contractPeriod
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : errors.organization?.contractFrom
                           ? "border-red-500"
                           : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
                     <Calendar
-                      className={`absolute left-2 top-2.5 ${
-                        formData.organization.contractPeriod
-                          ? "text-gray-400"
-                          : "text-gray-300"
-                      }`}
+                      className={`absolute left-2 top-2.5 ${formData.organization.contractPeriod
+                        ? "text-gray-400"
+                        : "text-gray-300"
+                        }`}
                       size={16}
                     />
                   </div>
@@ -894,27 +864,24 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 <div>
                   <label className="block text-gray-600 mb-1">To Date</label>
                   <div className="relative">
-                    <input
-                      type="date"
+                    <DatePickerInput
                       name="contractTo"
                       value={formData.organization.contractTo}
                       onChange={handleChange}
                       min={formData.organization.contractFrom || ""}
                       disabled={!formData.organization.contractPeriod}
-                      className={`w-full pl-8 pr-3 py-2 border ${
-                        !formData.organization.contractPeriod
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : errors.organization?.contractTo
+                      className={`w-full pl-8 pr-3 py-2 border ${!formData.organization.contractPeriod
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : errors.organization?.contractTo
                           ? "border-red-500"
                           : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     />
                     <Calendar
-                      className={`absolute left-2 top-2.5 ${
-                        formData.organization.contractPeriod
-                          ? "text-gray-400"
-                          : "text-gray-300"
-                      }`}
+                      className={`absolute left-2 top-2.5 ${formData.organization.contractPeriod
+                        ? "text-gray-400"
+                        : "text-gray-300"
+                        }`}
                       size={16}
                     />
                   </div>
@@ -931,11 +898,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 </label>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-sm ${
-                      toggleStates.confirmationEnabled
-                        ? "text-blue-600"
-                        : "text-red-400"
-                    }`}
+                    className={`text-sm ${toggleStates.confirmationEnabled
+                      ? "text-blue-600"
+                      : "text-red-400"
+                      }`}
                   >
                     {/* {toggleStates.confirmationEnabled ? "Enabled" : "Disabled"} */}
                   </span>
@@ -947,8 +913,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 </div>
               </div>
               <div className="relative">
-                <input
-                  type="date"
+                <DatePickerInput
                   name="confirmationDate"
                   value={formData.organization.confirmationDate}
                   onChange={handleChange}
@@ -956,11 +921,10 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   className={`w-full pl-8 pr-3 py-2 border  rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
                 <Calendar
-                  className={`absolute left-2 top-2.5 ${
-                    toggleStates.confirmationEnabled
-                      ? "text-gray-400"
-                      : "text-gray-300"
-                  }`}
+                  className={`absolute left-2 top-2.5 ${toggleStates.confirmationEnabled
+                    ? "text-gray-400"
+                    : "text-gray-300"
+                    }`}
                   size={16}
                 />
               </div>

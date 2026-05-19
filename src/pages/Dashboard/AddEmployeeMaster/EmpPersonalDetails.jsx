@@ -18,6 +18,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
 import config from "@src/config";
 import { getUser } from "@services/UserService";
+import DatePickerInput from "../../../components/DatePickerInput";
 
 const relationshipOptions = [
   { value: "", label: "Select Relationship Type" },
@@ -326,11 +327,11 @@ const EmpPersonalDetails = ({ onNext }) => {
           children:
             apiData.children?.length > 0
               ? apiData.children.map((child) => ({
-                  name: child.name,
-                  age: child.age,
-                  dob: child.dob,
-                  nic: child.nic,
-                }))
+                name: child.name,
+                age: child.age,
+                dob: child.dob,
+                nic: child.nic,
+              }))
               : [{ name: "", age: "", dob: "", nic: "" }],
         },
         address: {
@@ -565,9 +566,8 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="title"
                 value={formData.personal.title}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.title ? "border-red-500" : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
+                className={`w-full border ${errors.personal?.title ? "border-red-500" : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
                 required
               >
                 <option value="">Select Title</option>
@@ -589,11 +589,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="attendanceEmpNo"
                 value={formData.personal.attendanceEmpNo}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.attendanceEmpNo
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.attendanceEmpNo
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter employee number"
                 disabled={formData.personal.id}
                 required
@@ -610,9 +609,8 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="epfNo"
                 value={formData.personal.epfNo}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.epfNo ? "border-red-500" : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.epfNo ? "border-red-500" : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter EPF number"
                 disabled={formData.personal.id}
                 required
@@ -629,11 +627,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="nicNumber"
                 value={formData.personal.nicNumber}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.nicNumber
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.nicNumber
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter NIC number"
                 required
               />
@@ -645,17 +642,15 @@ const EmpPersonalDetails = ({ onNext }) => {
               <label className="block text-sm font-medium text-gray-700">
                 Date of Birth <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
+              <DatePickerInput
                 name="dob"
                 value={formData.personal.dob}
                 onChange={handleChange}
                 max={maxDob} // prevent selecting dates newer than 8 years ago
-                className={`w-full border ${
-                  errors.personal?.dob || dobError
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.dob || dobError
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 required
               />
               <FieldError error={errors.personal?.dob || dobError} />
@@ -670,9 +665,8 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="gender"
                 value={formData.personal.gender}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.gender ? "border-red-500" : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
+                className={`w-full border ${errors.personal?.gender ? "border-red-500" : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
                 required
               >
                 <option value="">Select Gender</option>
@@ -692,11 +686,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="religion"
                 value={formData.personal.religion}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.religion
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.religion
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter religion"
               />
               <FieldError error={errors.personal?.religion} />
@@ -711,11 +704,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="countryOfBirth"
                 value={formData.personal.countryOfBirth}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.countryOfBirth
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.countryOfBirth
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter country of birth"
               />
               <FieldError error={errors.personal?.countryOfBirth} />
@@ -731,11 +723,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 {/* Preview Circle */}
                 <div className="relative">
                   <div
-                    className={`w-16 h-16 rounded-full border-2  ${
-                      errors?.profile_picture
-                        ? "border-red-500"
-                        : "border-gray-200"
-                    }  overflow-hidden bg-gray-50 flex items-center justify-center`}
+                    className={`w-16 h-16 rounded-full border-2  ${errors?.profile_picture
+                      ? "border-red-500"
+                      : "border-gray-200"
+                      }  overflow-hidden bg-gray-50 flex items-center justify-center`}
                   >
                     {preview ? (
                       <img
@@ -759,11 +750,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                   className={`relative flex-1 border-2 border-dashed rounded-lg px-4 py-3 
               transition-all duration-200 cursor-pointer
               ${errors?.profile_picture ? "border-red-500" : "border-gray-300"}
-              ${
-                isDragging
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
-              }
+              ${isDragging
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                    }
             `}
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
@@ -822,11 +812,10 @@ const EmpPersonalDetails = ({ onNext }) => {
             ].map((item) => (
               <label
                 key={item.value}
-                className={`flex items-center gap-3 p-3 rounded-lg border ${
-                  errors.personal?.employmentStatus
-                    ? "border-red-500"
-                    : "border-gray-200"
-                } hover:bg-gray-50 transition-colors cursor-pointer`}
+                className={`flex items-center gap-3 p-3 rounded-lg border ${errors.personal?.employmentStatus
+                  ? "border-red-500"
+                  : "border-gray-200"
+                  } hover:bg-gray-50 transition-colors cursor-pointer`}
               >
                 <input
                   type="radio"
@@ -865,11 +854,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="nameWithInitial"
                 value={formData.personal.nameWithInitial}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.nameWithInitial
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.nameWithInitial
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="e.g., J.A. Smith"
                 required
               />
@@ -883,11 +871,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="fullName"
                 value={formData.personal.fullName}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.fullName
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.fullName
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter full name"
                 required
               />
@@ -901,11 +888,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="displayName"
                 value={formData.personal.displayName}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.displayName
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.displayName
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter display name"
                 required
               />
@@ -921,11 +907,10 @@ const EmpPersonalDetails = ({ onNext }) => {
               name="maritalStatus"
               value={formData.personal.maritalStatus}
               onChange={handleChange}
-              className={`w-full lg:w-1/3 border ${
-                errors.personal?.maritalStatus
-                  ? "border-red-500"
-                  : "border-gray-300"
-              } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
+              className={`w-full lg:w-1/3 border ${errors.personal?.maritalStatus
+                ? "border-red-500"
+                : "border-gray-300"
+                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
             >
               <option value="">Select Status</option>
               <option>Single</option>
@@ -1086,11 +1071,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="relationshipType"
                 value={formData.personal.relationshipType || ""}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.relationshipType
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
+                className={`w-full border ${errors.personal?.relationshipType
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
               >
                 {relationshipOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1109,11 +1093,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="spouseTitle"
                 value={formData.personal.spouseTitle || ""}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.spouseTitle
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
+                className={`w-full border ${errors.personal?.spouseTitle
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white`}
               >
                 <option value="">Select Title</option>
                 <option>Mr</option>
@@ -1133,11 +1116,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="spouseName"
                 value={formData.personal.spouseName}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.spouseName
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.spouseName
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter name"
               />
               <FieldError error={errors.personal?.spouseName} />
@@ -1146,17 +1128,15 @@ const EmpPersonalDetails = ({ onNext }) => {
               <label className="block text-sm font-medium text-gray-700">
                 Date of Birth
               </label>
-              <input
+              <DatePickerInput
                 name="spouseDob"
-                type="date"
                 value={formData.personal.spouseDob}
                 onChange={handleChange}
                 max={maxDob}
-                className={`w-full border ${
-                  errors.personal?.spouseDob
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.spouseDob
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
               />
               <FieldError error={errors.personal?.spouseDob} />
             </div>
@@ -1181,11 +1161,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                 name="spouseNic"
                 value={formData.personal.spouseNic}
                 onChange={handleChange}
-                className={`w-full border ${
-                  errors.personal?.spouseNic
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`w-full border ${errors.personal?.spouseNic
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 placeholder="Enter NIC number"
               />
               <FieldError error={errors.personal?.spouseNic} />
@@ -1237,22 +1216,19 @@ const EmpPersonalDetails = ({ onNext }) => {
                     placeholder="Child name"
                     value={child.name}
                     onChange={(e) => handleChildChange(idx, e)}
-                    className={`w-full border ${
-                      errors.personal?.children?.[idx]?.name
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                    className={`w-full border ${errors.personal?.children?.[idx]?.name
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   />
-                  <input
+                  <DatePickerInput
                     name="dob"
-                    type="date"
                     value={child.dob}
                     onChange={(e) => handleChildChange(idx, e)}
-                    className={`w-full border ${
-                      errors.personal?.children?.[idx]?.dob
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                    className={`w-full border ${errors.personal?.children?.[idx]?.dob
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   />
                   <input
                     name="age"
@@ -1267,11 +1243,10 @@ const EmpPersonalDetails = ({ onNext }) => {
                     placeholder="NIC number (optional)"
                     value={child.nic}
                     onChange={(e) => handleChildChange(idx, e)}
-                    className={`w-full border ${
-                      errors.personal?.children?.[idx]?.nic
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                    className={`w-full border ${errors.personal?.children?.[idx]?.nic
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                   />
                 </div>
                 {errors.personal?.children?.[idx] && (
