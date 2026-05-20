@@ -1454,8 +1454,7 @@ const TimeCard = ({ employeeProfile }) => {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     className={`w-full border rounded-lg px-3 py-1.5 text-sm ${addErrors.date ? 'border-red-500' : 'border-gray-300'}`}
                     value={newRecord.date}
                     onChange={e => {

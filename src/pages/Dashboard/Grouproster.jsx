@@ -20,7 +20,7 @@ import {
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import axios from "@utils/axios";
-import DatePickerInput from "../../../src/components/DatePickerInput";
+import DatePickerInput from "@components/DatePickerInput";
 import moment from "moment";
 
 const RosterManagementSystem = () => {
@@ -1024,8 +1024,8 @@ const RosterManagementSystem = () => {
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
-                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date From</label><input type="date" value={rosterSearchParams.date_from} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, date_from: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
-                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date To</label><input type="date" value={rosterSearchParams.date_to} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, date_to: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date From</label><DatePickerInput value={rosterSearchParams.date_from} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, date_from: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date To</label><DatePickerInput value={rosterSearchParams.date_to} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, date_to: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Emp No / ID</label><input type="text" placeholder="e.g. EMP003" value={rosterSearchParams.employee_id} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, employee_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
 
                 <div className="col-span-2 md:col-span-5 flex justify-end space-x-3 mt-2">
