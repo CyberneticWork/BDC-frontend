@@ -5,7 +5,7 @@ import React, { useRef } from 'react';
  * @typedef {Object} CustomDatePickerProps
  * @property {string} value - The current date string (YYYY-MM-DD from state).
  * @property {function} onChange - Callback function triggered on date change.
- * @property {string} [displayFormat="DD-MM-YYYY"] - Your custom display format.
+ * @property {string} [displayFormat="DD/MM/YYYY"] - Your custom display format.
  * @property {string} [error] - Error message or boolean to trigger red border.
  * 
  * @typedef {CustomDatePickerProps & Omit<React.HTMLAttributes<HTMLInputElement>, 'onChange' | 'value'>} DatePickerProps
@@ -30,7 +30,7 @@ const DatePickerInput = ({
 
     const getDisplayText = () => {
         if (!value) return "";
-        const parsed = moment(value, "YYYY-MM-DD", true);
+        const parsed = moment(value, "YYYY-MM-DD", false);
         return parsed.isValid() ? parsed.format(displayFormat) : value;
     };
 

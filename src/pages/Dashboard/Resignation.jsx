@@ -15,6 +15,7 @@ import {
 import ResignationsService from "@services/ResignationsService";
 import employeeService from "@services/EmployeeDataService";
 import Swal from "sweetalert2";
+import DatePickerInput from "../../../src/components/DatePickerInput";
 
 const Resignation = () => {
   const [formData, setFormData] = useState({
@@ -110,11 +111,11 @@ const Resignation = () => {
 
     // Check for oversized files
     const oversizedFiles = files.filter(file => file.size > MAX_SIZE);
-    
+
     if (oversizedFiles.length > 0) {
       const errorMessage = [
         "The following files exceed 5MB limit:",
-        ...oversizedFiles.map(f => `• ${f.name} (${(f.size/(1024*1024)).toFixed(2)}MB)`)
+        ...oversizedFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`)
       ].join('\n');
 
       setErrors({
@@ -128,7 +129,7 @@ const Resignation = () => {
       ...formData,
       documents: [...formData.documents, ...files],
     });
-    
+
     // Clear previous errors if any
     if (errors.documents) {
       setErrors({
@@ -179,7 +180,7 @@ const Resignation = () => {
       if (oversizedFiles.length > 0) {
         newErrors.documents = [
           "The following files exceed 5MB limit:",
-          ...oversizedFiles.map(f => `• ${f.name} (${(f.size/(1024*1024)).toFixed(2)}MB)`)
+          ...oversizedFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`)
         ];
       }
     }
@@ -191,10 +192,10 @@ const Resignation = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formErrors = validateForm();
-    
+
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
-      
+
       // Display all errors in a modal
       const errorMessages = [];
       Object.values(formErrors).forEach(error => {
@@ -210,7 +211,7 @@ const Resignation = () => {
         title: "Form Errors",
         html: errorMessages.map(msg => `<div>${msg}</div>`).join(''),
       });
-      
+
       return;
     }
 
@@ -223,7 +224,7 @@ const Resignation = () => {
         resignation_reason: formData.resignation_reason,
         documents: formData.documents,
       };
-      
+
       await ResignationsService.createResignation(submissionData);
 
       // Reset form
@@ -236,7 +237,7 @@ const Resignation = () => {
         resignation_reason: "",
         documents: [],
       });
-      
+
       setErrors({});
       setSuccessMessage("Resignation submitted successfully!");
 
@@ -253,9 +254,9 @@ const Resignation = () => {
 
     } catch (error) {
       console.error("Error submitting resignation:", error);
-      
+
       let errorMessage = "An error occurred while submitting the resignation";
-      
+
       if (error.response?.data?.message === 'This employee already has a pending resignation request') {
         errorMessage = "This employee already has a pending resignation request";
       } else if (error.response?.data?.errors) {
@@ -350,11 +351,10 @@ const Resignation = () => {
                       }}
                       onFocus={() => setShowEmployeeDropdown(true)}
                       placeholder="Search by ID, name or employee number..."
-                      className={`w-full pl-10 pr-8 py-2 border ${
-                        errors.employee_id
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`}
+                      className={`w-full pl-10 pr-8 py-2 border ${errors.employee_id
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`}
                       disabled={loading}
                     />
                     <Search
@@ -438,16 +438,14 @@ const Resignation = () => {
                   Resignation Submission Date
                 </h3>
                 <div className="relative">
-                  <input
-                    type="date"
+                  <DatePickerInput
                     name="resigning_date"
                     value={formData.resigning_date}
                     onChange={handleChange}
-                    className={`w-full md:w-1/2 pl-10 pr-3 py-2 border ${
-                      errors.resigning_date
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`}
+                    className={`w-full md:w-1/2 pl-10 pr-3 py-2 border ${errors.resigning_date
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`}
                     disabled={loading}
                   />
                   <Calendar
@@ -469,16 +467,14 @@ const Resignation = () => {
                   Last Working Day
                 </h3>
                 <div className="relative">
-                  <input
-                    type="date"
+                  <DatePickerInput
                     name="last_working_day"
                     value={formData.last_working_day}
                     onChange={handleChange}
-                    className={`w-full md:w-1/2 pl-10 pr-3 py-2 border ${
-                      errors.last_working_day
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`}
+                    className={`w-full md:w-1/2 pl-10 pr-3 py-2 border ${errors.last_working_day
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`}
                     disabled={loading}
                   />
                   <Calendar
@@ -506,11 +502,10 @@ const Resignation = () => {
                     onChange={handleChange}
                     rows="4"
                     placeholder="Please provide the reason for resignation"
-                    className={`w-full pl-10 pr-3 py-2 border ${
-                      errors.resignation_reason
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none`}
+                    className={`w-full pl-10 pr-3 py-2 border ${errors.resignation_reason
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none`}
                     disabled={loading}
                   />
                   <FileText

@@ -23,6 +23,7 @@ import {
   getLeaveEligibility,
 } from "../../services/LeaveMaster";
 import { fetchLeaveCalendar } from "../../services/LeaveCalendar";
+import DatePickerInput from "@components/DatePickerInput";
 
 const LeaveMaster = ({ employeeProfile }) => {
   // State for form fields
@@ -73,7 +74,7 @@ const LeaveMaster = ({ employeeProfile }) => {
         employeeName: employeeProfile.name_with_initials || "",
         department: employeeProfile.organization_assignment?.department?.name || "",
       }));
-      
+
       // Fetch leave data for logged-in employee
       if (employeeProfile.id) {
         fetchEmployeeLeaves(employeeProfile.id, employeeProfile);
@@ -87,17 +88,17 @@ const LeaveMaster = ({ employeeProfile }) => {
 
 
 
-// Selected Date  fetch
+  // Selected Date  fetch
   useEffect(() => {
     if (formData.attendanceNo) {
       let selectedDate = getCurrentDate();
-      
+
       if (formData.leaveDateType === "manual" && formData.leaveDate.from) {
         selectedDate = formData.leaveDate.from;
       } else if (formData.leaveDate.single) {
         selectedDate = formData.leaveDate.single;
       }
-      
+
       //
       fetchLeaveUsage(formData.attendanceNo, selectedDate);
     }
@@ -121,89 +122,89 @@ const LeaveMaster = ({ employeeProfile }) => {
     return date.toISOString().split("T")[0];
   }
 
+
+
+  /*
+  // Function to format leave record for display
+    function formatLeaveRecord(leaveData) {
+      let leaveDateDisplay = "";
   
- 
-/*
-// Function to format leave record for display
-  function formatLeaveRecord(leaveData) {
-    let leaveDateDisplay = "";
-
-    // 1. Duration එක අනිවාර්යයෙන්ම Number එකක් බවට පත් කිරීම (parseFloat)
-    const actualDuration = parseFloat(leaveData.leave_duration) || 
-                           (leaveData.is_short_leave ? 0.25 : (leaveData.is_half_day ? 0.5 : 1));
-
-    if (leaveData.leave_date) {
-      leaveDateDisplay = formatDate(leaveData.leave_date);
-      
-      // Short leave සහ Half leave වල period එක පෙන්වීම
+      // 1. Duration එක අනිවාර්යයෙන්ම Number එකක් බවට පත් කිරීම (parseFloat)
+      const actualDuration = parseFloat(leaveData.leave_duration) || 
+                             (leaveData.is_short_leave ? 0.25 : (leaveData.is_half_day ? 0.5 : 1));
+  
+      if (leaveData.leave_date) {
+        leaveDateDisplay = formatDate(leaveData.leave_date);
+        
+        // Short leave සහ Half leave වල period එක පෙන්වීම
+        if (leaveData.is_short_leave || actualDuration === 0.25) {
+          const slots = {
+            "slot1": "8:30 AM - 10:30 AM",
+            "slot2": "10:30 AM - 12:30 PM",
+            "slot3": "1:30 PM - 3:30 PM",
+            "slot4": "3:30 PM - 5:30 PM"
+          };
+          // Backend එකෙන් එන short_leave_slot එක අනුව පෙන්වයි
+          if (leaveData.short_leave_slot) {
+             leaveDateDisplay += ` (${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot})`;
+          }
+        } else if (leaveData.is_half_day || actualDuration === 0.5) {
+          // Half day එකේ Morning ද Afternoon ද යන්න පෙන්වයි
+          if (leaveData.period) {
+             leaveDateDisplay += ` (${leaveData.period})`;
+          }
+        }
+      } else if (leaveData.leave_from && leaveData.leave_to) {
+        leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
+          leaveData.leave_to
+        )}`;
+        if (actualDuration > 1) {
+          leaveDateDisplay += ` (${actualDuration} days)`;
+        }
+      }
+  
+      const hasOverLimit = leaveData.over_limit && leaveData.over_limit > 0;
+  
+      let cleanLeaveType = leaveData.leave_type || "";
+      if (cleanLeaveType.includes("(Probat")) {
+          cleanLeaveType = "Casual Leave";
+      }
+  
+      // 2. Type එක (Full, Half, Short) තීරණය කිරීම (Parse කරපු actualDuration එකෙන්)
+      let displayType = "Full Day";
       if (leaveData.is_short_leave || actualDuration === 0.25) {
-        const slots = {
-          "slot1": "8:30 AM - 10:30 AM",
-          "slot2": "10:30 AM - 12:30 PM",
-          "slot3": "1:30 PM - 3:30 PM",
-          "slot4": "3:30 PM - 5:30 PM"
-        };
-        // Backend එකෙන් එන short_leave_slot එක අනුව පෙන්වයි
-        if (leaveData.short_leave_slot) {
-           leaveDateDisplay += ` (${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot})`;
-        }
+        displayType = "Short Leave";
       } else if (leaveData.is_half_day || actualDuration === 0.5) {
-        // Half day එකේ Morning ද Afternoon ද යන්න පෙන්වයි
-        if (leaveData.period) {
-           leaveDateDisplay += ` (${leaveData.period})`;
-        }
+        displayType = "Half Day";
+      } else if (actualDuration > 1) {
+        displayType = "Multiple Days";
       }
-    } else if (leaveData.leave_from && leaveData.leave_to) {
-      leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
-        leaveData.leave_to
-      )}`;
-      if (actualDuration > 1) {
-        leaveDateDisplay += ` (${actualDuration} days)`;
-      }
+  
+      return {
+        id: leaveData.id,
+        leaveDate: leaveDateDisplay, // <--- දැන් මෙතන Date එකත් එක්කම Morning/Time Slot එක වැටෙනවා
+        reportDate: formatDate(leaveData.reporting_date),
+        fullHalfDay: displayType, // <--- Short Leave, Half Day කියලා හරියටම වැටෙනවා
+        leaveType: cleanLeaveType,
+        status: leaveData.status,
+        duration: actualDuration, 
+        hasOverLimit: hasOverLimit,
+        overLimit: hasOverLimit ? leaveData.over_limit : 0,
+      };
     }
+  */
 
-    const hasOverLimit = leaveData.over_limit && leaveData.over_limit > 0;
-
-    let cleanLeaveType = leaveData.leave_type || "";
-    if (cleanLeaveType.includes("(Probat")) {
-        cleanLeaveType = "Casual Leave";
-    }
-
-    // 2. Type එක (Full, Half, Short) තීරණය කිරීම (Parse කරපු actualDuration එකෙන්)
-    let displayType = "Full Day";
-    if (leaveData.is_short_leave || actualDuration === 0.25) {
-      displayType = "Short Leave";
-    } else if (leaveData.is_half_day || actualDuration === 0.5) {
-      displayType = "Half Day";
-    } else if (actualDuration > 1) {
-      displayType = "Multiple Days";
-    }
-
-    return {
-      id: leaveData.id,
-      leaveDate: leaveDateDisplay, // <--- දැන් මෙතන Date එකත් එක්කම Morning/Time Slot එක වැටෙනවා
-      reportDate: formatDate(leaveData.reporting_date),
-      fullHalfDay: displayType, // <--- Short Leave, Half Day කියලා හරියටම වැටෙනවා
-      leaveType: cleanLeaveType,
-      status: leaveData.status,
-      duration: actualDuration, 
-      hasOverLimit: hasOverLimit,
-      overLimit: hasOverLimit ? leaveData.over_limit : 0,
-    };
-  }
-*/
-
-// Function to format leave record for display
+  // Function to format leave record for display
   function formatLeaveRecord(leaveData) {
     let leaveDateDisplay = "";
 
     // 1. Duration එක අනිවාර්යයෙන්ම Number එකක් බවට පත් කිරීම (parseFloat)
-    const actualDuration = parseFloat(leaveData.leave_duration) || 
-                           (leaveData.is_short_leave ? 0.25 : (leaveData.is_half_day ? 0.5 : 1));
+    const actualDuration = parseFloat(leaveData.leave_duration) ||
+      (leaveData.is_short_leave ? 0.25 : (leaveData.is_half_day ? 0.5 : 1));
 
     if (leaveData.leave_date) {
       leaveDateDisplay = formatDate(leaveData.leave_date);
-      
+
       // Short leave සහ Half leave වල period එක පෙන්වීම
       // මෙතන Number(actualDuration) === 0.25 කියලා දැඩිව බලන්න ඕනේ
       if (leaveData.is_short_leave || Number(actualDuration) === 0.25) {
@@ -215,12 +216,12 @@ const LeaveMaster = ({ employeeProfile }) => {
         };
         // Backend එකෙන් එන short_leave_slot එක අනුව පෙන්වයි
         if (leaveData.short_leave_slot) {
-           leaveDateDisplay += ` (${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot})`;
+          leaveDateDisplay += ` (${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot})`;
         }
       } else if (leaveData.is_half_day || Number(actualDuration) === 0.5) {
         // Half day එකේ Morning ද Afternoon ද යන්න පෙන්වයි
         if (leaveData.period) {
-           leaveDateDisplay += ` (${leaveData.period})`;
+          leaveDateDisplay += ` (${leaveData.period})`;
         }
       }
     } else if (leaveData.leave_from && leaveData.leave_to) {
@@ -236,7 +237,7 @@ const LeaveMaster = ({ employeeProfile }) => {
 
     let cleanLeaveType = leaveData.leave_type || "";
     if (cleanLeaveType.includes("(Probat")) {
-        cleanLeaveType = "Casual Leave";
+      cleanLeaveType = "Casual Leave";
     }
 
     // 2. Type එක (Full, Half, Short) තීරණය කිරීම 
@@ -256,7 +257,7 @@ const LeaveMaster = ({ employeeProfile }) => {
       fullHalfDay: displayType, // <--- Short Leave, Half Day කියලා හරියටම වැටෙනවා
       leaveType: cleanLeaveType,
       status: leaveData.status,
-      duration: actualDuration, 
+      duration: actualDuration,
       hasOverLimit: hasOverLimit,
       overLimit: hasOverLimit ? leaveData.over_limit : 0,
     };
@@ -303,8 +304,8 @@ const LeaveMaster = ({ employeeProfile }) => {
           html: `
             <div class="text-left">
               <p>This date (${formatDateForDisplay(
-                value
-              )}) is not available for leave requests because:</p>
+            value
+          )}) is not available for leave requests because:</p>
               <ul class="list-disc pl-5 mt-2">
                 <li>It's marked as an event day</li>
                 <li>Or it's already booked as leave</li>
@@ -430,19 +431,19 @@ const LeaveMaster = ({ employeeProfile }) => {
     try {
       // මෙතන තමයි වෙනස! දෙවෙනි එකට null දීලා, තුන්වෙනි එකට targetDate එක යවන්න.
       const eligibilityData = await getLeaveEligibility(empNumber, null, targetDate);
-      
+
       console.log("empNumber sent:", empNumber, "date sent:", targetDate);
-      
+
       if (eligibilityData && eligibilityData.eligible_leaves && Array.isArray(eligibilityData.eligible_leaves)) {
         const formattedUsage = eligibilityData.eligible_leaves.map(
           (leave, index) => {
             let totalDays = Number(leave.total_days || 0);
             let usedDays = Number(leave.used_days || 0);
-            
+
             if (usedDays > totalDays) {
               usedDays = totalDays;
             }
-            
+
             let balanceDays = totalDays - usedDays;
             if (balanceDays < 0) balanceDays = 0;
 
@@ -779,7 +780,7 @@ const LeaveMaster = ({ employeeProfile }) => {
   };
 */
 
-// Handle form submission for leave requests - modified to validate leave balance
+  // Handle form submission for leave requests - modified to validate leave balance
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError("");
@@ -854,8 +855,8 @@ const LeaveMaster = ({ employeeProfile }) => {
             <p>The following selected dates are not available:</p>
             <ul class="list-disc pl-5 mt-2">
               ${invalidDates
-                .map((d) => `<li>${formatDateForDisplay(d)}</li>`)
-                .join("")}
+              .map((d) => `<li>${formatDateForDisplay(d)}</li>`)
+              .join("")}
             </ul>
             <p class="mt-3 text-sm">Please adjust your leave dates and try again.</p>
           </div>
@@ -870,7 +871,7 @@ const LeaveMaster = ({ employeeProfile }) => {
       // ===================================================================
       // අලුතින් එකතු කළ කොටස: Balance එකට වඩා නිවාඩු දාන එක Block කිරීම
       // ===================================================================
-      
+
       // 1. ඉල්ලන නිවාඩු දවස් ගාණ කීයද කියලා මුලින්ම ගණනය කරනවා
       let requestedDuration = 0;
       if (formData.leaveDateType === "fullDay") {
@@ -888,10 +889,10 @@ const LeaveMaster = ({ employeeProfile }) => {
 
       // 2. තෝරපු Leave Type එකේ Balance එක හොයාගන්නවා
       const selectedLeaveInfo = leaveUsageData.find(item => item.leaveType === formData.leaveType);
-      
+
       if (selectedLeaveInfo) {
         const availableBalance = parseFloat(selectedLeaveInfo.balance);
-        
+
         // 3. ඉල්ලන ගාණ, තියෙන Balance එකට වඩා වැඩි නම් Error එකක් දීලා නවත්තනවා
         if (requestedDuration > availableBalance) {
           Swal.fire({
@@ -1096,7 +1097,7 @@ const LeaveMaster = ({ employeeProfile }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 py-4 sm:py-8">
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-        
+
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-4 sm:px-8 py-6 sm:py-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white text-center">
@@ -1138,11 +1139,11 @@ const LeaveMaster = ({ employeeProfile }) => {
             )}
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
+
                 <div className="space-y-6">
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
                           EMP number <span className="text-red-500">*</span>
@@ -1155,9 +1156,8 @@ const LeaveMaster = ({ employeeProfile }) => {
                             onChange={handleDateChange}
                             required
                             disabled={!!employeeProfile}
-                            className={`w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                              employeeProfile ? 'bg-gray-50 text-gray-500' : ''
-                            }`}
+                            className={`w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${employeeProfile ? 'bg-gray-50 text-gray-500' : ''
+                              }`}
                             placeholder="Enter employee number"
                           />
                           {!employeeProfile && (
@@ -1186,7 +1186,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                           </p>
                         )}
                       </div>
-                    
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
                           EPF No
@@ -1200,7 +1200,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                           placeholder="EPF number"
                         />
                       </div>
-                     
+
                       <div className="space-y-2 sm:col-span-2">
                         <label className="block text-sm font-medium text-gray-700">
                           Employee Name
@@ -1214,7 +1214,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                           placeholder="Employee name"
                         />
                       </div>
-                     
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
                           Department
@@ -1228,20 +1228,19 @@ const LeaveMaster = ({ employeeProfile }) => {
                           placeholder="Department"
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
                           Reporting Date
                         </label>
-                        <input
-                          type="date"
+                        <DatePickerInput
                           name="reportingDate"
                           value={formData.reportingDate}
                           disabled
                           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50 text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
                           Leave Type <span className="text-red-500">*</span>
@@ -1269,7 +1268,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                       </div>
                     </div>
 
-                   
+
                     <div className="mt-6">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Leave Duration <span className="text-red-500">*</span>
@@ -1561,7 +1560,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                       )}
                     </div>
 
-                   
+
                     <div className="mt-6">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Reason
@@ -1584,7 +1583,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                     </div>
                   </div>
 
-                  
+
                   <div className="mt-6 flex justify-end space-x-4">
                     <button
                       type="button"
@@ -1632,9 +1631,9 @@ const LeaveMaster = ({ employeeProfile }) => {
                   </div>
                 </div>
 
-                
+
                 <div className="space-y-6">
-                 
+
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-medium text-gray-800">
@@ -1713,7 +1712,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                     </div>
                   </div>
 
-                 
+
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-medium text-gray-800">
@@ -1786,13 +1785,12 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   <span
-                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      record.status === "Approved"
-                                        ? "bg-green-100 text-green-800"
-                                        : record.status === "Rejected"
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${record.status === "Approved"
+                                      ? "bg-green-100 text-green-800"
+                                      : record.status === "Rejected"
                                         ? "bg-red-100 text-red-800"
                                         : "bg-yellow-100 text-yellow-800"
-                                    }`}
+                                      }`}
                                   >
                                     {record.status}
                                   </span>

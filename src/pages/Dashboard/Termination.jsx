@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import ResignationService from "@services/ResignationsService";
 import Swal from "sweetalert2";
+import DatePickerInput from "../../../src/components/DatePickerInput";
 
 const Termination = () => {
   // State for filtering and search
@@ -176,13 +177,13 @@ const Termination = () => {
           prevRequests.map((request) =>
             request.id === approvingRequestId
               ? {
-                  ...request,
-                  status: "approved",
-                  approvedBy: "HR Director", // This would ideally come from logged-in user context
-                  approvedDate: new Date().toISOString().split("T")[0],
-                  terminationDate: terminationDate,
-                  exitNotes: exitNotes,
-                }
+                ...request,
+                status: "approved",
+                approvedBy: "HR Director", // This would ideally come from logged-in user context
+                approvedDate: new Date().toISOString().split("T")[0],
+                terminationDate: terminationDate,
+                exitNotes: exitNotes,
+              }
               : request
           )
         );
@@ -236,12 +237,12 @@ const Termination = () => {
           prevRequests.map((request) =>
             request.id === rejectingRequestId
               ? {
-                  ...request,
-                  status: "rejected",
-                  rejectedBy: "HR Director", // This would ideally come from logged-in user context
-                  rejectedDate: new Date().toISOString().split("T")[0],
-                  rejectionReason: rejectionReason,
-                }
+                ...request,
+                status: "rejected",
+                rejectedBy: "HR Director", // This would ideally come from logged-in user context
+                rejectedDate: new Date().toISOString().split("T")[0],
+                rejectionReason: rejectionReason,
+              }
               : request
           )
         );
@@ -423,8 +424,7 @@ const Termination = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     From Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-200 bg-white shadow-sm"
@@ -435,8 +435,7 @@ const Termination = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     To Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-200 bg-white shadow-sm"
@@ -866,21 +865,21 @@ const Termination = () => {
                   {resignationRequests.find(
                     (req) => req.id === approvingRequestId
                   ) && (
-                    <div className="mb-4 flex items-center bg-amber-50 p-4 rounded-lg border border-amber-200">
-                      <UserX className="flex-shrink-0 h-5 w-5 text-amber-500 mr-2" />
-                      <p className="text-amber-800 text-sm">
-                        You are about to approve the resignation of{" "}
-                        <span className="font-semibold">
-                          {
-                            resignationRequests.find(
-                              (req) => req.id === approvingRequestId
-                            ).employeeName
-                          }
-                        </span>
-                        . This will initiate the termination process.
-                      </p>
-                    </div>
-                  )}
+                      <div className="mb-4 flex items-center bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <UserX className="flex-shrink-0 h-5 w-5 text-amber-500 mr-2" />
+                        <p className="text-amber-800 text-sm">
+                          You are about to approve the resignation of{" "}
+                          <span className="font-semibold">
+                            {
+                              resignationRequests.find(
+                                (req) => req.id === approvingRequestId
+                              ).employeeName
+                            }
+                          </span>
+                          . This will initiate the termination process.
+                        </p>
+                      </div>
+                    )}
 
                   <div className="space-y-4 mt-6">
                     <div>
@@ -921,11 +920,10 @@ const Termination = () => {
                   <button
                     onClick={confirmApproval}
                     disabled={!terminationDate}
-                    className={`px-4 py-2 ${
-                      terminationDate
-                        ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-                        : "bg-green-300 cursor-not-allowed"
-                    } text-white rounded-lg transition-colors flex items-center gap-2`}
+                    className={`px-4 py-2 ${terminationDate
+                      ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                      : "bg-green-300 cursor-not-allowed"
+                      } text-white rounded-lg transition-colors flex items-center gap-2`}
                   >
                     <Check className="w-4 h-4" />
                     Confirm Termination
@@ -977,11 +975,10 @@ const Termination = () => {
                     <button
                       onClick={confirmReject}
                       disabled={!rejectionReason.trim()}
-                      className={`px-4 py-2 ${
-                        rejectionReason.trim()
-                          ? "bg-red-600 hover:bg-red-700"
-                          : "bg-red-300 cursor-not-allowed"
-                      } text-white rounded-lg transition-colors`}
+                      className={`px-4 py-2 ${rejectionReason.trim()
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-red-300 cursor-not-allowed"
+                        } text-white rounded-lg transition-colors`}
                     >
                       Confirm Rejection
                     </button>

@@ -20,6 +20,7 @@ import {
 import AllowancesService from "../../services/AllowancesService";
 import { fetchCompanies, fetchDepartments } from "@services/ApiDataService";
 import Swal from "sweetalert2";
+import DatePickerInput from "../../../src/components/DatePickerInput";
 
 const CreateNewAllowance = () => {
   // State management
@@ -84,7 +85,7 @@ const CreateNewAllowance = () => {
     edit: {},
   });
 
-  
+
 
   // Constants
   // categories removed
@@ -346,7 +347,7 @@ const CreateNewAllowance = () => {
           newAllowance.variable_from &&
           newAllowance.variable_to &&
           new Date(newAllowance.variable_from) >
-            new Date(newAllowance.variable_to)
+          new Date(newAllowance.variable_to)
         ) {
           errors.variable_to = ["End date must be after start date"];
         }
@@ -447,7 +448,7 @@ const CreateNewAllowance = () => {
           editAllowance.variable_from &&
           editAllowance.variable_to &&
           new Date(editAllowance.variable_from) >
-            new Date(editAllowance.variable_to)
+          new Date(editAllowance.variable_to)
         ) {
           errors.variable_to = ["End date must be after start date"];
         }
@@ -865,11 +866,10 @@ const CreateNewAllowance = () => {
                       </td>
                       <td className="py-4 px-6 hidden lg:table-cell">
                         <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
-                            allowance.allowance_type === "fixed"
-                              ? "bg-purple-100 text-purple-800 border-purple-200"
-                              : "bg-orange-100 text-orange-800 border-orange-200"
-                          }`}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${allowance.allowance_type === "fixed"
+                            ? "bg-purple-100 text-purple-800 border-purple-200"
+                            : "bg-orange-100 text-orange-800 border-orange-200"
+                            }`}
                         >
                           {allowance.allowance_type}
                         </span>
@@ -960,11 +960,10 @@ const CreateNewAllowance = () => {
                     onChange={(e) =>
                       handleInputChange("allowance_code", e.target.value)
                     }
-                    className={`w-full px-4 py-3 border ${
-                      formErrors.add.allowance_code
-                        ? "border-red-500"
-                        : "border-gray-200"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                    className={`w-full px-4 py-3 border ${formErrors.add.allowance_code
+                      ? "border-red-500"
+                      : "border-gray-200"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter allowance code"
                   />
                   {formErrors.add.allowance_code && (
@@ -1004,11 +1003,10 @@ const CreateNewAllowance = () => {
                   onChange={(e) =>
                     handleInputChange("allowance_name", e.target.value)
                   }
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.allowance_name
-                      ? "border-red-500"
-                      : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.allowance_name
+                    ? "border-red-500"
+                    : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                   placeholder="Enter allowance name"
                 />
                 {formErrors.add.allowance_name && (
@@ -1045,17 +1043,15 @@ const CreateNewAllowance = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Fixed Date
                     </label>
-                    <input
-                      type="date"
+                    <DatePickerInput
                       value={newAllowance.fixed_date}
                       onChange={(e) =>
                         handleInputChange("fixed_date", e.target.value)
                       }
-                      className={`w-full px-4 py-3 border ${
-                        formErrors.add.fixed_date
-                          ? "border-red-500"
-                          : "border-gray-200"
-                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                      className={`w-full px-4 py-3 border ${formErrors.add.fixed_date
+                        ? "border-red-500"
+                        : "border-gray-200"
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                       required
                     />
                     {formErrors.add.fixed_date && (
@@ -1076,11 +1072,10 @@ const CreateNewAllowance = () => {
                         onChange={(e) =>
                           handleInputChange("variable_from", e.target.value)
                         }
-                        className={`w-full px-4 py-3 border ${
-                          formErrors.add.variable_from
-                            ? "border-red-500"
-                            : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                        className={`w-full px-4 py-3 border ${formErrors.add.variable_from
+                          ? "border-red-500"
+                          : "border-gray-200"
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                       />
                       {formErrors.add.variable_from && (
@@ -1099,11 +1094,10 @@ const CreateNewAllowance = () => {
                         onChange={(e) =>
                           handleInputChange("variable_to", e.target.value)
                         }
-                        className={`w-full px-4 py-3 border ${
-                          formErrors.add.variable_to
-                            ? "border-red-500"
-                            : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                        className={`w-full px-4 py-3 border ${formErrors.add.variable_to
+                          ? "border-red-500"
+                          : "border-gray-200"
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                         min={newAllowance.variable_from}
                       />
@@ -1116,7 +1110,7 @@ const CreateNewAllowance = () => {
                   </div>
                 )}
               </div>
-               <div>
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Amount *
                 </label>
@@ -1124,9 +1118,8 @@ const CreateNewAllowance = () => {
                   type="number"
                   value={newAllowance.amount}
                   onChange={(e) => handleInputChange("amount", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.amount ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.amount ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter allowance amount"
                 />
                 {formErrors.add.amount && (
@@ -1134,8 +1127,8 @@ const CreateNewAllowance = () => {
                     {formErrors.add.amount[0]}
                   </p>
                 )}
-              </div> 
-              
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Company *
@@ -1145,11 +1138,10 @@ const CreateNewAllowance = () => {
                   onChange={(e) =>
                     handleInputChange("company_id", e.target.value)
                   }
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.company_id
-                      ? "border-red-500"
-                      : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.company_id
+                    ? "border-red-500"
+                    : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                 >
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
@@ -1173,11 +1165,10 @@ const CreateNewAllowance = () => {
                   onChange={(e) =>
                     handleInputChange("department_id", e.target.value)
                   }
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.department_id
-                      ? "border-red-500"
-                      : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.department_id
+                    ? "border-red-500"
+                    : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   disabled={
                     !newAllowance.company_id || filteredDepartments.length === 0
                   }
@@ -1292,11 +1283,10 @@ const CreateNewAllowance = () => {
                   onChange={(e) =>
                     handleEditInputChange("allowance_name", e.target.value)
                   }
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.allowance_name
-                      ? "border-red-500"
-                      : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.edit.allowance_name
+                    ? "border-red-500"
+                    : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter allowance name"
                 />
                 {formErrors.edit.allowance_name && (
@@ -1333,17 +1323,15 @@ const CreateNewAllowance = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Fixed Date
                       </label>
-                      <input
-                        type="date"
+                      <DatePickerInput
                         value={editAllowance.fixed_date || ""}
                         onChange={(e) =>
                           handleEditInputChange("fixed_date", e.target.value)
                         }
-                        className={`w-full px-4 py-3 border ${
-                          formErrors.edit.fixed_date
-                            ? "border-red-500"
-                            : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                        className={`w-full px-4 py-3 border ${formErrors.edit.fixed_date
+                          ? "border-red-500"
+                          : "border-gray-200"
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                       />
                       {formErrors.edit.fixed_date && (
@@ -1367,11 +1355,10 @@ const CreateNewAllowance = () => {
                               e.target.value
                             )
                           }
-                          className={`w-full px-4 py-3 border ${
-                            formErrors.edit.variable_from
-                              ? "border-red-500"
-                              : "border-gray-200"
-                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                          className={`w-full px-4 py-3 border ${formErrors.edit.variable_from
+                            ? "border-red-500"
+                            : "border-gray-200"
+                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                           required
                         />
                         {formErrors.edit.variable_from && (
@@ -1390,11 +1377,10 @@ const CreateNewAllowance = () => {
                           onChange={(e) =>
                             handleEditInputChange("variable_to", e.target.value)
                           }
-                          className={`w-full px-4 py-3 border ${
-                            formErrors.edit.variable_to
-                              ? "border-red-500"
-                              : "border-gray-200"
-                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                          className={`w-full px-4 py-3 border ${formErrors.edit.variable_to
+                            ? "border-red-500"
+                            : "border-gray-200"
+                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                           required
                           min={editAllowance.variable_from}
                         />
@@ -1419,11 +1405,10 @@ const CreateNewAllowance = () => {
                   onChange={(e) =>
                     handleEditInputChange("amount", e.target.value)
                   }
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.amount
-                      ? "border-red-500"
-                      : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.edit.amount
+                    ? "border-red-500"
+                    : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter allowance amount"
                 />
                 {formErrors.edit.amount && (
@@ -1442,11 +1427,10 @@ const CreateNewAllowance = () => {
                   onChange={(e) =>
                     handleEditInputChange("company_id", e.target.value)
                   }
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.company_id
-                      ? "border-red-500"
-                      : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.edit.company_id
+                    ? "border-red-500"
+                    : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                 >
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
@@ -1469,11 +1453,10 @@ const CreateNewAllowance = () => {
                   onChange={(e) =>
                     handleEditInputChange("department_id", e.target.value)
                   }
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.department_id
-                      ? "border-red-500"
-                      : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.edit.department_id
+                    ? "border-red-500"
+                    : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                 >
                   <option value="">None / Select Department</option>
                   {departments.map((department) => (

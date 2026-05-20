@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createLoan, fetchEmployeeNameByNo } from "@services/LoanService";
 import Swal from "sweetalert2";
+import DatePickerInput from "../../../src/components/DatePickerInput";
 
 const EmployeeLoan = () => {
   const [loanId, setLoanId] = useState("");
@@ -17,7 +18,7 @@ const EmployeeLoan = () => {
 
   const [calculationType, setCalculationType] = useState("byAmount"); // byAmount or byCount
   const [installmentCount, setInstallmentCount] = useState("");
-  
+
   // අලුතින් එකතු කළ State එක (Loan එක කොහෙන්ද කැපෙන්නේ කියලා අල්ලගන්න)
   const [deductFrom, setDeductFrom] = useState("bonus");
 
@@ -116,41 +117,41 @@ const EmployeeLoan = () => {
   };
 */
 
-const handleSaveLoan = async () => {
-  try {
-    if (!isCalculated || loanDetails.length === 0) {
-      showErrorMessage("Calculation Required", "Please calculate the loan before saving");
-      return;
+  const handleSaveLoan = async () => {
+    try {
+      if (!isCalculated || loanDetails.length === 0) {
+        showErrorMessage("Calculation Required", "Please calculate the loan before saving");
+        return;
+      }
+
+      // මෙන්න මේ පල්ලෙහා තියෙන ටික හොඳට බලන්න
+      const payload = {
+        loan_id: loanId,
+        // මෙතන 'attendance_employee_no' කියන නම අකුරක් නෑර නිවැරදි විය යුතුයි
+        attendance_employee_no: employeeNo,
+        loan_amount: parseFloat(loanAmount),
+        interest_rate_per_annum: interestType === "withInterest" ? parseFloat(interestRate) : 0,
+        installment_amount: parseFloat(installmentAmount),
+        start_from: startDate,
+        with_interest: interestType === "withInterest", // Backend එකට boolean එකක් යනවා
+        installment_count: loanDetails.length,
+        schedule: loanDetails,
+        deduct_from: deductFrom,
+      };
+
+      console.log("Sending Payload:", payload); // Debug කරලා බලන්න console එකේ පේනවා මොනවද යන්නේ කියලා
+
+      await createLoan(payload);
+
+      showSuccessMessage("Loan Saved!", "Employee loan has been successfully saved");
+      resetForm();
+    } catch (error) {
+      console.error("Error saving loan:", error);
+      // මෙතනින් අපිට බලාගන්න පුළුවන් හරියටම මොකක්ද backend එක කියන error එක කියලා
+      const errorMsg = error.response?.data?.message || "Failed to save loan";
+      showErrorMessage("Save Failed", errorMsg);
     }
-
-    // මෙන්න මේ පල්ලෙහා තියෙන ටික හොඳට බලන්න
-    const payload = {
-      loan_id: loanId,
-      // මෙතන 'attendance_employee_no' කියන නම අකුරක් නෑර නිවැරදි විය යුතුයි
-      attendance_employee_no: employeeNo, 
-      loan_amount: parseFloat(loanAmount),
-      interest_rate_per_annum: interestType === "withInterest" ? parseFloat(interestRate) : 0,
-      installment_amount: parseFloat(installmentAmount),
-      start_from: startDate,
-      with_interest: interestType === "withInterest", // Backend එකට boolean එකක් යනවා
-      installment_count: loanDetails.length,
-      schedule: loanDetails,
-      deduct_from: deductFrom, 
-    };
-
-    console.log("Sending Payload:", payload); // Debug කරලා බලන්න console එකේ පේනවා මොනවද යන්නේ කියලා
-
-    await createLoan(payload);
-
-    showSuccessMessage("Loan Saved!", "Employee loan has been successfully saved");
-    resetForm();
-  } catch (error) {
-    console.error("Error saving loan:", error);
-    // මෙතනින් අපිට බලාගන්න පුළුවන් හරියටම මොකක්ද backend එක කියන error එක කියලා
-    const errorMsg = error.response?.data?.message || "Failed to save loan";
-    showErrorMessage("Save Failed", errorMsg);
-  }
-};
+  };
 
 
 
@@ -358,26 +359,26 @@ const handleSaveLoan = async () => {
           <div class="flex justify-between border-b pb-2">
             <span class="font-semibold text-gray-700">Capital Outstanding:</span>
             <span class="font-mono font-bold">${formatCurrency(
-              detail.capitalOutstanding
-            )}</span>
+        detail.capitalOutstanding
+      )}</span>
           </div>
           <div class="flex justify-between border-b pb-2">
             <span class="font-semibold text-gray-700">Capital Repayment:</span>
             <span class="font-mono text-green-600">${formatCurrency(
-              detail.capitalRepayment
-            )}</span>
+        detail.capitalRepayment
+      )}</span>
           </div>
           <div class="flex justify-between border-b pb-2">
             <span class="font-semibold text-gray-700">Interest Payment:</span>
             <span class="font-mono text-purple-600">${formatCurrency(
-              detail.interestPayment
-            )}</span>
+        detail.interestPayment
+      )}</span>
           </div>
           <div class="flex justify-between border-b pb-2">
             <span class="font-semibold text-gray-700">Total Installment:</span>
             <span class="font-mono font-bold text-blue-600">${formatCurrency(
-              detail.installmentAmount
-            )}</span>
+        detail.installmentAmount
+      )}</span>
           </div>
           <div class="flex justify-between">
             <span class="font-semibold text-gray-700">Remaining Balance:</span>
@@ -513,7 +514,7 @@ const handleSaveLoan = async () => {
                   required
                 />
               </div>
-              
+
               {/* Employee Name */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -527,21 +528,20 @@ const handleSaveLoan = async () => {
                   placeholder="Employee name"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Start Date
                   <span className="text-red-500 ml-1">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-gray-400"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Loan Amount (LKR)
@@ -558,7 +558,7 @@ const handleSaveLoan = async () => {
                   step="0.01"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Interest Rate (%)
@@ -568,11 +568,10 @@ const handleSaveLoan = async () => {
                 </label>
                 <input
                   type="number"
-                  className={`w-full p-3 border-2 rounded-lg transition-all duration-200 ${
-                    interestType === "withoutInterest"
-                      ? "border-gray-200 bg-gray-100 cursor-not-allowed"
-                      : "border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 hover:border-gray-400"
-                  }`}
+                  className={`w-full p-3 border-2 rounded-lg transition-all duration-200 ${interestType === "withoutInterest"
+                    ? "border-gray-200 bg-gray-100 cursor-not-allowed"
+                    : "border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 hover:border-gray-400"
+                    }`}
                   value={interestRate}
                   onChange={(e) => setInterestRate(e.target.value)}
                   placeholder="Enter Rate"
@@ -694,11 +693,10 @@ const handleSaveLoan = async () => {
               Calculate
             </button>
             <button
-              className={`px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg transform transition-all duration-200 shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 ${
-                !isCalculated
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:from-green-700 hover:to-green-800 hover:scale-105"
-              }`}
+              className={`px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg transform transition-all duration-200 shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 ${!isCalculated
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:from-green-700 hover:to-green-800 hover:scale-105"
+                }`}
               onClick={handleSaveLoan}
               disabled={!isCalculated}
             >
@@ -758,9 +756,8 @@ const handleSaveLoan = async () => {
                     loanDetails.map((detail, index) => (
                       <tr
                         key={index}
-                        className={`transition-colors hover:bg-blue-50 ${
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                        }`}
+                        className={`transition-colors hover:bg-blue-50 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
                       >
                         <td className="py-4 px-6 border-b border-gray-200">
                           <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold text-sm">

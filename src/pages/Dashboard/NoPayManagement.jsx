@@ -16,6 +16,7 @@ import axios from "@utils/axios";
 import { format, parseISO } from "date-fns";
 import Swal from "sweetalert2";
 import NoPayService from "@services/Nopayservice";
+import DatePickerInput from "@components/DatePickerInput";
 
 const NoPayManagement = () => {
   const [month, setMonth] = useState("");
@@ -500,9 +501,9 @@ const NoPayManagement = () => {
         } else {
           const firstErrorKey = Object.keys(errors)[0];
           if (firstErrorKey) {
-            errorMessage = Array.isArray(errors[firstErrorKey]) 
-                            ? errors[firstErrorKey][0] 
-                            : errors[firstErrorKey];
+            errorMessage = Array.isArray(errors[firstErrorKey])
+              ? errors[firstErrorKey][0]
+              : errors[firstErrorKey];
           }
         }
 
@@ -717,8 +718,7 @@ const NoPayManagement = () => {
                   Date (Filter + Daily Generate)
                 </label>
                 <div className="flex gap-2">
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={selectedDate || ""}
                     onChange={(e) => {
                       setSelectedDate(e.target.value || "");
@@ -778,7 +778,7 @@ const NoPayManagement = () => {
                 Month/Year view shows saved records. Monthly generate button will create missing records for the whole month.
               </div>
             </div>
-           {/*---*/}
+            {/*---*/}
             <div className="relative flex-grow mb-6">
               <input
                 type="text"
@@ -902,13 +902,12 @@ const NoPayManagement = () => {
                                       });
                                     }
                                   }}
-                                  className={`px-2 py-1 text-xs rounded-full focus:outline-none ${
-                                    record.status === "Approved"
-                                      ? "bg-green-100 text-green-800 border-green-200 border"
-                                      : record.status === "Rejected"
+                                  className={`px-2 py-1 text-xs rounded-full focus:outline-none ${record.status === "Approved"
+                                    ? "bg-green-100 text-green-800 border-green-200 border"
+                                    : record.status === "Rejected"
                                       ? "bg-red-100 text-red-800 border-red-200 border"
                                       : "bg-yellow-100 text-yellow-800 border-yellow-200 border"
-                                  }`}
+                                    }`}
                                 >
                                   <option value="Pending">Pending</option>
                                   <option value="Approved">Approved</option>
@@ -964,11 +963,10 @@ const NoPayManagement = () => {
                           <button
                             key={number}
                             onClick={() => paginate(number)}
-                            className={`px-3 py-1 rounded-md ${
-                              currentPage === number
-                                ? "bg-blue-500 text-white"
-                                : "border border-gray-300 hover:bg-gray-50"
-                            }`}
+                            className={`px-3 py-1 rounded-md ${currentPage === number
+                              ? "bg-blue-500 text-white"
+                              : "border border-gray-300 hover:bg-gray-50"
+                              }`}
                           >
                             {number}
                           </button>

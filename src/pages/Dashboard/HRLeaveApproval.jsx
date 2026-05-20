@@ -15,8 +15,9 @@ import {
   XCircle,
   Shield,
 } from "lucide-react";
-import { getAllLeaves, updateLeaveStatus } from "../../services/LeaveMaster"; 
-import Swal from "sweetalert2"; 
+import { getAllLeaves, updateLeaveStatus } from "../../services/LeaveMaster";
+import Swal from "sweetalert2";
+import DatePickerInput from "@components/DatePickerInput";
 
 const HRLeaveApproval = () => {
   // State for filtering and search
@@ -58,27 +59,27 @@ const HRLeaveApproval = () => {
         // --- අලුතින් එකතු කළ කොටස: Half Day සහ Short Leave අඳුරගැනීම ---
         let displayType = leave.leave_type || "Unknown";
         if (leave.is_short_leave) {
-            displayType += " (Short Leave)";
+          displayType += " (Short Leave)";
         } else if (leave.is_half_day) {
-            displayType += " (Half Day)";
+          displayType += " (Half Day)";
         }
 
         // Duration එක Backend එකෙන් එන එකම ගන්නවා, නැත්නම් ගණනය කරනවා
         let durationVal = leave.leave_duration;
         if (durationVal === undefined || durationVal === null) {
-            durationVal = calculateDuration(leave.leave_date, leave.leave_from, leave.leave_to);
-            if (leave.is_half_day) durationVal = 0.5;
-            if (leave.is_short_leave) durationVal = 0.25;
+          durationVal = calculateDuration(leave.leave_date, leave.leave_from, leave.leave_to);
+          if (leave.is_half_day) durationVal = 0.5;
+          if (leave.is_short_leave) durationVal = 0.25;
         }
 
         // --- අලුතින් එකතු කළ කොටස: කාල සීමාව (Time Slot / Period) ලබා ගැනීම ---
         let timeSlotInfo = "";
         if (leave.is_half_day && leave.period) {
-            timeSlotInfo = leave.period; // උදා: "Morning" හෝ "Evening"
+          timeSlotInfo = leave.period; // උදා: "Morning" හෝ "Evening"
         } else if (leave.is_short_leave && leave.short_leave_slot) {
-            timeSlotInfo = leave.short_leave_slot; // උදා: "09:00 - 10:30"
+          timeSlotInfo = leave.short_leave_slot; // උදා: "09:00 - 10:30"
         } else if (leave.is_short_leave && leave.period) {
-            timeSlotInfo = leave.period; // fallback
+          timeSlotInfo = leave.period; // fallback
         }
         // -------------------------------------------------------------
 
@@ -174,11 +175,11 @@ const HRLeaveApproval = () => {
           prevRequests.map((request) =>
             request.id === id
               ? {
-                  ...request,
-                  status: "Approved",
-                  hrApprovedBy: "HR Director",
-                  hrApprovedDate: new Date().toISOString().split("T")[0],
-                }
+                ...request,
+                status: "Approved",
+                hrApprovedBy: "HR Director",
+                hrApprovedDate: new Date().toISOString().split("T")[0],
+              }
               : request
           )
         );
@@ -228,12 +229,12 @@ const HRLeaveApproval = () => {
           prevRequests.map((request) =>
             request.id === rejectingRequestId
               ? {
-                  ...request,
-                  status: "Rejected",
-                  rejectedBy: "HR Director",
-                  rejectedDate: new Date().toISOString().split("T")[0],
-                  rejectionReason: rejectionReason,
-                }
+                ...request,
+                status: "Rejected",
+                rejectedBy: "HR Director",
+                rejectedDate: new Date().toISOString().split("T")[0],
+                rejectionReason: rejectionReason,
+              }
               : request
           )
         );
@@ -493,8 +494,7 @@ const HRLeaveApproval = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     From Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200 bg-white shadow-sm"
@@ -505,8 +505,7 @@ const HRLeaveApproval = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     To Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200 bg-white shadow-sm"
@@ -668,26 +667,26 @@ const HRLeaveApproval = () => {
 
                                 {(request.status === "Manager Approved" ||
                                   request.status === "HR_Approved") && (
-                                  <>
-                                    <button
-                                      onClick={() =>
-                                        handleHRApprove(request.id)
-                                      }
-                                      className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                                      title="Approve"
-                                    >
-                                      <Check size={18} />
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={() =>
+                                          handleHRApprove(request.id)
+                                        }
+                                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                                        title="Approve"
+                                      >
+                                        <Check size={18} />
+                                      </button>
 
-                                    <button
-                                      onClick={() => handleReject(request.id)}
-                                      className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                                      title="Reject"
-                                    >
-                                      <X size={18} />
-                                    </button>
-                                  </>
-                                )}
+                                      <button
+                                        onClick={() => handleReject(request.id)}
+                                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                                        title="Reject"
+                                      >
+                                        <X size={18} />
+                                      </button>
+                                    </>
+                                  )}
                               </div>
                             </td>
                           </tr>
@@ -879,28 +878,28 @@ const HRLeaveApproval = () => {
 
                           {(request.status === "Manager Approved" ||
                             request.status === "HR_Approved") && (
-                            <div className="flex justify-end space-x-3 pt-4 border-t">
-                              <button
-                                onClick={() => {
-                                  handleReject(request.id);
-                                  setShowDetails(null);
-                                }}
-                                className="px-5 py-2 bg-white border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
-                              >
-                                Reject Request
-                              </button>
+                              <div className="flex justify-end space-x-3 pt-4 border-t">
+                                <button
+                                  onClick={() => {
+                                    handleReject(request.id);
+                                    setShowDetails(null);
+                                  }}
+                                  className="px-5 py-2 bg-white border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                                >
+                                  Reject Request
+                                </button>
 
-                              <button
-                                onClick={() => {
-                                  handleHRApprove(request.id);
-                                  setShowDetails(null);
-                                }}
-                                className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow"
-                              >
-                                Approve Request
-                              </button>
-                            </div>
-                          )}
+                                <button
+                                  onClick={() => {
+                                    handleHRApprove(request.id);
+                                    setShowDetails(null);
+                                  }}
+                                  className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow"
+                                >
+                                  Approve Request
+                                </button>
+                              </div>
+                            )}
                         </div>
                       );
                     })()}
@@ -952,11 +951,10 @@ const HRLeaveApproval = () => {
                     <button
                       onClick={confirmReject}
                       disabled={!rejectionReason.trim()}
-                      className={`px-4 py-2 ${
-                        rejectionReason.trim()
-                          ? "bg-red-600 hover:bg-red-700"
-                          : "bg-red-300 cursor-not-allowed"
-                      } text-white rounded-lg transition-colors`}
+                      className={`px-4 py-2 ${rejectionReason.trim()
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-red-300 cursor-not-allowed"
+                        } text-white rounded-lg transition-colors`}
                     >
                       Confirm Rejection
                     </button>

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
+import DatePickerInput from "@components/DatePickerInput";
 
 const AttendanceReport = ({ employeeProfile }) => {
   const [reportType, setReportType] = useState("month");
@@ -61,7 +62,7 @@ const AttendanceReport = ({ employeeProfile }) => {
         if (employeeProfile?.organization_assignment?.department?.id) {
           setSelectedDepartment(String(employeeProfile.organization_assignment.department.id));
         }
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [employeeProfile]);
 
@@ -209,7 +210,7 @@ const AttendanceReport = ({ employeeProfile }) => {
   };
 */
 
-const fetchReport = async (page = 1) => {
+  const fetchReport = async (page = 1) => {
     if (reportType === "date" && !date) {
       Swal.fire({ icon: "warning", title: "Date Required", text: "Please select a date to generate the report", confirmButtonColor: "#3b82f6" });
       return;
@@ -233,8 +234,8 @@ const fetchReport = async (page = 1) => {
       };
 
       const res = reportType === "date"
-          ? await getAttendanceRecords({ ...apiParams, date })
-          : await getMonthlyAttendanceRecords({ ...apiParams, month });
+        ? await getAttendanceRecords({ ...apiParams, date })
+        : await getMonthlyAttendanceRecords({ ...apiParams, month });
 
       setData(res.data || []);
       setMeta({
@@ -250,137 +251,137 @@ const fetchReport = async (page = 1) => {
   };
 
 
-/*
-  const exportToExcel = async () => {
-    if (reportType === "date" && !date) {
-      Swal.fire({
-        icon: "warning",
-        title: "Date Required",
-        text: "Please select a date first",
-        confirmButtonColor: "#3b82f6",
-      });
-      return;
-    }
-
-    if (reportType === "month" && !month) {
-      Swal.fire({
-        icon: "warning",
-        title: "Month Required",
-        text: "Please select a month first",
-        confirmButtonColor: "#3b82f6",
-      });
-      return;
-    }
-
-    if (data.length === 0) {
-      Swal.fire({
-        icon: "info",
-        title: "No Data",
-        text: "Generate the report first to export",
-        confirmButtonColor: "#3b82f6",
-      });
-      return;
-    }
-
-    try {
-      setExporting(true);
-
-      let allData = [];
-      let currentPage = 1;
-      let lastPage = 1;
-
-      const apiParams = {
-        per_page: 100,
-        search,
-        company_id: selectedCompany || undefined,
-        department_id: selectedDepartment || undefined,
-        holiday_worked: isHolidayWorked ? 1 : 0,
-      };
-
-      do {
-        const res =
-          reportType === "date"
-            ? await getAttendanceRecords({ ...apiParams, date, page: currentPage })
-            : await getMonthlyAttendanceRecords({ ...apiParams, month, page: currentPage });
-
-        allData = allData.concat(res.data || []);
-        lastPage = res.last_page || 1;
-        currentPage++;
-      } while (currentPage <= lastPage);
-
-      if (allData.length === 0) {
+  /*
+    const exportToExcel = async () => {
+      if (reportType === "date" && !date) {
         Swal.fire({
-          icon: "info",
-          title: "No Records",
-          text: "No data available to export",
+          icon: "warning",
+          title: "Date Required",
+          text: "Please select a date first",
           confirmButtonColor: "#3b82f6",
         });
         return;
       }
-
-      const exportData = allData.map((r, idx) => ({
-        "No.": idx + 1,
-        "EMP No": r.empNo || "-",
-        Name: r.name || "-",
-        Company: r.company || "-",
-        Department: r.department || "-",
-        "Sub Department": r.sub_department || "-",
-        Date: r.date_label ? `${r.date || "-"} (${r.date_label})` : r.date || "-",
-        "IN Time": r.in_label
-          ? `${r.in_time || "-"} (${r.in_label})`
-          : r.in_time || "-",
-        "OUT Time": r.out_label
-          ? `${r.out_time || "-"} (${r.out_label})`
-          : r.out_time || "-",
-        Status: r.status || "Present",
-        "Late Day No": r.late_day_number || "-",
-        "Late Action": r.is_grace_period_late ? "Pending" : r.late_policy_action || "-",
-        "Monthly Late Count": r.monthly_late_count ?? "-",
-        Approval: r.is_grace_period_late ? r.approval_status || "Pending" : "-",
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Attendance Report");
-
-      const maxWidth = exportData.reduce((w, r) => {
-        Object.keys(r).forEach((key) => {
-          const len = String(r[key]).length;
-          w[key] = Math.max(w[key] || 10, len);
+  
+      if (reportType === "month" && !month) {
+        Swal.fire({
+          icon: "warning",
+          title: "Month Required",
+          text: "Please select a month first",
+          confirmButtonColor: "#3b82f6",
         });
-        return w;
-      }, {});
-
-      ws["!cols"] = Object.keys(maxWidth).map((key) => ({
-        wch: maxWidth[key] + 2,
-      }));
-
-      XLSX.writeFile(
-        wb,
-        reportType === "date"
-          ? `Attendance_Report_${date}.xlsx`
-          : `Attendance_Report_${month}.xlsx`
-      );
-
-      Swal.fire({
-        icon: "success",
-        title: "Exported Successfully",
-        text: `${allData.length} records exported`,
-        timer: 2000,
-        showConfirmButton: false,
-      });
-    } catch (e) {
-      Swal.fire({
-        icon: "error",
-        title: "Export Failed",
-        text: e.response?.data?.message || e.message || "Failed to export data",
-        confirmButtonColor: "#3b82f6",
-      });
-    } finally {
-      setExporting(false);
-    }
-  };
-  */
+        return;
+      }
+  
+      if (data.length === 0) {
+        Swal.fire({
+          icon: "info",
+          title: "No Data",
+          text: "Generate the report first to export",
+          confirmButtonColor: "#3b82f6",
+        });
+        return;
+      }
+  
+      try {
+        setExporting(true);
+  
+        let allData = [];
+        let currentPage = 1;
+        let lastPage = 1;
+  
+        const apiParams = {
+          per_page: 100,
+          search,
+          company_id: selectedCompany || undefined,
+          department_id: selectedDepartment || undefined,
+          holiday_worked: isHolidayWorked ? 1 : 0,
+        };
+  
+        do {
+          const res =
+            reportType === "date"
+              ? await getAttendanceRecords({ ...apiParams, date, page: currentPage })
+              : await getMonthlyAttendanceRecords({ ...apiParams, month, page: currentPage });
+  
+          allData = allData.concat(res.data || []);
+          lastPage = res.last_page || 1;
+          currentPage++;
+        } while (currentPage <= lastPage);
+  
+        if (allData.length === 0) {
+          Swal.fire({
+            icon: "info",
+            title: "No Records",
+            text: "No data available to export",
+            confirmButtonColor: "#3b82f6",
+          });
+          return;
+        }
+  
+        const exportData = allData.map((r, idx) => ({
+          "No.": idx + 1,
+          "EMP No": r.empNo || "-",
+          Name: r.name || "-",
+          Company: r.company || "-",
+          Department: r.department || "-",
+          "Sub Department": r.sub_department || "-",
+          Date: r.date_label ? `${r.date || "-"} (${r.date_label})` : r.date || "-",
+          "IN Time": r.in_label
+            ? `${r.in_time || "-"} (${r.in_label})`
+            : r.in_time || "-",
+          "OUT Time": r.out_label
+            ? `${r.out_time || "-"} (${r.out_label})`
+            : r.out_time || "-",
+          Status: r.status || "Present",
+          "Late Day No": r.late_day_number || "-",
+          "Late Action": r.is_grace_period_late ? "Pending" : r.late_policy_action || "-",
+          "Monthly Late Count": r.monthly_late_count ?? "-",
+          Approval: r.is_grace_period_late ? r.approval_status || "Pending" : "-",
+        }));
+  
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Attendance Report");
+  
+        const maxWidth = exportData.reduce((w, r) => {
+          Object.keys(r).forEach((key) => {
+            const len = String(r[key]).length;
+            w[key] = Math.max(w[key] || 10, len);
+          });
+          return w;
+        }, {});
+  
+        ws["!cols"] = Object.keys(maxWidth).map((key) => ({
+          wch: maxWidth[key] + 2,
+        }));
+  
+        XLSX.writeFile(
+          wb,
+          reportType === "date"
+            ? `Attendance_Report_${date}.xlsx`
+            : `Attendance_Report_${month}.xlsx`
+        );
+  
+        Swal.fire({
+          icon: "success",
+          title: "Exported Successfully",
+          text: `${allData.length} records exported`,
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } catch (e) {
+        Swal.fire({
+          icon: "error",
+          title: "Export Failed",
+          text: e.response?.data?.message || e.message || "Failed to export data",
+          confirmButtonColor: "#3b82f6",
+        });
+      } finally {
+        setExporting(false);
+      }
+    };
+    */
 
   const exportToExcel = async () => {
     // 1. අනිවාර්යයෙන්ම Date හෝ Month තෝරලා තියෙන්න ඕනේ
@@ -604,8 +605,7 @@ const fetchReport = async (page = 1) => {
           {reportType === "date" ? (
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Select Date</label>
-              <input
-                type="date"
+              <DatePickerInput
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 max={getTodayDate()}
@@ -615,11 +615,12 @@ const fetchReport = async (page = 1) => {
           ) : (
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Select Month</label>
-              <input
+              <DatePickerInput
                 type="month"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
                 max={getTodayDate().slice(0, 7)}
+                displayFormat="yyyy MMMM"
                 className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
               />
             </div>
@@ -837,7 +838,7 @@ const fetchReport = async (page = 1) => {
                         {r.status || "Present"}
                       </span>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       {r.is_grace_period_late ? (
                         <select
@@ -892,11 +893,10 @@ const fetchReport = async (page = 1) => {
                   <button
                     key={page}
                     onClick={() => goToPage(page)}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-sm ${
-                      meta.current_page === page
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-105"
-                        : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                    }`}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-sm ${meta.current_page === page
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-105"
+                      : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                      }`}
                   >
                     {page}
                   </button>

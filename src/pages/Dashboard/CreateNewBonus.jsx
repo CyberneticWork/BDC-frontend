@@ -15,6 +15,7 @@ import {
 import BonusService from "../../services/BonusService";
 import { fetchCompanies, fetchDepartments } from "@services/ApiDataService";
 import Swal from "sweetalert2";
+import DatePickerInput from "../../../src/components/DatePickerInput";
 
 const CreateNewBonus = () => {
   // State management
@@ -708,12 +709,12 @@ const CreateNewBonus = () => {
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">Department</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">Amount</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">Type</th>
-                
+
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">Fixed Date</th>
-                  
+
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">Start Date</th>
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden sm:table-cell">End Date</th>
-                  
+
                   <th className="text-left py-4 px-6 font-semibold text-gray-700 hidden lg:table-cell">Status</th>
                   <th className="text-right py-4 px-6 font-semibold text-gray-700">Actions</th>
                 </tr>
@@ -760,18 +761,17 @@ const CreateNewBonus = () => {
                       <td className="py-4 px-6 hidden lg:table-cell">
                         {bonus.department?.name || "—"}
                       </td>
-                    
+
                       <td className="py-4 px-6 hidden lg:table-cell">
                         LKR {parseFloat(bonus.amount || 0).toFixed(2)}
                       </td>
-                      
+
                       <td className="py-4 px-6 hidden lg:table-cell">
                         <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
-                            bonus.bonus_type === "fixed"
-                              ? "bg-purple-100 text-purple-800 border-purple-200"
-                              : "bg-orange-100 text-orange-800 border-orange-200"
-                          }`}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${bonus.bonus_type === "fixed"
+                            ? "bg-purple-100 text-purple-800 border-purple-200"
+                            : "bg-orange-100 text-orange-800 border-orange-200"
+                            }`}
                         >
                           {bonus.bonus_type}
                         </span>
@@ -782,7 +782,7 @@ const CreateNewBonus = () => {
                           ? formatDateForInput(bonus.fixed_date)
                           : "-"}
                       </td>
-                      
+
                       <td className="py-4 px-6 hidden sm:table-cell">
                         {bonus.bonus_type === "variable"
                           ? formatDateForInput(bonus.variable_from)
@@ -794,7 +794,7 @@ const CreateNewBonus = () => {
                           ? formatDateForInput(bonus.variable_to)
                           : "-"}
                       </td>
-                      
+
                       <td className="py-4 px-6 hidden lg:table-cell">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
@@ -859,9 +859,8 @@ const CreateNewBonus = () => {
                     type="text"
                     value={newBonus.bonus_code}
                     onChange={(e) => handleInputChange("bonus_code", e.target.value)}
-                    className={`w-full px-4 py-3 border ${
-                      formErrors.add.bonus_code ? "border-red-500" : "border-gray-200"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                    className={`w-full px-4 py-3 border ${formErrors.add.bonus_code ? "border-red-500" : "border-gray-200"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter bonus code"
                   />
                   {formErrors.add.bonus_code && (
@@ -895,9 +894,8 @@ const CreateNewBonus = () => {
                   type="text"
                   value={newBonus.bonus_name}
                   onChange={(e) => handleInputChange("bonus_name", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.bonus_name ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.bonus_name ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                   placeholder="Enter bonus name"
                 />
                 {formErrors.add.bonus_name && (
@@ -916,9 +914,8 @@ const CreateNewBonus = () => {
                   min="0"
                   value={newBonus.amount}
                   onChange={(e) => handleInputChange("amount", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.amount ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.amount ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter bonus amount"
                 />
                 {formErrors.add.amount && (
@@ -954,13 +951,11 @@ const CreateNewBonus = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Fixed Date
                     </label>
-                    <input
-                      type="date"
+                    <DatePickerInput
                       value={newBonus.fixed_date}
                       onChange={(e) => handleInputChange("fixed_date", e.target.value)}
-                      className={`w-full px-4 py-3 border ${
-                        formErrors.add.fixed_date ? "border-red-500" : "border-gray-200"
-                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                      className={`w-full px-4 py-3 border ${formErrors.add.fixed_date ? "border-red-500" : "border-gray-200"
+                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                       required
                     />
                     {formErrors.add.fixed_date && (
@@ -977,9 +972,8 @@ const CreateNewBonus = () => {
                         type="date"
                         value={newBonus.variable_from}
                         onChange={(e) => handleInputChange("variable_from", e.target.value)}
-                        className={`w-full px-4 py-3 border ${
-                          formErrors.add.variable_from ? "border-red-500" : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                        className={`w-full px-4 py-3 border ${formErrors.add.variable_from ? "border-red-500" : "border-gray-200"
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                       />
                       {formErrors.add.variable_from && (
@@ -995,9 +989,8 @@ const CreateNewBonus = () => {
                         type="date"
                         value={newBonus.variable_to}
                         onChange={(e) => handleInputChange("variable_to", e.target.value)}
-                        className={`w-full px-4 py-3 border ${
-                          formErrors.add.variable_to ? "border-red-500" : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                        className={`w-full px-4 py-3 border ${formErrors.add.variable_to ? "border-red-500" : "border-gray-200"
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                         min={newBonus.variable_from}
                       />
@@ -1016,9 +1009,8 @@ const CreateNewBonus = () => {
                 <select
                   value={newBonus.company_id}
                   onChange={(e) => handleInputChange("company_id", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.company_id ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.company_id ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                 >
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
@@ -1038,9 +1030,8 @@ const CreateNewBonus = () => {
                 <select
                   value={newBonus.department_id}
                   onChange={(e) => handleInputChange("department_id", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.add.department_id ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.add.department_id ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   disabled={!newBonus.company_id || filteredDepartments.length === 0}
                 >
                   <option value="">None / Select Department</option>
@@ -1140,9 +1131,8 @@ const CreateNewBonus = () => {
                   type="text"
                   value={editBonus.bonus_name}
                   onChange={(e) => handleEditInputChange("bonus_name", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.bonus_name ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.edit.bonus_name ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter bonus name"
                 />
                 {formErrors.edit.bonus_name && (
@@ -1161,9 +1151,8 @@ const CreateNewBonus = () => {
                   min="0"
                   value={editBonus.amount}
                   onChange={(e) => handleEditInputChange("amount", e.target.value)}
-                  className={`w-full px-4 py-3 border ${
-                    formErrors.edit.amount ? "border-red-500" : "border-gray-200"
-                  } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                  className={`w-full px-4 py-3 border ${formErrors.edit.amount ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                   placeholder="Enter bonus amount"
                 />
                 {formErrors.edit.amount && (
@@ -1203,9 +1192,8 @@ const CreateNewBonus = () => {
                         type="date"
                         value={editBonus.fixed_date || ""}
                         onChange={(e) => handleEditInputChange("fixed_date", e.target.value)}
-                        className={`w-full px-4 py-3 border ${
-                          formErrors.edit.fixed_date ? "border-red-500" : "border-gray-200"
-                        } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                        className={`w-full px-4 py-3 border ${formErrors.edit.fixed_date ? "border-red-500" : "border-gray-200"
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                         required
                       />
                       {formErrors.edit.fixed_date && (
@@ -1224,9 +1212,8 @@ const CreateNewBonus = () => {
                           onChange={(e) =>
                             handleEditInputChange("variable_from", e.target.value)
                           }
-                          className={`w-full px-4 py-3 border ${
-                            formErrors.edit.variable_from ? "border-red-500" : "border-gray-200"
-                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                          className={`w-full px-4 py-3 border ${formErrors.edit.variable_from ? "border-red-500" : "border-gray-200"
+                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                           required
                         />
                         {formErrors.edit.variable_from && (
@@ -1241,9 +1228,8 @@ const CreateNewBonus = () => {
                           type="date"
                           value={editBonus.variable_to || ""}
                           onChange={(e) => handleEditInputChange("variable_to", e.target.value)}
-                          className={`w-full px-4 py-3 border ${
-                            formErrors.edit.variable_to ? "border-red-500" : "border-gray-200"
-                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
+                          className={`w-full px-4 py-3 border ${formErrors.edit.variable_to ? "border-red-500" : "border-gray-200"
+                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
                           required
                           min={editBonus.variable_from}
                         />

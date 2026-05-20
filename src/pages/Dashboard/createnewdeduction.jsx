@@ -24,6 +24,7 @@ import {
   importDeductions,
 } from "@services/DeductionService";
 import Swal from "sweetalert2";
+import DatePickerInput from "../../../src/components/DatePickerInput";
 
 const CreateNewDeduction = () => {
   const [deductions, setDeductions] = useState([]);
@@ -242,7 +243,7 @@ const CreateNewDeduction = () => {
       errors.deduction_code = "Deduction code is required";
     if (!formData.deduction_name)
       errors.deduction_name = "Deduction name is required";
-    
+
     // Amount validation
     if (formData.amount === "" || isNaN(formData.amount) || Number(formData.amount) < 0) {
       errors.amount = "Amount must be a number and >= 0";
@@ -262,7 +263,7 @@ const CreateNewDeduction = () => {
       formData.startDate >= formData.endDate
     )
       errors.endDate = "End date must be after start date";
-    
+
     // Deduction code uniqueness (client-side check for create only)
     if (
       !showEditModal &&
@@ -310,7 +311,7 @@ const CreateNewDeduction = () => {
       const selectedDepartment = formData.department_id
         ? departments.find((d) => d.id === parseInt(formData.department_id))
         : null;
-        
+
       setDeductions((prev) => [
         ...prev,
         {
@@ -323,7 +324,7 @@ const CreateNewDeduction = () => {
           updated_at: new Date().toISOString(),
         },
       ]);
-      
+
       Swal.fire({
         icon: "success",
         title: "Success",
@@ -505,19 +506,19 @@ const CreateNewDeduction = () => {
         prev.map((item) =>
           item.id === formData.id
             ? {
-                ...result,
-                company: {
-                  id: parseInt(formData.company_id),
-                  name: companies.find((c) => c.id == formData.company_id)?.name,
-                },
-                department: formData.department_id
-                  ? {
-                      id: parseInt(formData.department_id),
-                      name: departments.find((d) => d.id == formData.department_id)?.name,
-                    }
-                  : { id: null, name: "Unknown" },
-                updated_at: new Date().toISOString(),
-              }
+              ...result,
+              company: {
+                id: parseInt(formData.company_id),
+                name: companies.find((c) => c.id == formData.company_id)?.name,
+              },
+              department: formData.department_id
+                ? {
+                  id: parseInt(formData.department_id),
+                  name: departments.find((d) => d.id == formData.department_id)?.name,
+                }
+                : { id: null, name: "Unknown" },
+              updated_at: new Date().toISOString(),
+            }
             : item
         )
       );
@@ -692,11 +693,10 @@ const CreateNewDeduction = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            deduction.deduction_type === "fixed"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-pink-100 text-pink-800"
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${deduction.deduction_type === "fixed"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-pink-100 text-pink-800"
+                            }`}
                         >
                           {deduction.deduction_type === "fixed"
                             ? "Fixed"
@@ -727,19 +727,17 @@ const CreateNewDeduction = () => {
                             }}
                           >
                             <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                deduction.status === "active"
-                                  ? "translate-x-5"
-                                  : "translate-x-1"
-                              }`}
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${deduction.status === "active"
+                                ? "translate-x-5"
+                                : "translate-x-1"
+                                }`}
                             />
                           </button>
                           <span
-                            className={`ml-2 text-xs font-medium ${
-                              deduction.status === "active"
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
+                            className={`ml-2 text-xs font-medium ${deduction.status === "active"
+                              ? "text-green-600"
+                              : "text-red-600"
+                              }`}
                           >
                             {deduction.status === "active"
                               ? "Active"
@@ -860,11 +858,10 @@ const CreateNewDeduction = () => {
                       value={formData.department_id}
                       onChange={handleInputChange}
                       disabled={!formData.company_id || isLoadingDepartments}
-                      className={`w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white ${
-                        !formData.company_id || isLoadingDepartments
-                          ? "bg-gray-100 cursor-not-allowed"
-                          : ""
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white ${!formData.company_id || isLoadingDepartments
+                        ? "bg-gray-100 cursor-not-allowed"
+                        : ""
+                        }`}
                     >
                       <option value="">Select Department</option>
                       {departments.map((dept) => (
@@ -1009,8 +1006,7 @@ const CreateNewDeduction = () => {
                   <label className="block text-sm font-medium text-gray-700">
                     Start Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     name="startDate"
                     value={formData.startDate || ""}
                     onChange={handleInputChange}
@@ -1049,11 +1045,10 @@ const CreateNewDeduction = () => {
                       onClick={handleStatusChange}
                     >
                       <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.status === "active"
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.status === "active"
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </div>
                     <span className="text-sm font-medium text-gray-700">
@@ -1083,9 +1078,8 @@ const CreateNewDeduction = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 flex items-center space-x-2 ${
-                    isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 flex items-center space-x-2 ${isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+                    }`}
                 >
                   {isSubmitting ? (
                     <>

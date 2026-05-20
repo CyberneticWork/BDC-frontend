@@ -5,20 +5,21 @@ import axios from "@utils/axios"; // Adjust path as needed
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable"; // නිවැරදි කළ Import එක
+import DatePickerInput from "../../../src/components/DatePickerInput";
 
 const DinnerAllowance = () => {
   const [activeTab, setActiveTab] = useState("daily"); // 'daily' or 'monthly'
-  
+
   // Daily State
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [dailyData, setDailyData] = useState([]);
   const [defaultAmount, setDefaultAmount] = useState(500); // රෑ කෑමට සාමාන්‍ය ගාණ
-  
+
   // Monthly State
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [monthlyData, setMonthlyData] = useState([]);
-  
+
   const [loading, setLoading] = useState(false);
 
   const monthsList = [
@@ -75,7 +76,7 @@ const DinnerAllowance = () => {
         status: action, // 'Approved' or 'Rejected'
         amount: defaultAmount
       });
-      
+
       Swal.fire({
         icon: 'success',
         title: `${action}!`,
@@ -116,7 +117,7 @@ const DinnerAllowance = () => {
     }));
 
     exportData.push({
-      "No.": "", "Emp No": "", "Employee Name": "", "In Time": "", 
+      "No.": "", "Emp No": "", "Employee Name": "", "In Time": "",
       "Out Time": "TOTAL BILL:", "Amount (Rs)": dailyTotalBill.toFixed(2), "Status": ""
     });
 
@@ -141,7 +142,7 @@ const DinnerAllowance = () => {
     }));
 
     exportData.push({
-      "No.": "", "Emp No": "", "Employee Name": "TOTAL MONTHLY COST:", 
+      "No.": "", "Emp No": "", "Employee Name": "TOTAL MONTHLY COST:",
       "Approved Days": "", "Total Amount (Rs)": monthlyTotalCost.toFixed(2)
     });
 
@@ -204,7 +205,7 @@ const DinnerAllowance = () => {
 
     const doc = new jsPDF();
     const monthName = monthsList.find(m => m.value == month)?.label || month;
-    
+
     doc.setFontSize(14);
     doc.text(`Monthly Dinner Allowances - ${monthName} ${year}`, 14, 15);
 
@@ -250,13 +251,13 @@ const DinnerAllowance = () => {
 
       {/* Tabs */}
       <div className="flex gap-4 mb-6 border-b border-gray-200">
-        <button 
+        <button
           className={`pb-3 px-4 font-semibold ${activeTab === 'daily' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
           onClick={() => setActiveTab('daily')}
         >
           Daily Approvals
         </button>
-        <button 
+        <button
           className={`pb-3 px-4 font-semibold ${activeTab === 'monthly' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
           onClick={() => setActiveTab('monthly')}
         >
@@ -271,18 +272,17 @@ const DinnerAllowance = () => {
             <div className="flex gap-4 items-end">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
-                <input 
-                  type="date" 
-                  value={date} 
+                <DatePickerInput
+                  value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Allowance Amount (Rs)</label>
-                <input 
-                  type="number" 
-                  value={defaultAmount} 
+                <input
+                  type="number"
+                  value={defaultAmount}
                   onChange={(e) => setDefaultAmount(e.target.value)}
                   className="border border-gray-300 rounded-lg px-4 py-2 w-32 focus:ring-2 focus:ring-blue-500"
                 />
@@ -291,17 +291,17 @@ const DinnerAllowance = () => {
                 Check Eligible List
               </button>
             </div>
-            
+
             {/* Daily Export Buttons */}
             <div className="flex gap-2">
-              <button 
-                onClick={exportDailyExcel} 
+              <button
+                onClick={exportDailyExcel}
                 className="bg-green-600 text-white flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Download size={18} /> Excel
               </button>
-              <button 
-                onClick={exportDailyPDF} 
+              <button
+                onClick={exportDailyPDF}
                 className="bg-red-600 text-white flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 <FileText size={18} /> PDF
@@ -334,21 +334,20 @@ const DinnerAllowance = () => {
                       <td className="px-4 py-3 text-green-600 font-medium">{emp.in_time || '-'}</td>
                       <td className="px-4 py-3 text-red-600 font-medium">{emp.out_time || '-'}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          emp.approval_status === 'Approved' ? 'bg-green-100 text-green-800' : 
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${emp.approval_status === 'Approved' ? 'bg-green-100 text-green-800' :
                           emp.approval_status === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                          }`}>
                           {emp.approval_status || 'Pending'}
                         </span>
                       </td>
                       <td className="px-4 py-3 flex justify-center gap-2">
-                        <button 
+                        <button
                           onClick={() => handleProcess(emp.employee_id, 'Approved')}
                           className="bg-green-50 text-green-600 p-2 rounded-lg hover:bg-green-100 border border-green-200" title="Approve"
                         >
                           <Check size={18} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleProcess(emp.employee_id, 'Rejected')}
                           className="bg-red-50 text-red-600 p-2 rounded-lg hover:bg-red-100 border border-red-200" title="Reject"
                         >
@@ -389,17 +388,17 @@ const DinnerAllowance = () => {
                 Generate
               </button>
             </div>
-            
+
             {/* Monthly Export Buttons */}
             <div className="flex gap-2">
-              <button 
-                onClick={exportMonthlyExcel} 
+              <button
+                onClick={exportMonthlyExcel}
                 className="bg-green-600 text-white flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Download size={18} /> Excel
               </button>
-              <button 
-                onClick={exportMonthlyPDF} 
+              <button
+                onClick={exportMonthlyPDF}
                 className="bg-red-600 text-white flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 <FileText size={18} /> PDF
@@ -419,7 +418,7 @@ const DinnerAllowance = () => {
               </thead>
               <tbody>
                 {loading ? (
-                   <tr><td colSpan="4" className="text-center py-8">Loading...</td></tr>
+                  <tr><td colSpan="4" className="text-center py-8">Loading...</td></tr>
                 ) : monthlyData.length === 0 ? (
                   <tr><td colSpan="4" className="text-center py-8 text-gray-500">No dinner allowances found for this month.</td></tr>
                 ) : (

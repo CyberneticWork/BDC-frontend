@@ -3,6 +3,7 @@ import { addTimeCard, fetchTimeCards } from '../../services/ApiDataService';
 import timeCardService from '../../services/timeCardService';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
+import DatePickerInput from '@components/DatePickerInput';
 
 // Pagination component for better UI/UX
 const Pagination = ({ page, totalPages, onPageChange }) => {
@@ -17,11 +18,10 @@ const Pagination = ({ page, totalPages, onPageChange }) => {
   return (
     <div className="flex justify-center items-center gap-1 mt-4 select-none">
       <button
-        className={`px-3 py-1 rounded-lg font-semibold transition-all duration-150 ${
-          page === 1
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200'
-        }`}
+        className={`px-3 py-1 rounded-lg font-semibold transition-all duration-150 ${page === 1
+          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200'
+          }`}
         onClick={() => onPageChange(page - 1)}
         disabled={page === 1}
         aria-label="Previous page"
@@ -32,11 +32,10 @@ const Pagination = ({ page, totalPages, onPageChange }) => {
       {pages.map((p) => (
         <button
           key={p}
-          className={`px-3 py-1 rounded-lg font-semibold transition-all duration-150 ${
-            p === page
-              ? 'bg-blue-600 text-white shadow'
-              : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200'
-          }`}
+          className={`px-3 py-1 rounded-lg font-semibold transition-all duration-150 ${p === page
+            ? 'bg-blue-600 text-white shadow'
+            : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200'
+            }`}
           onClick={() => onPageChange(p)}
           disabled={p === page}
           aria-current={p === page ? 'page' : undefined}
@@ -46,11 +45,10 @@ const Pagination = ({ page, totalPages, onPageChange }) => {
       ))}
       {end < totalPages && <span className="px-2 text-gray-400">...</span>}
       <button
-        className={`px-3 py-1 rounded-lg font-semibold transition-all duration-150 ${
-          page === totalPages
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200'
-        }`}
+        className={`px-3 py-1 rounded-lg font-semibold transition-all duration-150 ${page === totalPages
+          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200'
+          }`}
         onClick={() => onPageChange(page + 1)}
         disabled={page === totalPages}
         aria-label="Next page"
@@ -69,7 +67,7 @@ const Pagination = ({ page, totalPages, onPageChange }) => {
 // ==============================================================================
 const filterFirstInLastOut = (records) => {
   if (!Array.isArray(records)) return [];
-  
+
   const grouped = {};
   records.forEach((rec) => {
     // සේවකයාගේ අංකය සහ දිනය අනුව ගෲප් කිරීම
@@ -79,11 +77,11 @@ const filterFirstInLastOut = (records) => {
   });
 
   const finalRecords = [];
-  
+
   Object.values(grouped).forEach((group) => {
     // වෙලාව අනුව (time) ascending order එකට හැදීම
     group.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-    
+
     if (group.length === 1) {
       // දවසටම තියෙන්නේ එකම එක රෙකෝඩ් එකක් නම්, ඒක ගන්නවා
       finalRecords.push(group[0]);
@@ -95,9 +93,9 @@ const filterFirstInLastOut = (records) => {
     finalRecords.push(firstPunch);
 
     // දවසේ තියෙන OUT Punches ටික විතරක් පෙරලා ගන්නවා
-    const outPunches = group.filter(r => 
-      r.entry === 2 || r.entry === '2' || 
-      r.entry === 0 || r.entry === '0' || 
+    const outPunches = group.filter(r =>
+      r.entry === 2 || r.entry === '2' ||
+      r.entry === 0 || r.entry === '0' ||
       ['OUT', 'EARLY OUT'].includes((r.status || '').toUpperCase())
     );
 
@@ -361,14 +359,14 @@ const TimeCard = ({ employeeProfile }) => {
     if (confirm.isConfirmed) {
       try {
         await timeCardService.deleteTimeCard(record.id);
-        
+
         preventPaginationReset.current = true;
-        
+
         const updated = await fetchTimeCards();
         const filtered = filterFirstInLastOut(updated); // මැද ඒවා අයින් කරලා First/Last විතරක් ගත්තා
         setAttendanceData(filtered);
         setFilteredData(filtered);
-        
+
         Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1200, showConfirmButton: false });
       } catch (e) {
         Swal.fire({ icon: 'error', title: 'Delete failed', text: e.message });
@@ -379,16 +377,16 @@ const TimeCard = ({ employeeProfile }) => {
   // Handle edit open
   const handleEdit = (record, index) => {
     console.log('Editing record:', record); // Debug log
-    
+
     setEditRecord({ ...record, index });
-    
+
     // Set date - ensure proper format for date input (YYYY-MM-DD)
     const formattedDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
     setEditDate(formattedDate);
-    
+
     // Set entry based on record data
     setEditEntry(record.entry || '');
-    
+
     // Set status - handle both string and numeric entry values
     let statusValue = record.status || '';
     if (!statusValue) {
@@ -400,7 +398,7 @@ const TimeCard = ({ employeeProfile }) => {
       }
     }
     setEditStatus(statusValue);
-    
+
     // Set time based on status and inOut field
     const timeValue = record.time || '';
     if (record.inOut === 'IN' || statusValue === 'IN') {
@@ -414,7 +412,7 @@ const TimeCard = ({ employeeProfile }) => {
       setEditInTime(timeValue);
       setEditOutTime(timeValue);
     }
-    
+
     setShowEditModal(true);
   };
 
@@ -430,7 +428,7 @@ const TimeCard = ({ employeeProfile }) => {
         alert('Status is required');
         return;
       }
-      
+
       // Determine the time to send based on status
       let timeToSend = '';
       if (editStatus === 'IN') {
@@ -440,30 +438,30 @@ const TimeCard = ({ employeeProfile }) => {
       } else if (editStatus === 'Absent') {
         timeToSend = '00:00:00'; // Default time for absent records
       }
-      
+
       // Validate time for non-absent records
       if (editStatus !== 'Absent' && !timeToSend) {
         alert('Time is required for this status');
         return;
       }
-      
+
       // Ensure time is in HH:MM:SS format
       if (timeToSend && !timeToSend.includes(':')) {
         alert('Please enter a valid time');
         return;
       }
-      
+
       const payload = {
         date: editDate,
         time: formatTimeForBackend(timeToSend),
         entry: editEntry,
         status: editStatus,
       };
-      
+
       console.log('Saving payload:', payload); // Debug log
-      
+
       await timeCardService.updateTimeCard(editRecord.id, payload);
-      
+
       // Refresh data
       const updated = await fetchTimeCards();
       const filtered = filterFirstInLastOut(updated); // මැද ඒවා අයින් කරලා First/Last විතරක් ගත්තා
@@ -472,10 +470,10 @@ const TimeCard = ({ employeeProfile }) => {
       preventPaginationReset.current = true;
       setAttendanceData(filtered);
       setFilteredData(filtered);
-      
+
       // Close modal
       setShowEditModal(false);
-      
+
       // Show success message
       Swal.fire({
         icon: 'success',
@@ -487,7 +485,7 @@ const TimeCard = ({ employeeProfile }) => {
     } catch (e) {
       console.error('Error updating record:', e);
       const errorMessage = e.response?.data?.message || e.message || 'Failed to update attendance record';
-      
+
       Swal.fire({
         icon: 'error',
         title: 'Update Failed',
@@ -542,40 +540,40 @@ const TimeCard = ({ employeeProfile }) => {
       // Get updated data
       const updated = await fetchTimeCards();
       const filtered = filterFirstInLastOut(updated); // මැද ඒවා අයින් කරලා First/Last විතරක් ගත්තා
-      
+
       // Set data first
       setAttendanceData(filtered);
       setFilteredData(filtered);
-      
+
       // Find the new record with more flexible matching
       let newRecordIndex = filtered.findIndex(record => {
         return (
           // Match by employee info - could be different formats
-          (record.empNo === employee.attendance_employee_no || 
-           record.employee_id === employee.id) &&
+          (record.empNo === employee.attendance_employee_no ||
+            record.employee_id === employee.id) &&
           // Match by date
           record.date === newRecord.date &&
           // Match by approximate time (in case of formatting differences)
           record.time?.includes(newRecord.time.substring(0, 4))
         );
       });
-      
+
       console.log("Found new record at index:", newRecordIndex);
-      
+
       if (newRecordIndex !== -1) {
         // Calculate which page contains the new record
         const pageWithNewRecord = Math.floor(newRecordIndex / attendanceRowsPerPage) + 1;
         console.log("Setting page to:", pageWithNewRecord);
-        
+
         // Use setTimeout to ensure this happens after state updates
         setTimeout(() => {
           setAttendancePage(pageWithNewRecord);
         }, 10);
       }
-      
+
       setShowAddModal(false);
       clearAddModalFields();
-      
+
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -720,7 +718,7 @@ const TimeCard = ({ employeeProfile }) => {
         const data = await timeCardService.searchEmployeeTimeCards(term);
         let results = Array.isArray(data) ? data : [];
         results = filterFirstInLastOut(results); // මැද ඒවා අයින් කරලා First/Last විතරක් ගත්තා
-        
+
         // apply local date filters if backend doesn't support them
         if (filterDate || dateFrom || dateTo) {
           results = results.filter((rec) => {
@@ -775,17 +773,17 @@ const TimeCard = ({ employeeProfile }) => {
     try {
       // Read the Excel file client-side using FileReader and SheetJS
       const reader = new FileReader();
-      
+
       reader.onload = async (e) => {
         try {
           const data = e.target.result;
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          
+
           // Convert to JSON
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-          
+
           // Skip header row and map data to structured format
           const records = jsonData.slice(1).map(row => ({
             nic: row[0]?.toString() || '',
@@ -795,16 +793,16 @@ const TimeCard = ({ employeeProfile }) => {
             status: row[4]?.toString() || '',
             reason: row[5]?.toString() || ''
           }));
-          
+
           // Filter out empty rows
           const validRecords = records.filter(r => r.nic && (r.date || r.status === 'Absent'));
-          
+
           if (validRecords.length === 0) {
             Swal.fire({ icon: 'error', title: 'No valid data', text: 'No valid records found in Excel file.' });
             setIsLoading(false);
             return;
           }
-          
+
           // Build payload expected by service
           const payload = {
             company_id: selectedCompany || undefined,
@@ -828,12 +826,12 @@ const TimeCard = ({ employeeProfile }) => {
               </div>
             `
           });
-          
+
           const updated = await fetchTimeCards();
           const filtered = filterFirstInLastOut(updated); // මැද ඒවා අයින් කරලා First/Last විතරක් ගත්තා
           setAttendanceData(filtered);
           setFilteredData(filtered);
-          
+
           setSelectedCompany('');
           setSelectedDate('');
           setSelectedToDate('');
@@ -861,7 +859,7 @@ const TimeCard = ({ employeeProfile }) => {
           setIsLoading(false);
         }
       };
-      
+
       reader.onerror = (error) => {
         console.error("File reading error:", error);
         Swal.fire({
@@ -871,10 +869,10 @@ const TimeCard = ({ employeeProfile }) => {
         });
         setIsLoading(false);
       };
-      
+
       // Start reading the file
       reader.readAsArrayBuffer(excelFile);
-      
+
     } catch (e) {
       Swal.fire({
         icon: 'error',
@@ -896,17 +894,17 @@ const TimeCard = ({ employeeProfile }) => {
   // Helper function to format time consistently
   const formatTimeForBackend = (timeStr) => {
     if (!timeStr) return '';
-    
+
     // If already in HH:MM:SS format, return as is
     if (timeStr.split(':').length === 3) {
       return timeStr;
     }
-    
+
     // If in HH:MM format, add seconds
     if (timeStr.split(':').length === 2) {
       return timeStr + ':00';
     }
-    
+
     return timeStr;
   };
 
@@ -923,15 +921,14 @@ const TimeCard = ({ employeeProfile }) => {
             </p>
           </div>
           <div className="p-4 sm:p-6 lg:p-8">
-            
+
             <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <button
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-md font-semibold shadow transition-all duration-200 ${
-                    showImport
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-200 text-blue-700 hover:bg-blue-100'
-                  }`}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-md font-semibold shadow transition-all duration-200 ${showImport
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 text-blue-700 hover:bg-blue-100'
+                    }`}
                   onClick={() => setShowImport((v) => !v)}
                   aria-expanded={showImport}
                 >
@@ -977,8 +974,7 @@ const TimeCard = ({ employeeProfile }) => {
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1">From Date <span className="text-red-500">*</span></label>
-                    <input
-                      type="date"
+                    <DatePickerInput
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
                       value={selectedDate}
                       onChange={e => setSelectedDate(e.target.value)}
@@ -987,8 +983,7 @@ const TimeCard = ({ employeeProfile }) => {
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1">To Date <span className="text-red-500">*</span></label>
-                    <input
-                      type="date"
+                    <DatePickerInput
                       className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
                       value={selectedToDate}
                       onChange={e => setSelectedToDate(e.target.value)}
@@ -1031,9 +1026,9 @@ const TimeCard = ({ employeeProfile }) => {
                 </div>
               </div>
             )}
-            
+
             <div className="mb-8"></div>
-            
+
             <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-br from-emerald-50 to-green-50 border-l-4 border-emerald-500 rounded-lg shadow-sm">
               <div className="flex items-center mb-4 sm:mb-6">
                 <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center mr-3 shadow-md">
@@ -1043,7 +1038,7 @@ const TimeCard = ({ employeeProfile }) => {
                 </div>
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-800">Filter Options</h2>
               </div>
-              
+
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-slate-700 mb-4">Filter By</label>
                 <div className="flex flex-col sm:flex-row lg:flex-row gap-3">
@@ -1065,10 +1060,10 @@ const TimeCard = ({ employeeProfile }) => {
                     />
                     <span className="ml-3 text-slate-700 font-medium text-sm sm:text-base">Filter by Employee</span>
                   </label>
-                 
+
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {filterOption === 'employee' && (
                   <div className="space-y-2">
@@ -1082,12 +1077,11 @@ const TimeCard = ({ employeeProfile }) => {
                     />
                   </div>
                 )}
-                
-                
+
+
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">Date</label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
                     value={filterDate}
                     onChange={e => setFilterDate(e.target.value)}
@@ -1096,7 +1090,7 @@ const TimeCard = ({ employeeProfile }) => {
               </div>
             </div>
 
-        
+
             <div className="flex flex-wrap justify-end gap-3 sm:gap-4 mb-6 sm:mb-8">
               <button
                 className="px-4 sm:px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base"
@@ -1111,7 +1105,7 @@ const TimeCard = ({ employeeProfile }) => {
               >
                 Cancel
               </button>
-             
+
               <button
                 className="px-4 sm:px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base"
                 onClick={handleShowAbsentees}
@@ -1126,7 +1120,7 @@ const TimeCard = ({ employeeProfile }) => {
               </button>
             </div>
 
-           
+
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
               <div className="bg-gradient-to-r from-slate-800 to-gray-900 px-4 sm:px-6 py-4 sm:py-5">
                 <div className="flex items-center justify-between">
@@ -1177,20 +1171,19 @@ const TimeCard = ({ employeeProfile }) => {
                             <td className="py-4 px-3 sm:px-6 text-slate-600 text-xs sm:text-sm lg:text-base">{record.date}</td>
                             <td className="py-4 px-3 sm:px-6 text-slate-700 font-bold text-xs sm:text-sm lg:text-base">{record.entry}</td>
                             <td className="py-4 px-3 sm:px-6">
-                           
-                              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border ${
-  record.status === 'Absent'
-    ? 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
-    : record.status === 'Early OUT'
-    ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-200'
-    : record.status === 'Late Coming'
-    ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border-orange-200'
-    : record.inOut === 'IN'
-    ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200'
-    : 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
-}`}>
-  {record.status}
-</span>
+
+                              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border ${record.status === 'Absent'
+                                ? 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
+                                : record.status === 'Early OUT'
+                                  ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-200'
+                                  : record.status === 'Late Coming'
+                                    ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border-orange-200'
+                                    : record.inOut === 'IN'
+                                      ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200'
+                                      : 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
+                                }`}>
+                                {record.status}
+                              </span>
                             </td>
                             <td className="py-4 px-3 sm:px-6 flex gap-2">
                               <button
@@ -1233,7 +1226,7 @@ const TimeCard = ({ employeeProfile }) => {
                       )}
                     </tbody>
                   </table>
-                  
+
                   <Pagination
                     page={attendancePage}
                     totalPages={totalAttendancePages}
@@ -1264,8 +1257,8 @@ const TimeCard = ({ employeeProfile }) => {
               </svg>
               Edit Attendance Record
             </h2>
-            
-           
+
+
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-1">Employee Details</label>
               <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-sm">
@@ -1274,8 +1267,8 @@ const TimeCard = ({ employeeProfile }) => {
                 <div className="text-gray-600">Dept: {editRecord.department || 'N/A'}</div>
               </div>
             </div>
-            
-        
+
+
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-1">Date</label>
               <input
@@ -1285,8 +1278,8 @@ const TimeCard = ({ employeeProfile }) => {
                 onChange={e => setEditDate(e.target.value)}
               />
             </div>
-            
-            
+
+
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-1">Status</label>
               <select
@@ -1301,8 +1294,8 @@ const TimeCard = ({ employeeProfile }) => {
                   } else if (status === 'OUT') {
                     entry = '2';
                     setEditInTime(''); // Clear in time when switching to OUT
-                  // } else if (status === 'Absent') {
-                  //   entry = '0';
+                    // } else if (status === 'Absent') {
+                    //   entry = '0';
                   } else if (status === 'Early OUT') {
                     entry = '0'; // Leave typically uses OUT entry
                   }
@@ -1317,7 +1310,7 @@ const TimeCard = ({ employeeProfile }) => {
                 <option value="Leave">Leave</option> */}
               </select>
             </div>
-            
+
             {/* Entry Code - Auto-filled based on status */}
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-1">Entry Code</label>
@@ -1329,8 +1322,8 @@ const TimeCard = ({ employeeProfile }) => {
                 placeholder="Auto-filled from Status"
               />
             </div>
-            
-           
+
+
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-1">
                 Time {editStatus === 'IN' ? '(Clock In)' : editStatus === 'OUT' ? '(Clock Out)' : ''}
@@ -1362,8 +1355,8 @@ const TimeCard = ({ employeeProfile }) => {
                 />
               )}
             </div>
-            
-           
+
+
             <div className="flex justify-end gap-3 mt-8">
               <button
                 className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
@@ -1382,7 +1375,7 @@ const TimeCard = ({ employeeProfile }) => {
         </div>
       )}
 
-     
+
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative animate-fade-in">
@@ -1401,7 +1394,7 @@ const TimeCard = ({ employeeProfile }) => {
               </svg>
               Add New Attendance Record
             </h2>
-            
+
             {/* Employee Identification Section */}
             <div className="bg-gray-50 p-3 rounded-lg mb-4 border border-gray-100">
               <div className="mb-3">
@@ -1418,7 +1411,7 @@ const TimeCard = ({ employeeProfile }) => {
                 />
                 {nicError && <div className="text-red-500 text-xs mt-1">{nicError}</div>}
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="mb-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Employee Number</label>
@@ -1441,7 +1434,7 @@ const TimeCard = ({ employeeProfile }) => {
                   />
                 </div>
               </div>
-              
+
               <div className="mb-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Employee Name</label>
                 <input
@@ -1453,8 +1446,8 @@ const TimeCard = ({ employeeProfile }) => {
                 />
               </div>
             </div>
-            
-           
+
+
             <div className="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-100">
               <div className="grid grid-cols-2 gap-3">
                 <div className="mb-3">
@@ -1503,7 +1496,7 @@ const TimeCard = ({ employeeProfile }) => {
                   {addErrors.time && <div className="text-red-500 text-xs mt-1">{addErrors.time}</div>}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="mb-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1540,7 +1533,7 @@ const TimeCard = ({ employeeProfile }) => {
                     <option value="">Select Status</option>
                     <option value="IN">IN</option>
                     <option value="OUT">OUT</option>
-                    
+
                   </select>
                   {addErrors.status && <div className="text-red-500 text-xs mt-1">{addErrors.status}</div>}
                 </div>
@@ -1557,7 +1550,7 @@ const TimeCard = ({ employeeProfile }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-3 mt-5">
               <button
                 className="px-4 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition text-sm"
@@ -1577,7 +1570,7 @@ const TimeCard = ({ employeeProfile }) => {
         </div>
       )}
 
-     
+
       {showAbsentModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl relative animate-fade-in">
@@ -1638,10 +1631,10 @@ const TimeCard = ({ employeeProfile }) => {
                       <td colSpan="3" className="py-8 text-center text-slate-500">No absentees found</td>
                     </tr>
                   )}
-               
+
                 </tbody>
               </table>
-             
+
               <Pagination
                 page={absentPage}
                 totalPages={totalAbsentPages}

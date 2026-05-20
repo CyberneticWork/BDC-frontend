@@ -3,6 +3,7 @@ import { getSingleEntryRecords } from "@services/Reports/SingleEntryReportServic
 import { Calendar, Search, Download, FileSpreadsheet, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
+import DatePickerInput from "@components/DatePickerInput";
 
 const SingleEntryReport = () => {
   const [date, setDate] = useState("");
@@ -15,9 +16,9 @@ const SingleEntryReport = () => {
 
   const fetchReport = async (page = 1) => {
     if (!date) {
-      Swal.fire({ 
-        icon: "warning", 
-        title: "Date Required", 
+      Swal.fire({
+        icon: "warning",
+        title: "Date Required",
         text: "Please select a date to generate the report",
         confirmButtonColor: "#3b82f6"
       });
@@ -33,9 +34,9 @@ const SingleEntryReport = () => {
         total: res.total,
       });
     } catch (e) {
-      Swal.fire({ 
-        icon: "error", 
-        title: "Failed to Fetch Report", 
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Fetch Report",
         text: e.message,
         confirmButtonColor: "#3b82f6"
       });
@@ -46,18 +47,18 @@ const SingleEntryReport = () => {
 
   const exportToExcel = async () => {
     if (!date) {
-      Swal.fire({ 
-        icon: "warning", 
-        title: "Date Required", 
+      Swal.fire({
+        icon: "warning",
+        title: "Date Required",
         text: "Please select a date first",
         confirmButtonColor: "#3b82f6"
       });
       return;
     }
     if (data.length === 0) {
-      Swal.fire({ 
-        icon: "info", 
-        title: "No Data", 
+      Swal.fire({
+        icon: "info",
+        title: "No Data",
         text: "Generate the report first to export",
         confirmButtonColor: "#3b82f6"
       });
@@ -66,29 +67,29 @@ const SingleEntryReport = () => {
 
     try {
       setExporting(true);
-      
+
       // Fetch all records by looping through pages (max per_page = 100)
       let allData = [];
       let currentPage = 1;
       let lastPage = 1;
-      
+
       do {
-        const res = await getSingleEntryRecords({ 
-          date, 
-          page: currentPage, 
-          per_page: 100, 
-          search 
+        const res = await getSingleEntryRecords({
+          date,
+          page: currentPage,
+          per_page: 100,
+          search
         });
-        
+
         allData = allData.concat(res.data || []);
         lastPage = res.last_page || 1;
         currentPage++;
       } while (currentPage <= lastPage);
 
       if (allData.length === 0) {
-        Swal.fire({ 
-          icon: "info", 
-          title: "No Records", 
+        Swal.fire({
+          icon: "info",
+          title: "No Records",
           text: "No data available to export",
           confirmButtonColor: "#3b82f6"
         });
@@ -135,9 +136,9 @@ const SingleEntryReport = () => {
       });
     } catch (e) {
       console.error("Export error:", e);
-      Swal.fire({ 
-        icon: "error", 
-        title: "Export Failed", 
+      Swal.fire({
+        icon: "error",
+        title: "Export Failed",
         text: e.response?.data?.message || e.message || "Failed to export data",
         confirmButtonColor: "#3b82f6"
       });
@@ -155,34 +156,34 @@ const SingleEntryReport = () => {
   const renderPageNumbers = () => {
     const pages = [];
     const { current_page, last_page } = meta;
-    
+
     // Always show first page
     pages.push(1);
-    
+
     // Calculate range around current page
     let start = Math.max(2, current_page - 1);
     let end = Math.min(last_page - 1, current_page + 1);
-    
+
     // Add ellipsis after first page if needed
     if (start > 2) {
       pages.push('...');
     }
-    
+
     // Add pages around current
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-    
+
     // Add ellipsis before last page if needed
     if (end < last_page - 1) {
       pages.push('...');
     }
-    
+
     // Always show last page if there's more than one page
     if (last_page > 1) {
       pages.push(last_page);
     }
-    
+
     return pages;
   };
 
@@ -220,15 +221,14 @@ const SingleEntryReport = () => {
               <Calendar className="w-4 h-4 inline mr-1" />
               Select Date
             </label>
-            <input
-              type="date"
+            <DatePickerInput
               value={date}
               onChange={(e) => setDate(e.target.value)}
               max={getTodayDate()}
               className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               <Search className="w-4 h-4 inline mr-1" />
@@ -257,7 +257,7 @@ const SingleEntryReport = () => {
               ))}
             </select>
           </div>
-          
+
           <div className="flex items-end gap-2">
             <button
               onClick={() => fetchReport(1)}
@@ -296,7 +296,7 @@ const SingleEntryReport = () => {
               <span className="text-blue-600">{meta.total || 0}</span> records
             </div>
           </div>
-          
+
           <button
             onClick={exportToExcel}
             disabled={exporting || data.length === 0}
@@ -367,7 +367,7 @@ const SingleEntryReport = () => {
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
                         ${r.status === 'IN' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                           : r.status === 'OUT' ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                          : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
                         {r.status || "-"}
                       </span>
                     </td>

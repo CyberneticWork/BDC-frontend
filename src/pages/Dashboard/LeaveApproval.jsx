@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getAllLeaves, updateLeaveStatus } from "../../services/LeaveMaster";
 import Swal from "sweetalert2";
+import DatePickerInput from "@components/DatePickerInput";
 
 const LeaveApproval = () => {
   // State for filtering and search
@@ -57,26 +58,26 @@ const LeaveApproval = () => {
       const formattedData = data.map((leave) => {
         let displayType = leave.leave_type || "Unknown";
         if (leave.is_short_leave) {
-            displayType += " (Short Leave)";
+          displayType += " (Short Leave)";
         } else if (leave.is_half_day) {
-            displayType += " (Half Day)";
+          displayType += " (Half Day)";
         }
 
         let durationVal = leave.leave_duration;
         if (durationVal === undefined || durationVal === null) {
-            durationVal = calculateDuration(leave.leave_date, leave.leave_from, leave.leave_to);
-            if (leave.is_half_day) durationVal = 0.5;
-            if (leave.is_short_leave) durationVal = 0.25;
+          durationVal = calculateDuration(leave.leave_date, leave.leave_from, leave.leave_to);
+          if (leave.is_half_day) durationVal = 0.5;
+          if (leave.is_short_leave) durationVal = 0.25;
         }
 
         // --- අලුතින් එකතු කළ කොටස: කාල සීමාව (Time Slot / Period) ලබා ගැනීම ---
         let timeSlotInfo = "";
         if (leave.is_half_day && leave.period) {
-            timeSlotInfo = leave.period; // උදා: "Morning" හෝ "Evening"
+          timeSlotInfo = leave.period; // උදා: "Morning" හෝ "Evening"
         } else if (leave.is_short_leave && leave.short_leave_slot) {
-            timeSlotInfo = leave.short_leave_slot; // උදා: "09:00 - 10:30"
+          timeSlotInfo = leave.short_leave_slot; // උදා: "09:00 - 10:30"
         } else if (leave.is_short_leave && leave.period) {
-            timeSlotInfo = leave.period; // fallback
+          timeSlotInfo = leave.period; // fallback
         }
         // -------------------------------------------------------------
 
@@ -178,11 +179,11 @@ const LeaveApproval = () => {
           prevRequests.map((request) =>
             request.id === id
               ? {
-                  ...request,
-                  status: "HR_Approved",
-                  approvedBy: "Current HR Manager",
-                  approvedDate: new Date().toISOString().split("T")[0],
-                }
+                ...request,
+                status: "HR_Approved",
+                approvedBy: "Current HR Manager",
+                approvedDate: new Date().toISOString().split("T")[0],
+              }
               : request
           )
         );
@@ -232,12 +233,12 @@ const LeaveApproval = () => {
           prevRequests.map((request) =>
             request.id === rejectingRequestId
               ? {
-                  ...request,
-                  status: "Rejected",
-                  rejectedBy: "Current Manager",
-                  rejectedDate: new Date().toISOString().split("T")[0],
-                  rejectionReason: rejectionReason,
-                }
+                ...request,
+                status: "Rejected",
+                rejectedBy: "Current Manager",
+                rejectedDate: new Date().toISOString().split("T")[0],
+                rejectionReason: rejectionReason,
+              }
               : request
           )
         );
@@ -539,8 +540,7 @@ const LeaveApproval = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     From Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm"
@@ -551,8 +551,7 @@ const LeaveApproval = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     To Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white shadow-sm"
@@ -999,11 +998,10 @@ const LeaveApproval = () => {
                     <button
                       onClick={confirmReject}
                       disabled={!rejectionReason.trim()}
-                      className={`px-4 py-2 ${
-                        rejectionReason.trim()
-                          ? "bg-red-600 hover:bg-red-700"
-                          : "bg-red-300 cursor-not-allowed"
-                      } text-white rounded-lg transition-colors`}
+                      className={`px-4 py-2 ${rejectionReason.trim()
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-red-300 cursor-not-allowed"
+                        } text-white rounded-lg transition-colors`}
                     >
                       Confirm Rejection
                     </button>

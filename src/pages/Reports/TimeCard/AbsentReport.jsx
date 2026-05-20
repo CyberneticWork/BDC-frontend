@@ -16,6 +16,7 @@ import {
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
 import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
+import DatePickerInput from "@components/DatePickerInput";
 
 const AbsentReport = () => {
   const [mode, setMode] = useState("daily");
@@ -116,7 +117,7 @@ const AbsentReport = () => {
 
   const handleCompanyChange = (e) => {
     setCompanyId(e.target.value);
-    setDepartmentId(""); 
+    setDepartmentId("");
   };
 
   const validateFilters = () => {
@@ -232,7 +233,7 @@ const AbsentReport = () => {
         "Leave Approval": r.leave_approval || "No Leave",
         "Leave / NoPay": r.leave_or_nopay || "Absent",
         "Leave Type": r.leave_type || "-",
-        "Period": r.period || "-", 
+        "Period": r.period || "-",
         "NoPay Status": r.nopay_status || "No NoPay",
       }));
 
@@ -334,7 +335,7 @@ const AbsentReport = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-slate-200">
-        
+
         {/* Top Filters Row */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
@@ -357,8 +358,7 @@ const AbsentReport = () => {
                 <Calendar className="w-4 h-4 inline mr-1" />
                 Select Date
               </label>
-              <input
-                type="date"
+              <DatePickerInput
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 max={getTodayDate()}
@@ -457,9 +457,8 @@ const AbsentReport = () => {
                 value={departmentId}
                 onChange={(e) => setDepartmentId(e.target.value)}
                 disabled={!companyId || isLoadingDepartments}
-                className={`w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none appearance-none ${
-                  !companyId ? "bg-gray-100 cursor-not-allowed" : "bg-white"
-                }`}
+                className={`w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none appearance-none ${!companyId ? "bg-gray-100 cursor-not-allowed" : "bg-white"
+                  }`}
               >
                 <option value="">All Departments</option>
                 {departments.map((d) => (
@@ -612,29 +611,27 @@ const AbsentReport = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
-                          r.leave_approval === "Approved" || r.leave_approval === "HR_Approved"
-                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                            : "bg-gray-100 text-gray-700 border-gray-200"
-                        }`}
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${r.leave_approval === "Approved" || r.leave_approval === "HR_Approved"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                          : "bg-gray-100 text-gray-700 border-gray-200"
+                          }`}
                       >
                         {r.leave_approval || "No Leave"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
-                          r.leave_or_nopay === "Approved Leave"
-                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                            : r.leave_or_nopay === "NoPay"
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${r.leave_or_nopay === "Approved Leave"
+                          ? "bg-blue-100 text-blue-800 border-blue-200"
+                          : r.leave_or_nopay === "NoPay"
                             ? "bg-amber-100 text-amber-800 border-amber-200"
                             : "bg-rose-100 text-rose-800 border-rose-200"
-                        }`}
+                          }`}
                       >
                         {r.leave_or_nopay || "Absent"}
                       </span>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       {r.leave_type && r.leave_type !== "-" ? (
                         <div className="flex flex-col items-start gap-1.5">
@@ -688,11 +685,10 @@ const AbsentReport = () => {
                   <button
                     key={page}
                     onClick={() => goToPage(page)}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-sm ${
-                      meta.current_page === page
-                        ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg scale-105"
-                        : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                    }`}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-sm ${meta.current_page === page
+                      ? "bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg scale-105"
+                      : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                      }`}
                   >
                     {page}
                   </button>

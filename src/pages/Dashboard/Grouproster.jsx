@@ -20,6 +20,8 @@ import {
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import axios from "@utils/axios";
+import DatePickerInput from "../../../src/components/DatePickerInput";
+import moment from "moment";
 
 const RosterManagementSystem = () => {
   const [dateFrom, setDateFrom] = useState("");
@@ -379,9 +381,8 @@ const RosterManagementSystem = () => {
         });
 
         if (conflicts.length > 8)
-          conflictText += `<li>... and ${
-            conflicts.length - 8
-          } more overlaps.</li>`;
+          conflictText += `<li>... and ${conflicts.length - 8
+            } more overlaps.</li>`;
 
         conflictText += `</ul><p class="font-bold text-gray-800 border-t pt-2 mt-2">Do you want to overwrite these existing shifts?</p></div>`;
 
@@ -605,8 +606,7 @@ const RosterManagementSystem = () => {
                 <Calendar className="w-4 h-4 mr-2" />
                 Roster Date
               </h3>
-              <input
-                type="date"
+              <DatePickerInput
                 value={rosterDate}
                 className="w-full px-3 py-2 border border-orange-300 rounded-md text-sm bg-gray-50 cursor-not-allowed"
                 readOnly
@@ -618,8 +618,7 @@ const RosterManagementSystem = () => {
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Date From
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -629,8 +628,7 @@ const RosterManagementSystem = () => {
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Date To
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -678,12 +676,11 @@ const RosterManagementSystem = () => {
                     setSelectedSubDepartment("");
                   }}
                   disabled={!selectedCompany || isCompanyWise}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isCompanyWise ? "bg-gray-100 cursor-not-allowed" : ""
-                  }`}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCompanyWise ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
                 >
                   <option value="">
-                    {isCompanyWise ? "Not required in company mode" : "Select Department"}
+                    {isCompanyWise ? "Not Required" : "Select Department"}
                   </option>
                   {filteredDepartments.map((dep) => (
                     <option key={dep.id} value={dep.id}>
@@ -700,12 +697,11 @@ const RosterManagementSystem = () => {
                   value={selectedSubDepartment}
                   onChange={(e) => setSelectedSubDepartment(e.target.value)}
                   disabled={!selectedDepartment || isCompanyWise}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isCompanyWise ? "bg-gray-100 cursor-not-allowed" : ""
-                  }`}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCompanyWise ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
                 >
                   <option value="">
-                    {isCompanyWise ? "Not required" : "Select Sub Department"}
+                    {isCompanyWise ? "Not Required" : "Select Sub Department"}
                   </option>
                   {filteredSubDepartments.map((sub) => (
                     <option key={sub.id} value={sub.id}>
@@ -827,11 +823,10 @@ const RosterManagementSystem = () => {
                   filteredEmployees.slice(0, 15).map((emp) => (
                     <div
                       key={emp.id}
-                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                        selectedEmployees.has(emp.id.toString())
-                          ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
-                          : "hover:bg-gray-100 border border-gray-300 bg-white"
-                      }`}
+                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 ${selectedEmployees.has(emp.id.toString())
+                        ? "bg-gradient-to-r from-blue-100 to-blue-50 border-2 border-blue-300 shadow-md"
+                        : "hover:bg-gray-100 border border-gray-300 bg-white"
+                        }`}
                       onClick={() => assignMode === "employee" && handleEmployeeSelect(emp.id.toString())}
                     >
                       <div className="truncate pr-2">
@@ -867,10 +862,10 @@ const RosterManagementSystem = () => {
               <h3 className="font-bold text-lg text-gray-800">Shift Selection</h3>
             </div>
             <div className="text-sm text-gray-600">
-              <span className="font-semibold">{dateFrom} - {dateTo}</span>
+              <span className="font-semibold">{moment(dateFrom).format("yyyy/MM/DD")} - {moment(dateTo).format("yyyy/MM/DD")}</span>
             </div>
           </div>
-          
+
           <div className="p-4 flex-1 flex flex-col">
             <div className="flex-1 overflow-hidden border border-gray-300 rounded-lg shadow mb-4 flex flex-col">
               <div className="p-4 border-b border-gray-300">
@@ -923,7 +918,7 @@ const RosterManagementSystem = () => {
                 </table>
               </div>
             </div>
-            
+
             <button
               className="w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200 transform hover:scale-105 mb-4 disabled:opacity-50 disabled:scale-100"
               onClick={handleAddShift}
@@ -943,12 +938,12 @@ const RosterManagementSystem = () => {
                       <span className="font-bold text-blue-700">{a.shift.shiftName}</span> <span className="text-xs text-gray-500">({a.dateFrom} to {a.dateTo})</span>
                       <div className="text-xs text-gray-600">{a.employees.length} employees</div>
                     </div>
-                    <button onClick={() => handleRemoveAssignment(idx)} className="text-red-500 hover:text-red-700 p-1"><Trash2 className="w-4 h-4"/></button>
+                    <button onClick={() => handleRemoveAssignment(idx)} className="text-red-500 hover:text-red-700 p-1"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 ))
               )}
             </div>
-            
+
             <div className="flex space-x-2 mt-2">
               <button className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-md transition-all duration-200" onClick={() => setShowSummaryModal(true)}>
                 View Summary
@@ -992,7 +987,7 @@ const RosterManagementSystem = () => {
                         <td className="px-4 py-2 border-b border-gray-300">{getCompanyName(a.company)}</td>
                         <td className="px-4 py-2 border-b border-gray-300 font-medium text-blue-700">{a.shift.shiftName}</td>
                         <td className="px-4 py-2 border-b border-gray-300 text-center">{a.employees.length}</td>
-                        <td className="px-4 py-2 border-b border-gray-300">{a.dateFrom} <br/>to<br/> {a.dateTo}</td>
+                        <td className="px-4 py-2 border-b border-gray-300">{a.dateFrom} <br />to<br /> {a.dateTo}</td>
                       </tr>
                     ))
                   )}
@@ -1017,22 +1012,22 @@ const RosterManagementSystem = () => {
               <form onSubmit={handleRosterSearch} className="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Company</label>
-                  <select value={rosterSearchParams.company_id} onChange={(e) => setRosterSearchParams({...rosterSearchParams, company_id: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm">
+                  <select value={rosterSearchParams.company_id} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, company_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm">
                     <option value="">All Companies</option>
                     {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Department</label>
-                  <select value={rosterSearchParams.department_id} onChange={(e) => setRosterSearchParams({...rosterSearchParams, department_id: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm">
+                  <select value={rosterSearchParams.department_id} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, department_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm">
                     <option value="">All Departments</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
-                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date From</label><input type="date" value={rosterSearchParams.date_from} onChange={(e) => setRosterSearchParams({...rosterSearchParams, date_from: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
-                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date To</label><input type="date" value={rosterSearchParams.date_to} onChange={(e) => setRosterSearchParams({...rosterSearchParams, date_to: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
-                <div><label className="block text-xs font-bold text-gray-700 mb-1">Emp No / ID</label><input type="text" placeholder="e.g. EMP003" value={rosterSearchParams.employee_id} onChange={(e) => setRosterSearchParams({...rosterSearchParams, employee_id: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
-                
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date From</label><input type="date" value={rosterSearchParams.date_from} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, date_from: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Date To</label><input type="date" value={rosterSearchParams.date_to} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, date_to: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 mb-1">Emp No / ID</label><input type="text" placeholder="e.g. EMP003" value={rosterSearchParams.employee_id} onChange={(e) => setRosterSearchParams({ ...rosterSearchParams, employee_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+
                 <div className="col-span-2 md:col-span-5 flex justify-end space-x-3 mt-2">
                   <button type="button" onClick={resetRosterSearch} className="px-4 py-2 border border-gray-400 rounded text-sm text-gray-700 bg-white hover:bg-gray-100 font-semibold shadow-sm">Reset</button>
                   <button type="submit" disabled={isSearching} className="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 shadow-md flex items-center justify-center min-w-[100px]">
@@ -1047,7 +1042,7 @@ const RosterManagementSystem = () => {
               <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center shadow-sm">
                 <span className="text-red-700 font-bold">{selectedRosterIds.size} Rosters Selected</span>
                 <button onClick={handleBulkDeleteRosters} disabled={isBulkDeleting} className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 flex items-center gap-2 font-bold shadow-sm">
-                  {isBulkDeleting ? "Deleting..." : <><Trash2 className="w-4 h-4"/> Delete Selected</>}
+                  {isBulkDeleting ? "Deleting..." : <><Trash2 className="w-4 h-4" /> Delete Selected</>}
                 </button>
               </div>
             )}
@@ -1057,7 +1052,7 @@ const RosterManagementSystem = () => {
               <table className="min-w-full text-sm border-collapse">
                 <thead className="bg-gray-200 sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="p-3 border-b border-r border-gray-300 text-center w-12"><input type="checkbox" checked={selectAllRosters} onChange={handleSelectAllRosters} className="w-4 h-4 text-blue-600 rounded cursor-pointer"/></th>
+                    <th className="p-3 border-b border-r border-gray-300 text-center w-12"><input type="checkbox" checked={selectAllRosters} onChange={handleSelectAllRosters} className="w-4 h-4 text-blue-600 rounded cursor-pointer" /></th>
                     <th className="p-3 border-b border-r border-gray-300 text-left font-bold text-gray-700">Emp No (ID)</th>
                     <th className="p-3 border-b border-r border-gray-300 text-left font-bold text-gray-700">Employee Name</th>
                     <th className="p-3 border-b border-r border-gray-300 text-left font-bold text-gray-700">Shift</th>
@@ -1068,14 +1063,14 @@ const RosterManagementSystem = () => {
                 </thead>
                 <tbody>
                   {loadingAllRosters ? (
-                     <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">Loading rosters...</td></tr>
+                    <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">Loading rosters...</td></tr>
                   ) : (rosterSearchPerformed ? searchedRosters : allRosters).length === 0 ? (
-                     <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">No rosters found.</td></tr>
+                    <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">No rosters found.</td></tr>
                   ) : (
                     (rosterSearchPerformed ? searchedRosters : allRosters).map((roster, idx) => (
                       <tr key={roster.id} className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors`}>
                         <td className="p-3 border-b border-r border-gray-200 text-center">
-                          <input type="checkbox" checked={selectedRosterIds.has(roster.id)} onChange={() => handleSelectRoster(roster.id)} className="w-4 h-4 text-blue-600 rounded cursor-pointer"/>
+                          <input type="checkbox" checked={selectedRosterIds.has(roster.id)} onChange={() => handleSelectRoster(roster.id)} className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                         </td>
                         <td className="p-3 border-b border-r border-gray-200 font-mono font-bold text-blue-700">
                           {roster.employee_code && roster.employee_code !== "-" ? roster.employee_code : `ID: ${roster.employee_id}`}
@@ -1096,9 +1091,9 @@ const RosterManagementSystem = () => {
                 </tbody>
               </table>
             </div>
-            
+
             <div className="mt-4 flex justify-end pt-4 border-t border-gray-200">
-               <button className="bg-gray-500 text-white px-6 py-2 rounded shadow hover:bg-gray-600 font-bold" onClick={handleCloseAllRostersModal}>Close</button>
+              <button className="bg-gray-500 text-white px-6 py-2 rounded shadow hover:bg-gray-600 font-bold" onClick={handleCloseAllRostersModal}>Close</button>
             </div>
           </div>
         </div>
