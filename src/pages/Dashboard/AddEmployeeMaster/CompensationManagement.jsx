@@ -45,7 +45,7 @@ const handleKeyDown = (e) => {
 const CompensationManagement = ({ onNext, onPrevious }) => {
   const { formData, updateFormData, errors, clearFieldError } =
     useEmployeeForm();
-  
+
   const [openSections, setOpenSections] = useState({
     salary: true,
     increment: false,
@@ -121,11 +121,10 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                             handleInputChange("basicSalary", e.target.value)
                           }
                           onKeyDown={handleKeyDown}
-                          className={`w-full pl-10 pr-4 py-3 border ${
-                            errors.compensation?.basicSalary
+                          className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.basicSalary
                               ? "border-red-500"
                               : "border-gray-300"
-                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                           placeholder="Enter basic salary"
                           required
                         />
@@ -156,86 +155,83 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
 
                 {openSections.increment && (
                   <div className="p-6 pt-0">
-                <div className="flex items-center justify-between p-3 bg-white rounded-lg border mb-4">
-                  <label
-                    htmlFor="incrementActive"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Increment Active
-                  </label>
-                  <div
-                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                    style={{
-                      backgroundColor: formData.compensation.incrementActive
-                        ? "#3b82f6"
-                        : "#e5e7eb",
-                    }}
-                    onClick={() => handleToggleChange("incrementActive")}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                        formData.compensation.incrementActive
-                          ? "translate-x-6"
-                          : "translate-x-1"
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                {formData.compensation.incrementActive && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Increment Value
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border mb-4">
+                      <label
+                        htmlFor="incrementActive"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Increment Active
                       </label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="text"
-                          value={formData.compensation.incrementValue}
-                          onChange={(e) =>
-                            handleInputChange("incrementValue", e.target.value)
-                          }
-                          onKeyDown={handleKeyDown}
-                          className={`w-full pl-10 pr-4 py-3 border ${
-                            errors.compensation?.incrementValue
-                              ? "border-red-500"
-                              : "border-gray-300"
-                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          placeholder="Enter increment"
+                      <div
+                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                        style={{
+                          backgroundColor: formData.compensation.incrementActive
+                            ? "#3b82f6"
+                            : "#e5e7eb",
+                        }}
+                        onClick={() => handleToggleChange("incrementActive")}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.incrementActive
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                            }`}
                         />
                       </div>
-                      <FieldError error={errors.compensation?.incrementValue} />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Increment Effective From
-                      </label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="date"
-                          value={formData.compensation.incrementEffectiveFrom}
-                          onChange={(e) =>
-                            handleInputChange(
-                              "incrementEffectiveFrom",
-                              e.target.value
-                            )
-                          }
-                          className={`w-full pl-10 pr-4 py-3 border ${
-                            errors.compensation?.incrementEffectiveFrom
-                              ? "border-red-500"
-                              : "border-gray-300"
-                          } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        />
+                    {formData.compensation.incrementActive && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Increment Value
+                          </label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              value={formData.compensation.incrementValue}
+                              onChange={(e) =>
+                                handleInputChange("incrementValue", e.target.value)
+                              }
+                              onKeyDown={handleKeyDown}
+                              className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.incrementValue
+                                ? "border-red-500"
+                                : "border-gray-300"
+                                } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                              placeholder="Enter increment"
+                            />
+                          </div>
+                          <FieldError error={errors.compensation?.incrementValue} />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Increment Effective From
+                          </label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="date"
+                              value={formData.compensation.incrementEffectiveFrom}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  "incrementEffectiveFrom",
+                                  e.target.value
+                                )
+                              }
+                              className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.incrementEffectiveFrom
+                                ? "border-red-500"
+                                : "border-gray-300"
+                                } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            />
+                          </div>
+                          <FieldError
+                            error={errors.compensation?.incrementEffectiveFrom}
+                          />
+                        </div>
                       </div>
-                      <FieldError
-                        error={errors.compensation?.incrementEffectiveFrom}
-                      />
-                    </div>
-                  </div>
-                )}
+                    )}
                   </div>
                 )}
               </div>
@@ -261,216 +257,208 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                 {openSections.employment && (
                   <div className="p-6 pt-0">
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="secondaryEmp"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Secondary Employment
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.secondaryEmp
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("secondaryEmp")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.secondaryEmp
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="secondaryEmp"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Secondary Employment
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.secondaryEmp
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("secondaryEmp")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.secondaryEmp
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="Stamp"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Stamp
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.stamp
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("stamp")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.stamp
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      {/* <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="Stamp"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Stamp
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.stamp
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("stamp")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.stamp
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div> */}
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="enableEpfEtf"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Enable EPF/ETF
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.enableEpfEtf
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("enableEpfEtf")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.enableEpfEtf
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="enableEpfEtf"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Enable EPF/ETF
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.enableEpfEtf
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("enableEpfEtf")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.enableEpfEtf
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="otActive"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      OT Active
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.otActive
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("otActive")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.otActive
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="otActive"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          OT Active
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.otActive
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("otActive")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.otActive
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="otActiveSpecial"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Special OT Active
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.otActiveSpecial
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("otActiveSpecial")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.otActiveSpecial
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="otActiveSpecial"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Special OT Active
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.otActiveSpecial
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("otActiveSpecial")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.otActiveSpecial
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="nopayActive"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      No-pay Active
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.nopayActive
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("nopayActive")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.nopayActive
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="nopayActive"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          No-pay Active
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.nopayActive
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("nopayActive")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.nopayActive
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="earlyDeduction"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Early Deduction
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.earlyDeduction
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("earlyDeduction")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.earlyDeduction
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="earlyDeduction"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Early Deduction
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.earlyDeduction
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("earlyDeduction")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.earlyDeduction
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="onlyEpf"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Only EPF
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.onlyEpf
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("onlyEpf")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.onlyEpf
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      {/* <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="onlyEpf"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Only EPF
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.onlyEpf
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("onlyEpf")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.onlyEpf
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div> */}
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                      {/* <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
                     <label
                       htmlFor="onlyEtf"
                       className="text-sm font-medium text-gray-700"
@@ -494,8 +482,8 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                         }`}
                       />
                     </div>
-                  </div>
-                </div>
+                  </div> */}
+                    </div>
                   </div>
                 )}
               </div>
@@ -521,218 +509,210 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                 {openSections.overtime && (
                   <div className="p-6 pt-0">
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="morningOt"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Morning OT
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.morningOt
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("morningOt")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.morningOt
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="morningOt"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Morning OT
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.morningOt
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("morningOt")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.morningOt
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="eveningOt"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Evening OT
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.eveningOt
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("eveningOt")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.eveningOt
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="eveningOt"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Evening OT
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.eveningOt
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("eveningOt")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.eveningOt
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Morning OT Rate <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.compensation.ot_morning_rate}
-                        onChange={(e) =>
-                          handleInputChange("ot_morning_rate", e.target.value)
-                        }
-                        onKeyDown={handleKeyDown}
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.ot_morning_rate
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter Morning OT Rate"
-                        required
-                      />
-                    </div>
-                    <FieldError error={errors.compensation?.ot_morning_rate} />
-                  </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Morning OT Rate <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.compensation.ot_morning_rate}
+                            onChange={(e) =>
+                              handleInputChange("ot_morning_rate", e.target.value)
+                            }
+                            onKeyDown={handleKeyDown}
+                            className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.ot_morning_rate
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter Morning OT Rate"
+                            required
+                          />
+                        </div>
+                        <FieldError error={errors.compensation?.ot_morning_rate} />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Night OT Rate <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.compensation.ot_night_rate}
-                        onChange={(e) =>
-                          handleInputChange("ot_night_rate", e.target.value)
-                        }
-                        onKeyDown={handleKeyDown}
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.ot_night_rate
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter Night OT Rate"
-                        required
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Night OT Rate <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.compensation.ot_night_rate}
+                            onChange={(e) =>
+                              handleInputChange("ot_night_rate", e.target.value)
+                            }
+                            onKeyDown={handleKeyDown}
+                            className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.ot_night_rate
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter Night OT Rate"
+                            required
+                          />
+                        </div>
+                        <FieldError error={errors.compensation?.ot_night_rate} />
+                      </div>
                     </div>
-                    <FieldError error={errors.compensation?.ot_night_rate} />
-                  </div>
-                </div>
 
-                <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-4 flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />
-                  Special Overtime Settings
-                </h2>
+                    <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-4 flex items-center">
+                      <AlertCircle className="w-5 h-5 mr-2 text-orange-600" />
+                      Special Overtime Settings
+                    </h2>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="morningOtSpecial"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Morning OT
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.morningOtSpecial
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("morningOtSpecial")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.morningOtSpecial
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="morningOtSpecial"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Morning OT
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.morningOtSpecial
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("morningOtSpecial")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.morningOtSpecial
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <label
+                          htmlFor="eveningOtSpecial"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          Evening OT
+                        </label>
+                        <div
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                          style={{
+                            backgroundColor: formData.compensation.eveningOtSpecial
+                              ? "#3b82f6"
+                              : "#e5e7eb",
+                          }}
+                          onClick={() => handleToggleChange("eveningOtSpecial")}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.eveningOtSpecial
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                              }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Morning OT Rate <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.compensation.ot_morning_rate_special}
+                            onChange={(e) =>
+                              handleInputChange("ot_morning_rate_special", e.target.value)
+                            }
+                            onKeyDown={handleKeyDown}
+                            className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.ot_morning_rate_special
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter Morning OT Rate"
+                            required
+                          />
+                        </div>
+                        <FieldError error={errors.compensation?.ot_morning_rate_special} />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Night OT Rate <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.compensation.ot_night_rate_special}
+                            onChange={(e) =>
+                              handleInputChange("ot_night_rate_special", e.target.value)
+                            }
+                            onKeyDown={handleKeyDown}
+                            className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.ot_night_rate_special
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter Night OT Rate"
+                            required
+                          />
+                        </div>
+                        <FieldError error={errors.compensation?.ot_night_rate_special} />
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                    <label
-                      htmlFor="eveningOtSpecial"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Evening OT
-                    </label>
-                    <div
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                      style={{
-                        backgroundColor: formData.compensation.eveningOtSpecial
-                          ? "#3b82f6"
-                          : "#e5e7eb",
-                      }}
-                      onClick={() => handleToggleChange("eveningOtSpecial")}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                          formData.compensation.eveningOtSpecial
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Morning OT Rate <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.compensation.ot_morning_rate_special}
-                        onChange={(e) =>
-                          handleInputChange("ot_morning_rate_special", e.target.value)
-                        }
-                        onKeyDown={handleKeyDown}
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.ot_morning_rate_special
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter Morning OT Rate"
-                        required
-                      />
-                    </div>
-                    <FieldError error={errors.compensation?.ot_morning_rate_special} />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Night OT Rate <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.compensation.ot_night_rate_special}
-                        onChange={(e) =>
-                          handleInputChange("ot_night_rate_special", e.target.value)
-                        }
-                        onKeyDown={handleKeyDown}
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.ot_night_rate_special
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter Night OT Rate"
-                        required
-                      />
-                    </div>
-                    <FieldError error={errors.compensation?.ot_night_rate_special} />
-                  </div>
-                </div>
                   </div>
                 )}
               </div>
@@ -760,120 +740,115 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                 {openSections.bank && (
                   <div className="p-6 pt-0">
 
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bank Name <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={formData.compensation.bankName}
-                        onChange={(e) =>
-                          handleInputChange("bankName", e.target.value)
-                        }
-                        className={`w-full px-4 py-3 border ${
-                          errors.compensation?.bankName
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                      >
-                        <option value="">Select Bank</option>
-                        {banks.map((bank, idx) => (
-                          <option key={idx} value={bank}>
-                            {bank}
-                          </option>
-                        ))}
-                      </select>
-                      <FieldError error={errors.compensation?.bankName} />
-                    </div>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Bank Name <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={formData.compensation.bankName}
+                            onChange={(e) =>
+                              handleInputChange("bankName", e.target.value)
+                            }
+                            className={`w-full px-4 py-3 border ${errors.compensation?.bankName
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                          >
+                            <option value="">Select Bank</option>
+                            {banks.map((bank, idx) => (
+                              <option key={idx} value={bank}>
+                                {bank}
+                              </option>
+                            ))}
+                          </select>
+                          <FieldError error={errors.compensation?.bankName} />
+                        </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Branch Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.compensation.branchName}
-                        onChange={(e) =>
-                          handleInputChange("branchName", e.target.value)
-                        }
-                        className={`w-full px-4 py-3 border ${
-                          errors.compensation?.branchName
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter branch name"
-                      />
-                      <FieldError error={errors.compensation?.branchName} />
-                    </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Branch Name <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.compensation.branchName}
+                            onChange={(e) =>
+                              handleInputChange("branchName", e.target.value)
+                            }
+                            className={`w-full px-4 py-3 border ${errors.compensation?.branchName
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter branch name"
+                          />
+                          <FieldError error={errors.compensation?.branchName} />
+                        </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bank Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.compensation.bankCode}
-                        onChange={(e) =>
-                          handleInputChange("bankCode", e.target.value)
-                        }
-                        onKeyDown={handleKeyDown}
-                        className={`w-full px-4 py-3 border ${
-                          errors.compensation?.bankCode
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter bank code"
-                      />
-                      <FieldError error={errors.compensation?.bankCode} />
-                    </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Bank Code <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.compensation.bankCode}
+                            onChange={(e) =>
+                              handleInputChange("bankCode", e.target.value)
+                            }
+                            onKeyDown={handleKeyDown}
+                            className={`w-full px-4 py-3 border ${errors.compensation?.bankCode
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter bank code"
+                          />
+                          <FieldError error={errors.compensation?.bankCode} />
+                        </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Branch Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.compensation.branchCode}
-                        onChange={(e) =>
-                          handleInputChange("branchCode", e.target.value)
-                        }
-                        className={`w-full px-4 py-3 border ${
-                          errors.compensation?.branchCode
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter branch code"
-                      />
-                      <FieldError error={errors.compensation?.branchCode} />
-                    </div>
-                  </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Branch Code <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.compensation.branchCode}
+                            onChange={(e) =>
+                              handleInputChange("branchCode", e.target.value)
+                            }
+                            className={`w-full px-4 py-3 border ${errors.compensation?.branchCode
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter branch code"
+                          />
+                          <FieldError error={errors.compensation?.branchCode} />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Bank Account Number{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.compensation.bankAccountNo}
-                        onChange={(e) =>
-                          handleInputChange("bankAccountNo", e.target.value)
-                        }
-                        onKeyDown={handleKeyDown}
-                        className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.compensation?.bankAccountNo
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                        placeholder="Enter account number"
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Bank Account Number{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.compensation.bankAccountNo}
+                            onChange={(e) =>
+                              handleInputChange("bankAccountNo", e.target.value)
+                            }
+                            onKeyDown={handleKeyDown}
+                            className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.bankAccountNo
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter account number"
+                          />
+                        </div>
+                        <FieldError error={errors.compensation?.bankAccountNo} />
+                      </div>
                     </div>
-                    <FieldError error={errors.compensation?.bankAccountNo} />
-                  </div>
-                </div>
                   </div>
                 )}
               </div>
@@ -997,31 +972,30 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                 {openSections.primary && (
                   <div className="p-6 pt-0">
 
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                  <div>
-                    <h3 className="font-medium text-gray-800">
-                      Primary Employment Basic
-                    </h3>
-                  </div>
-                  <div
-                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-                    style={{
-                      backgroundColor: formData.compensation
-                        .primaryEmploymentBasic
-                        ? "#3b82f6"
-                        : "#e5e7eb",
-                    }}
-                    onClick={() => handleToggleChange("primaryEmploymentBasic")}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                        formData.compensation.primaryEmploymentBasic
-                          ? "translate-x-6"
-                          : "translate-x-1"
-                      }`}
-                    />
-                  </div>
-                </div>
+                    <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
+                      <div>
+                        <h3 className="font-medium text-gray-800">
+                          Primary Employment Basic
+                        </h3>
+                      </div>
+                      <div
+                        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                        style={{
+                          backgroundColor: formData.compensation
+                            .primaryEmploymentBasic
+                            ? "#3b82f6"
+                            : "#e5e7eb",
+                        }}
+                        onClick={() => handleToggleChange("primaryEmploymentBasic")}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.compensation.primaryEmploymentBasic
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                            }`}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1046,20 +1020,19 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                 {openSections.comments && (
                   <div className="p-6 pt-0">
 
-                <textarea
-                  value={formData.compensation.comments}
-                  onChange={(e) =>
-                    handleInputChange("comments", e.target.value)
-                  }
-                  rows="4"
-                  className={`w-full px-4 py-3 border ${
-                    errors.compensation?.comments
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
-                  placeholder="Add any additional comments or notes..."
-                />
-                <FieldError error={errors.compensation?.comments} />
+                    <textarea
+                      value={formData.compensation.comments}
+                      onChange={(e) =>
+                        handleInputChange("comments", e.target.value)
+                      }
+                      rows="4"
+                      className={`w-full px-4 py-3 border ${errors.compensation?.comments
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
+                      placeholder="Add any additional comments or notes..."
+                    />
+                    <FieldError error={errors.compensation?.comments} />
                   </div>
                 )}
               </div>
