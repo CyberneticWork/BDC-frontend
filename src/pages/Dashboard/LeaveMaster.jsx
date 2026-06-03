@@ -21,6 +21,7 @@ import {
   createLeaveWithOverride, // Add this import
   getLeaveById,
   getLeaveEligibility,
+  getLeaveTypes,
 } from "../../services/LeaveMaster";
 import { fetchLeaveCalendar } from "../../services/LeaveCalendar";
 import DatePickerInput from "@components/DatePickerInput";
@@ -77,14 +78,25 @@ const LeaveMaster = ({ employeeProfile }) => {
 
       // Fetch leave data for logged-in employee
       if (employeeProfile.id) {
+        fetchLeaveTypes();
         fetchEmployeeLeaves(employeeProfile.id, employeeProfile);
-        fetchLeaveUsage(employeeProfile.attendance_employee_no);
       }
     }
   }, [employeeProfile]);
 
 
-
+  const fetchLeaveTypes = async () => {
+    console.log("Fetching leave types...");
+    setIsLoading(true);
+    try {
+      const response = await getLeaveTypes();
+      console.log("Leave types response: ", response);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
 
 
@@ -432,6 +444,7 @@ const LeaveMaster = ({ employeeProfile }) => {
       // මෙතන තමයි වෙනස! දෙවෙනි එකට null දීලා, තුන්වෙනි එකට targetDate එක යවන්න.
       const eligibilityData = await getLeaveEligibility(empNumber, null, targetDate);
 
+      console.log(eligibilityData);
       console.log("empNumber sent:", empNumber, "date sent:", targetDate);
 
       if (eligibilityData && eligibilityData.eligible_leaves && Array.isArray(eligibilityData.eligible_leaves)) {
@@ -510,6 +523,7 @@ const LeaveMaster = ({ employeeProfile }) => {
         await Promise.all([
           fetchEmployeeLeaves(empData.id, empData),
           fetchLeaveUsage(empData.attendance_employee_no || formData.attendanceNo),
+          fetchLeaveTypes(),
         ]);
       } else {
         Swal.fire({
@@ -584,14 +598,14 @@ const LeaveMaster = ({ employeeProfile }) => {
     setSubmitError("");
     setSubmitSuccess(false);
     setIsSubmitting(true);
-
+  
     // If all main identifying fields are empty, show same error as for missing employee number
     const allEmpty =
       !formData.attendanceNo &&
       !formData.epfNo &&
       !formData.employeeName &&
       !formData.department;
-
+  
     if (allEmpty) {
       Swal.fire({
         icon: "error",
@@ -602,11 +616,11 @@ const LeaveMaster = ({ employeeProfile }) => {
       setIsSubmitting(false);
       return;
     }
-
+  
     try {
       // First validate all selected dates
       let invalidDates = [];
-
+  
       if (formData.leaveDateType === "fullDay") {
         if (isDateDisabled(formData.leaveDate.single)) {
           invalidDates.push(formData.leaveDate.single);
@@ -619,7 +633,7 @@ const LeaveMaster = ({ employeeProfile }) => {
         // Check each date in the range
         const fromDate = new Date(formData.leaveDate.from);
         const toDate = new Date(formData.leaveDate.to);
-
+  
         // Validate date range (to date should be after or equal to from date)
         if (toDate < fromDate) {
           Swal.fire({
@@ -631,7 +645,7 @@ const LeaveMaster = ({ employeeProfile }) => {
           setIsSubmitting(false);
           return;
         }
-
+  
         for (
           let d = new Date(fromDate);
           d <= toDate;
@@ -643,7 +657,7 @@ const LeaveMaster = ({ employeeProfile }) => {
           }
         }
       }
-
+  
       if (invalidDates.length > 0) {
         Swal.fire({
           icon: "error",
@@ -664,7 +678,7 @@ const LeaveMaster = ({ employeeProfile }) => {
         });
         return;
       }
-
+  
       let leaveData = {
         employee_id: parseInt(employeeData.id),
         reporting_date: formData.reportingDate,
@@ -680,7 +694,7 @@ const LeaveMaster = ({ employeeProfile }) => {
         short_leave_slot: null,
         leave_duration: 0
       };
-
+  
       if (formData.leaveDateType === "fullDay") {
         leaveData.leave_date = formData.leaveDate.single;
         leaveData.is_half_day = false;
@@ -700,7 +714,7 @@ const LeaveMaster = ({ employeeProfile }) => {
         leaveData.leave_from = formData.leaveDate.from;
         leaveData.leave_to = formData.leaveDate.to;
         leaveData.is_half_day = false;
-
+  
         // Calculate duration for date range
         const fromDate = new Date(formData.leaveDate.from);
         const toDate = new Date(formData.leaveDate.to);
@@ -708,10 +722,10 @@ const LeaveMaster = ({ employeeProfile }) => {
         const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
         leaveData.leave_duration = dayDiff;
       }
-
+  
       try {
         await createLeave(leaveData);
-
+  
         // Show success message
         Swal.fire({
           icon: "success",
@@ -719,7 +733,7 @@ const LeaveMaster = ({ employeeProfile }) => {
           text: "Leave request submitted successfully!",
           confirmButtonColor: "#3085d6",
         });
-
+  
         await handleSubmitSuccess();
       } catch (error) {
         // Check if this is a limit exceeded error that allows continuation
@@ -747,19 +761,19 @@ const LeaveMaster = ({ employeeProfile }) => {
             confirmButtonText: "Continue Anyway",
             cancelButtonText: "Cancel Request",
           });
-
+  
           if (result.isConfirmed) {
             // User wants to continue - resubmit with force_continue flag
             try {
               await createLeaveWithOverride(leaveData);
-
+  
               Swal.fire({
                 icon: "success",
                 title: "Leave Request Submitted",
                 text: "Your leave request has been submitted with the noted limitation.",
                 confirmButtonColor: "#3085d6",
               });
-
+  
               await handleSubmitSuccess();
             } catch (innerError) {
               handleSubmitError(innerError);
@@ -770,7 +784,7 @@ const LeaveMaster = ({ employeeProfile }) => {
           }
           return;
         }
-
+  
         // Handle other errors
         handleSubmitError(error);
       }
@@ -778,7 +792,7 @@ const LeaveMaster = ({ employeeProfile }) => {
       handleSubmitError(error);
     }
   };
-*/
+  */
 
   // Handle form submission for leave requests - modified to validate leave balance
   const handleSubmit = async (e) => {

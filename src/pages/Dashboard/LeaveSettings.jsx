@@ -155,10 +155,10 @@ const LeaveSettings = () => {
     setFormData((prev) => {
       const newQuarters = [...prev.quarters];
       const existingTypes = newQuarters[quarterIndex].leave_types.map(lt => lt.type);
-      
+
       // Find first available leave type
       const availableType = LEAVE_TYPES.find(lt => !existingTypes.includes(lt.type));
-      
+
       if (availableType) {
         newQuarters[quarterIndex] = {
           ...newQuarters[quarterIndex],
@@ -190,7 +190,7 @@ const LeaveSettings = () => {
     setFormData((prev) => {
       const newQuarters = [...prev.quarters];
       const newLeaveTypes = [...newQuarters[quarterIndex].leave_types];
-      
+
       if (field === "type") {
         const selectedType = LEAVE_TYPES.find(lt => lt.type === value);
         newLeaveTypes[leaveTypeIndex] = {
@@ -268,7 +268,7 @@ const LeaveSettings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate quarter months for permanent employees
     if (formData.employee_type === "permanent") {
       const errors = validateQuarterMonths(formData.quarters);
@@ -279,7 +279,7 @@ const LeaveSettings = () => {
         return;
       }
     }
-    
+
     setSaving(true);
 
     try {
@@ -387,11 +387,10 @@ const LeaveSettings = () => {
         {/* Message */}
         {message.text && (
           <div
-            className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-              message.type === "success"
+            className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${message.type === "success"
                 ? "bg-green-100 text-green-700 border border-green-200"
                 : "bg-red-100 text-red-700 border border-red-200"
-            }`}
+              }`}
           >
             {message.type === "success" ? (
               <CheckCircle className="h-5 w-5" />
@@ -425,26 +424,23 @@ const LeaveSettings = () => {
             settings.map((setting) => (
               <div
                 key={setting.id}
-                className={`bg-white rounded-lg shadow-sm border-2 transition-all duration-200 ${
-                  setting.is_active ? "border-green-200" : "border-gray-200"
-                }`}
+                className={`bg-white rounded-lg shadow-sm border-2 transition-all duration-200 ${setting.is_active ? "border-green-200" : "border-gray-200"
+                  }`}
               >
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`p-2 rounded-lg ${
-                          setting.employee_type === "probation"
+                        className={`p-2 rounded-lg ${setting.employee_type === "probation"
                             ? "bg-orange-100"
                             : "bg-blue-100"
-                        }`}
+                          }`}
                       >
                         <Users
-                          className={`h-6 w-6 ${
-                            setting.employee_type === "probation"
+                          className={`h-6 w-6 ${setting.employee_type === "probation"
                               ? "text-orange-600"
                               : "text-blue-600"
-                          }`}
+                            }`}
                         />
                       </div>
                       <div>
@@ -452,11 +448,10 @@ const LeaveSettings = () => {
                           {setting.employee_type} Employees
                         </h3>
                         <span
-                          className={`text-xs font-medium px-2 py-1 rounded-full ${
-                            setting.is_active
+                          className={`text-xs font-medium px-2 py-1 rounded-full ${setting.is_active
                               ? "bg-green-100 text-green-700"
                               : "bg-gray-100 text-gray-600"
-                          }`}
+                            }`}
                         >
                           {setting.is_active ? "Active" : "Inactive"}
                         </span>
@@ -539,7 +534,7 @@ const LeaveSettings = () => {
                                   {calculateQuarterTotalDays(quarter)} days
                                 </span>
                               </div>
-                              
+
                               {/* Leave Types in Quarter */}
                               {quarter.leave_types && quarter.leave_types.length > 0 && (
                                 <div className="mt-2 space-y-1">
@@ -606,26 +601,23 @@ const LeaveSettings = () => {
                   <button
                     type="button"
                     onClick={() => handleEmployeeTypeChange("probation")}
-                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                      formData.employee_type === "probation"
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${formData.employee_type === "probation"
                         ? "border-orange-500 bg-orange-50"
                         : "border-gray-200 hover:border-gray-300"
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Users
-                        className={`h-8 w-8 ${
-                          formData.employee_type === "probation"
+                        className={`h-8 w-8 ${formData.employee_type === "probation"
                             ? "text-orange-600"
                             : "text-gray-400"
-                        }`}
+                          }`}
                       />
                       <span
-                        className={`font-medium ${
-                          formData.employee_type === "probation"
+                        className={`font-medium ${formData.employee_type === "probation"
                             ? "text-orange-700"
                             : "text-gray-600"
-                        }`}
+                          }`}
                       >
                         Probation
                       </span>
@@ -634,26 +626,23 @@ const LeaveSettings = () => {
                   <button
                     type="button"
                     onClick={() => handleEmployeeTypeChange("permanent")}
-                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                      formData.employee_type === "permanent"
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${formData.employee_type === "permanent"
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Users
-                        className={`h-8 w-8 ${
-                          formData.employee_type === "permanent"
+                        className={`h-8 w-8 ${formData.employee_type === "permanent"
                             ? "text-blue-600"
                             : "text-gray-400"
-                        }`}
+                          }`}
                       />
                       <span
-                        className={`font-medium ${
-                          formData.employee_type === "permanent"
+                        className={`font-medium ${formData.employee_type === "permanent"
                             ? "text-blue-700"
                             : "text-gray-600"
-                        }`}
+                          }`}
                       >
                         Permanent
                       </span>
@@ -715,11 +704,10 @@ const LeaveSettings = () => {
                       {formData.quarters.map((quarter, index) => (
                         <div
                           key={index}
-                          className={`p-4 rounded-lg border ${
-                            validationErrors[`quarter_${index}`]
+                          className={`p-4 rounded-lg border ${validationErrors[`quarter_${index}`]
                               ? "border-red-300 bg-red-50"
                               : "border-gray-200 bg-gray-50"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between mb-4">
                             <span className="text-gray-900 font-semibold">
@@ -741,11 +729,10 @@ const LeaveSettings = () => {
                                 onChange={(e) =>
                                   handleQuarterMonthChange(index, "start_month", e.target.value)
                                 }
-                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
-                                  validationErrors[`quarter_${index}`]
+                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${validationErrors[`quarter_${index}`]
                                     ? "border-red-300"
                                     : "border-gray-300"
-                                }`}
+                                  }`}
                               >
                                 <option value="">Select month</option>
                                 {MONTHS.map((month) => (
@@ -764,11 +751,10 @@ const LeaveSettings = () => {
                                 onChange={(e) =>
                                   handleQuarterMonthChange(index, "end_month", e.target.value)
                                 }
-                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
-                                  validationErrors[`quarter_${index}`]
+                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${validationErrors[`quarter_${index}`]
                                     ? "border-red-300"
                                     : "border-gray-300"
-                                }`}
+                                  }`}
                               >
                                 <option value="">Select month</option>
                                 {MONTHS.map((month) => (

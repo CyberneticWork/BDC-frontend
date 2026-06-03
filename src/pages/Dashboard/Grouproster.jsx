@@ -715,34 +715,36 @@ const RosterManagementSystem = () => {
 
           {/* Assign Mode */}
           <div className="p-4 border-b border-gray-300">
-            <div className="flex space-x-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name="wise"
-                  id="employee"
-                  checked={assignMode === "employee"}
-                  onChange={() => setAssignMode("employee")}
-                  className="w-3 h-3 text-blue-600"
-                />
-                <label htmlFor="employee" className="text-xs font-medium text-gray-700">
-                  Employee Wise
-                </label>
+            {!isCompanyWise && (
+              <div className="flex space-x-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    name="wise"
+                    id="employee"
+                    checked={assignMode === "employee"}
+                    onChange={() => setAssignMode("employee")}
+                    className="w-3 h-3 text-blue-600"
+                  />
+                  <label htmlFor="employee" className="text-xs font-medium text-gray-700">
+                    Employee Wise
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    name="wise"
+                    id="designation"
+                    checked={assignMode === "designation"}
+                    onChange={() => setAssignMode("designation")}
+                    className="w-3 h-3 text-blue-600"
+                  />
+                  <label htmlFor="designation" className="text-xs font-medium text-gray-700">
+                    Designation Wise
+                  </label>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name="wise"
-                  id="designation"
-                  checked={assignMode === "designation"}
-                  onChange={() => setAssignMode("designation")}
-                  className="w-3 h-3 text-blue-600"
-                />
-                <label htmlFor="designation" className="text-xs font-medium text-gray-700">
-                  Designation Wise
-                </label>
-              </div>
-            </div>
+            )}
             <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="flex items-center space-x-2">
                 <input

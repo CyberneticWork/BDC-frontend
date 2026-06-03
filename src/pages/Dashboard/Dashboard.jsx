@@ -133,7 +133,7 @@ import AbsentReport from "../Reports/TimeCard/AbsentReport";
 
 import AllowancessPaymentFull from "../Dashboard/Allowancess_payment_full";
 
-import DinnerAllowance from "@dashboard/DinnerAllowance"; 
+import DinnerAllowance from "@dashboard/DinnerAllowance";
 
 
 import MidShiftBreaks from "@dashboard/MidShiftBreaks";
@@ -227,11 +227,10 @@ const DashboardStats = () => {
                 {stat.value}
               </p>
               <p
-                className={`text-sm mt-3 font-semibold ${
-                  stat.change.startsWith("+")
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
+                className={`text-sm mt-3 font-semibold ${stat.change.startsWith("+")
+                  ? "text-green-600"
+                  : "text-red-600"
+                  }`}
               >
                 {stat.change} from last month
               </p>
@@ -821,20 +820,20 @@ const Dashboard = ({ user, onLogout }) => {
           </ProtectedComponent>
         );
 
-        case "supervisorLeaveApproval":
+      case "supervisorLeaveApproval":
         return (
           <ProtectedComponent module="supervisorLeaveApproval" action="view">
             <SupervisorLeaveApproval />
           </ProtectedComponent>
         );
 
-        // renderContent case :
-case "midShiftBreaks":
-   return (
-      <ProtectedComponent module="midShiftBreaks" action="view">
-         <MidShiftBreaks />
-      </ProtectedComponent>
-   );
+      // renderContent case :
+      case "midShiftBreaks":
+        return (
+          <ProtectedComponent module="midShiftBreaks" action="view">
+            <MidShiftBreaks />
+          </ProtectedComponent>
+        );
       case "absentReport":
         return (
           <ProtectedComponent module="absentReport" action="view">
@@ -850,19 +849,19 @@ case "midShiftBreaks":
           </ProtectedComponent>
         );
         */}
-        
+
       case "attendanceReport":
-  return (
-    <ProtectedComponent module="attendanceReport" action="view">
-      {user.role === "employee" ? (
-        /* Employee kenek nam eyage report eka witharai */
-        <EmployeeAttendanceReport employeeProfile={employeeProfile} />
-      ) : (
-        /* Admin hari HR hari nam loku report eka witharai */
-        <AttendanceReport employeeProfile={employeeProfile} />
-      )}
-    </ProtectedComponent>
-  );
+        return (
+          <ProtectedComponent module="attendanceReport" action="view">
+            {user.role === "employee" ? (
+              /* Employee kenek nam eyage report eka witharai */
+              <EmployeeAttendanceReport employeeProfile={employeeProfile} />
+            ) : (
+              /* Admin hari HR hari nam loku report eka witharai */
+              <AttendanceReport employeeProfile={employeeProfile} />
+            )}
+          </ProtectedComponent>
+        );
       case "singleEntryReport":
         return (
           <ProtectedComponent module="singleEntryReport" action="view">
@@ -1161,10 +1160,10 @@ case "midShiftBreaks":
           </ProtectedComponent>
         );
 
-        case "allowancesReport": 
+      case "allowancesReport":
         return (
           <ProtectedComponent module="allowancesReport" action="view">
-             <AllowancessPaymentFull />
+            <AllowancessPaymentFull />
           </ProtectedComponent>
         );
 

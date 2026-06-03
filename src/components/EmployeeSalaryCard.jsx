@@ -17,10 +17,10 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   let deductions = [];
   let breakdown = {};
 
-  try { allowances = typeof employee.allowances === 'string' ? JSON.parse(employee.allowances) : (employee.allowances || []); } catch(e) {}
-  try { bonuses = typeof employee.bonuses === 'string' ? JSON.parse(employee.bonuses) : (employee.bonuses || []); } catch(e) {}
-  try { deductions = typeof employee.deductions === 'string' ? JSON.parse(employee.deductions) : (employee.deductions || []); } catch(e) {}
-  try { breakdown = typeof employee.salary_breakdown === 'string' ? JSON.parse(employee.salary_breakdown) : (employee.salary_breakdown || {}); } catch(e) {}
+  try { allowances = typeof employee.allowances === 'string' ? JSON.parse(employee.allowances) : (employee.allowances || []); } catch (e) { }
+  try { bonuses = typeof employee.bonuses === 'string' ? JSON.parse(employee.bonuses) : (employee.bonuses || []); } catch (e) { }
+  try { deductions = typeof employee.deductions === 'string' ? JSON.parse(employee.deductions) : (employee.deductions || []); } catch (e) { }
+  try { breakdown = typeof employee.salary_breakdown === 'string' ? JSON.parse(employee.salary_breakdown) : (employee.salary_breakdown || {}); } catch (e) { }
   // =========================================================================
 
   const totalAllowances = allowances.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0);
@@ -29,21 +29,21 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
 
   const gross = Number(breakdown.gross_salary || 0);
   const net = Number(breakdown.net_salary || 0);
-  
+
   // Late & No-Pay Split
   const fullDayNoPay = Number(breakdown.full_day_nopay_deduction || 0);
-  const saturdayNoPay = Number(breakdown.saturday_nopay_deduction || 0); 
+  const saturdayNoPay = Number(breakdown.saturday_nopay_deduction || 0);
   const earlyOutNoPay = Number(breakdown.early_out_nopay_deduction || 0);
   const majorLateNoPay = Number(breakdown.major_late_deduction || 0);
   const shortLeaveLate = Number(breakdown.short_leave_deduction || 0);
   const halfDayLate = Number(breakdown.half_day_deduction || 0);
-  const totalLatePenalty = shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay; 
+  const totalLatePenalty = shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay;
 
- // Capital 'Basic' 
+  // Capital 'Basic' 
   // Database (employee.loan_deduct_from) 
   const rawLoanTarget = employee.loan_deduct_from || breakdown.loan_deduct_from || 'bonus';
   const loanTarget = String(rawLoanTarget).toLowerCase().trim();
-  
+
   const loanPrincipal = Number(breakdown.loan_principal || breakdown.loan_installment || 0);
   const loanInterest = Number(breakdown.loan_interest || 0);
 
@@ -72,7 +72,7 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
               <span className="text-sm font-bold text-gray-900">
                 {employee.emp_no || employee.employee_no} • {employee.full_name}
               </span>
-              {employee.enable_epf_etf ? (
+              {(employee.compensation && employee.compensation.enable_epf_etf) ? (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">EPF/ETF</span>
               ) : (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-700 border border-gray-100">Non-EPF</span>
@@ -86,11 +86,11 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
             <div className="text-xs text-gray-500 mt-1">
               Basic: <span className="font-semibold text-gray-800">{Number(employee.basic_salary || 0).toLocaleString()}</span>
             </div>
-            
+
             {employee.compensation?.bank_name && (
-                <div className="text-[10px] text-gray-400 mt-1">
-                  Bank: {employee.compensation.bank_name} | Acc: {employee.compensation.bank_account_no}
-                </div>
+              <div className="text-[10px] text-gray-400 mt-1">
+                Bank: {employee.compensation.bank_name} | Acc: {employee.compensation.bank_account_no}
+              </div>
             )}
           </div>
         </div>
@@ -123,13 +123,13 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
         </div>
 
         <div className="mt-4 lg:mt-0 flex items-center justify-end">
-             <button
-                onClick={() => onDownload(employee)}
-                className="flex items-center justify-center gap-2 p-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors shadow-sm"
-                title="Download 4 Payslips"
-             >
-                <Download size={20} strokeWidth={2} />
-             </button>
+          <button
+            onClick={() => onDownload(employee)}
+            className="flex items-center justify-center gap-2 p-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors shadow-sm"
+            title="Download 4 Payslips"
+          >
+            <Download size={20} strokeWidth={2} />
+          </button>
         </div>
       </div>
 
@@ -139,7 +139,7 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
         </summary>
 
         <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          
+
           <div className="rounded-2xl border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-bold text-gray-800">Basic Deductions (EPF & No Pay)</div>
@@ -170,8 +170,8 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
 
               {loanTarget === 'basic' && loanPrincipal > 0 && (
                 <div className="flex justify-between">
-                    <span className="text-gray-600">Loan Installment (Principal)</span>
-                    <span className="font-semibold text-red-600">{loanPrincipal.toLocaleString()}</span>
+                  <span className="text-gray-600">Loan Installment (Principal)</span>
+                  <span className="font-semibold text-red-600">{loanPrincipal.toLocaleString()}</span>
                 </div>
               )}
             </div>
@@ -198,7 +198,7 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
                 <span className="text-gray-600">Early Out No-Pay</span>
                 <span className="font-semibold text-red-600">{earlyOutNoPay.toLocaleString()}</span>
               </div>
-              
+
               {saturdayNoPay > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Saturday No-Pay Deduction</span>
@@ -215,14 +215,14 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
 
               {loanInterest > 0 && (
                 <div className="flex justify-between">
-                    <span className="text-gray-600">Loan Interest</span>
-                    <span className="font-semibold text-red-600">{loanInterest.toLocaleString()}</span>
+                  <span className="text-gray-600">Loan Interest</span>
+                  <span className="font-semibold text-red-600">{loanInterest.toLocaleString()}</span>
                 </div>
               )}
               {loanTarget === 'bonus' && loanPrincipal > 0 && (
                 <div className="flex justify-between">
-                    <span className="text-gray-600">Loan Installment (Principal)</span>
-                    <span className="font-semibold text-red-600">{loanPrincipal.toLocaleString()}</span>
+                  <span className="text-gray-600">Loan Installment (Principal)</span>
+                  <span className="font-semibold text-red-600">{loanPrincipal.toLocaleString()}</span>
                 </div>
               )}
             </div>
