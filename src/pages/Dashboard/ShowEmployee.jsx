@@ -19,11 +19,15 @@ import {
   Trash2,
   DollarSign,
   Edit,
+  Download,
+  FileText,
 } from "lucide-react";
 import { useDebounce } from "@uidotdev/usehooks";
 import { useNavigate } from "react-router-dom";
 import employeeService from "@services/EmployeeDataService";
 import config from "../../config";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const apiUrl = config.apiBaseUrl;
 
@@ -181,6 +185,105 @@ const ShowEmployee = () => {
     return `${age} years old`;
   };
 
+  const mapEmployeeToExportRows = (emp) => [
+    ["Employee No", emp.employee_no || emp.attendance_employee_no || "-"],
+    ["Full Name", emp.full_name || "-"],
+    ["NIC", emp.nic || "-"],
+    ["EPF No", emp.epf_no || emp.epf || "-"],
+    ["Email", emp.email || "-"],
+    ["Mobile", emp.mobile || emp.contact_detail?.mobile_line || "-"],
+    ["Company", emp.company || emp.organization_assignment?.company?.name || "-"],
+    ["Department", emp.department || emp.organization_assignment?.department?.name || "-"],
+    ["Designation", emp.designation || emp.organization_assignment?.designation?.name || "-"],
+    ["Employment Type", emp.employment_type || emp.employmentType?.name || "-"],
+    ["Basic Salary", emp.basic_salary ?? emp.compensation?.basic_salary ?? "-"],
+    ["Monthly Bonus", emp.monthly_bonus ?? emp.compensation?.monthly_bonus ?? "-"],
+    ["Sports Fund %", emp.sports_fund_percentage ?? emp.compensation?.sports_fund_percentage ?? "-"],
+    ["Staff Fund", emp.staff_fund_amount ?? emp.compensation?.staff_fund_amount ?? "-"],
+    ["Bank", emp.bank_name || emp.compensation?.bank_name || "-"],
+    ["Account No", emp.bank_account_no || emp.compensation?.bank_account_no || "-"],
+    ["Status", emp.status || (emp.is_active ? "Active" : "Inactive")],
+  ];
+
+  const exportEmployeeCSV = (rows, filename) => {
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const exportEmployeePDF = (rows, title, filename) => {
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text(title, 14, 18);
+    autoTable(doc, {
+      startY: 24,
+      head: [["Field", "Value"]],
+      body: rows,
+      theme: "grid",
+      headStyles: { fillColor: [37, 99, 235] },
+    });
+    doc.save(filename);
+  };
+
+  const handleExportAllCSV = async () => {
+    try {
+      const res = await employeeService.exportEmployees();
+      const list = res.data || [];
+      const headers = ["Employee No", "Full Name", "NIC", "Company", "Department", "Basic Salary", "Monthly Bonus", "Status"];
+      const lines = [headers.join(",")];
+      list.forEach((e) => {
+        lines.push([
+          e.employee_no, e.full_name, e.nic, e.company, e.department,
+          e.basic_salary, e.monthly_bonus, e.status,
+        ].map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","));
+      });
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `employees_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleExportAllPDF = async () => {
+    try {
+      const res = await employeeService.exportEmployees();
+      const list = res.data || [];
+      const doc = new jsPDF("landscape");
+      doc.text("Employee Export", 14, 14);
+      autoTable(doc, {
+        startY: 20,
+        head: [["Emp No", "Name", "NIC", "Company", "Department", "Basic Salary", "Monthly Bonus", "Status"]],
+        body: list.map((e) => [
+          e.employee_no, e.full_name, e.nic, e.company, e.department,
+          e.basic_salary, e.monthly_bonus, e.status,
+        ]),
+      });
+      doc.save(`employees_export_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleExportSingleCSV = async (employee) => {
+    const data = await employeeService.fetchEmployeeById(employee);
+    const rows = mapEmployeeToExportRows(data);
+    exportEmployeeCSV([["Field", "Value"], ...rows], `employee_${data.attendance_employee_no || data.id}.csv`);
+  };
+
+  const handleExportSinglePDF = async (employee) => {
+    const data = await employeeService.fetchEmployeeById(employee);
+    const rows = mapEmployeeToExportRows(data);
+    exportEmployeePDF(rows, `Employee Profile - ${data.full_name}`, `employee_${data.attendance_employee_no || data.id}.pdf`);
+  };
+
   const totalPages = Math.ceil(totalItems / perPage);
   const visiblePages = 5;
   let startPage = Math.max(1, currentPage - Math.floor(visiblePages / 2));
@@ -220,32 +323,46 @@ const ShowEmployee = () => {
                 Manage and view employee information
               </p>
             </div>
-            <div className="relative w-full md:w-64">
-              <input
-                type="text"
-                placeholder="Search employees..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <button
+                onClick={handleExportAllCSV}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <Download size={16} /> Export All CSV
+              </button>
+              <button
+                onClick={handleExportAllPDF}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                <FileText size={16} /> Export All PDF
+              </button>
+              <div className="relative w-full md:w-64">
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
@@ -537,9 +654,23 @@ const ShowEmployee = () => {
                       </p>
                     </div>
                   </div>
-                  <button onClick={closeModal} className="text-white hover:text-gray-200 transition-colors p-2">
-                    <X className="h-6 w-6" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleExportSingleCSV(selectedEmployee.id)}
+                      className="px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded-lg text-sm flex items-center gap-1"
+                    >
+                      <Download size={14} /> CSV
+                    </button>
+                    <button
+                      onClick={() => handleExportSinglePDF(selectedEmployee.id)}
+                      className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm flex items-center gap-1"
+                    >
+                      <FileText size={14} /> PDF
+                    </button>
+                    <button onClick={closeModal} className="text-white hover:text-gray-200 transition-colors p-2">
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -981,11 +1112,15 @@ import {
   Trash2,
   DollarSign,
   Edit,
+  Download,
+  FileText,
 } from "lucide-react";
 import { useDebounce } from "@uidotdev/usehooks";
 import { useNavigate } from "react-router-dom";
 import employeeService from "@services/EmployeeDataService";
 import config from "../../config";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const apiUrl = config.apiBaseUrl;
 

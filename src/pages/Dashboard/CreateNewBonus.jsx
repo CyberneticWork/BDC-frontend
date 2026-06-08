@@ -62,6 +62,8 @@ const CreateNewBonus = () => {
     fixed_date: "",
     variable_from: "",
     variable_to: "",
+    is_annual: false,
+    payment_months: [],
   });
 
   const [newBonus, setNewBonus] = useState({
@@ -75,6 +77,8 @@ const CreateNewBonus = () => {
     fixed_date: getToday(),
     variable_from: "",
     variable_to: "",
+    is_annual: true,
+    payment_months: [],
   });
 
   const [formErrors, setFormErrors] = useState({
@@ -85,6 +89,20 @@ const CreateNewBonus = () => {
   // Constants
   const statuses = ["active", "inactive"];
   const bonusTypes = ["fixed", "variable"];
+  const monthOptions = [
+    { value: 1, label: "January" }, { value: 2, label: "February" }, { value: 3, label: "March" },
+    { value: 4, label: "April" }, { value: 5, label: "May" }, { value: 6, label: "June" },
+    { value: 7, label: "July" }, { value: 8, label: "August" }, { value: 9, label: "September" },
+    { value: 10, label: "October" }, { value: 11, label: "November" }, { value: 12, label: "December" },
+  ];
+
+  const togglePaymentMonth = (formSetter, current, monthValue) => {
+    const months = current.payment_months || [];
+    const next = months.includes(monthValue)
+      ? months.filter((m) => m !== monthValue)
+      : [...months, monthValue];
+    formSetter((prev) => ({ ...prev, payment_months: next.sort((a, b) => a - b) }));
+  };
 
   // Helper function to format dates for input fields
   const formatDateForInput = (dateString) => {
@@ -295,6 +313,9 @@ const CreateNewBonus = () => {
       if (!newBonus.bonus_code.trim()) errors.bonus_code = ["Bonus code is required"];
       if (!newBonus.bonus_name.trim()) errors.bonus_name = ["Bonus name is required"];
       if (!newBonus.company_id) errors.company_id = ["Company is required"];
+      if (newBonus.is_annual && (!newBonus.payment_months || newBonus.payment_months.length === 0)) {
+        errors.payment_months = ["Select at least one payment month for annual bonus"];
+      }
 
       // Amount Validation
       if (newBonus.amount === "" || isNaN(newBonus.amount) || Number(newBonus.amount) < 0) {
@@ -916,7 +937,7 @@ const CreateNewBonus = () => {
                   onChange={(e) => handleInputChange("amount", e.target.value)}
                   className={`w-full px-4 py-3 border ${formErrors.add.amount ? "border-red-500" : "border-gray-200"
                     } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus-border-transparent transition-all`}
-                  placeholder="Enter bonus amount"
+                  placeholder="Enter annual bonus amount (employee-wise override in salary process)"
                 />
                 {formErrors.add.amount && (
                   <p className="mt-1 text-sm text-red-600">
@@ -924,6 +945,36 @@ const CreateNewBonus = () => {
                   </p>
                 )}
               </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="new-is-annual"
+                  checked={!!newBonus.is_annual}
+                  onChange={(e) => handleInputChange("is_annual", e.target.checked)}
+                />
+                <label htmlFor="new-is-annual" className="text-sm font-semibold text-gray-700">
+                  Annual Bonus (paid in selected months only)
+                </label>
+              </div>
+
+              {newBonus.is_annual && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Months *</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {monthOptions.map((m) => (
+                      <label key={m.value} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={(newBonus.payment_months || []).includes(m.value)}
+                          onChange={() => togglePaymentMonth(setNewBonus, newBonus, m.value)}
+                        />
+                        {m.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">

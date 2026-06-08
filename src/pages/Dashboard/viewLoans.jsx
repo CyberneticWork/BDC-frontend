@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { fetchLoans, updateLoan } from "@services/LoanService";
+import { fetchLoans, updateLoan, fetchLoanReport } from "@services/LoanService";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import Swal from "sweetalert2";
 import {
   Search,
@@ -87,14 +89,15 @@ const ViewLoans = () => {
       const term = searchTerm.toLowerCase();
       // Backend එකෙන් එන employee object එකෙන් අංකය ලබා ගැනීම
       const empNo = loan.employee?.attendance_employee_no?.toLowerCase() || "";
+      const empName = loan.employee?.full_name?.toLowerCase() || "";
       const loanId = loan.loan_id?.toLowerCase() || "";
 
       if (searchFilter === "all") {
-        return loanId.includes(term) || empNo.includes(term);
+        return loanId.includes(term) || empNo.includes(term) || empName.includes(term);
       } else if (searchFilter === "loan_id") {
         return loanId.includes(term);
       } else if (searchFilter === "employee_id") {
-        return empNo.includes(term);
+        return empNo.includes(term) || empName.includes(term);
       }
       return true;
     });
@@ -106,14 +109,74 @@ const ViewLoans = () => {
     setShowDetails(loan);
   };
 
+  const exportDetailedReport = async (employeeNo = null) => {
+    try {
+      const reportData = await fetchLoanReport(employeeNo);
+      if (!reportData.length) return;
+
+      const headers = [
+        "Loan ID", "Employee No", "Employee Name", "Loan Amount", "Interest Rate %",
+        "Installment", "Monthly Interest", "Principal Total", "Interest Total", "Deduct From", "Status",
+      ];
+      const csvData = reportData.map((r) => [
+        r.loan_id,
+        r.employee_no,
+        r.employee_name,
+        r.loan_amount,
+        r.interest_rate_per_annum,
+        r.installment_amount,
+        r.monthly_interest_deduction,
+        r.total_principal_payable,
+        r.total_interest_payable,
+        r.deduct_from,
+        r.status,
+      ]);
+
+      const csvContent = [headers, ...csvData].map((row) => row.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", employeeNo ? `loan_report_${employeeNo}.csv` : `loan_detailed_report_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Export Failed", text: err.message });
+    }
+  };
+
+  const exportDetailedPDF = async (employeeNo = null) => {
+    try {
+      const reportData = await fetchLoanReport(employeeNo);
+      if (!reportData.length) return;
+
+      const doc = new jsPDF("landscape");
+      doc.text(employeeNo ? `Loan Report - ${employeeNo}` : "Loan Detailed Report", 14, 14);
+      autoTable(doc, {
+        startY: 20,
+        head: [["Loan ID", "Emp No", "Name", "Amount", "Rate%", "Installment", "Mth Interest", "Principal", "Interest", "From", "Status"]],
+        body: reportData.map((r) => [
+          r.loan_id, r.employee_no, r.employee_name, r.loan_amount, r.interest_rate_per_annum,
+          r.installment_amount, r.monthly_interest_deduction, r.total_principal_payable,
+          r.total_interest_payable, r.deduct_from, r.status,
+        ]),
+      });
+      doc.save(employeeNo ? `loan_report_${employeeNo}.pdf` : `loan_detailed_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Export Failed", text: err.message });
+    }
+  };
+
   // Export CSV updated
   const exportToCSV = () => {
     if (filteredLoans.length === 0) return;
 
-    const headers = ["Loan ID", "Employee No", "Amount", "Interest Rate", "Installment", "Start Date", "With Interest"];
+    const headers = ["Loan ID", "Employee No", "Employee Name", "Amount", "Interest Rate", "Installment", "Start Date", "With Interest"];
     const csvData = filteredLoans.map((loan) => [
       loan.loan_id,
       loan.employee?.attendance_employee_no || "N/A",
+      loan.employee?.full_name || "N/A",
       loan.loan_amount,
       loan.interest_rate_per_annum + "%",
       loan.installment_amount,
@@ -221,7 +284,9 @@ const ViewLoans = () => {
                     <option value="employee_id">Employee No</option>
                   </select>
                   <button onClick={resetFilters} className="px-4 py-3 bg-gray-100 rounded-xl">Reset</button>
-                  <button onClick={exportToCSV} className="p-3 bg-green-600 text-white rounded-xl"><Download size={20}/></button>
+                  <button onClick={exportToCSV} className="p-3 bg-green-600 text-white rounded-xl" title="Quick CSV"><Download size={20}/></button>
+                  <button onClick={() => exportDetailedReport()} className="px-3 py-3 bg-indigo-600 text-white rounded-xl text-sm">Full Report CSV</button>
+                  <button onClick={() => exportDetailedPDF()} className="px-3 py-3 bg-red-600 text-white rounded-xl text-sm">Full Report PDF</button>
                 </div>
               </div>
             </div>
@@ -235,6 +300,7 @@ const ViewLoans = () => {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Loan ID</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Employee No</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Employee Name</th>
                     <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Amount</th>
                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Interest</th>
                     <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Installment</th>
@@ -250,6 +316,7 @@ const ViewLoans = () => {
                           {loan.employee?.attendance_employee_no || "N/A"}
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-sm text-gray-800">{loan.employee?.full_name || "N/A"}</td>
                       <td className="px-6 py-4 text-right text-sm font-mono">{formatCurrency(loan.loan_amount)}</td>
                       <td className="px-6 py-4 text-center text-sm">{loan.interest_rate_per_annum}%</td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-green-600">{formatCurrency(loan.installment_amount)}</td>

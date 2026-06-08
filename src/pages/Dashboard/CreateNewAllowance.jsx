@@ -58,7 +58,7 @@ const CreateNewAllowance = () => {
     company_id: "",
     amount: "",
     department_id: "",
-    // category removed
+    category: "monthly_bonus",
     status: "active",
     allowance_type: "fixed",
     fixed_date: "",
@@ -72,7 +72,7 @@ const CreateNewAllowance = () => {
     company_id: "",
     department_id: "",
     amount: "",
-    // category removed
+    category: "monthly_bonus",
     status: "active",
     allowance_type: "fixed",
     fixed_date: getToday(),

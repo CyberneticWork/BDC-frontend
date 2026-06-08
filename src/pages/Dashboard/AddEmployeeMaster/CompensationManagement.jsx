@@ -131,6 +131,41 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                       </div>
                       <FieldError error={errors.compensation?.basicSalary} />
                     </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Bonus (part of total salary)</label>
+                      <input
+                        type="text"
+                        value={formData.compensation.monthlyBonus || ""}
+                        onChange={(e) => handleInputChange("monthlyBonus", e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        placeholder="Employee-wise monthly bonus amount"
+                      />
+                    </div>
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Sports Fund (%)</label>
+                        <input
+                          type="text"
+                          value={formData.compensation.sportsFundPercentage || ""}
+                          onChange={(e) => handleInputChange("sportsFundPercentage", e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                          placeholder="e.g. 2.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Staff Fund (amount)</label>
+                        <input
+                          type="text"
+                          value={formData.compensation.staffFundAmount || ""}
+                          onChange={(e) => handleInputChange("staffFundAmount", e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                          placeholder="Deducted from monthly bonus"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

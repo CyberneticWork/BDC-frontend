@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   getAttendanceRecords,
   getMonthlyAttendanceRecords,
+  getDateRangeAttendanceRecords,
   updateAttendanceApprovalStatus,
 } from "@services/Reports/AttendanceReportService";
 import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService"; //  import 
@@ -24,6 +25,8 @@ import DatePickerInput from "@components/DatePickerInput";
 const AttendanceReport = ({ employeeProfile }) => {
   const [reportType, setReportType] = useState("month");
   const [date, setDate] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [employeeCategory, setEmployeeCategory] = useState("");
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -219,6 +222,10 @@ const AttendanceReport = ({ employeeProfile }) => {
       Swal.fire({ icon: "warning", title: "Month Required", text: "Please select a month to generate the report", confirmButtonColor: "#3b82f6" });
       return;
     }
+    if (reportType === "range" && (!fromDate || !toDate)) {
+      Swal.fire({ icon: "warning", title: "Date Range Required", text: "Please select from and to dates", confirmButtonColor: "#3b82f6" });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -235,6 +242,8 @@ const AttendanceReport = ({ employeeProfile }) => {
 
       const res = reportType === "date"
         ? await getAttendanceRecords({ ...apiParams, date })
+        : reportType === "range"
+        ? await getDateRangeAttendanceRecords({ ...apiParams, from_date: fromDate, to_date: toDate })
         : await getMonthlyAttendanceRecords({ ...apiParams, month });
 
       setData(res.data || []);
@@ -599,6 +608,7 @@ const AttendanceReport = ({ employeeProfile }) => {
             >
               <option value="date">By Date</option>
               <option value="month">By Month</option>
+              <option value="range">By Date Range</option>
             </select>
           </div>
 
@@ -611,6 +621,28 @@ const AttendanceReport = ({ employeeProfile }) => {
                 max={getTodayDate()}
                 className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
               />
+            </div>
+          ) : reportType === "range" ? (
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">From Date</label>
+                <DatePickerInput
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  max={toDate || getTodayDate()}
+                  className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">To Date</label>
+                <DatePickerInput
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  min={fromDate}
+                  max={getTodayDate()}
+                  className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
+                />
+              </div>
             </div>
           ) : (
             <div>
@@ -938,6 +970,7 @@ import React, { useState } from "react";
 import {
   getAttendanceRecords,
   getMonthlyAttendanceRecords,
+  getDateRangeAttendanceRecords,
   updateAttendanceApprovalStatus,
 } from "@services/Reports/AttendanceReportService";
 import {

@@ -26,6 +26,30 @@ export async function getAttendanceRecords({
   return res.data;
 }
 
+export async function getDateRangeAttendanceRecords({
+  from_date,
+  to_date,
+  page = 1,
+  per_page = 15,
+  search = "",
+  company_id = "",
+  department_id = "",
+  employee_category = "",
+  holiday_worked = false,
+} = {}) {
+  if (!from_date || !to_date) throw new Error("from_date and to_date are required");
+
+  const params = { from_date, to_date, page, per_page };
+  if (search) params.search = search;
+  if (company_id) params.company_id = company_id;
+  if (department_id) params.department_id = department_id;
+  if (employee_category) params.employee_category = employee_category;
+  if (holiday_worked) params.holiday_worked = holiday_worked ? 1 : 0;
+
+  const res = await axios.get("/reports/time-cards/attendance/range", { params });
+  return res.data;
+}
+
 export async function getMonthlyAttendanceRecords({
   month,
   page = 1,

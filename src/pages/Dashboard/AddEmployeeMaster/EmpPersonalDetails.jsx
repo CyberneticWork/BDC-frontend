@@ -354,6 +354,9 @@ const EmpPersonalDetails = ({ onNext }) => {
         },
         compensation: {
           basicSalary: apiData.compensation?.basic_salary,
+          monthlyBonus: apiData.compensation?.monthly_bonus,
+          sportsFundPercentage: apiData.compensation?.sports_fund_percentage,
+          staffFundAmount: apiData.compensation?.staff_fund_amount,
           incrementValue: apiData.compensation?.increment_value,
           incrementEffectiveFrom:
             apiData.compensation?.increment_effective_from,

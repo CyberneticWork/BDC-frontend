@@ -283,7 +283,9 @@ const SalaryProcessPage = () => {
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
       { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
-      { label: "Loan Interest", amount: loanInterest }, 
+      { label: "Loan Interest", amount: loanInterest },
+      { label: "Sports Fund", amount: Number(breakdown.sports_fund_deduction || 0) },
+      { label: "Staff Fund", amount: Number(breakdown.staff_fund_deduction || 0) },
       ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
       ...customDeductionsList 
     ].filter((item) => item.amount > 0);
@@ -298,7 +300,9 @@ const SalaryProcessPage = () => {
       
       { label: "Saturday No-Pay Deduction", amount: Number(breakdown.saturday_nopay_deduction || 0) },
       // --------------------------------------------------------
-      { label: "Loan Interest", amount: loanInterest }, 
+      { label: "Loan Interest", amount: loanInterest },
+      { label: "Sports Fund", amount: Number(breakdown.sports_fund_deduction || 0) },
+      { label: "Staff Fund", amount: Number(breakdown.staff_fund_deduction || 0) },
       ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
       ...customDeductionsList 
     ].filter((item) => item.amount > 0);

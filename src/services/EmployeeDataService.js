@@ -214,6 +214,17 @@ const employeeService = {
       return [];
     }
   },
+
+  async exportEmployees(employeeId = null) {
+    try {
+      const params = employeeId ? { employee_id: employeeId } : {};
+      const response = await axios.get("/employees/export/data", { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error exporting employees:", error);
+      throw error;
+    }
+  },
 };
 
 export default employeeService;
