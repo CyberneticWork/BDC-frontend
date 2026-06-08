@@ -85,7 +85,7 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
       'address.province': formData.address.province,
       'address.emergencyContact.relationship': formData.address.emergencyContact.relationship,
       'address.emergencyContact.contactName': formData.address.emergencyContact.contactName,
-      'address.emergencyContact.contactAddress': formData.address.emergencyContact.contactAddress,
+      // 'address.emergencyContact.contactAddress': formData.address.emergencyContact.contactAddress,
       'address.emergencyContact.contactTel': formData.address.emergencyContact.contactTel,
       'compensation.basicSalary': formData.compensation.basicSalary,
       'organization.company': formData.organization.company,
@@ -103,6 +103,7 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
         title: 'Missing Required Fields',
         text: 'Please fill all required fields before submitting.',
       });
+      console.log(missingFields);
       return;
     }
 

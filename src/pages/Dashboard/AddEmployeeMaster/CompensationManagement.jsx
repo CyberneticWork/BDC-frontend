@@ -122,8 +122,8 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                           }
                           onKeyDown={handleKeyDown}
                           className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.basicSalary
-                              ? "border-red-500"
-                              : "border-gray-300"
+                            ? "border-red-500"
+                            : "border-gray-300"
                             } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                           placeholder="Enter basic salary"
                           required
@@ -787,7 +787,8 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Bank Code <span className="text-red-500">*</span>
+                            Bank Code
+                            {/* <span className="text-red-500">*</span> */}
                           </label>
                           <input
                             type="text"
@@ -807,7 +808,8 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Branch Code <span className="text-red-500">*</span>
+                            Branch Code
+                            {/* <span className="text-red-500">*</span> */}
                           </label>
                           <input
                             type="text"
@@ -953,7 +955,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
               */}
 
               {/* Primary Employment Basic */}
-              <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200 overflow-hidden">
+              {/* <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => toggleSection('primary')}
@@ -998,7 +1000,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                     </div>
                   </div>
                 )}
-              </div>
+              </div> */}
 
               {/* Comments */}
               <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200 overflow-hidden">

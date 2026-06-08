@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MapPin,
   Phone,
@@ -8,10 +8,13 @@ import {
   Globe,
   Shield,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import ErrorDisplay from "@components/ErrorMessage/ErrorDisplay";
 import FieldError from "@components/ErrorMessage/FieldError";
+import config from "../../../config";
+import { toast } from "react-toastify";
 
 const provinceData = {
   Provinces: [
@@ -121,6 +124,224 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
     return selectedProvince ? selectedProvince.districts : [];
   };
 
+  /**
+   * Handles dynamically loaded elements in a selector.
+   */
+  const EmergencyRelationshipTypesSelector = () => {
+    const [isLoading, setIsLoading] = useState(false);
+    const [addFormVisible, setAddFormVisible] = useState(false);
+    const [types, setTypes] = useState([]);
+
+    useEffect(() => {
+      fetchTypes();
+    }, []);
+
+    const fetchTypes = useCallback(async () => {
+      const apiUrl = `${config.apiBaseUrl}/api/emergency-contact-relationship-types`;
+
+      setIsLoading(true);
+      try {
+        const res = await fetch(apiUrl, {
+          headers: { "Content-Type": "application/json" }
+        });
+
+        if (!res.ok) {
+          console.log("Failed to fetch emergency contact relationship types.");
+          toast.error("Failed to fetch emergency contact relationship types.");
+          return;
+        }
+
+        const data = await res.json();
+        setTypes(data);
+      } catch (err) {
+        console.error(err);
+        toast.error(err instanceof Error ? err.message : "Something went wrong!");
+      } finally {
+        setIsLoading(false);
+      }
+    }, []);
+
+    const handleChange = useCallback((e) => {
+      const { value } = e.target;
+
+      if (value === "add-new") {
+        setAddFormVisible(true);
+        return;
+      }
+
+      handleEmergencyContactChange(e);
+    }, []);
+
+    const AddNewRelationshipTypeForm = () => {
+      const [description, setDescription] = useState("");
+      const [descriptionError, setDescriptionError] = useState("");
+      const [isSubmitting, setIsSubmitting] = useState(false);
+
+      const updateEmergencyContact = useCallback(() => {
+        if (errors.address?.emergencyContact?.relationship) {
+          clearFieldError("address", `emergencyContact.relationship`);
+        }
+
+        updateFormData("address", {
+          emergencyContact: {
+            ...formData.address.emergencyContact,
+            relationship: description,
+          },
+        });
+      }, []);
+
+      const handleSubmit = useCallback(async () => {
+        const url = `${config.apiBaseUrl}/api/emergency-contact-relationship-types`;
+
+        if (description.length < 1) {
+          setDescriptionError("Description/Title cannot be empty!");
+          return;
+        }
+
+        setIsSubmitting(true);
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              description: description
+            })
+          });
+          if (!res.ok) {
+            console.error("Failed to create new relationship type.");
+            toast.error("Failed to create new relationship type.");
+          }
+          setDescription("");
+          setDescriptionError("");
+
+          updateEmergencyContact();
+
+          console.log(res);
+          toast.success("New relationship type created successfully.");
+        } catch (err) {
+          console.error(err);
+          toast.error(err instanceof Error ? err.message : "Something went wrong!");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }, []);
+
+      return (
+        <div className="fixed inset-0 backdrop-blur-md bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Add New Relationship
+              </h3>
+              <button
+                onClick={() => setAddFormVisible(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Relationship Description/Title
+                </label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) =>
+                    setDescription(e.target.value)
+                  }
+                  placeholder="Enter relationship description/title"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              {descriptionError && (
+                <p className="text-red-500 text-sm">
+                  {descriptionError}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setAddFormVisible(false);
+                    setDescription("");
+                    setDescriptionError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                {isSubmitting ? (
+                  <button
+                    disabled
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md flex items-center justify-center gap-2 cursor-not-allowed opacity-80"
+                  >
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Adding...</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!description.trim()}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Submit
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Relationship <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-10 border border-gray-300 rounded-md bg-gray-100">
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-purple-500"></div>
+              </div>
+            ) : (
+              <select
+                name="relationship"
+                value={formData.address.emergencyContact.relationship}
+                // onChange={handleEmergencyContactChange}
+                onChange={handleChange}
+                className={`w-full border ${errors.address?.emergencyContact?.relationship
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
+              >
+                <option value="">Select Relationship</option>
+                {(types && types.length > 1) && types.map((type) => (
+                  <option key={type.id} value={type.description}>{type.description}</option>
+                ))}
+                <option
+                  value="add-new"
+                  className={"text-blue-500 font-medium"}>
+                  + Add
+                </option>
+              </select>
+            )}
+          </div>
+          <FieldError
+            error={errors.address?.emergencyContact?.relationship}
+          />
+        </div>
+        {addFormVisible && <AddNewRelationshipTypeForm />}
+      </>
+    );
+  };
+
   return (
     <div
       id="address"
@@ -155,11 +376,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.permanentAddress}
                     onChange={handleChange}
                     rows="3"
-                    className={`w-full border ${
-                      errors.address?.permanentAddress
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
+                    className={`w-full border ${errors.address?.permanentAddress
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
                     placeholder="Enter permanent address"
                   />
                   <FieldError error={errors.address?.permanentAddress} />
@@ -174,11 +394,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.temporaryAddress}
                     onChange={handleChange}
                     rows="3"
-                    className={`w-full border ${
-                      errors.address?.temporaryAddress
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
+                    className={`w-full border ${errors.address?.temporaryAddress
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
                     placeholder="Enter temporary address"
                   />
                   <FieldError error={errors.address?.temporaryAddress} />
@@ -222,11 +441,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                       type="email"
                       value={formData.address.email}
                       onChange={handleChange}
-                      className={`w-full border ${
-                        errors.address?.email
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      className={`w-full border ${errors.address?.email
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                       placeholder="Enter email address"
                     />
                   </div>
@@ -254,11 +472,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                           },
                         });
                       }}
-                      className={`w-full border ${
-                        errors.address?.landLine
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      className={`w-full border ${errors.address?.landLine
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                       placeholder="Enter land line number"
                     />
                   </div>
@@ -292,11 +509,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                           },
                         });
                       }}
-                      className={`w-full border ${
-                        errors.address?.mobileLine
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      className={`w-full border ${errors.address?.mobileLine
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                       placeholder="Enter mobile number"
                     />
                   </div>
@@ -330,11 +546,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     name="province"
                     value={formData.address.province}
                     onChange={handleChange}
-                    className={`w-full border ${
-                      errors.address?.province
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
+                    className={`w-full border ${errors.address?.province
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
                   >
                     <option value="">Select Province</option>
                     {provinceData.Provinces.map((province, index) => (
@@ -354,11 +569,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     name="electoralDivision"
                     value={formData.address.electoralDivision}
                     onChange={handleChange}
-                    className={`w-full border ${
-                      errors.address?.electoralDivision
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                    className={`w-full border ${errors.address?.electoralDivision
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter electoral division"
                   />
                   <FieldError error={errors.address?.electoralDivision} />
@@ -372,11 +586,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     name="gnDivision"
                     value={formData.address.gnDivision}
                     onChange={handleChange}
-                    className={`w-full border ${
-                      errors.address?.gnDivision
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                    className={`w-full border ${errors.address?.gnDivision
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter GN division"
                   />
                   <FieldError error={errors.address?.gnDivision} />
@@ -390,11 +603,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     name="policeStation"
                     value={formData.address.policeStation}
                     onChange={handleChange}
-                    className={`w-full border ${
-                      errors.address?.policeStation
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                    className={`w-full border ${errors.address?.policeStation
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter police station"
                   />
                   <FieldError error={errors.address?.policeStation} />
@@ -409,15 +621,13 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     value={formData.address.district}
                     onChange={handleChange}
                     disabled={!formData.address.province}
-                    className={`w-full border ${
-                      errors.address?.district
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${
-                      !formData.address.province
+                    className={`w-full border ${errors.address?.district
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white ${!formData.address.province
                         ? "opacity-70 cursor-not-allowed"
                         : ""
-                    }`}
+                      }`}
                   >
                     <option value="">Select District</option>
                     {getDistrictsForProvince().map((district, index) => (
@@ -439,32 +649,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
               </h3>
 
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Relationship <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="relationship"
-                    value={formData.address.emergencyContact.relationship}
-                    onChange={handleEmergencyContactChange}
-                    className={`w-full border ${
-                      errors.address?.emergencyContact?.relationship
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
-                  >
-                    <option value="">Select Relationship</option>
-                    <option value="Spouse">Spouse</option>
-                    <option value="Parent">Parent</option>
-                    <option value="Sibling">Sibling</option>
-                    <option value="Child">Child</option>
-                    <option value="Friend">Friend</option>
-                  </select>
-                  <FieldError
-                    error={errors.address?.emergencyContact?.relationship}
-                    
-                  />
-                </div>
+                {useMemo(() => <EmergencyRelationshipTypesSelector />, [formData.address.emergencyContact.relationship])}
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -474,11 +659,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                     name="contactName"
                     value={formData.address.emergencyContact.contactName}
                     onChange={handleEmergencyContactChange}
-                    className={`w-full border ${
-                      errors.address?.emergencyContact?.contactName
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                    className={`w-full border ${errors.address?.emergencyContact?.contactName
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                     placeholder="Enter contact name"
                   />
                   <FieldError
@@ -488,18 +672,18 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Contact Address <span className="text-red-500">*</span>
+                    Contact Address
+                    {/* <span className="text-red-500">*</span> */}
                   </label>
                   <textarea
                     name="contactAddress"
                     value={formData.address.emergencyContact.contactAddress}
                     onChange={handleEmergencyContactChange}
                     rows="2"
-                    className={`w-full border ${
-                      errors.address?.emergencyContact?.contactAddress
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
+                    className={`w-full border ${errors.address?.emergencyContact?.contactAddress
+                      ? "border-red-500"
+                      : "border-gray-300"
+                      } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none`}
                     placeholder="Enter contact address"
                   />
                   <FieldError
@@ -528,11 +712,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                           },
                         });
                       }}
-                      className={`w-full border ${
-                        errors.address?.emergencyContact?.contactTel
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                      className={`w-full border ${errors.address?.emergencyContact?.contactTel
+                        ? "border-red-500"
+                        : "border-gray-300"
+                        } rounded-lg pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
                       placeholder="Enter contact telephone"
                     />
                   </div>
@@ -541,7 +724,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
                   />
                   {formData.address.emergencyContact.contactTel &&
                     formData.address.emergencyContact.contactTel.length !==
-                      10 && (
+                    10 && (
                       <p className="text-red-500 text-xs mt-1">
                         Contact number must be 10 digits
                       </p>
