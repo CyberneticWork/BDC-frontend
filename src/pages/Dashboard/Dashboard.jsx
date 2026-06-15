@@ -149,6 +149,7 @@ import {
   handleBreakpointChange,
 } from "../../utils/SidebarUtils";
 import { getResponsive } from "../../utils/ResponsiveUtils";
+import AllowanceManagement from "./AllowanceManagement";
 
 ChartJS.register(
   CategoryScale,
@@ -658,7 +659,8 @@ const Dashboard = ({ user, onLogout }) => {
       case "createNewAllowance":
         return (
           <ProtectedComponent module="createNewAllowance" action="view">
-            <CreateNewAllowance />
+            {/* <CreateNewAllowance /> */}
+            <AllowanceManagement />
           </ProtectedComponent>
         );
       case "employeeLoan":

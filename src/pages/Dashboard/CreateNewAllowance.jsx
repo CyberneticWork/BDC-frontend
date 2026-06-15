@@ -625,7 +625,7 @@ const CreateNewAllowance = () => {
         {/* Header Section */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+            {/* <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
                 <div className="p-2 bg-blue-500 rounded-lg">
                   <FileText className="w-6 h-6 text-white" />
@@ -635,7 +635,7 @@ const CreateNewAllowance = () => {
               <p className="text-gray-600 mt-2">
                 Manage and organize employee allowances
               </p>
-            </div>
+            </div> */}
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setIsAddModalOpen(true)}
