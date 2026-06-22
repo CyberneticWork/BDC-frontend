@@ -56,6 +56,9 @@ const initialState = {
   },
   compensation: {
     basicSalary: "",
+    monthlyBonus: "",
+    sportsFundPercentage: "",
+    staffFundAmount: "",
     incrementValue: "",
     incrementEffectiveFrom: "",
     bankName: "",
@@ -331,6 +334,9 @@ export const EmployeeFormProvider = ({ children }) => {
       },
       compensation: {
         basicSalary: employeeData.compensation?.basic_salary || "",
+        monthlyBonus: employeeData.compensation?.monthly_bonus ?? "",
+        sportsFundPercentage: employeeData.compensation?.sports_fund_percentage ?? "",
+        staffFundAmount: employeeData.compensation?.staff_fund_amount ?? "",
         incrementValue: employeeData.compensation?.increment_value || "",
         incrementEffectiveFrom: employeeData.compensation?.increment_effected_date || "",
         bankName: employeeData.compensation?.bank_name || "",

@@ -225,6 +225,22 @@ const employeeService = {
       throw error;
     }
   },
+
+  async fetchEmployeeReport({ employeeId = null, employeeNo = null, companyId = null, departmentId = null, activeOnly = false } = {}) {
+    try {
+      const params = {};
+      if (employeeId) params.employee_id = employeeId;
+      if (employeeNo) params.employee_no = employeeNo;
+      if (companyId) params.company_id = companyId;
+      if (departmentId) params.department_id = departmentId;
+      if (activeOnly) params.active_only = true;
+      const response = await axios.get("/employees/report/export", { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching employee report:", error);
+      throw error;
+    }
+  },
 };
 
 export default employeeService;

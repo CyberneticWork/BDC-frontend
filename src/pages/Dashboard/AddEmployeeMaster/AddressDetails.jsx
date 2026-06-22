@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   MapPin,
   Phone,
@@ -125,219 +125,361 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
   };
 
   /**
-   * Handles dynamically loaded elements in a selector.
+   * Emergency contact relationship types — fetch, add, edit, delete.
    */
   const EmergencyRelationshipTypesSelector = () => {
+    const apiUrl = `${config.apiBaseUrl}/api/emergency-contact-relationship-types`;
     const [isLoading, setIsLoading] = useState(false);
     const [addFormVisible, setAddFormVisible] = useState(false);
+    const [manageVisible, setManageVisible] = useState(false);
     const [types, setTypes] = useState([]);
-
-    useEffect(() => {
-      fetchTypes();
-    }, []);
+    const [editingType, setEditingType] = useState(null);
 
     const fetchTypes = useCallback(async () => {
-      const apiUrl = `${config.apiBaseUrl}/api/emergency-contact-relationship-types`;
-
       setIsLoading(true);
       try {
         const res = await fetch(apiUrl, {
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
         });
 
         if (!res.ok) {
-          console.log("Failed to fetch emergency contact relationship types.");
           toast.error("Failed to fetch emergency contact relationship types.");
           return;
         }
 
         const data = await res.json();
-        setTypes(data);
+        setTypes(Array.isArray(data) ? data : data.data ?? []);
       } catch (err) {
         console.error(err);
         toast.error(err instanceof Error ? err.message : "Something went wrong!");
       } finally {
         setIsLoading(false);
       }
-    }, []);
+    }, [apiUrl]);
 
-    const handleChange = useCallback((e) => {
+    useEffect(() => {
+      fetchTypes();
+    }, [fetchTypes]);
+
+    const selectRelationship = useCallback((value) => {
+      if (errors.address?.emergencyContact?.relationship) {
+        clearFieldError("address", "emergencyContact.relationship");
+      }
+      updateFormData("address", {
+        emergencyContact: {
+          ...formData.address.emergencyContact,
+          relationship: value,
+        },
+      });
+    }, [formData.address.emergencyContact, errors.address?.emergencyContact?.relationship, clearFieldError, updateFormData]);
+
+    const handleSelectChange = useCallback((e) => {
       const { value } = e.target;
-
       if (value === "add-new") {
         setAddFormVisible(true);
         return;
       }
+      selectRelationship(value);
+    }, [selectRelationship]);
 
-      handleEmergencyContactChange(e);
-    }, []);
+    const saveNewType = useCallback(async (description) => {
+      const trimmed = description.trim();
+      if (!trimmed) {
+        throw new Error("Description/Title cannot be empty!");
+      }
 
-    const AddNewRelationshipTypeForm = () => {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: trimmed }),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || "Failed to create new relationship type.");
+      }
+
+      await fetchTypes();
+      selectRelationship(trimmed);
+      return trimmed;
+    }, [apiUrl, fetchTypes, selectRelationship]);
+
+    const updateType = useCallback(async (id, description) => {
+      const trimmed = description.trim();
+      if (!trimmed) {
+        throw new Error("Description/Title cannot be empty!");
+      }
+
+      const res = await fetch(`${apiUrl}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: trimmed }),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || "Failed to update relationship type.");
+      }
+
+      await fetchTypes();
+      if (formData.address.emergencyContact.relationship === editingType?.description) {
+        selectRelationship(trimmed);
+      }
+      return trimmed;
+    }, [apiUrl, fetchTypes, editingType, formData.address.emergencyContact.relationship, selectRelationship]);
+
+    const deleteType = useCallback(async (id, description) => {
+      const res = await fetch(`${apiUrl}/${id}`, { method: "DELETE" });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || "Failed to delete relationship type.");
+      }
+
+      await fetchTypes();
+      if (formData.address.emergencyContact.relationship === description) {
+        selectRelationship("");
+      }
+    }, [apiUrl, fetchTypes, formData.address.emergencyContact.relationship, selectRelationship]);
+
+    const AddNewRelationshipTypeForm = ({ onClose }) => {
       const [description, setDescription] = useState("");
       const [descriptionError, setDescriptionError] = useState("");
       const [isSubmitting, setIsSubmitting] = useState(false);
 
-      const updateEmergencyContact = useCallback(() => {
-        if (errors.address?.emergencyContact?.relationship) {
-          clearFieldError("address", `emergencyContact.relationship`);
-        }
-
-        updateFormData("address", {
-          emergencyContact: {
-            ...formData.address.emergencyContact,
-            relationship: description,
-          },
-        });
-      }, []);
-
-      const handleSubmit = useCallback(async () => {
-        const url = `${config.apiBaseUrl}/api/emergency-contact-relationship-types`;
-
-        if (description.length < 1) {
+      const handleSubmit = async () => {
+        const trimmed = description.trim();
+        if (!trimmed) {
           setDescriptionError("Description/Title cannot be empty!");
           return;
         }
 
         setIsSubmitting(true);
+        setDescriptionError("");
         try {
-          const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              description: description
-            })
-          });
-          if (!res.ok) {
-            console.error("Failed to create new relationship type.");
-            toast.error("Failed to create new relationship type.");
-          }
-          setDescription("");
-          setDescriptionError("");
-
-          updateEmergencyContact();
-
-          console.log(res);
+          await saveNewType(trimmed);
           toast.success("New relationship type created successfully.");
+          onClose();
         } catch (err) {
           console.error(err);
-          toast.error(err instanceof Error ? err.message : "Something went wrong!");
+          const message = err instanceof Error ? err.message : "Something went wrong!";
+          setDescriptionError(message);
+          toast.error(message);
         } finally {
           setIsSubmitting(false);
         }
-      }, []);
+      };
 
       return (
-        <div className="fixed inset-0 backdrop-blur-md bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
-                Add New Relationship
-              </h3>
-              <button
-                onClick={() => setAddFormVisible(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
+              <h3 className="text-lg font-semibold">Add New Relationship</h3>
+              <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
                 <X size={20} />
               </button>
             </div>
-
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Relationship Description/Title
+                  Relationship Description/Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={description}
-                  onChange={(e) =>
-                    setDescription(e.target.value)
-                  }
-                  placeholder="Enter relationship description/title"
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (descriptionError) setDescriptionError("");
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                  placeholder="e.g. Uncle, Guardian"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   autoFocus
                 />
               </div>
-
-              {descriptionError && (
-                <p className="text-red-500 text-sm">
-                  {descriptionError}
-                </p>
-              )}
-
+              {descriptionError && <p className="text-red-500 text-sm">{descriptionError}</p>}
               <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => {
-                    setAddFormVisible(false);
-                    setDescription("");
-                    setDescriptionError("");
-                  }}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                >
+                <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
                   Cancel
                 </button>
-                {isSubmitting ? (
-                  <button
-                    disabled
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md flex items-center justify-center gap-2 cursor-not-allowed opacity-80"
-                  >
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Adding...</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!description.trim()}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Submit
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !description.trim()}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? "Adding..." : "Add"}
+                </button>
               </div>
             </div>
           </div>
         </div>
       );
-    }
+    };
+
+    const ManageRelationshipsModal = ({ onClose }) => {
+      const [editDescription, setEditDescription] = useState("");
+      const [editError, setEditError] = useState("");
+      const [isSaving, setIsSaving] = useState(false);
+      const [deletingId, setDeletingId] = useState(null);
+
+      useEffect(() => {
+        if (editingType) {
+          setEditDescription(editingType.description || "");
+          setEditError("");
+        }
+      }, [editingType]);
+
+      const handleSaveEdit = async () => {
+        if (!editingType) return;
+        const trimmed = editDescription.trim();
+        if (!trimmed) {
+          setEditError("Description/Title cannot be empty!");
+          return;
+        }
+        setIsSaving(true);
+        setEditError("");
+        try {
+          await updateType(editingType.id, trimmed);
+          toast.success("Relationship type updated.");
+          setEditingType(null);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Update failed.";
+          setEditError(message);
+          toast.error(message);
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleDelete = async (type) => {
+        if (!window.confirm(`Delete relationship "${type.description}"?`)) return;
+        setDeletingId(type.id);
+        try {
+          await deleteType(type.id, type.description);
+          toast.success("Relationship type deleted.");
+          if (editingType?.id === type.id) setEditingType(null);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Delete failed.");
+        } finally {
+          setDeletingId(null);
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 backdrop-blur-md bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold">Manage Relationships</h3>
+              <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-2 flex-1">
+              {types.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-6">No relationship types yet. Use + Add to create one.</p>
+              ) : (
+                types.map((type) => (
+                  <div key={type.id} className="flex items-center gap-2 p-2 border border-gray-100 rounded-lg hover:bg-gray-50">
+                    {editingType?.id === type.id ? (
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          value={editDescription}
+                          onChange={(e) => {
+                            setEditDescription(e.target.value);
+                            if (editError) setEditError("");
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          autoFocus
+                        />
+                        {editError && <p className="text-red-500 text-xs">{editError}</p>}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={handleSaveEdit} disabled={isSaving} className="text-xs px-3 py-1 bg-blue-500 text-white rounded">
+                            {isSaving ? "Saving..." : "Save"}
+                          </button>
+                          <button type="button" onClick={() => setEditingType(null)} className="text-xs px-3 py-1 border rounded">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm text-gray-800">{type.description}</span>
+                        <button type="button" onClick={() => setEditingType(type)} className="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded">
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(type)}
+                          disabled={deletingId === type.id}
+                          className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                        >
+                          {deletingId === type.id ? "..." : "Delete"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-4 border-t flex justify-end">
+              <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
 
     return (
       <>
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Relationship <span className="text-red-500">*</span>
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Relationship <span className="text-red-500">*</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setManageVisible(true)}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Manage
+            </button>
+          </div>
           <div className="relative">
             {isLoading ? (
               <div className="flex items-center justify-center h-10 border border-gray-300 rounded-md bg-gray-100">
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-purple-500"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-purple-500" />
               </div>
             ) : (
               <select
                 name="relationship"
-                value={formData.address.emergencyContact.relationship}
-                // onChange={handleEmergencyContactChange}
-                onChange={handleChange}
-                className={`w-full border ${errors.address?.emergencyContact?.relationship
-                  ? "border-red-500"
-                  : "border-gray-300"
-                  } rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
+                value={formData.address.emergencyContact.relationship || ""}
+                onChange={handleSelectChange}
+                className={`w-full border ${errors.address?.emergencyContact?.relationship ? "border-red-500" : "border-gray-300"} rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
               >
                 <option value="">Select Relationship</option>
-                {(types && types.length > 1) && types.map((type) => (
-                  <option key={type.id} value={type.description}>{type.description}</option>
+                {types.map((type) => (
+                  <option key={type.id} value={type.description}>
+                    {type.description}
+                  </option>
                 ))}
-                <option
-                  value="add-new"
-                  className={"text-blue-500 font-medium"}>
-                  + Add
+                <option value="add-new" className="text-blue-500 font-medium">
+                  + Add New
                 </option>
               </select>
             )}
           </div>
-          <FieldError
-            error={errors.address?.emergencyContact?.relationship}
-          />
+          <FieldError error={errors.address?.emergencyContact?.relationship} />
         </div>
-        {addFormVisible && <AddNewRelationshipTypeForm />}
+        {addFormVisible && (
+          <AddNewRelationshipTypeForm onClose={() => setAddFormVisible(false)} />
+        )}
+        {manageVisible && (
+          <ManageRelationshipsModal onClose={() => { setManageVisible(false); setEditingType(null); }} />
+        )}
       </>
     );
   };
@@ -649,7 +791,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
               </h3>
 
               <div className="space-y-4">
-                {useMemo(() => <EmergencyRelationshipTypesSelector />, [formData.address.emergencyContact.relationship])}
+                <EmergencyRelationshipTypesSelector />
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">

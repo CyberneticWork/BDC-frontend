@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { fetchEmployeeLoans } from "@services/LoanService";
-import { Eye, Loader2, FileText } from "lucide-react";
+import { fetchEmployeeLoans, fetchLoanReport } from "@services/LoanService";
+import { exportLoanReportCSV, exportLoanReportPDF } from "@utils/loanReportExport";
+import { Eye, Loader2, FileText, Download } from "lucide-react";
+import Swal from "sweetalert2";
 
 const EmployeeLoanView = ({ employeeProfile }) => {
   const [loans, setLoans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", minimumFractionDigits: 2 }).format(amount || 0);
@@ -33,6 +36,27 @@ const EmployeeLoanView = ({ employeeProfile }) => {
     load();
   }, [employeeProfile]);
 
+  const empNo = employeeProfile?.attendance_employee_no;
+
+  const runReportExport = async (type, { loanId = null } = {}) => {
+    if (!empNo) return;
+    setReportLoading(true);
+    try {
+      const report = await fetchLoanReport(empNo, loanId);
+      if (!report?.loans?.length) {
+        Swal.fire({ icon: "info", title: "No Data", text: "No loan records found for this report." });
+        return;
+      }
+      const prefix = loanId ? `my_loan_${loanId}` : `my_loans_${empNo}`;
+      if (type === "csv") exportLoanReportCSV(report, prefix);
+      else exportLoanReportPDF(report, prefix);
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Export Failed", text: err.message || "Could not generate report." });
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -44,8 +68,32 @@ const EmployeeLoanView = ({ employeeProfile }) => {
   return (
     <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-xl p-8 text-white">
-        <h1 className="text-3xl font-bold mb-2">My Loans</h1>
-        <p className="text-blue-100">View your loan details and repayment schedule</p>
+        <div className="flex flex-wrap justify-between items-start gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">My Loans</h1>
+            <p className="text-blue-100">View your loan details and repayment schedule</p>
+          </div>
+          {loans.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => runReportExport("pdf")}
+                disabled={reportLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 rounded-lg text-sm font-medium disabled:opacity-60"
+              >
+                <Download className="h-4 w-4" /> {reportLoading ? "Generating..." : "Download PDF Report"}
+              </button>
+              <button
+                type="button"
+                onClick={() => runReportExport("csv")}
+                disabled={reportLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-700 rounded-lg text-sm font-medium disabled:opacity-60"
+              >
+                <Download className="h-4 w-4" /> CSV Report
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -183,7 +231,25 @@ const EmployeeLoanView = ({ employeeProfile }) => {
                 </>
               )}
             </div>
-            <div className="p-4 border-t bg-gray-50 text-right">
+            <div className="p-4 border-t bg-gray-50 flex flex-wrap justify-between gap-3 items-center">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => runReportExport("pdf", { loanId: showDetails.loan_id })}
+                  disabled={reportLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm disabled:opacity-60"
+                >
+                  Export This Loan (PDF)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runReportExport("csv", { loanId: showDetails.loan_id })}
+                  disabled={reportLoading}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-60"
+                >
+                  Export This Loan (CSV)
+                </button>
+              </div>
               <button onClick={() => setShowDetails(null)} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Close</button>
             </div>
           </div>

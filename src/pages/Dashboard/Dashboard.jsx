@@ -150,6 +150,8 @@ import {
 } from "../../utils/SidebarUtils";
 import { getResponsive } from "../../utils/ResponsiveUtils";
 import AllowanceManagement from "./AllowanceManagement";
+import DeductionManagement from "./DeductionManagement";
+import BonusManagement from "./BonusManagement";
 
 ChartJS.register(
   CategoryScale,
@@ -641,13 +643,13 @@ const Dashboard = ({ user, onLogout }) => {
       case "createNewDeduction":
         return (
           <ProtectedComponent module="createNewDeduction" action="view">
-            <CreateNewDeduction />
+            <DeductionManagement />
           </ProtectedComponent>
         );
       case "createNewBonus":
         return (
           <ProtectedComponent module="createNewBonus" action="view">
-            <CreateNewBonus />
+            <BonusManagement />
           </ProtectedComponent>
         );
       case "shiftTime":

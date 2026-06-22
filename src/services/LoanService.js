@@ -53,11 +53,13 @@ export const fetchEmployeeNameByNo = async (employeeNo) => {
   }
 };
 
-export const fetchLoanReport = async (employeeNo = null) => {
+export const fetchLoanReport = async (employeeNo = null, loanId = null) => {
   try {
-    const params = employeeNo ? { employee_no: employeeNo } : {};
+    const params = {};
+    if (employeeNo) params.employee_no = employeeNo;
+    if (loanId) params.loan_id = loanId;
     const response = await axios.get(`${API_PREFIX}/report/export`, { params });
-    return response.data?.data || [];
+    return response.data;
   } catch (error) {
     console.error("Error fetching loan report:", error);
     throw error;
