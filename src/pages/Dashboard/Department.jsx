@@ -46,6 +46,11 @@ const EditModal = ({
   // Field-level validation
   const validateFields = () => {
     const newErrors = {};
+    if (!localForm.company_code || !String(localForm.company_code).trim()) {
+      newErrors.company_code = "Company ID is required.";
+    } else if (!/^[A-Za-z0-9][A-Za-z0-9\-_/ ]{0,49}$/.test(String(localForm.company_code).trim())) {
+      newErrors.company_code = "Company ID may only contain letters, numbers, and - _ / characters (max 50).";
+    }
     if (!localForm.name || !localForm.name.trim()) {
       newErrors.name = "Company name is required.";
     }
@@ -69,7 +74,27 @@ const EditModal = ({
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Company ID <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={localForm.company_code || ""}
+              onChange={e => setLocalForm({ ...localForm, company_code: e.target.value.toUpperCase() })}
+              className={`w-full px-3 py-2 border ${errors.company_code ? "border-red-500" : "border-gray-300"} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase`}
+              placeholder="Enter unique code e.g. SPM-S, SPM-C"
+              maxLength={50}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Unique identifier used to differentiate companies that share the same name.
+              Enter manually (e.g. <span className="font-mono">SPM-S</span> / <span className="font-mono">SPM-C</span>).
+            </p>
+            {errors.company_code && <div className="text-red-600 text-sm mt-1">{errors.company_code}</div>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               value={localForm.name}
@@ -133,6 +158,7 @@ const EditModal = ({
               setErrors({});
               const payload = {
                 ...localForm,
+                company_code: (localForm.company_code || "").trim().toUpperCase(),
                 established: localForm.established ? Number(localForm.established) : null,
               };
               try {
@@ -199,6 +225,7 @@ const Department = () => {
   const [_modalMode, setModalMode] = useState('add');
   const [editingCompany, setEditingCompany] = useState(null);
   const [companyForm, setCompanyForm] = useState({
+    company_code: '',
     name: '',
     location: '',
     employees: '',
@@ -320,7 +347,10 @@ const Department = () => {
   };
 
   const filteredCompanies = companySearch
-    ? companies.filter(company => matchName(company.name, companySearch))
+    ? companies.filter(company =>
+        matchName(company.name, companySearch) ||
+        matchName(company.company_code, companySearch)
+      )
     : companies;
 
   const filteredDepartmentsData = departmentSearch
@@ -363,6 +393,7 @@ const Department = () => {
             {/* Table header remains the same */}
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company ID</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employees</th>
@@ -373,6 +404,11 @@ const Department = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedCompanies.map((company) => (
                 <tr key={company.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-semibold font-mono border border-blue-100">
+                      {company.company_code || '—'}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <Building2 className="w-5 h-5 text-gray-400 mr-3" />
@@ -394,6 +430,7 @@ const Department = () => {
                           setModalMode('edit');
                           setEditingCompany(company);
                           setCompanyForm({
+                            company_code: company.company_code || '',
                             name: company.name || '',
                             location: company.location || '',
                             employees: company.employees || '',
@@ -1383,7 +1420,7 @@ const Department = () => {
                 <button
                   onClick={() => {
                     setModalMode('add');
-                    setCompanyForm({ name: '', location: '', employees: '', established: '' });
+                    setCompanyForm({ company_code: '', name: '', location: '', employees: '', established: '' });
                     setShowAddModal(true);
                   }}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"

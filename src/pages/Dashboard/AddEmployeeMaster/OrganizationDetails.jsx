@@ -190,6 +190,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
       const selected = companies.find((c) => c.id === parsedValue);
       updateFormData("organization", {
         company: selected?.id || "",
+        companyCode: selected?.company_code || "",
         companyName: selected?.name || "",
         department: "",
         departmentName: "",
@@ -293,11 +294,11 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Company */}
+            {/* Company ID (dropdown) */}
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Building2 className="text-gray-500" size={16} />
-                Company <span className="text-red-500">*</span>
+                Company ID <span className="text-red-500">*</span>
               </label>
               <div className="relative flex-1">
                 {isLoadingCompanies ? (
@@ -314,15 +315,42 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                       : "border-gray-300"
                       } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   >
-                    <option value="">Select Company</option>
+                    <option value="">Select Company ID</option>
                     {companies.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name}
+                        {c.company_code
+                          ? `${c.company_code} — ${c.name}`
+                          : c.name}
                       </option>
                     ))}
                   </select>
                 )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Select the Company ID. The company name is set automatically.
+                </p>
                 <FieldError error={errors.organization?.company} />
+              </div>
+            </div>
+
+            {/* Company Name (auto-populated, read-only) */}
+            <div className="mb-4">
+              <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
+                <Building2 className="text-gray-500" size={16} />
+                Company Name
+              </label>
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  name="companyName"
+                  value={formData.organization.companyName || ""}
+                  readOnly
+                  tabIndex={-1}
+                  placeholder="Auto-populated from Company ID"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Determined automatically based on the selected Company ID.
+                </p>
               </div>
             </div>
 
@@ -435,6 +463,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <Calendar className="text-gray-500" size={16} />
                 Date of Joined <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-400 font-normal ml-1">(YYYY/MM/DD)</span>
               </label>
               <div className="relative">
                 <DatePickerInput
@@ -442,6 +471,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   value={formData.organization.dateOfJoined}
                   max={new Date().toISOString().split("T")[0]}
                   onChange={handleChange}
+                  displayFormat="YYYY/MM/DD"
                   className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.dateOfJoined
                     ? "border-red-500"
                     : "border-gray-300"

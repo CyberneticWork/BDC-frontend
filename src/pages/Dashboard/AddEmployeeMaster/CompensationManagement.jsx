@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   DollarSign,
   Calendar,
@@ -12,6 +12,20 @@ import {
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { banks } from "@utils/banks";
+
+// Utility: safely parse a numeric string to Number, treating empty/invalid as 0.
+const toNumber = (val) => {
+  if (val === null || val === undefined || val === "") return 0;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : 0;
+};
+
+// Utility: format money for display without changing the underlying value.
+const formatMoney = (val) =>
+  toNumber(val).toLocaleString("en-LK", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const handleKeyDown = (e) => {
   // Allow: backspace, delete, tab, escape, enter, arrows
@@ -74,6 +88,38 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
   };
 
   const isHighSalary = Number(formData.compensation?.basicSalary || 0) > 40000; // add this
+
+  // -------------------------------------------------------------------------
+  // Auto-calculated overview values:
+  //   Total Salary        = Basic Salary + Monthly Bonus
+  //   Sports Fund Amount  = Basic Salary * (Sports Fund % / 100)
+  // These are display-only fields used to give the user an overview while
+  // creating an employee. The Sports Fund Amount is also written back into
+  // formData so the value is persisted with the compensation record.
+  // -------------------------------------------------------------------------
+  const basicSalaryNum = toNumber(formData.compensation?.basicSalary);
+  const monthlyBonusNum = toNumber(formData.compensation?.monthlyBonus);
+  const sportsFundPctNum = toNumber(formData.compensation?.sportsFundPercentage);
+
+  const totalSalary = useMemo(
+    () => basicSalaryNum + monthlyBonusNum,
+    [basicSalaryNum, monthlyBonusNum]
+  );
+
+  const sportsFundAmount = useMemo(
+    () => +(basicSalaryNum * (sportsFundPctNum / 100)).toFixed(2),
+    [basicSalaryNum, sportsFundPctNum]
+  );
+
+  // Keep the persisted staffFundAmount (used by backend) in sync with the
+  // computed sportsFundAmount so it flows through create / update.
+  useEffect(() => {
+    const currentStored = toNumber(formData.compensation?.staffFundAmount);
+    if (currentStored !== sportsFundAmount) {
+      updateFormData("compensation", { staffFundAmount: sportsFundAmount });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sportsFundAmount]);
 
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -142,6 +188,25 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                         placeholder="Employee-wise monthly bonus amount"
                       />
                     </div>
+
+                    {/* Auto-calculated Total Salary (read-only overview) */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Total Salary <span className="text-xs text-gray-500 font-normal">(Basic Salary + Monthly Bonus)</span>
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-600" />
+                        <input
+                          type="text"
+                          value={formatMoney(totalSalary)}
+                          readOnly
+                          tabIndex={-1}
+                          className="w-full pl-10 pr-4 py-3 border border-green-200 bg-green-50 text-green-800 font-semibold rounded-lg cursor-not-allowed"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Auto-calculated for overview. Not editable.</p>
+                    </div>
+
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Sports Fund (%)</label>
@@ -153,17 +218,25 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg"
                           placeholder="e.g. 2.5"
                         />
+                        <p className="text-xs text-gray-500 mt-1">Enter percentage applied on Basic Salary.</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Staff Fund (amount)</label>
-                        <input
-                          type="text"
-                          value={formData.compensation.staffFundAmount || ""}
-                          onChange={(e) => handleInputChange("staffFundAmount", e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                          placeholder="Deducted from monthly bonus"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Sports Fund (Amount) <span className="text-xs text-gray-500 font-normal">(auto-calculated)</span>
+                        </label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-600" />
+                          <input
+                            type="text"
+                            value={formatMoney(sportsFundAmount)}
+                            readOnly
+                            tabIndex={-1}
+                            className="w-full pl-10 pr-4 py-3 border border-blue-200 bg-blue-50 text-blue-800 font-semibold rounded-lg cursor-not-allowed"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {`= Basic Salary × Sports Fund %  (${formatMoney(basicSalaryNum)} × ${sportsFundPctNum || 0}%)`}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -776,10 +849,32 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                   <div className="p-6 pt-0">
 
                     <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Account Holder's Name <span className="text-xs text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.compensation.accountHolderName || ""}
+                            onChange={(e) =>
+                              handleInputChange("accountHolderName", e.target.value)
+                            }
+                            className={`w-full pl-10 pr-4 py-3 border ${errors.compensation?.accountHolderName
+                              ? "border-red-500"
+                              : "border-gray-300"
+                              } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                            placeholder="Enter account holder's name (if different from employee)"
+                          />
+                        </div>
+                        <FieldError error={errors.compensation?.accountHolderName} />
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Bank Name <span className="text-red-500">*</span>
+                            Bank Name <span className="text-xs text-gray-400 font-normal">(optional)</span>
                           </label>
                           <select
                             value={formData.compensation.bankName}
@@ -803,7 +898,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Branch Name <span className="text-red-500">*</span>
+                            Branch Name <span className="text-xs text-gray-400 font-normal">(optional)</span>
                           </label>
                           <input
                             type="text"
@@ -865,7 +960,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Bank Account Number{" "}
-                          <span className="text-red-500">*</span>
+                          <span className="text-xs text-gray-400 font-normal">(optional)</span>
                         </label>
                         <div className="relative">
                           <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
