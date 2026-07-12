@@ -766,7 +766,7 @@ const CreateNewAllowance = () => {
               <option value="all">All Companies</option>
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
-                  {company.name}
+                  {company.company_label || company.display_name || company.name}
                 </option>
               ))}
             </select>

@@ -769,7 +769,7 @@ const LeaveCalendar = ({ employeeProfile }) => {
                 <option value="">Select Company</option>
                 {companies.map((company) => (
                   <option key={company.id} value={company.id}>
-                    {company.name}
+                    {company.company_label || company.display_name || company.name}
                   </option>
                 ))}
               </select>

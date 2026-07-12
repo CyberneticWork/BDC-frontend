@@ -96,7 +96,18 @@ const timeCardService = {
 
   async fetchCompanies() {
     const res = await axios.get('/companies');
-    return res.data;
+    return (res.data || []).map((company) => {
+      const rawName = company?.name || company?.company_name || "";
+      const code = company?.company_code || company?.companyCode || company?.code || "";
+      const displayName = code && rawName ? `${code} - ${rawName}` : code || rawName || "Unnamed company";
+
+      return {
+        ...company,
+        company_code: code,
+        company_label: displayName,
+        display_name: displayName,
+      };
+    });
   },
 
   async fetchTodayStats() {

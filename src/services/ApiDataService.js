@@ -2,10 +2,23 @@ import axios from "@utils/axios";
 
 const API_PREFIX = "/apiData";
 
+const normalizeCompany = (company) => {
+  const rawName = company?.name || company?.company_name || "";
+  const code = company?.company_code || company?.companyCode || company?.code || "";
+  const displayName = code && rawName ? `${code} - ${rawName}` : code || rawName || "Unnamed company";
+
+  return {
+    ...company,
+    company_code: code,
+    company_label: displayName,
+    display_name: displayName,
+  };
+};
+
 export const fetchCompanies = async () => {
   try {
     const response = await axios.get(`${API_PREFIX}/companies`);
-    return response.data;
+    return (response.data || []).map(normalizeCompany);
   } catch (error) {
     console.error("Error fetching companies:", error);
     return [];
