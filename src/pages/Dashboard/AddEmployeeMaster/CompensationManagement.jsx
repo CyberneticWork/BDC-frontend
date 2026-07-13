@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   DollarSign,
   Calendar,
@@ -100,26 +100,17 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
   const basicSalaryNum = toNumber(formData.compensation?.basicSalary);
   const monthlyBonusNum = toNumber(formData.compensation?.monthlyBonus);
   const sportsFundPctNum = toNumber(formData.compensation?.sportsFundPercentage);
-
-  const totalSalary = useMemo(
-    () => basicSalaryNum + monthlyBonusNum,
-    [basicSalaryNum, monthlyBonusNum]
-  );
+  const staffFundAmountNum = toNumber(formData.compensation?.staffFundAmount);
 
   const sportsFundAmount = useMemo(
-    () => +(basicSalaryNum * (sportsFundPctNum / 100)).toFixed(2),
-    [basicSalaryNum, sportsFundPctNum]
+    () => +(monthlyBonusNum * (sportsFundPctNum / 100)).toFixed(2),
+    [monthlyBonusNum, sportsFundPctNum]
   );
 
-  // Keep the persisted staffFundAmount (used by backend) in sync with the
-  // computed sportsFundAmount so it flows through create / update.
-  useEffect(() => {
-    const currentStored = toNumber(formData.compensation?.staffFundAmount);
-    if (currentStored !== sportsFundAmount) {
-      updateFormData("compensation", { staffFundAmount: sportsFundAmount });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sportsFundAmount]);
+  const totalSalary = useMemo(
+    () => +(basicSalaryNum + monthlyBonusNum - (sportsFundAmount + staffFundAmountNum)).toFixed(2),
+    [basicSalaryNum, monthlyBonusNum, sportsFundAmount, staffFundAmountNum]
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -218,7 +209,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg"
                           placeholder="e.g. 2.5"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Enter percentage applied on Basic Salary.</p>
+                        <p className="text-xs text-gray-500 mt-1">Enter percentage applied on Monthly Bonus.</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -235,9 +226,25 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                           />
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          {`= Basic Salary × Sports Fund %  (${formatMoney(basicSalaryNum)} × ${sportsFundPctNum || 0}%)`}
+                          {`= Monthly Bonus × Sports Fund %  (${formatMoney(monthlyBonusNum)} × ${sportsFundPctNum || 0}%)`}
                         </p>
                       </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Staff Fund (Amount)</label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.compensation.staffFundAmount ?? ""}
+                          onChange={(e) => handleInputChange("staffFundAmount", e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg"
+                          placeholder="e.g. 500.00"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Fixed amount deducted from the monthly bonus.</p>
                     </div>
                   </div>
                 )}
