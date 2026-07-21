@@ -4,6 +4,8 @@ import timeCardService from '../../services/timeCardService';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
 import DatePickerInput from '@components/DatePickerInput';
+import HikvisionDevicePanel from '@components/HikvisionDevicePanel';
+import hikvisionService from '@services/hikvisionService';
 
 // Pagination component for better UI/UX
 const Pagination = ({ page, totalPages, onPageChange }) => {
@@ -771,6 +773,47 @@ const TimeCard = ({ employeeProfile }) => {
     setIsLoading(true);
 
     try {
+      if (importMethod === 'hikvision') {
+        if (!selectedCompany) {
+          Swal.fire({ icon: 'error', title: 'Company required', text: 'Select a company for Hikvision import.' });
+          setIsLoading(false);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', excelFile);
+        formData.append('company_id', String(selectedCompany));
+        formData.append('from_date', selectedDate);
+        formData.append('to_date', selectedToDate);
+
+        const res = await hikvisionService.importExcel(formData);
+        const data = res.data || res;
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Hikvision Import Completed',
+          html: `
+            <div>
+              <p>Imported: <b>${data.imported ?? 0}</b></p>
+              <p>Skipped: <b>${data.skipped ?? 0}</b></p>
+              ${data.errors?.length ? `<p class="text-red-600 text-left text-sm mt-2">${data.errors.slice(0, 8).join('<br>')}</p>` : ''}
+            </div>
+          `
+        });
+
+        const updated = await fetchTimeCards();
+        const filtered = filterFirstInLastOut(updated);
+        setAttendanceData(filtered);
+        setFilteredData(filtered);
+        setSelectedCompany('');
+        setSelectedDate('');
+        setSelectedToDate('');
+        setExcelFile(null);
+        if (excelInputRef.current) excelInputRef.current.value = '';
+        setIsLoading(false);
+        return;
+      }
+
       // Read the Excel file client-side using FileReader and SheetJS
       const reader = new FileReader();
 
@@ -922,6 +965,8 @@ const TimeCard = ({ employeeProfile }) => {
           </div>
           <div className="p-4 sm:p-6 lg:p-8">
 
+            <HikvisionDevicePanel companies={companies} />
+
             <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <button
@@ -1002,10 +1047,19 @@ const TimeCard = ({ employeeProfile }) => {
                         checked={importMethod === 'excel'}
                         onChange={() => setImportMethod('excel')}
                       />
-                      <span className="ml-3 text-slate-700 font-medium text-sm sm:text-base">Import from Excel Sheet</span>
+                      <span className="ml-3 text-slate-700 font-medium text-sm sm:text-base">HR Template Excel</span>
+                    </label>
+                    <label className="inline-flex items-center cursor-pointer p-3 rounded-lg hover:bg-blue-100 transition-colors duration-200">
+                      <input
+                        type="radio"
+                        className="form-radio h-5 w-5 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                        checked={importMethod === 'hikvision'}
+                        onChange={() => setImportMethod('hikvision')}
+                      />
+                      <span className="ml-3 text-slate-700 font-medium text-sm sm:text-base">iVMS-4200 / Hik-Connect Export</span>
                     </label>
                   </div>
-                  {importMethod === 'excel' && (
+                  {(importMethod === 'excel' || importMethod === 'hikvision') && (
                     <div className="mt-4">
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Upload Excel File</label>
                       <input
@@ -1019,7 +1073,7 @@ const TimeCard = ({ employeeProfile }) => {
                         className="mt-3 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg"
                         onClick={handleImportExcel}
                       >
-                        Import Excel
+                        Import {importMethod === 'hikvision' ? 'Hikvision Excel' : 'Excel'}
                       </button>
                     </div>
                   )}
@@ -2607,7 +2661,7 @@ const TimeCard = () => {
                         className="mt-3 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg"
                         onClick={handleImportExcel}
                       >
-                        Import Excel
+                        Import {importMethod === 'hikvision' ? 'Hikvision Excel' : 'Excel'}
                       </button>
                     </div>
                   )}

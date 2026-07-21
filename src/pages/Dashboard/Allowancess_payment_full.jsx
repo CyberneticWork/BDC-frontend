@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { 
-  FileSpreadsheet, Building2, Download, 
+  FileSpreadsheet, Building2, Download, Eye,
   FileText, FileBarChart, Loader2, FileCheck, Wallet, CreditCard, Scissors, Gift, Clock, Banknote, X
 } from "lucide-react";
 import Swal from "sweetalert2";
@@ -14,11 +14,14 @@ const Reports = () => {
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, "0"));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
   const [reportData, setReportData] = useState([]);
+  const [scheduleReportData, setScheduleReportData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const [showCoinageModal, setShowCoinageModal] = useState(false);
   const [coinageFormat, setCoinageFormat] = useState("pdf");
   const [editableCoinage, setEditableCoinage] = useState([]);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewReport, setPreviewReport] = useState(null);
 
   const months = [
     { value: "01", label: "January" }, { value: "02", label: "February" },
@@ -33,8 +36,12 @@ const Reports = () => {
   const handleFetchData = async () => {
     try {
       setIsLoading(true);
-      const data = await ReportService.getMonthlyReportData(selectedMonth, selectedYear);
+      const [data, scheduleData] = await Promise.all([
+        ReportService.getMonthlyReportData(selectedMonth, selectedYear),
+        ReportService.getScheduleReportData(selectedMonth, selectedYear),
+      ]);
       setReportData(data);
+      setScheduleReportData(scheduleData);
       if(data.length === 0) Swal.fire("No Data", "No salaries processed for this month.", "info");
       else Swal.fire({ icon: "success", title: "Data Loaded", text: `Ready to generate reports for ${data.length} employees.`, timer: 1500, showConfirmButton: false });
     } catch (error) {
@@ -97,10 +104,22 @@ const Reports = () => {
   const generateEPFData = () => {
     let rows = []; let tBase = 0, tEmp8 = 0, tEmp12 = 0, tEpf20 = 0, tEtf3 = 0;
     reportData.forEach(e => {
-      if (e.enable_epf_etf === 1 && (e.epf_8 + e.epf_12) > 0) {
-        let totalEpf = e.epf_8 + e.epf_12;
-        rows.push([e.emp_no, e.name, e.epf_base.toFixed(2), e.epf_12.toFixed(2), e.epf_8.toFixed(2), totalEpf.toFixed(2), e.etf_3.toFixed(2)]);
-        tBase += e.epf_base; tEmp12 += e.epf_12; tEmp8 += e.epf_8; tEpf20 += totalEpf; tEtf3 += e.etf_3;
+      const epf8 = Number(e.epf_8) || 0;
+      const epf12 = Number(e.epf_12) || 0;
+      const etf3 = Number(e.etf_3) || 0;
+      const epfBase = Number(e.salary_for_epf ?? e.epf_base) || 0;
+      if (epf8 + epf12 + etf3 > 0) {
+        let totalEpf = epf8 + epf12;
+        rows.push([
+          e.epf_member_no || e.emp_no,
+          e.name,
+          epfBase.toFixed(2),
+          epf12.toFixed(2),
+          epf8.toFixed(2),
+          totalEpf.toFixed(2),
+          etf3.toFixed(2)
+        ]);
+        tBase += epfBase; tEmp12 += epf12; tEmp8 += epf8; tEpf20 += totalEpf; tEtf3 += etf3;
       }
     });
     return { headers: ["Member No", "Name", "Salary for EPF", "Employer 12%", "Employee 8%", "Total EPF 20%", "ETF 3%"], rows, footer: ["", "TOTAL", tBase.toFixed(2), tEmp12.toFixed(2), tEmp8.toFixed(2), tEpf20.toFixed(2), tEtf3.toFixed(2)] };
@@ -198,11 +217,569 @@ const Reports = () => {
     return { headers, rows, footer };
   };
 
+  const fmt = (n) => (Number(n) || 0).toFixed(2);
+
+  const monthLabel = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
+
+  const generateSalaryAllowanceTotalData = () => {
+    const headers = [
+      "Employee Name", "Date Joined",
+      "Salary", "Allowance", "Gross Salary",
+      "Nopay (Sch 02)", "Salary Advance (Sch 03)",
+      "Loan Installment (Sch 04)", "Loan Interest (Sch 04)",
+      "Sports Fund (Sch 05)", "EPF 8% (Sch 06)", "Staff Fund (Sch 07)", "Other Deduction (Sch 08)",
+      "Total Deductions", "Net Pay"
+    ];
+    const totals = new Array(headers.length).fill(0);
+    const rows = reportData.map(e => {
+      const row = [
+        e.name, e.date_joined || "-",
+        fmt(e.salary_component), fmt(e.allowance_component), fmt(e.gross_salary),
+        fmt(e.no_pay_amount), fmt(e.salary_advance),
+        fmt(e.loan_installment), fmt(e.loan_interest),
+        fmt(e.sports_fund), fmt(e.epf_8), fmt(e.staff_fund), fmt(e.other_deduction),
+        fmt(e.total_report_deductions), fmt(e.total_report_net)
+      ];
+      [2,3,4,5,6,7,8,9,10,11,12,13,14].forEach(i => { totals[i] += parseFloat(row[i]); });
+      return row;
+    });
+    const footer = ["TOTAL", "", ...totals.slice(2).map(t => t.toFixed(2))];
+    return { headers, rows, footer, reportTitle: `Salary & Allowance (Total) — ${monthLabel} ${selectedYear}` };
+  };
+
+  const generateSalaryDetailsData = () => {
+    const headers = [
+      "Employee Name", "EPF Member No.", "Date Joined",
+      "Basic Salary (Sch 01)", "Budgetary Allowance (Sch 01)", "Budget Relief Allowance (Sch 01)", "Total Salary",
+      "Nopay (Sch 02)", "Salary for EPF",
+      "Salary Advance (Sch 03)", "Loan Installment (Sch 04)", "EPF 8% (Sch 06)",
+      "Total Deductions", "Net Salary"
+    ];
+    const totals = new Array(headers.length).fill(0);
+    const rows = reportData.map(e => {
+      const row = [
+        e.name, e.epf_member_no || e.emp_no || "-", e.date_joined || "-",
+        fmt(e.base_basic_salary), fmt(e.budgetary_allowance), fmt(e.budget_relief_allowance), fmt(e.total_salary_sch01),
+        fmt(e.basic_no_pay), fmt(e.salary_for_epf),
+        fmt(0), fmt(e.loan_on_basic),
+        fmt(e.epf_8),
+        fmt(e.epf_schedule_deductions), fmt(e.epf_schedule_net)
+      ];
+      [3,4,5,6,7,8,9,10,11,12,13].forEach(i => { totals[i] += parseFloat(row[i]); });
+      return row;
+    });
+    const footer = ["TOTAL", "", "", ...totals.slice(3).map(t => t.toFixed(2))];
+    return { headers, rows, footer, reportTitle: `Salary Details (EPF/ETF) — ${monthLabel} ${selectedYear}` };
+  };
+
+  const generateAllowanceScheduleData = () => {
+    const headers = [
+      "Employee Name", "Date Joined",
+      "Allowance", "Gross Salary",
+      "Nopay (Sch 02)", "Salary Advance (Sch 03)",
+      "Loan Installment (Sch 04)", "Loan Interest (Sch 04)",
+      "Sports Fund (Sch 05)", "Staff Fund (Sch 07)", "Other Deduction (Sch 08)",
+      "Total Deductions", "Net Salary"
+    ];
+    const totals = new Array(headers.length).fill(0);
+    const rows = reportData.map(e => {
+      const row = [
+        e.name, e.date_joined || "-",
+        fmt(e.allowance_component), fmt(e.allowance_gross),
+        fmt(e.bonus_no_pay), fmt(e.salary_advance),
+        fmt(e.loan_on_bonus), fmt(e.loan_interest),
+        fmt(e.sports_fund), fmt(e.staff_fund), fmt(e.allowance_other_deductions ?? e.other_deduction),
+        fmt(e.allowance_deductions), fmt(e.allowance_net)
+      ];
+      [2,3,4,5,6,7,8,9,10,11,12].forEach(i => { totals[i] += parseFloat(row[i]); });
+      return row;
+    });
+    const footer = ["TOTAL", "", ...totals.slice(2).map(t => t.toFixed(2))];
+    return { headers, rows, footer, reportTitle: `Allowance — ${monthLabel} ${selectedYear}` };
+  };
+
+  const buildNoPaySection = (label, salaryKey, daysKey, amountKey) => {
+    let subSalary = 0, subDays = 0, subAmount = 0;
+    const rows = [];
+    reportData.forEach(e => {
+      const amount = Number(e[amountKey]) || 0;
+      const days = Number(e[daysKey]) || 0;
+      if (amount <= 0 && days <= 0) return;
+      const salary = Number(e[salaryKey]) || 0;
+      rows.push([e.name, fmt(salary), fmt(days), fmt(amount)]);
+      subSalary += salary;
+      subDays += days;
+      subAmount += amount;
+    });
+    rows.push([`Total for ${label}`, fmt(subSalary), fmt(subDays), fmt(subAmount)]);
+    return { rows, subSalary, subDays, subAmount };
+  };
+
+  const generateSchedule02NoPayData = () => {
+    const headers = ["Employee Name", "Salary", "No of NOPAY days", "Amount"];
+    const basic = buildNoPaySection("Basic Salary", "base_basic_salary", "basic_nopay_days", "basic_nopay_amount");
+    const salary = buildNoPaySection("Salary", "salary_component", "salary_nopay_days", "salary_nopay_amount");
+    const allowance = buildNoPaySection("Allowance", "allowance_component", "allowance_nopay_days", "allowance_nopay_amount");
+
+    const rows = [
+      ...basic.rows,
+      ...salary.rows,
+      ...allowance.rows,
+    ];
+
+    const grandDays = basic.subDays + allowance.subDays;
+    const grandAmount = basic.subAmount + allowance.subAmount;
+    const totalSalary = reportData.reduce((s, e) => s + (Number(e.gross_salary) || 0), 0);
+    const footer = ["Grand Total", fmt(basic.subSalary + salary.subSalary + allowance.subSalary), fmt(grandDays), fmt(grandAmount)];
+
+    const summaryHeaders = ["Total Salary", "Total No Pay Days", "Total No Pay", "Difference"];
+    const summaryRows = [[fmt(totalSalary), fmt(grandDays), fmt(grandAmount), fmt(totalSalary - grandAmount)]];
+
+    return {
+      headers,
+      rows,
+      footer,
+      summaryHeaders,
+      summaryRows,
+      reportTitle: `Schedule 02 — Nopay — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateSchedule07CumulativeData = () => {
+    let employerContribution = 0, totalContribution = 0, paymentsMade = 0;
+    const rows = [];
+
+    reportData.forEach(e => {
+      const monthly = Number(e.staff_fund_monthly) || 0;
+      const ytdContribution = Number(e.staff_fund_ytd_contribution) || 0;
+      const ytdPaid = Number(e.staff_fund_ytd_paid) || 0;
+      if (monthly <= 0) return;
+      employerContribution += monthly;
+      totalContribution += ytdContribution;
+      paymentsMade += ytdPaid;
+      rows.push([
+        e.name,
+        fmt(monthly),
+        fmt(ytdContribution),
+        fmt(ytdPaid),
+        fmt(ytdContribution - ytdPaid),
+      ]);
+    });
+
+    const headers = ["Employee Name", "Employer Contribution", "Total Contribution", "Payments Made", "Balance Payable"];
+    const footer = [
+      "TOTAL",
+      fmt(employerContribution),
+      fmt(totalContribution),
+      fmt(paymentsMade),
+      fmt(totalContribution - paymentsMade),
+    ];
+
+    return {
+      headers,
+      rows: rows.length > 0 ? rows : [["—", "0.00", "0.00", "0.00", "0.00"]],
+      footer,
+      reportTitle: `Schedule 07 — Staff Fund Cumulative — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateSchedule04LoanSummaryData = () => {
+    const sch = scheduleReportData?.loan_summary;
+    if (!sch) return { headers: ["No Data"], rows: [], footer: [] };
+
+    const rows = (sch.rows || []).map(r => [
+      r.employee_name || "",
+      r.loan_label || r.loan_id || "",
+      r.granted_date || "-",
+      fmt(r.granted_amount),
+      fmt(r.loan_monthly_deduction),
+      fmt(r.loan_total_deduction),
+      fmt(r.loan_balance_outstanding),
+      fmt(r.interest_monthly_deduction),
+      fmt(r.interest_total_deduction),
+      fmt(r.interest_balance_outstanding),
+    ]);
+
+    const f = sch.footer || {};
+    const footer = [
+      f.employee_name || "TOTAL", f.loan_label || "",
+      f.granted_date || "", fmt(f.granted_amount),
+      fmt(f.loan_monthly_deduction), fmt(f.loan_total_deduction), fmt(f.loan_balance_outstanding),
+      fmt(f.interest_monthly_deduction), fmt(f.interest_total_deduction), fmt(f.interest_balance_outstanding),
+    ];
+
+    const summaryHeaders = ["Available Staff Fund", "Balance Recoverable"];
+    const summaryRows = [[
+      fmt(sch.summary?.available_staff_fund),
+      fmt(sch.summary?.balance_recoverable),
+    ]];
+
+    return {
+      headers: sch.headers || [
+        "Employee Name", "Loan", "Granted Date", "Granted Amount",
+        "Loan Monthly Ded.", "Loan Total Ded.", "Loan Balance",
+        "Interest Monthly Ded.", "Interest Total Ded.", "Interest Balance",
+      ],
+      rows,
+      footer,
+      summaryHeaders,
+      summaryRows,
+      reportTitle: `Schedule 04 — Loan Summary — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateSchedule04aLoanDetailData = () => {
+    const sections = scheduleReportData?.loan_details || [];
+    if (sections.length === 0) {
+      return {
+        headers: ["Month", "Loan Date", "Loan Amount", "Monthly Deduction", "Balance Outstanding", "Interest", "Total Deduction"],
+        rows: [["—", "—", "0.00", "0.00", "0.00", "0.00", "0.00"]],
+        reportTitle: `Schedule 04(a) — Staff Loan Detail — ${monthLabel} ${selectedYear}`,
+        multiSections: [],
+      };
+    }
+
+    const multiSections = sections.map(sec => ({
+      title: `${sec.employee_name} — ${sec.loan_label || sec.loan_id}`,
+      headers: sec.headers,
+      rows: (sec.rows || []).map(r => [
+        r.month, r.loan_date, fmt(r.loan_amount), fmt(r.monthly_deduction),
+        fmt(r.balance_outstanding), fmt(r.interest), fmt(r.total_deduction),
+      ]),
+    }));
+
+    return {
+      headers: multiSections[0]?.headers || [],
+      rows: multiSections[0]?.rows || [],
+      reportTitle: `Schedule 04(a) — Staff Loan Detail — ${monthLabel} ${selectedYear}`,
+      multiSections,
+    };
+  };
+
+  const generateSchedule07StaffFundData = () => {
+    const sf = scheduleReportData?.staff_fund;
+    if (!sf) return { headers: ["No Data"], rows: [], footer: [] };
+
+    const detail = sf.detail || {};
+    const rows = (detail.rows || []).map(r => [
+      r.date_joined, r.date_resigned, r.period_of_service, r.employee_name,
+      fmt(r.basic_salary), fmt(r.allowance), fmt(r.total_salary),
+      fmt(r.employee_contribution), fmt(r.employer_contribution), fmt(r.total_contribution),
+    ]);
+
+    const df = detail.footer || {};
+    const footer = [
+      df.date_joined || "", df.date_resigned || "", df.period_of_service || "TOTAL", df.employee_name || "",
+      fmt(df.basic_salary), fmt(df.allowance), fmt(df.total_salary),
+      fmt(df.employee_contribution), fmt(df.employer_contribution), fmt(df.total_contribution),
+    ];
+
+    const cum = sf.cumulative?.rows?.[0] || {};
+    const summaryHeaders = sf.cumulative?.headers || [
+      "Employee Contribution", "Employer Contribution", "Total Contribution", "Payments Made", "Balance Payable",
+    ];
+    const summaryRows = [[
+      fmt(cum.employee_contribution), fmt(cum.employer_contribution), fmt(cum.total_contribution),
+      fmt(cum.payments_made), fmt(cum.balance_payable),
+    ]];
+
+    return {
+      headers: detail.headers || [],
+      rows,
+      footer,
+      summaryHeaders,
+      summaryRows,
+      reportTitle: `Schedule 07 — Staff Fund — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const sumField = (key) => reportData.reduce((s, e) => s + (Number(e[key]) || 0), 0);
+
+  const generateSchedule07aStaffFundDetailData = () => {
+    const data = scheduleReportData?.staff_fund_detail_07a;
+    if (!data?.employees?.length) {
+      return { headers: ["Period", "Staff Fund", "Sports Fund", "Total"], rows: [], multiSections: [] };
+    }
+
+    const empHeaders = ["Period", "Staff Fund", "Sports Fund", "Total"];
+    const erHeaders = ["Period", "Staff Fund", "Sports Fund", "Total"];
+    const multiSections = [];
+
+    data.employees.forEach(emp => {
+      multiSections.push({
+        title: `${emp.employee_name} — FY ${data.fiscal_year} | Joined: ${emp.date_joined} | Resigned: ${emp.date_resigned} | Service: ${emp.period_of_service}`,
+        headers: ["Employee Contribution", ...empHeaders],
+        rows: [
+          ...emp.employee_rows.map(r => [r.period, fmt(r.employee_staff), fmt(r.employee_sports), fmt(r.employee_total)]),
+          [emp.employee_footer.period, fmt(emp.employee_footer.employee_staff), fmt(emp.employee_footer.employee_sports), fmt(emp.employee_footer.employee_total)],
+        ],
+      });
+      multiSections.push({
+        title: `${emp.employee_name} — Employer Contribution`,
+        headers: erHeaders,
+        rows: [
+          ...emp.employee_rows.map(r => [r.period, fmt(r.employer_staff), fmt(r.employer_sports), fmt(r.employer_total)]),
+          [emp.employer_footer.period, fmt(emp.employer_footer.employer_staff), fmt(emp.employer_footer.employer_sports), fmt(emp.employer_footer.employer_total)],
+        ],
+      });
+      multiSections.push({
+        title: `${emp.employee_name} — Total Contribution`,
+        headers: ["Staff Fund", "Sports Fund", "Grand Total"],
+        rows: [[fmt(emp.grand_total.staff), fmt(emp.grand_total.sports), fmt(emp.grand_total.total)]],
+      });
+    });
+
+    return {
+      headers: empHeaders,
+      rows: multiSections[0]?.rows || [],
+      reportTitle: `Schedule 07(a) — Detail Staff Fund Contributions — ${monthLabel} ${selectedYear}`,
+      multiSections,
+    };
+  };
+
+  const generateNetPaySummaryListData = () => {
+    const headers = ["Employee Name", "Basic Salary", "Allowance", "Total Net Pay"];
+    let tBasic = 0, tAllow = 0, tNet = 0;
+    const rows = reportData.map(e => {
+      const basicNet = Number(e.epf_schedule_net) || 0;
+      const allowNet = Number(e.allowance_net) || 0;
+      const total = Number(e.net_salary) || 0;
+      tBasic += basicNet; tAllow += allowNet; tNet += total;
+      return [e.name, fmt(basicNet), fmt(allowNet), fmt(total)];
+    });
+    return {
+      headers, rows,
+      footer: ["TOTAL", fmt(tBasic), fmt(tAllow), fmt(tNet)],
+      reportTitle: `Summary for Net Pay — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateNetPaySummaryBreakdownData = () => {
+    const salaryComp = sumField('salary_component');
+    const allowComp = sumField('allowance_component');
+    const gross = sumField('gross_salary');
+    const basicNp = sumField('basic_no_pay');
+    const bonusNp = sumField('bonus_no_pay');
+    const totalNp = sumField('no_pay_amount');
+    const advance = sumField('salary_advance');
+    const loanInst = sumField('loan_installment');
+    const loanInt = sumField('loan_interest');
+    const sports = sumField('sports_fund');
+    const staff = sumField('staff_fund');
+    const epf8 = sumField('epf_8');
+    const totalDed = sumField('total_deductions');
+    const basicNet = sumField('epf_schedule_net');
+    const allowNet = sumField('allowance_net');
+    const net = sumField('net_salary');
+
+    const rows = [
+      ["Earnings", fmt(salaryComp), fmt(allowComp), fmt(gross)],
+      ["Less: No pay", fmt(basicNp), fmt(bonusNp), fmt(totalNp)],
+      ["Gross Pay", fmt(salaryComp - basicNp), fmt(allowComp - bonusNp), fmt(gross - totalNp)],
+      ["Salary Advance", fmt(0), fmt(advance), fmt(advance)],
+      ["Loan Installment", fmt(sumField('loan_on_basic')), fmt(sumField('loan_on_bonus')), fmt(loanInst)],
+      ["Loan Interest", fmt(0), fmt(loanInt), fmt(loanInt)],
+      ["Sports Fund", fmt(0), fmt(sports), fmt(sports)],
+      ["Staff Fund", fmt(0), fmt(staff), fmt(staff)],
+      ["EPF 8%", fmt(epf8), fmt(0), fmt(epf8)],
+      ["Total Deductions", fmt(epf8 + basicNp + sumField('loan_on_basic')), fmt(totalDed - epf8 - basicNp - sumField('loan_on_basic')), fmt(totalDed)],
+      ["Net Pay", fmt(basicNet), fmt(allowNet), fmt(net)],
+    ];
+
+    return {
+      headers: ["", "Basic Salary", "Allowance", "Total"],
+      rows,
+      reportTitle: `Summary for Net Pay (Breakdown) — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateBankSalaryLetterData = () => {
+    const company = scheduleReportData?.company?.name || "Company";
+    const rows = [];
+    let total = 0;
+    reportData.forEach(e => {
+      const amount = Number(e.bank_amount) || 0;
+      if (amount <= 0) return;
+      rows.push([e.name, e.bank || "-", e.branch || "-", e.account || "-", fmt(amount)]);
+      total += amount;
+    });
+
+    const debitDate = `${selectedYear}-${selectedMonth}-10`;
+    return {
+      headers: ["Name", "Bank", "Branch", "A/C NO", "Amount (Rs.)"],
+      rows: rows.length ? rows : [["—", "—", "—", "—", "0.00"]],
+      footer: ["TOTAL", "", "", "", fmt(total)],
+      letterLines: [
+        company,
+        `Staff Salaries for the month of ${monthLabel} ${selectedYear}`,
+        "",
+        `Please be kind enough to debit the above salary on ${debitDate} from ${company} A/C No. ____________`,
+        "",
+        "Thanking You,",
+        "",
+        "_________________________",
+        "(Authorized Signatory)",
+      ],
+      reportTitle: `Bank Salary Payment Letter — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateOvertimeScheduleData = () => {
+    const headers = [
+      "Employee Name", "Basic Salary (a)",
+      "Normal Days (b)", "Holidays (c)", "Total (d)",
+      "Normal Rate (e)", "Holiday Rate (f)",
+      "Overtime (g)", "Poya Allowance (h)", "Mercantile Holiday (i)", "Total",
+    ];
+    let tOt = 0, tTotal = 0;
+    const rows = reportData.map(e => {
+      const basic = Number(e.base_basic_salary) || Number(e.salary_for_epf) || 0;
+      const normalHrs = (Number(e.ot_morning_hours) || 0) + (Number(e.ot_night_hours) || 0);
+      const holHrs = Number(e.ot_holiday_hours) || 0;
+      const totalHrs = normalHrs + holHrs;
+      const rateNormal = basic / 240 * 1.5;
+      const rateHol = basic / 240 * 2;
+      const calcOt = (normalHrs * rateNormal) + (holHrs * rateHol);
+      const actualOt = (Number(e.ot_morning_fees) || 0) + (Number(e.ot_night_fees) || 0) + (Number(e.ot_holiday_fees) || 0);
+      const otPay = actualOt > 0 ? actualOt : calcOt;
+      const poya = basic / 30 * 1.5;
+      const mercantile = basic / 30 * 1.5;
+      const rowTotal = holHrs > 0 || normalHrs > 0 ? otPay : 0;
+      tOt += rowTotal; tTotal += rowTotal;
+      return [
+        e.name, fmt(basic),
+        fmt(normalHrs), fmt(holHrs), fmt(totalHrs),
+        fmt(rateNormal), fmt(rateHol),
+        fmt(rowTotal), holHrs > 0 ? fmt(poya) : fmt(0), holHrs > 0 ? fmt(mercantile) : fmt(0), fmt(rowTotal),
+      ];
+    });
+    return {
+      headers, rows,
+      footer: ["Total Overtime", "", "", "", "", "", "", fmt(tOt), "", "", fmt(tTotal)],
+      reportTitle: `Overtime — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateEPFSchedule06Data = () => {
+    const company = scheduleReportData?.company;
+    const regNo = company?.registration_no && company.registration_no !== '-' ? company.registration_no : '';
+    let rows = []; let tBase = 0, tEmp8 = 0, tEmp12 = 0, tEpf20 = 0, tEtf3 = 0;
+    reportData.forEach(e => {
+      const epf8 = Number(e.epf_8) || 0;
+      const epf12 = Number(e.epf_12) || 0;
+      const etf3 = Number(e.etf_3) || 0;
+      const epfBase = Number(e.salary_for_epf ?? e.epf_base) || 0;
+      if (epf8 + epf12 + etf3 > 0) {
+        const totalEpf = epf8 + epf12;
+        rows.push([
+          e.epf_member_no || e.emp_no, e.name, fmt(epfBase),
+          fmt(epf12), fmt(epf8), fmt(totalEpf), fmt(etf3),
+        ]);
+        tBase += epfBase; tEmp12 += epf12; tEmp8 += epf8; tEpf20 += totalEpf; tEtf3 += etf3;
+      }
+    });
+    return {
+      headers: ["Member No.", "Employee Name", "Salary for EPF", "Employer 12%", "Employee 8%", "Total EPF 20%", "ETF 3%"],
+      rows,
+      footer: ["", "TOTAL", fmt(tBase), fmt(tEmp12), fmt(tEmp8), fmt(tEpf20), fmt(tEtf3)],
+      reportTitle: `Schedule 06 — EPF & ETF — ${monthLabel} ${selectedYear}${regNo ? ` — Co. Reg: ${regNo}` : ''}`,
+      subtitle: regNo ? `Company Registration No: ${regNo}` : undefined,
+    };
+  };
+
+  const buildCoinageRows = (useAllowanceNet = true) => {
+    const rows = [];
+    const noteTotals = new Array(NOTES_ARRAY.length).fill(0);
+    let totalCash = 0;
+    reportData.forEach(e => {
+      const amount = Math.round(useAllowanceNet ? (Number(e.allowance_net) || Number(e.cash_amount) || 0) : (Number(e.cash_amount) || 0));
+      if (amount <= 0) return;
+      let counts = e.saved_coinage || {};
+      if (!e.saved_coinage) {
+        counts = {};
+        let temp = amount;
+        NOTES_ARRAY.forEach(note => { counts[note] = Math.floor(temp / note); temp = temp % note; });
+      }
+      const row = [e.name, fmt(amount)];
+      NOTES_ARRAY.forEach((note, index) => {
+        const count = Number(counts[note]) || 0;
+        row.push(String(count));
+        noteTotals[index] += count;
+      });
+      const rowSum = NOTES_ARRAY.reduce((s, note) => s + note * (Number(counts[note]) || 0), 0);
+      row.push(fmt(rowSum));
+      rows.push(row);
+      totalCash += amount;
+    });
+    return { rows, noteTotals, totalCash };
+  };
+
+  const generateCashAllowanceSummaryData = () => {
+    const { rows, noteTotals, totalCash } = buildCoinageRows(true);
+    const noteHeaders = NOTES_ARRAY.map(n => (n >= 100 ? `Note ${n}` : `Rs.${n}`));
+    return {
+      headers: ["Employee Name", "Net Pay Allowance (Rs.)", ...noteHeaders, "Total Pay Rs."],
+      rows: rows.length ? rows : [["—", "0.00", ...NOTES_ARRAY.map(() => "0"), "0.00"]],
+      footer: ["TOTAL", fmt(totalCash), ...noteTotals.map(n => String(n)), fmt(totalCash)],
+      reportTitle: `Cash Summary for Net Allowance — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const generateCoinageStaffAllowanceData = () => {
+    const { rows, noteTotals, totalCash } = buildCoinageRows(true);
+    const coinRows = NOTES_ARRAY.map((note, i) => [
+      note >= 100 ? `${note} Note` : `${note} Coin`,
+      String(noteTotals[i]),
+      fmt(note * noteTotals[i]),
+    ]);
+    return {
+      headers: ["Notes & Coins", "Nos.", "Amount Rs."],
+      rows: coinRows,
+      footer: ["Grand Total", "", fmt(totalCash)],
+      reportTitle: `Coinage for Staff Allowance — ${monthLabel} ${selectedYear}`,
+    };
+  };
+
+  const downloadCombinedSchedulesPDF = () => {
+    if (reportData.length === 0) return Swal.fire("Warning", "Please load data first!", "warning");
+    const sections = [
+      { title: "Salary & Allowance (Total)", data: generateSalaryAllowanceTotalData() },
+      { title: "Salary Details (EPF/ETF)", data: generateSalaryDetailsData() },
+      { title: "Allowance", data: generateAllowanceScheduleData() },
+    ];
+    const doc = new jsPDF("landscape", "mm", "a3");
+    doc.setFontSize(16);
+    doc.text(`Salary & Allowance Reports - ${monthLabel} ${selectedYear}`, 14, 15);
+    let startY = 25;
+    sections.forEach((section, idx) => {
+      if (idx > 0) startY += 8;
+      doc.setFontSize(12);
+      doc.text(section.data.reportTitle || section.title, 14, startY);
+      autoTable(doc, {
+        startY: startY + 4,
+        head: [section.data.headers],
+        body: section.data.rows,
+        foot: section.data.footer?.length ? [section.data.footer] : [],
+        theme: "grid",
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: "bold" },
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        margin: { left: 14, right: 14 },
+      });
+      startY = doc.lastAutoTable.finalY + 10;
+      if (startY > 180 && idx < sections.length - 1) {
+        doc.addPage();
+        startY = 20;
+      }
+    });
+    doc.save(`Salary_Allowance_Schedules_${selectedYear}_${selectedMonth}.pdf`);
+  };
+
   const openCoinageEditor = (format) => {
     if (reportData.length === 0) return Swal.fire("Warning", "Please load data first!", "warning");
     let initialData = [];
     reportData.forEach(e => {
-      let amount = Math.round(e.cash_amount || 0);
+      let amount = Math.round(Number(e.allowance_net) || Number(e.cash_amount) || 0);
       if (amount > 0) {
         if (e.saved_coinage) {
           initialData.push({ process_id: e.process_id, emp_no: e.emp_no, name: e.name, amount: amount, notes: e.saved_coinage });
@@ -213,7 +790,7 @@ const Reports = () => {
         }
       }
     });
-    if (initialData.length === 0) return Swal.fire("Empty", "No cash payments recorded for this month.", "info");
+    if (initialData.length === 0) return Swal.fire("Empty", "No allowance cash payments for this month.", "info");
     setEditableCoinage(initialData); setCoinageFormat(format); setShowCoinageModal(true);
   };
 
@@ -252,11 +829,15 @@ const Reports = () => {
 
   const downloadCSV = (dataFunc, filename) => {
     if (reportData.length === 0) return Swal.fire("Warning", "Please load data first!", "warning");
-    const { headers, rows, footer } = dataFunc();
+    const { headers, rows, footer, summaryHeaders, summaryRows } = dataFunc();
     if (rows.length === 0) return Swal.fire("Empty", "No data available for this report.", "info");
     let csvContent = "\uFEFF" + headers.join(",") + "\n";
     rows.forEach(r => { csvContent += r.map(v => `"${v}"`).join(",") + "\n"; });
     if (footer && footer.length > 0) csvContent += footer.map(v => `"${v}"`).join(",") + "\n";
+    if (summaryHeaders?.length && summaryRows?.length) {
+      csvContent += "\n" + summaryHeaders.join(",") + "\n";
+      summaryRows.forEach(r => { csvContent += r.map(v => `"${v}"`).join(",") + "\n"; });
+    }
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob); 
@@ -266,33 +847,197 @@ const Reports = () => {
 
   const downloadPDF = (dataFunc, title, filename) => {
     if (reportData.length === 0) return Swal.fire("Warning", "Please load data first!", "warning");
-    const { headers, rows, footer } = dataFunc();
-    if (rows.length === 0) return Swal.fire("Empty", "No data available for this report.", "info");
+    const result = dataFunc();
+    const { headers, rows, footer, reportTitle, summaryHeaders, summaryRows, multiSections, letterLines, subtitle } = result;
+    if (rows.length === 0 && !(multiSections?.length)) return Swal.fire("Empty", "No data available for this report.", "info");
     const isWideTable = headers.length > 9;
     const doc = new jsPDF("landscape", "mm", isWideTable ? "a3" : "a4");
     doc.setFontSize(isWideTable ? 18 : 16);
-    doc.text(`${title} - ${selectedMonth}/${selectedYear}`, 14, 15);
-    autoTable(doc, {
-      startY: 25, head: [headers], body: rows, foot: footer.length > 0 ? [footer] : [],
-      theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-      footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
-      styles: { fontSize: isWideTable ? 7 : 9, cellPadding: 2 }
-    });
+    doc.text(reportTitle || `${title} - ${selectedMonth}/${selectedYear}`, 14, 15);
+    let startY = 22;
+    if (subtitle) {
+      doc.setFontSize(10);
+      doc.text(subtitle, 14, startY);
+      startY += 8;
+    }
+    if (letterLines?.length) {
+      doc.setFontSize(10);
+      letterLines.forEach((line) => {
+        if (line) doc.text(line, 14, startY);
+        startY += line ? 6 : 3;
+      });
+      startY += 4;
+    }
+
+    const renderTable = (tableStartY, tableHeaders, tableRows, tableFooter) => {
+      autoTable(doc, {
+        startY: tableStartY, head: [tableHeaders], body: tableRows, foot: tableFooter?.length > 0 ? [tableFooter] : [],
+        theme: 'grid',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+        styles: { fontSize: isWideTable ? 7 : 9, cellPadding: 2 }
+      });
+    };
+
+    if (multiSections?.length) {
+      let y = startY;
+      multiSections.forEach((section, idx) => {
+        if (idx > 0) y = (doc.lastAutoTable?.finalY || y) + 10;
+        doc.setFontSize(11);
+        doc.text(section.title, 14, y);
+        renderTable(y + 4, section.headers, section.rows, section.footer || []);
+        if ((doc.lastAutoTable?.finalY || 0) > 180 && idx < multiSections.length - 1) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+    } else {
+      renderTable(startY, headers, rows, footer);
+    }
+
+    if (summaryHeaders?.length && summaryRows?.length) {
+      const finalY = doc.lastAutoTable?.finalY || startY;
+      doc.setFontSize(11);
+      doc.text("Summary", 14, finalY + 12);
+      autoTable(doc, {
+        startY: finalY + 16,
+        head: [summaryHeaders],
+        body: summaryRows,
+        theme: 'grid',
+        headStyles: { fillColor: [52, 73, 94], textColor: 255 },
+        styles: { fontSize: 9, cellPadding: 2 },
+      });
+    }
     doc.save(`${filename}_${selectedYear}_${selectedMonth}.pdf`);
   };
 
+  const openReportPreview = (card) => {
+    if (reportData.length === 0) return Swal.fire("Warning", "Please load data first!", "warning");
+    const result = card.func();
+    const { headers, rows, footer, reportTitle, summaryHeaders, summaryRows, multiSections } = result;
+    if (rows.length === 0 && !(multiSections?.length)) return Swal.fire("Empty", "No data available for this report.", "info");
+
+    const sections = multiSections?.length
+      ? multiSections.map(s => ({ title: s.title, headers: s.headers, rows: s.rows, footer: [] }))
+      : [{ title: reportTitle || card.title, headers, rows, footer, summaryHeaders, summaryRows }];
+
+    if (!multiSections?.length && summaryHeaders?.length) {
+      sections[0].summaryHeaders = summaryHeaders;
+      sections[0].summaryRows = summaryRows;
+    } else if (multiSections?.length && summaryHeaders?.length) {
+      sections.push({ title: "Summary", headers: summaryHeaders, rows: summaryRows, footer: [] });
+    }
+
+    setPreviewReport({
+      title: reportTitle || card.title,
+      file: card.file,
+      func: card.func,
+      sections,
+    });
+    setShowPreviewModal(true);
+  };
+
+  const openCombinedPreview = () => {
+    if (reportData.length === 0) return Swal.fire("Warning", "Please load data first!", "warning");
+    const sections = [
+      { title: "Salary & Allowance (Total)", ...generateSalaryAllowanceTotalData() },
+      { title: "Salary Details (EPF/ETF)", ...generateSalaryDetailsData() },
+      { title: "Allowance", ...generateAllowanceScheduleData() },
+    ];
+    if (sections.every(s => s.rows.length === 0)) {
+      return Swal.fire("Empty", "No data available for these reports.", "info");
+    }
+    setPreviewReport({
+      title: "Salary & Allowance Schedules (All 3 Reports)",
+      file: "Salary_Allowance_Schedules",
+      sections,
+    });
+    setShowPreviewModal(true);
+  };
+
+  const renderPreviewTable = (section) => (
+    <div key={section.title} className="mb-8 last:mb-0">
+      <h3 className="text-sm font-bold text-gray-800 mb-2 sticky top-0 bg-white py-1">{section.title}</h3>
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <table className="w-full text-xs text-left whitespace-nowrap">
+          <thead className="bg-blue-600 text-white">
+            <tr>
+              {section.headers.map((h, i) => (
+                <th key={i} className="px-3 py-2 font-semibold">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {section.rows.map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                {row.map((cell, ci) => (
+                  <td key={ci} className="px-3 py-1.5 border-t border-gray-100">{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          {section.footer?.length > 0 && (
+            <tfoot className="bg-gray-100 font-bold">
+              <tr>
+                {section.footer.map((cell, fi) => (
+                  <td key={fi} className="px-3 py-2 border-t border-gray-300">{cell}</td>
+                ))}
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {section.summaryHeaders?.length > 0 && section.summaryRows?.length > 0 && (
+        <div className="mt-4 overflow-x-auto border border-gray-200 rounded-lg max-w-2xl">
+          <table className="w-full text-xs text-left whitespace-nowrap">
+            <thead className="bg-slate-700 text-white">
+              <tr>
+                {section.summaryHeaders.map((h, i) => (
+                  <th key={i} className="px-3 py-2 font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {section.summaryRows.map((row, ri) => (
+                <tr key={ri} className="bg-white">
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="px-3 py-2 border-t border-gray-100 font-semibold">{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-gray-500 mt-1">{section.rows.length} employee row(s)</p>
+    </div>
+  );
+
   const reportCards = [
+    { id: 18, title: "Summary for Net Pay", desc: "Employee net pay split — Basic Salary & Allowance.", icon: <FileBarChart className="w-6 h-6 text-blue-800" />, func: generateNetPaySummaryListData, file: "Summary_Net_Pay" },
+    { id: 19, title: "Summary for Net Pay (Breakdown)", desc: "Earnings & deductions by Basic / Allowance / Total.", icon: <FileBarChart className="w-6 h-6 text-indigo-800" />, func: generateNetPaySummaryBreakdownData, file: "Summary_Net_Pay_Breakdown" },
+    { id: 20, title: "Bank Salary Payment Letter", desc: "Formal bank letter with staff salary transfer list.", icon: <Building2 className="w-6 h-6 text-green-700" />, func: generateBankSalaryLetterData, file: "Bank_Salary_Letter" },
+    { id: 21, title: "Overtime Schedule", desc: "OT hours, rates (a/240×1.5 / ×2) and allowances.", icon: <Clock className="w-6 h-6 text-sky-700" />, func: generateOvertimeScheduleData, file: "Overtime_Schedule" },
+    { id: 22, title: "Cash Summary — Net Allowance", desc: "Coinage breakdown per employee for allowance payout.", icon: <Banknote className="w-6 h-6 text-emerald-700" />, func: generateCashAllowanceSummaryData, file: "Cash_Summary_Net_Allowance" },
+    { id: 23, title: "Coinage — Staff Allowance", desc: "Total notes & coins required for allowance payments.", icon: <Banknote className="w-6 h-6 text-emerald-600" />, func: generateCoinageStaffAllowanceData, file: "Coinage_Staff_Allowance" },
+    { id: 24, title: "Schedule 07(a): Staff Fund Detail", desc: "Monthly employee & employer fund contributions (FY).", icon: <Wallet className="w-6 h-6 text-amber-800" />, func: generateSchedule07aStaffFundDetailData, file: "Schedule_07a_Staff_Fund" },
+    { id: 16, title: "Schedule 04: Loan Summary", desc: "All staff loans — principal & interest with totals.", icon: <CreditCard className="w-6 h-6 text-orange-700" />, func: generateSchedule04LoanSummaryData, file: "Schedule_04_Loan_Summary" },
+    { id: 17, title: "Schedule 04(a): Staff Loan Detail", desc: "Per-loan monthly deduction history.", icon: <CreditCard className="w-6 h-6 text-orange-600" />, func: generateSchedule04aLoanDetailData, file: "Schedule_04a_Loan_Detail" },
+    { id: 14, title: "Schedule 02: Nopay", desc: "Basic, Salary & Allowance nopay sections with summary.", icon: <FileCheck className="w-6 h-6 text-red-700" />, func: generateSchedule02NoPayData, file: "Schedule_02_Nopay" },
+    { id: 15, title: "Schedule 07: Staff Fund", desc: "Staff fund contributions & cumulative balance.", icon: <Wallet className="w-6 h-6 text-amber-700" />, func: generateSchedule07StaffFundData, file: "Schedule_07_Staff_Fund" },
+    { id: 11, title: "Salary & Allowance (Total)", desc: "Combined salary + allowance view with Schedules 02–08.", icon: <FileBarChart className="w-6 h-6 text-blue-700" />, func: generateSalaryAllowanceTotalData, file: "Salary_Allowance_Total" },
+    { id: 12, title: "Salary Details (EPF/ETF)", desc: "Sch 01 earnings, Salary for EPF, Sch 03/04/06 deductions.", icon: <FileText className="w-6 h-6 text-indigo-700" />, func: generateSalaryDetailsData, file: "Salary_Details_EPF_ETF" },
+    { id: 13, title: "Allowance Report", desc: "Allowance earnings with related deductions (Sch 02–08).", icon: <Wallet className="w-6 h-6 text-violet-700" />, func: generateAllowanceScheduleData, file: "Allowance_Report" },
     { id: 1, title: "Full Master Payroll", desc: "Complete summary with all additions & deductions.", icon: <FileBarChart className="w-6 h-6 text-indigo-600" />, func: generateMasterData, file: "Full_Master_Payroll" },
     { id: 2, title: "Bank Transfer File", desc: "Exact Bank Net Amount sent to accounts.", icon: <Building2 className="w-6 h-6 text-green-600" />, func: generateBankData, file: "Bank_Transfer" },
-    { id: 3, title: "Schedule 06: EPF & ETF", desc: "8%, 12% and 3% contributions.", icon: <FileText className="w-6 h-6 text-blue-600" />, func: generateEPFData, file: "EPF_ETF_Sch06" },
+    { id: 3, title: "Schedule 06: EPF & ETF", desc: "Member No, Salary for EPF, 12%/8%/3% — printed format.", icon: <FileText className="w-6 h-6 text-blue-600" />, func: generateEPFSchedule06Data, file: "EPF_ETF_Sch06" },
     { id: 4, title: "Overtime Summary", desc: "Morning, Night, and Holiday OT breakdown.", icon: <Clock className="w-6 h-6 text-sky-600" />, func: generateOTData, file: "Overtime_Summary" },
     { id: 5, title: "Dynamic Allowances", desc: "Breakdown of all allowances only.", icon: <Wallet className="w-6 h-6 text-purple-600" />, func: generateAllowancesOnlyData, file: "Allowances_Report" },
     { id: 6, title: "Dynamic Bonuses", desc: "Breakdown of bonuses only.", icon: <Gift className="w-6 h-6 text-teal-600" />, func: generateBonusesOnlyData, file: "Bonuses_Report" },
     { id: 7, title: "Custom Deductions", desc: "Dynamic breakdown of custom deductions.", icon: <Scissors className="w-6 h-6 text-pink-600" />, func: generateDynamicDeductionsData, file: "Custom_Deductions" },
     { id: 8, title: "Staff Loans", desc: "Loan installments, interest and balance.", icon: <CreditCard className="w-6 h-6 text-orange-600" />, func: generateLoanData, file: "Staff_Loans" },
     { id: 9, title: "No Pay Details", desc: "Deductions based on absent days.", icon: <FileCheck className="w-6 h-6 text-red-600" />, func: generateNoPayData, file: "NoPay_Details" },
-    { id: 10, title: "Cash Coinage Summary", desc: "Interactive Note breakdown for cash payouts.", icon: <Banknote className="w-6 h-6 text-emerald-600" />, isCoinage: true }
+    { id: 10, title: "Cash Coinage (Edit)", desc: "Interactive note breakdown for allowance payouts.", icon: <Banknote className="w-6 h-6 text-emerald-600" />, isCoinage: true }
   ];
 
   return (
@@ -301,7 +1046,7 @@ const Reports = () => {
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><FileSpreadsheet className="text-blue-600"/> Payroll Documents & Schedules</h1>
-            <p className="text-gray-500 text-sm mt-1">Load data first, then download Excel or PDF with Totals.</p>
+            <p className="text-gray-500 text-sm mt-1">Load data first, preview reports, then download Excel or PDF.</p>
           </div>
           <div className="flex items-end gap-4">
             <div>
@@ -322,6 +1067,29 @@ const Reports = () => {
           </div>
         </div>
 
+        <div className="mb-6 bg-white rounded-2xl border border-blue-100 shadow-sm p-5 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">Salary & Allowance Schedules</h2>
+            <p className="text-xs text-gray-500 mt-1">Download all three reports (Total, Salary Details, Allowance) in one PDF — matching the printed payroll format.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={openCombinedPreview}
+              disabled={reportData.length === 0}
+              className="px-4 py-2.5 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 disabled:opacity-50 flex items-center gap-2 border border-blue-200"
+            >
+              <Eye className="w-4 h-4" /> Preview All 3
+            </button>
+            <button
+              onClick={downloadCombinedSchedulesPDF}
+              disabled={reportData.length === 0}
+              className="px-5 py-2.5 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-50 flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" /> Combined PDF
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {reportCards.map((card) => (
             <div key={card.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-all flex flex-col justify-between">
@@ -332,18 +1100,80 @@ const Reports = () => {
                 </div>
                 <p className="text-xs text-gray-500 mb-5">{card.desc}</p>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => card.isCoinage ? openCoinageEditor('csv') : downloadCSV(card.func, card.file)} className="flex-1 py-2 text-xs font-semibold bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200">
-                  Excel
-                </button>
-                <button onClick={() => card.isCoinage ? openCoinageEditor('pdf') : downloadPDF(card.func, card.title, card.file)} className="flex-1 py-2 text-xs font-semibold bg-red-50 text-red-700 rounded-lg hover:bg-red-100 border border-red-200">
-                  PDF
-                </button>
+              <div className="flex flex-col gap-2">
+                {!card.isCoinage && (
+                  <button
+                    onClick={() => openReportPreview(card)}
+                    className="w-full py-2 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 flex items-center justify-center gap-1"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> View
+                  </button>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => card.isCoinage ? openCoinageEditor('csv') : downloadCSV(card.func, card.file)} className="flex-1 py-2 text-xs font-semibold bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200">
+                    Excel
+                  </button>
+                  <button onClick={() => card.isCoinage ? openCoinageEditor('pdf') : downloadPDF(card.func, card.title, card.file)} className="flex-1 py-2 text-xs font-semibold bg-red-50 text-red-700 rounded-lg hover:bg-red-100 border border-red-200">
+                    PDF
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {showPreviewModal && previewReport && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-60 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[92vh] flex flex-col">
+            <div className="p-5 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Eye className="text-blue-600" /> {previewReport.title}
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  {monthLabel} {selectedYear} — Review before downloading
+                </p>
+              </div>
+              <button onClick={() => setShowPreviewModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex-1">
+              {previewReport.sections.map((section) => renderPreviewTable(section))}
+            </div>
+            <div className="p-4 border-t flex flex-wrap justify-end gap-3 bg-gray-50 rounded-b-2xl shrink-0">
+              <button onClick={() => setShowPreviewModal(false)} className="px-5 py-2 text-gray-600 font-semibold hover:bg-gray-200 rounded-lg">
+                Close
+              </button>
+              {previewReport.sections.length === 1 && previewReport.func && (
+                <>
+                  <button
+                    onClick={() => downloadCSV(previewReport.func, previewReport.file)}
+                    className="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 flex items-center gap-2"
+                  >
+                    <Download size={16} /> Download Excel
+                  </button>
+                  <button
+                    onClick={() => downloadPDF(previewReport.func, previewReport.title, previewReport.file)}
+                    className="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2"
+                  >
+                    <Download size={16} /> Download PDF
+                  </button>
+                </>
+              )}
+              {previewReport.sections.length > 1 && (
+                <button
+                  onClick={downloadCombinedSchedulesPDF}
+                  className="px-5 py-2 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 flex items-center gap-2"
+                >
+                  <Download size={16} /> Download Combined PDF
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCoinageModal && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-60 flex justify-center items-center z-50 p-4">
@@ -541,10 +1371,22 @@ const Reports = () => {
   const generateEPFData = () => {
     let rows = []; let tBase = 0, tEmp8 = 0, tEmp12 = 0, tEpf20 = 0, tEtf3 = 0;
     reportData.forEach(e => {
-      if (e.enable_epf_etf === 1 && (e.epf_8 + e.epf_12) > 0) {
-        let totalEpf = e.epf_8 + e.epf_12;
-        rows.push([e.emp_no, e.name, e.epf_base.toFixed(2), e.epf_12.toFixed(2), e.epf_8.toFixed(2), totalEpf.toFixed(2), e.etf_3.toFixed(2)]);
-        tBase += e.epf_base; tEmp12 += e.epf_12; tEmp8 += e.epf_8; tEpf20 += totalEpf; tEtf3 += e.etf_3;
+      const epf8 = Number(e.epf_8) || 0;
+      const epf12 = Number(e.epf_12) || 0;
+      const etf3 = Number(e.etf_3) || 0;
+      const epfBase = Number(e.salary_for_epf ?? e.epf_base) || 0;
+      if (epf8 + epf12 + etf3 > 0) {
+        let totalEpf = epf8 + epf12;
+        rows.push([
+          e.epf_member_no || e.emp_no,
+          e.name,
+          epfBase.toFixed(2),
+          epf12.toFixed(2),
+          epf8.toFixed(2),
+          totalEpf.toFixed(2),
+          etf3.toFixed(2)
+        ]);
+        tBase += epfBase; tEmp12 += epf12; tEmp8 += epf8; tEpf20 += totalEpf; tEtf3 += etf3;
       }
     });
     return { headers: ["Member No", "Name", "Salary for EPF", "Employer 12%", "Employee 8%", "Total EPF 20%", "ETF 3%"], rows, footer: ["", "TOTAL", tBase.toFixed(2), tEmp12.toFixed(2), tEmp8.toFixed(2), tEpf20.toFixed(2), tEtf3.toFixed(2)] };

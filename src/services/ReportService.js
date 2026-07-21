@@ -12,6 +12,18 @@ const getMonthlyReportData = async (month, year) => {
   }
 };
 
+const getScheduleReportData = async (month, year) => {
+  try {
+    const response = await axios.get(`/reports/schedule-data`, {
+      params: { month, year }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching schedule report data:", error);
+    throw error;
+  }
+};
+
 
 const saveCoinageData = async (coinageData) => {
   const response = await axios.post(`/reports/save-coinage`, { coinage_data: coinageData });
@@ -20,5 +32,6 @@ const saveCoinageData = async (coinageData) => {
 
 export default { 
   getMonthlyReportData,
+  getScheduleReportData,
   saveCoinageData,
  };
