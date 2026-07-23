@@ -12,6 +12,7 @@ import {
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { banks } from "@utils/banks";
+import { calculateCompensationSummary } from "@utils/compensationCalculations";
 
 // Utility: safely parse a numeric string to Number, treating empty/invalid as 0.
 const toNumber = (val) => {
@@ -89,27 +90,23 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
 
   const isHighSalary = Number(formData.compensation?.basicSalary || 0) > 40000; // add this
 
-  // -------------------------------------------------------------------------
   // Auto-calculated overview values:
-  //   Total Salary        = Basic Salary + Monthly Bonus
-  //   Sports Fund Amount  = Basic Salary * (Sports Fund % / 100)
-  // These are display-only fields used to give the user an overview while
-  // creating an employee. The Sports Fund Amount is also written back into
-  // formData so the value is persisted with the compensation record.
-  // -------------------------------------------------------------------------
+  //   Total Salary             = Basic Salary + Monthly Bonus
+  //   Sports Fund Amount       = Total Salary × (Sports Fund % / 100)
+  //   Remaining Total Salary   = Total Salary − Sports Fund − Staff Fund
   const basicSalaryNum = toNumber(formData.compensation?.basicSalary);
   const monthlyBonusNum = toNumber(formData.compensation?.monthlyBonus);
   const sportsFundPctNum = toNumber(formData.compensation?.sportsFundPercentage);
   const staffFundAmountNum = toNumber(formData.compensation?.staffFundAmount);
 
-  const sportsFundAmount = useMemo(
-    () => +(monthlyBonusNum * (sportsFundPctNum / 100)).toFixed(2),
-    [monthlyBonusNum, sportsFundPctNum]
-  );
-
-  const totalSalary = useMemo(
-    () => +(basicSalaryNum + monthlyBonusNum - (sportsFundAmount + staffFundAmountNum)).toFixed(2),
-    [basicSalaryNum, monthlyBonusNum, sportsFundAmount, staffFundAmountNum]
+  const { totalSalary, sportsFundAmount, remainingTotalSalary } = useMemo(
+    () => calculateCompensationSummary({
+      basicSalary: basicSalaryNum,
+      monthlyBonus: monthlyBonusNum,
+      sportsFundPercentage: sportsFundPctNum,
+      staffFundAmount: staffFundAmountNum,
+    }),
+    [basicSalaryNum, monthlyBonusNum, sportsFundPctNum, staffFundAmountNum]
   );
 
   return (
@@ -209,7 +206,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg"
                           placeholder="e.g. 2.5"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Enter percentage applied on Monthly Bonus.</p>
+                        <p className="text-xs text-gray-500 mt-1">Enter percentage applied on Total Salary (Basic + Bonus).</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -226,7 +223,7 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                           />
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          {`= Monthly Bonus × Sports Fund %  (${formatMoney(monthlyBonusNum)} × ${sportsFundPctNum || 0}%)`}
+                          {`= Total Salary × Sports Fund %  (${formatMoney(totalSalary)} × ${sportsFundPctNum || 0}%)`}
                         </p>
                       </div>
                     </div>
@@ -244,7 +241,26 @@ const CompensationManagement = ({ onNext, onPrevious }) => {
                           placeholder="e.g. 500.00"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">Fixed amount deducted from the monthly bonus.</p>
+                      <p className="text-xs text-gray-500 mt-1">Fixed monthly staff fund amount deducted from salary.</p>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Remaining Total Salary <span className="text-xs text-gray-500 font-normal">(after Sports &amp; Staff Fund)</span>
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-emerald-600" />
+                        <input
+                          type="text"
+                          value={formatMoney(remainingTotalSalary)}
+                          readOnly
+                          tabIndex={-1}
+                          className="w-full pl-10 pr-4 py-3 border border-emerald-200 bg-emerald-50 text-emerald-800 font-semibold rounded-lg cursor-not-allowed"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {`= Total Salary − Sports Fund − Staff Fund  (${formatMoney(totalSalary)} − ${formatMoney(sportsFundAmount)} − ${formatMoney(staffFundAmountNum)})`}
+                      </p>
                     </div>
                   </div>
                 )}

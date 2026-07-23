@@ -13,12 +13,20 @@ import {
   LucideCloudAlert,
 } from "lucide-react";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
+import { calculateCompensationSummary, formatMoneyLKR } from "@utils/compensationCalculations";
 
 import Swal from "sweetalert2";
 
 const EmployeeConfirmationModal = ({ onSubmit }) => {
   const { formData, errors, clearForm } = useEmployeeForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const compensationSummary = calculateCompensationSummary({
+    basicSalary: formData.compensation?.basicSalary,
+    monthlyBonus: formData.compensation?.monthlyBonus,
+    sportsFundPercentage: formData.compensation?.sportsFundPercentage,
+    staffFundAmount: formData.compensation?.staffFundAmount,
+  });
   // const [isClear, setIsClear] = useState(false);
 
   const formatDate = (dateString) => {
@@ -909,6 +917,56 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600">
+                    Monthly Bonus
+                  </label>
+                  <p className="text-gray-800 mt-1">
+                    {formData.compensation.monthlyBonus
+                      ? `Rs. ${formData.compensation.monthlyBonus}`
+                      : "Not specified"}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    Total Salary
+                  </label>
+                  <p className="text-gray-800 mt-1 font-semibold">
+                    Rs. {formatMoneyLKR(compensationSummary.totalSalary)}
+                  </p>
+                  <p className="text-xs text-gray-500">Basic + Bonus</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    Sports Fund ({formData.compensation.sportsFundPercentage || 0}%)
+                  </label>
+                  <p className="text-gray-800 mt-1">
+                    Rs. {formatMoneyLKR(compensationSummary.sportsFundAmount)}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    Staff Fund
+                  </label>
+                  <p className="text-gray-800 mt-1">
+                    Rs. {formatMoneyLKR(compensationSummary.staffFundAmount)}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    Remaining Total Salary
+                  </label>
+                  <p className="text-emerald-700 mt-1 font-semibold">
+                    Rs. {formatMoneyLKR(compensationSummary.remainingTotalSalary)}
+                  </p>
+                  <p className="text-xs text-gray-500">Total − Sports − Staff</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
                     Increment Value
                   </label>
                   <p className="text-gray-800 mt-1">
@@ -917,8 +975,6 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
                       : "Not specified"}
                   </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-600">
                     Increment Effective From
