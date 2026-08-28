@@ -64,21 +64,25 @@ const Reports = () => {
     let rows = []; let totals = new Array(headers.length).fill(0);
 
     reportData.forEach(e => {
-      let row = [e.emp_no, e.name, e.basic_salary.toFixed(2)]; totals[2] += e.basic_salary;
+      const basic = Number(e.basic_salary) || 0;
+      const gross = Number(e.gross_salary) || 0;
+      const totalDed = Number(e.total_deductions) || 0;
+      const net = Number(e.net_salary) || 0;
+      let row = [e.emp_no, e.name, basic.toFixed(2)]; totals[2] += basic;
       allowHeaders.forEach((h, i) => { let amt = ((e.raw_allowances || []).find(a => a.name === h) || {}).amount || 0; row.push(parseFloat(amt).toFixed(2)); totals[3 + i] += parseFloat(amt); });
       let bonusOffset = 3 + allowHeaders.length;
       bonusHeaders.forEach((h, i) => { let amt = ((e.raw_bonuses || []).find(b => b.name === h) || {}).amount || 0; row.push(parseFloat(amt).toFixed(2)); totals[bonusOffset + i] += parseFloat(amt); });
       let grossIdx = bonusOffset + bonusHeaders.length;
-      row.push(e.gross_salary.toFixed(2)); totals[grossIdx] += e.gross_salary;
-      let epf8 = e.epf_8 || 0; let noPay = e.no_pay_amount || 0; let loan = (e.loan_installment || 0) + (e.loan_interest || 0);
+      row.push(gross.toFixed(2)); totals[grossIdx] += gross;
+      let epf8 = Number(e.epf_8) || 0; let noPay = Number(e.no_pay_amount) || 0; let loan = (Number(e.loan_installment) || 0) + (Number(e.loan_interest) || 0);
       row.push(epf8.toFixed(2)); totals[grossIdx + 1] += epf8; row.push(noPay.toFixed(2)); totals[grossIdx + 2] += noPay; row.push(loan.toFixed(2)); totals[grossIdx + 3] += loan;
       let dedOffset = grossIdx + 4;
       dedHeaders.forEach((h, i) => { let amt = ((e.raw_deductions || []).find(d => d.name === h) || {}).amount || 0; row.push(parseFloat(amt).toFixed(2)); totals[dedOffset + i] += parseFloat(amt); });
       let totDedIdx = dedOffset + dedHeaders.length;
-      row.push(e.total_deductions.toFixed(2)); totals[totDedIdx] += e.total_deductions;
+      row.push(totalDed.toFixed(2)); totals[totDedIdx] += totalDed;
       let netIdx = totDedIdx + 1;
-      row.push(e.net_salary.toFixed(2)); totals[netIdx] += e.net_salary;
-      let epf12 = e.epf_12 || 0; let etf3 = e.etf_3 || 0;
+      row.push(net.toFixed(2)); totals[netIdx] += net;
+      let epf12 = Number(e.epf_12) || 0; let etf3 = Number(e.etf_3) || 0;
       row.push(epf12.toFixed(2)); totals[netIdx + 1] += epf12; row.push(etf3.toFixed(2)); totals[netIdx + 2] += etf3;
       rows.push(row);
     });

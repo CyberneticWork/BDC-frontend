@@ -57,6 +57,7 @@ const LeaveMaster = ({ employeeProfile }) => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [leaveUsageData, setLeaveUsageData] = useState([]);
   const [isLoadingUsage, setIsLoadingUsage] = useState(false);
+  const [leaveLawInfo, setLeaveLawInfo] = useState(null);
   const [disabledDates, setDisabledDates] = useState([]);
   const [hoveredDate, setHoveredDate] = useState(null);
 
@@ -474,12 +475,23 @@ const LeaveMaster = ({ employeeProfile }) => {
           }
         );
         setLeaveUsageData(formattedUsage);
+        setLeaveLawInfo({
+          lawReference: eligibilityData.law_reference || "Shop and Office Employees Act No. 19 of 1954 (Sri Lanka)",
+          balanceSource: eligibilityData.balance_source || "shop_and_office_act",
+          employmentYear: eligibilityData.employment_year,
+          calendarYear: eligibilityData.calendar_year,
+          joinDate: eligibilityData.join_date,
+          isFirstYear: eligibilityData.is_first_year,
+          isSecondYear: eligibilityData.is_second_year,
+        });
       } else {
         setLeaveUsageData([]);
+        setLeaveLawInfo(null);
       }
     } catch (error) {
       console.error("Error fetching leave eligibility data:", error);
       setLeaveUsageData([]);
+      setLeaveLawInfo(null);
     } finally {
       setIsLoadingUsage(false);
     }
@@ -904,27 +916,68 @@ const LeaveMaster = ({ employeeProfile }) => {
       // 2. තෝරපු Leave Type එකේ Balance එක හොයාගන්නවා
       const selectedLeaveInfo = leaveUsageData.find(item => item.leaveType === formData.leaveType);
 
+      if (!formData.leaveType) {
+        Swal.fire({
+          icon: "error",
+          title: "Leave Type Required",
+          text: "Please select a leave type before submitting.",
+          confirmButtonColor: "#3085d6",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       if (selectedLeaveInfo) {
         const availableBalance = parseFloat(selectedLeaveInfo.balance);
+        const entitledTotal = parseFloat(selectedLeaveInfo.total);
+        const usedDays = parseFloat(selectedLeaveInfo.usage);
+        const actNote = selectedLeaveInfo.note || "";
 
         // 3. ඉල්ලන ගාණ, තියෙන Balance එකට වඩා වැඩි නම් Error එකක් දීලා නවත්තනවා
         if (requestedDuration > availableBalance) {
+          let reasonText = actNote;
+          if (entitledTotal <= 0) {
+            reasonText = actNote || `No ${formData.leaveType} entitlement under Shop & Office Act for this period.`;
+          } else if (availableBalance <= 0) {
+            reasonText = `All ${formData.leaveType} is already used (${usedDays}/${entitledTotal} days). ${actNote}`.trim();
+          } else {
+            reasonText = `Requested ${requestedDuration} day(s) but only ${availableBalance} day(s) remain (entitled ${entitledTotal}, used ${usedDays}). ${actNote}`.trim();
+          }
+
           Swal.fire({
             icon: "error",
-            title: "Insufficient Leave Balance",
+            title: "Cannot Apply Leave",
             html: `
               <div class="text-left">
-                <p class="text-red-600 font-bold mb-2">Limit Exceeded!</p>
-                <p>You are trying to request <b>${requestedDuration}</b> days.</p>
-                <p class="mt-2">But you only have <b>${availableBalance}</b> days of <b>${formData.leaveType}</b> available.</p>
-                <p class="mt-3 text-sm text-gray-500">Please reduce the number of days or select a different leave type.</p>
+                <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
+                <p>Leave type: <b>${formData.leaveType}</b></p>
+                <p class="mt-1">Requested: <b>${requestedDuration}</b> day(s)</p>
+                <p>Available balance: <b>${availableBalance}</b> day(s)</p>
+                <p class="mt-3"><b>Reason:</b> ${reasonText}</p>
+                ${leaveLawInfo?.lawReference ? `<p class="mt-2 text-xs text-gray-500">${leaveLawInfo.lawReference}</p>` : ""}
               </div>
             `,
             confirmButtonColor: "#3085d6",
+            confirmButtonText: "OK",
           });
           setIsSubmitting(false);
-          return; // මෙතනින් Form එක Submit වෙන එක සම්පූර්ණයෙන්ම නවතිනවා!
+          return;
         }
+      } else if (leaveUsageData.length > 0) {
+        Swal.fire({
+          icon: "error",
+          title: "Cannot Apply Leave",
+          html: `
+            <div class="text-left">
+              <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
+              <p><b>Reason:</b> "${formData.leaveType}" is not available in your current leave entitlement.</p>
+              <p class="mt-2 text-sm text-gray-600">Please select Casual Leave or Annual Leave (or a type set by HR).</p>
+            </div>
+          `,
+          confirmButtonColor: "#3085d6",
+        });
+        setIsSubmitting(false);
+        return;
       }
       // ===================================================================
 
@@ -974,6 +1027,35 @@ const LeaveMaster = ({ employeeProfile }) => {
 
         await handleSubmitSuccess();
       } catch (error) {
+        // Hard block: Shop & Office Act / entitlement exceeded (no override allowed)
+        if (
+          error.response?.status === 422 &&
+          (error.response?.data?.entitlement_exceeded ||
+            (error.response?.data?.limit_exceeded && error.response?.data?.continue_allowed === false))
+        ) {
+          const data = error.response.data;
+          Swal.fire({
+            icon: "error",
+            title: "Cannot Apply Leave",
+            html: `
+              <div class="text-left">
+                <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
+                <p>${data.message || ""}</p>
+                <p class="mt-3"><b>Reason:</b> ${data.reason || data.message || "Leave entitlement exceeded."}</p>
+                ${data.leave_type ? `<p class="mt-2">Leave type: <b>${data.leave_type}</b></p>` : ""}
+                ${data.requested_days != null ? `<p>Requested: <b>${data.requested_days}</b> day(s)</p>` : ""}
+                ${data.available_days != null ? `<p>Available: <b>${data.available_days}</b> day(s)</p>` : ""}
+                ${data.entitled_days != null ? `<p>Entitled: <b>${data.entitled_days}</b> | Used: <b>${data.used_days ?? 0}</b></p>` : ""}
+                ${data.law_reference ? `<p class="mt-2 text-xs text-gray-500">${data.law_reference}</p>` : ""}
+              </div>
+            `,
+            confirmButtonColor: "#3085d6",
+            confirmButtonText: "OK",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         // Check if this is a limit exceeded error that allows continuation
         if (
           error.response?.status === 422 &&
@@ -1075,6 +1157,30 @@ const LeaveMaster = ({ employeeProfile }) => {
         icon: "error",
         title: "Duplicate Leave Request",
         text: error.response.data.message,
+        confirmButtonColor: "#3085d6",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Entitlement / Act block from backend
+    if (
+      error.response?.status === 422 &&
+      (error.response?.data?.entitlement_exceeded ||
+        (error.response?.data?.limit_exceeded && error.response?.data?.continue_allowed === false))
+    ) {
+      const data = error.response.data;
+      Swal.fire({
+        icon: "error",
+        title: "Cannot Apply Leave",
+        html: `
+          <div class="text-left">
+            <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
+            <p>${data.message || ""}</p>
+            <p class="mt-3"><b>Reason:</b> ${data.reason || data.message || "Leave entitlement exceeded."}</p>
+            ${data.law_reference ? `<p class="mt-2 text-xs text-gray-500">${data.law_reference}</p>` : ""}
+          </div>
+        `,
         confirmButtonColor: "#3085d6",
       });
       setIsSubmitting(false);
@@ -1659,6 +1765,27 @@ const LeaveMaster = ({ employeeProfile }) => {
                         </span>
                       )}
                     </div>
+                    {leaveLawInfo && (
+                      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                        <p className="font-medium">{leaveLawInfo.lawReference}</p>
+                        <p className="mt-1 text-blue-800">
+                          {leaveLawInfo.balanceSource === "employee_leave_balances"
+                            ? "Balances use HR employee override for this year."
+                            : "Entitlements calculated under Shop & Office Act (Annual + Casual)."}
+                          {leaveLawInfo.employmentYear
+                            ? ` Employment year: ${leaveLawInfo.employmentYear}.`
+                            : ""}
+                          {leaveLawInfo.calendarYear
+                            ? ` Calendar year: ${leaveLawInfo.calendarYear}.`
+                            : ""}
+                        </p>
+                        <ul className="mt-2 list-disc pl-4 text-blue-800 space-y-0.5">
+                          <li>1st year: no Annual; Casual = 1 day per 2 completed months</li>
+                          <li>2nd year: Annual 14/10/7/4 by join quarter; Casual 7</li>
+                          <li>3rd year+: Annual 14; Casual 7</li>
+                        </ul>
+                      </div>
+                    )}
                     <div className="overflow-x-auto">
                       {isLoadingUsage ? (
                         <div className="py-10 text-center">
@@ -1686,6 +1813,9 @@ const LeaveMaster = ({ employeeProfile }) => {
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
                                 Balance
                               </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                                Act Note
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1706,12 +1836,15 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 <td className="px-4 py-3 border text-sm font-medium text-blue-600">
                                   {item.balance}
                                 </td>
+                                <td className="px-4 py-3 border text-xs text-gray-600 max-w-[220px]">
+                                  {item.note || "—"}
+                                </td>
                               </tr>
                             ))}
                             {leaveUsageData.length === 0 && !isLoadingUsage && (
                               <tr>
                                 <td
-                                  colSpan="5"
+                                  colSpan="6"
                                   className="px-4 py-8 border text-center text-gray-500"
                                 >
                                   {formData.employeeName

@@ -49,11 +49,10 @@ function Home() {
       const userData = await loadUser();
       setUser(userData);
       storeUser(userData);
-      // also update AuthContext so permissions recalc without a full refresh
       setAuthUser(userData);
-      // After successful login, navigate to previous attempted path if any,
-      // otherwise go to /dashboard
-      const dest = (location.state && location.state.from) || "/dashboard";
+      const dest =
+        (location.state && location.state.from) ||
+        (userData?.role === "employee" ? "/employee-portal" : "/dashboard");
       navigate(dest);
     } catch {
       setUser(null);

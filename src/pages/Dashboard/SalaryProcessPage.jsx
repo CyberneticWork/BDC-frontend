@@ -3,13 +3,14 @@ import axios from "@utils/axios";
 import BonusService from "../../components/BonusService";
 import {
   Download, Users, Wallet, FileText, ChevronDown, Filter,
-  CheckCircle, AlertCircle, Search, Building2, Layers,
+  CheckCircle, AlertCircle, Search, Building2, Layers, RefreshCw,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
 import {
   getSalaryData, UpdateAllowances, saveSalaryData,
   updateSlaryStatus, fetchExcelData, importExcelData,
+  processSalaries, unlockSalariesForRevision,
 } from "@services/SalaryProcessService";
 import { fetchSalaryCSV } from "@services/SalaryService";
 import AllowancesService from "@services/AllowancesService";
@@ -189,9 +190,9 @@ const SalaryProcessPage = () => {
 
 
   // =========================================================================
-  // අලුතින් එකතු කළ කොටස: හැමෝගෙම පඩි ටික Database එකට Save කරන Function එක
+  // Process / Revise & Reprocess
   // =========================================================================
-  const handleSalaryProcess = async () => {
+  const runSalaryProcess = async ({ reprocess = false } = {}) => {
     if (!processedDisplayedData || processedDisplayedData.length === 0) {
       notify.warning("No Data", "No employee data available to process!");
       return;
@@ -204,29 +205,170 @@ const SalaryProcessPage = () => {
 
     try {
       setIsLoading(true);
-      
-      const payload = {
-        data: processedDisplayedData, // තිරයේ පෙනෙන ඔක්කොම අයගේ දත්ත ටික
-        month: parseInt(month, 10),
-        year: parseInt(year, 10)
-      };
 
-      // අදාළ මාසය සහ අවුරුද්ද සමග Backend එකට යවනවා
-     const response = await axios.post('/salary-process/store', payload);
-      
-      if (response.status === 200 || response.status === 201) {
-        notify.success("Success", "All salaries have been processed and saved successfully!");
-        // Save වුණාට පස්සේ ආයෙත් දත්ත ටික Refresh කරගන්නවා
-        await fetchSalaryData();
-      }
+      const response = await processSalaries({
+        data: processedDisplayedData,
+        month: parseInt(month, 10),
+        year: parseInt(year, 10),
+        reprocess,
+      });
+
+      const summary = response?.summary || {};
+      const created = summary.created ?? 0;
+      const updated = summary.updated ?? 0;
+      const skipped = summary.skipped ?? 0;
+      const blocked = summary.blocked_issued ?? 0;
+
+      let detail = `${created} new, ${updated} revised`;
+      if (skipped > 0) detail += `, ${skipped} already processed (skipped)`;
+      if (blocked > 0) detail += `, ${blocked} issued (locked)`;
+
+      notify.success(reprocess ? "Revised & Reprocessed" : "Processed", detail);
+      await fetchSalaryData();
     } catch (error) {
       console.error("Error processing salaries:", error);
-      
-      // Backend එකෙන් එවන ඇත්තම Error එක අල්ලගන්නවා
       const errorMsg = error.response?.data?.message || error.response?.data?.errors || error.message;
-      
-      // ඒ Error එක Alert එකක් විදිහට පෙන්නනවා
-      alert(`Save Failed! Reason: ${JSON.stringify(errorMsg)}`);
+      notify.error("Save Failed", typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSalaryProcess = async () => {
+    const alreadyProcessed = processedDisplayedData.filter((e) =>
+      ["processed", "pending", "hold"].includes(String(e.process_status || "").toLowerCase())
+    );
+    const issued = processedDisplayedData.filter(
+      (e) => String(e.process_status || "").toLowerCase() === "issued"
+    );
+
+    if (alreadyProcessed.length > 0 || issued.length > 0) {
+      const result = await Swal.fire({
+        icon: "question",
+        title: "Some salaries already processed",
+        html: `
+          <p class="text-sm text-left">${alreadyProcessed.length} already processed will be <b>skipped</b>.</p>
+          ${issued.length ? `<p class="text-sm text-left mt-1">${issued.length} <b>issued</b> cannot be changed here.</p>` : ""}
+          <p class="text-sm text-left mt-2">Continue with new employees only, or use <b>Revise &amp; Reprocess</b> to recalculate existing ones.</p>
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Process new only",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#16a34a",
+      });
+      if (!result.isConfirmed) return;
+    }
+
+    await runSalaryProcess({ reprocess: false });
+  };
+
+  const handleReviseAndReprocess = async () => {
+    if (!processedDisplayedData || processedDisplayedData.length === 0) {
+      notify.warning("No Data", "Load salary data first (Apply Filters).");
+      return;
+    }
+    if (!month || !year) {
+      notify.warning("Missing Data", "Please select Month and Year first!");
+      return;
+    }
+
+    const issued = processedDisplayedData.filter(
+      (e) => String(e.process_status || "").toLowerCase() === "issued"
+    );
+    const revisable = processedDisplayedData.filter((e) =>
+      ["processed", "pending", "hold", "unprocessed", ""].includes(
+        String(e.process_status || "unprocessed").toLowerCase()
+      )
+    );
+
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Revise & reprocess salaries?",
+      html: `
+        <p class="text-sm text-left">This will:</p>
+        <ol class="text-sm text-left list-decimal ml-5 mt-2">
+          <li>Unlock already <b>processed</b> records for ${months.find((m) => m.value === month)?.label || month} ${year}</li>
+          <li>Recalculate from latest attendance / OT / allowances / no-pay</li>
+          <li>Save again as <b>processed</b></li>
+        </ol>
+        ${issued.length ? `<p class="text-sm text-amber-700 mt-3 text-left">${issued.length} issued payslip(s) will stay locked unless you unlock them separately.</p>` : ""}
+        <p class="text-sm text-left mt-2">${revisable.length} employee(s) will be recalculated.</p>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Yes, revise & reprocess",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#0d9488",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      setIsLoading(true);
+
+      const employeeNos = processedDisplayedData
+        .filter((e) => String(e.process_status || "").toLowerCase() !== "issued")
+        .map((e) => e.emp_no || e.employee_no)
+        .filter(Boolean);
+
+      if (employeeNos.length) {
+        try {
+          await unlockSalariesForRevision({
+            month: parseInt(month, 10),
+            year: parseInt(year, 10),
+            employee_nos: employeeNos,
+          });
+        } catch (unlockErr) {
+          // 404 = nothing to unlock yet — continue to process
+          if (unlockErr?.response?.status !== 404) {
+            throw unlockErr;
+          }
+        }
+      }
+
+      // Recalculate live figures after unlock
+      await fetchSalaryData();
+
+      // Use fresh displayed data after fetch — need to process with reprocess flag
+      // fetchSalaryData updates state async; call API again for fresh calc then process
+      const fresh = await getSalaryData({
+        month,
+        year,
+        company_id: selectedCompany || undefined,
+        department_id: selectedDepartment || undefined,
+        search: searchTerm || undefined,
+      });
+      const rows = (fresh?.data || []).map(normalizeEmployee);
+      setEmployeeData(rows);
+      setDisplayedData(rows);
+      setFilteredData(rows);
+
+      const toProcess = rows.filter(
+        (e) => String(e.process_status || "").toLowerCase() !== "issued"
+      );
+
+      if (!toProcess.length) {
+        notify.warning("Nothing to revise", "All loaded records are issued or empty.");
+        return;
+      }
+
+      const response = await processSalaries({
+        data: toProcess,
+        month: parseInt(month, 10),
+        year: parseInt(year, 10),
+        reprocess: true,
+      });
+
+      const summary = response?.summary || {};
+      notify.success(
+        "Revised & Reprocessed",
+        `${summary.updated || 0} updated, ${summary.created || 0} new` +
+          (summary.blocked_issued ? `, ${summary.blocked_issued} issued locked` : "")
+      );
+      await fetchSalaryData();
+    } catch (error) {
+      console.error(error);
+      const errorMsg = error.response?.data?.message || error.message;
+      notify.error("Revise Failed", errorMsg);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -700,11 +842,34 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, is
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl border border-blue-100 p-6 shadow h-fit">
-          <h3 className="text-base font-semibold text-blue-700 mb-4">Process Status</h3>
+        <div className="bg-gradient-to-br from-white to-teal-50 rounded-2xl border border-teal-100 p-6 shadow h-fit">
+          <h3 className="text-base font-semibold text-teal-800 mb-4">Process Status</h3>
           <div className="pt-2 space-y-3">
-            <button className="w-full px-5 py-2.5 bg-green-600 text-white rounded-lg font-semibold" onClick={handleSalaryProcess}>Process Salary</button>
-            <button className="w-full px-5 py-2.5 bg-purple-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2" onClick={handleDownloadAllProcessed}><Download size={18} /> Download All Payslips</button>
+            <button
+              className="w-full px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold disabled:opacity-50"
+              onClick={handleSalaryProcess}
+              disabled={isLoading}
+            >
+              Process Salary
+            </button>
+            <button
+              className="w-full px-5 py-2.5 text-white rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#0D9488,#0B4F5C)" }}
+              onClick={handleReviseAndReprocess}
+              disabled={isLoading}
+              title="Unlock processed salaries, recalculate from latest data, and save again"
+            >
+              <RefreshCw size={18} /> Revise &amp; Reprocess
+            </button>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Use <b>Revise &amp; Reprocess</b> after changing allowances, OT, no-pay or attendance for a month that was already processed. Issued payslips stay locked.
+            </p>
+            <button
+              className="w-full px-5 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
+              onClick={handleDownloadAllProcessed}
+            >
+              <Download size={18} /> Download All Payslips
+            </button>
           </div>
         </div>
       </div>
@@ -810,14 +975,30 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, is
             <span className="text-sm font-medium text-gray-700">Select All Employees</span>
           </div>
           {processedDisplayedData.map((employee) => (
-            <EmployeeSalaryCard
-              key={employee.id}
-              employee={employee}
-              empId={String(employee.id)}
-              isSelected={selectedEmployees.includes(String(employee.id))}
-              onSelect={() => handleSelectEmployee(employee)}
-              onDownload={handleDownloadEmployeePayslips}
-            />
+            <div key={employee.id} className="relative">
+              {employee.process_status && String(employee.process_status).toLowerCase() !== "unprocessed" && (
+                <span
+                  className={`absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide ${
+                    String(employee.process_status).toLowerCase() === "issued"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : String(employee.process_status).toLowerCase() === "processed"
+                        ? "bg-teal-100 text-teal-800"
+                        : String(employee.process_status).toLowerCase() === "hold"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {employee.process_status}
+                </span>
+              )}
+              <EmployeeSalaryCard
+                employee={employee}
+                empId={String(employee.id)}
+                isSelected={selectedEmployees.includes(String(employee.id))}
+                onSelect={() => handleSelectEmployee(employee)}
+                onDownload={handleDownloadEmployeePayslips}
+              />
+            </div>
           ))}
         </div>
       ) : null}

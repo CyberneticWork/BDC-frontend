@@ -7,9 +7,12 @@ import {
   X,
   Eye,
   AlertTriangle,
+  Ban,
+  RefreshCw,
 } from "lucide-react";
 import ShiftScheduleService from "@services/ShiftScheduleService";
 import RosterService from "@services/RosterService";
+import timeCardService from "@services/timeCardService";
 import {
   fetchCompanies,
   fetchDepartments,
@@ -516,6 +519,169 @@ const RosterManagementSystem = () => {
     } catch (error) {
       toast.error("Failed to delete roster");
     }
+  };
+
+  const promptRecalculateAttendance = async ({
+    fromDate,
+    toDate,
+    employeeId = null,
+    companyId = null,
+    departmentId = null,
+    title = "Recalculate attendance?",
+  }) => {
+    if (!fromDate || !toDate) {
+      toast.info("Select date from/to to recalculate attendance");
+      return;
+    }
+
+    const ask = await Swal.fire({
+      title,
+      html: `Rebuild IN / Late Coming / OUT / Early OUT using the <b>current active roster</b> for <b>${fromDate}</b> to <b>${toDate}</b>.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, recalculate",
+      confirmButtonColor: "#2563eb",
+    });
+    if (!ask.isConfirmed) return;
+
+    try {
+      const payload = {
+        from_date: fromDate,
+        to_date: toDate,
+      };
+      if (employeeId) payload.employee_id = employeeId;
+      if (companyId) payload.company_id = companyId;
+      if (departmentId) payload.department_id = departmentId;
+
+      const result = await timeCardService.recalculateAttendance(payload);
+      Swal.fire({
+        icon: "success",
+        title: "Recalculation complete",
+        html: `Updated <b>${result.updated ?? 0}</b> punch(es).<br/>Processed: ${result.processed ?? 0}<br/>Unchanged/skipped: ${result.unchanged_or_skipped ?? 0}`,
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Recalculation failed",
+        text: error?.response?.data?.message || error.message || "Failed to recalculate",
+      });
+    }
+  };
+
+  const handleCancelRoster = async (roster) => {
+    if ((roster.status || "Active") === "Cancelled") {
+      toast.info("Roster is already cancelled");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Cancel Roster?",
+      text: `Cancel shift for ${roster.employee_name || "employee"} on ${roster.date_from}? Attendance will ignore this roster.`,
+      input: "text",
+      inputPlaceholder: "Cancel reason (optional)",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d97706",
+      confirmButtonText: "Yes, cancel roster",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await RosterService.cancelRoster(roster.id, result.value || "");
+      const markCancelled = (list) =>
+        list.map((r) =>
+          r.id === roster.id
+            ? { ...r, status: "Cancelled", cancel_reason: result.value || null }
+            : r
+        );
+      setAllRosters(markCancelled);
+      setSearchedRosters(markCancelled);
+      toast.success("Roster cancelled");
+
+      const day = roster.date_from || roster.date_to;
+      if (day) {
+        await promptRecalculateAttendance({
+          fromDate: day,
+          toDate: roster.date_to || day,
+          employeeId: roster.employee_id || null,
+          title: "Recalculate punches for this day?",
+        });
+      }
+    } catch (error) {
+      toast.error(error?.message || "Failed to cancel roster");
+    }
+  };
+
+  const handleBulkCancelRosters = async () => {
+    if (selectedRosterIds.size === 0) return;
+    const result = await Swal.fire({
+      title: "Cancel Selected Rosters?",
+      text: `Cancel ${selectedRosterIds.size} roster(s)? They will no longer apply for attendance.`,
+      input: "text",
+      inputPlaceholder: "Cancel reason (optional)",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d97706",
+      confirmButtonText: "Yes, cancel",
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      await RosterService.bulkCancelRosters(
+        Array.from(selectedRosterIds),
+        result.value || ""
+      );
+      const cancelled = (searchedRosters.length ? searchedRosters : allRosters).filter((r) =>
+        selectedRosterIds.has(r.id)
+      );
+      const markCancelled = (list) =>
+        list.map((r) =>
+          selectedRosterIds.has(r.id)
+            ? { ...r, status: "Cancelled", cancel_reason: result.value || null }
+            : r
+        );
+      setAllRosters(markCancelled);
+      setSearchedRosters(markCancelled);
+      setSelectedRosterIds(new Set());
+      toast.success("Selected rosters cancelled");
+
+      const dates = cancelled
+        .flatMap((r) => [r.date_from, r.date_to])
+        .filter(Boolean)
+        .sort();
+      if (dates.length) {
+        await promptRecalculateAttendance({
+          fromDate: dates[0],
+          toDate: dates[dates.length - 1],
+          companyId: rosterSearchParams.company_id || null,
+          departmentId: rosterSearchParams.department_id || null,
+          title: "Recalculate attendance for cancelled dates?",
+        });
+      }
+    } catch (error) {
+      toast.error(error?.message || "Failed to cancel rosters");
+    }
+  };
+
+  const handleRecalculateFromSearch = async () => {
+    const from =
+      rosterSearchParams.date_from ||
+      dateFrom ||
+      "";
+    const to =
+      rosterSearchParams.date_to ||
+      dateTo ||
+      rosterSearchParams.date_from ||
+      dateFrom ||
+      "";
+    await promptRecalculateAttendance({
+      fromDate: from,
+      toDate: to,
+      companyId: rosterSearchParams.company_id || null,
+      departmentId: rosterSearchParams.department_id || null,
+      title: "Recalculate attendance for this range?",
+    });
   };
 
   const handleSelectAllRosters = () => {
@@ -1032,6 +1198,14 @@ const RosterManagementSystem = () => {
 
                 <div className="col-span-2 md:col-span-5 flex justify-end space-x-3 mt-2">
                   <button type="button" onClick={resetRosterSearch} className="px-4 py-2 border border-gray-400 rounded text-sm text-gray-700 bg-white hover:bg-gray-100 font-semibold shadow-sm">Reset</button>
+                  <button
+                    type="button"
+                    onClick={handleRecalculateFromSearch}
+                    className="px-4 py-2 border border-blue-600 text-blue-700 rounded text-sm font-bold bg-blue-50 hover:bg-blue-100 shadow-sm flex items-center gap-2"
+                    title="Rebuild Early OUT / OUT / Late using current active roster"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Recalculate Attendance
+                  </button>
                   <button type="submit" disabled={isSearching} className="px-6 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 shadow-md flex items-center justify-center min-w-[100px]">
                     {isSearching ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "Search"}
                   </button>
@@ -1039,13 +1213,18 @@ const RosterManagementSystem = () => {
               </form>
             </div>
 
-            {/* Bulk Delete Button */}
+            {/* Bulk Actions */}
             {selectedRosterIds.size > 0 && (
               <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center shadow-sm">
                 <span className="text-red-700 font-bold">{selectedRosterIds.size} Rosters Selected</span>
-                <button onClick={handleBulkDeleteRosters} disabled={isBulkDeleting} className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 flex items-center gap-2 font-bold shadow-sm">
-                  {isBulkDeleting ? "Deleting..." : <><Trash2 className="w-4 h-4" /> Delete Selected</>}
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={handleBulkCancelRosters} className="bg-amber-600 text-white px-4 py-2 rounded text-sm hover:bg-amber-700 flex items-center gap-2 font-bold shadow-sm">
+                    <Ban className="w-4 h-4" /> Cancel Selected
+                  </button>
+                  <button onClick={handleBulkDeleteRosters} disabled={isBulkDeleting} className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 flex items-center gap-2 font-bold shadow-sm">
+                    {isBulkDeleting ? "Deleting..." : <><Trash2 className="w-4 h-4" /> Delete Selected</>}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1060,17 +1239,18 @@ const RosterManagementSystem = () => {
                     <th className="p-3 border-b border-r border-gray-300 text-left font-bold text-gray-700">Shift</th>
                     <th className="p-3 border-b border-r border-gray-300 text-center font-bold text-gray-700">Date From</th>
                     <th className="p-3 border-b border-r border-gray-300 text-center font-bold text-gray-700">Date To</th>
-                    <th className="p-3 border-b border-gray-300 text-center font-bold text-gray-700 w-20">Action</th>
+                    <th className="p-3 border-b border-r border-gray-300 text-center font-bold text-gray-700">Status</th>
+                    <th className="p-3 border-b border-gray-300 text-center font-bold text-gray-700 w-28">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingAllRosters ? (
-                    <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">Loading rosters...</td></tr>
+                    <tr><td colSpan="8" className="p-8 text-center text-gray-500 font-medium">Loading rosters...</td></tr>
                   ) : (rosterSearchPerformed ? searchedRosters : allRosters).length === 0 ? (
-                    <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">No rosters found.</td></tr>
+                    <tr><td colSpan="8" className="p-8 text-center text-gray-500 font-medium">No rosters found.</td></tr>
                   ) : (
                     (rosterSearchPerformed ? searchedRosters : allRosters).map((roster, idx) => (
-                      <tr key={roster.id} className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors`}>
+                      <tr key={roster.id} className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors ${(roster.status || "Active") === "Cancelled" ? "opacity-60" : ""}`}>
                         <td className="p-3 border-b border-r border-gray-200 text-center">
                           <input type="checkbox" checked={selectedRosterIds.has(roster.id)} onChange={() => handleSelectRoster(roster.id)} className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                         </td>
@@ -1084,8 +1264,22 @@ const RosterManagementSystem = () => {
                         </td>
                         <td className="p-3 border-b border-r border-gray-200 text-center text-green-700 font-medium font-mono">{roster.date_from || "-"}</td>
                         <td className="p-3 border-b border-r border-gray-200 text-center text-red-700 font-medium font-mono">{roster.date_to || "-"}</td>
+                        <td className="p-3 border-b border-r border-gray-200 text-center">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${(roster.status || "Active") === "Cancelled" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}`}>
+                            {roster.status || "Active"}
+                          </span>
+                        </td>
                         <td className="p-3 border-b border-gray-200 text-center">
-                          <button onClick={() => handleDeleteConfirm(roster)} className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 p-1.5 rounded transition-colors shadow-sm"><Trash2 className="w-4 h-4" /></button>
+                          <div className="flex justify-center gap-1">
+                            {(roster.status || "Active") !== "Cancelled" && (
+                              <button title="Cancel roster" onClick={() => handleCancelRoster(roster)} className="text-amber-600 hover:text-white hover:bg-amber-600 border border-amber-200 p-1.5 rounded transition-colors shadow-sm">
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button title="Delete roster" onClick={() => handleDeleteConfirm(roster)} className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 p-1.5 rounded transition-colors shadow-sm">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

@@ -56,6 +56,21 @@ const deleteRoster = async (id) => {
   }
 };
 
+const cancelRoster = async (id, cancelReason = "") => {
+  const response = await axios.post(`/rosters/${id}/cancel`, {
+    cancel_reason: cancelReason || null,
+  });
+  return response.data;
+};
+
+const bulkCancelRosters = async (rosterIds, cancelReason = "") => {
+  const response = await axios.post(`/rosters/bulk-cancel`, {
+    ids: rosterIds,
+    cancel_reason: cancelReason || null,
+  });
+  return response.data;
+};
+
 const searchRosters = async (searchParams) => {
   try {
     console.log('Sending search request with params:', searchParams); // Debug log
@@ -111,6 +126,8 @@ export default {
   updateRoster,
   searchRosters,
   deleteRoster,
+  cancelRoster,
+  bulkCancelRosters,
   bulkDeleteRosters,
   getTrashedRosters,
   restoreRoster,

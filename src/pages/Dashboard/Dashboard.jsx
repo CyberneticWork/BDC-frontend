@@ -48,6 +48,8 @@ import EmployeeLoan from "@dashboard/EmployeeLoan";
 import EmployeeLoanView from "@dashboard/EmployeeLoanView";
 import TimeCard from "@dashboard/TimeCard";
 import Overtime from "@dashboard/Overtime";
+import LateEarlyApproval from "@dashboard/LateEarlyApproval";
+import ShiftHoursReport from "@dashboard/ShiftHoursReport";
 import Department from "@dashboard/Department";
 import Grouproster from "@dashboard/Grouproster";
 import LeaveMaster from "@dashboard/LeaveMaster";
@@ -125,6 +127,7 @@ import SingleEntryReport from "@src/pages/Reports/TimeCard/SingleEntryReport";
 import AttendanceReport from "../Reports/TimeCard/AttendanceReport";
 import EmployeeAttendanceReport from "@dashboard/EmployeeAttendanceReport";
 import LeaveSettings from "./LeaveSettings";
+import EmployeeLeaveBalance from "@dashboard/EmployeeLeaveBalance";
 import EmployeeSalaryRecordView from "@dashboard/EmployeeSalaryRecordView";
 import SalaryRecords from "@dashboard/SalaryRecords";
 
@@ -132,6 +135,7 @@ import SalaryRecords from "@dashboard/SalaryRecords";
 import AbsentReport from "../Reports/TimeCard/AbsentReport";
 
 import AllowancessPaymentFull from "../Dashboard/Allowancess_payment_full";
+import AdvanceApprovals from "../Dashboard/AdvanceApprovals";
 
 import DinnerAllowance from "@dashboard/DinnerAllowance";
 
@@ -215,35 +219,44 @@ const DashboardStats = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {stats.map((stat, index) => (
-        <div
-          key={index}
-          className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 border border-gray-100"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-gray-600 mb-1">
-                {stat.name}
-              </p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {stat.value}
-              </p>
-              <p
-                className={`text-sm mt-3 font-semibold ${stat.change.startsWith("+")
-                  ? "text-green-600"
-                  : "text-red-600"
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+      {stats.map((stat, index) => {
+        const accents = [
+          { bar: "from-teal-500 to-teal-400", iconBg: "bg-teal-500/15 text-teal-700" },
+          { bar: "from-sky-500 to-cyan-400", iconBg: "bg-sky-500/15 text-sky-700" },
+          { bar: "from-amber-500 to-orange-400", iconBg: "bg-amber-500/15 text-amber-700" },
+          { bar: "from-[#FF6B4A] to-orange-400", iconBg: "bg-orange-500/15 text-orange-700" },
+        ][index % 4];
+        return (
+          <div
+            key={index}
+            className="anim-rise relative overflow-hidden rounded-2xl bg-white border border-teal-50 shadow-[0_12px_40px_rgba(6,42,50,0.08)] p-6 hover:-translate-y-1 hover:shadow-[0_18px_48px_rgba(6,42,50,0.14)] transition-all duration-300"
+            style={{ animationDelay: `${index * 0.07}s` }}
+          >
+            <div
+              className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accents.bar}`}
+            />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-500 mb-1">{stat.name}</p>
+                <p className="font-display text-3xl font-bold text-[var(--brand-ink)] mt-1">
+                  {stat.value}
+                </p>
+                <p
+                  className={`text-sm mt-3 font-semibold ${
+                    stat.change.startsWith("+") ? "text-teal-600" : "text-red-500"
                   }`}
-              >
-                {stat.change} from last month
-              </p>
-            </div>
-            <div className="bg-blue-100 p-4 rounded-2xl shadow-lg">
-              <stat.icon className="h-8 w-8 text-blue-600" />
+                >
+                  {stat.change} from last month
+                </p>
+              </div>
+              <div className={`p-4 rounded-2xl ${accents.iconBg}`}>
+                <stat.icon className="h-7 w-7" />
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -270,8 +283,8 @@ const DashboardCharts = () => {
             {
               label: "Present",
               data: weekly.present,
-              backgroundColor: "rgba(16, 185, 129, 0.8)",
-              borderColor: "rgba(16, 185, 129, 1)",
+              backgroundColor: "rgba(13, 148, 136, 0.75)",
+              borderColor: "rgba(11, 79, 92, 1)",
               borderWidth: 2,
               borderRadius: 8,
               borderSkipped: false,
@@ -279,8 +292,8 @@ const DashboardCharts = () => {
             {
               label: "Absent",
               data: weekly.absent,
-              backgroundColor: "rgba(239, 68, 68, 0.8)",
-              borderColor: "rgba(239, 68, 68, 1)",
+              backgroundColor: "rgba(255, 107, 74, 0.75)",
+              borderColor: "rgba(220, 80, 50, 1)",
               borderWidth: 2,
               borderRadius: 8,
               borderSkipped: false,
@@ -298,20 +311,20 @@ const DashboardCharts = () => {
             {
               data: deptCounts,
               backgroundColor: [
-                "rgba(239, 68, 68, 0.8)",
-                "rgba(59, 130, 246, 0.8)",
-                "rgba(251, 191, 36, 0.8)",
-                "rgba(16, 185, 129, 0.8)",
-                "rgba(139, 92, 246, 0.8)",
-                "rgba(251, 146, 60, 0.8)",
+                "rgba(13, 148, 136, 0.85)",
+                "rgba(255, 107, 74, 0.85)",
+                "rgba(245, 165, 36, 0.85)",
+                "rgba(56, 189, 248, 0.85)",
+                "rgba(11, 79, 92, 0.85)",
+                "rgba(45, 212, 191, 0.85)",
               ],
               borderColor: [
-                "rgba(239, 68, 68, 1)",
-                "rgba(59, 130, 246, 1)",
-                "rgba(251, 191, 36, 1)",
-                "rgba(16, 185, 129, 1)",
-                "rgba(139, 92, 246, 1)",
-                "rgba(251, 146, 60, 1)",
+                "rgba(13, 148, 136, 1)",
+                "rgba(255, 107, 74, 1)",
+                "rgba(245, 165, 36, 1)",
+                "rgba(56, 189, 248, 1)",
+                "rgba(11, 79, 92, 1)",
+                "rgba(45, 212, 191, 1)",
               ],
               borderWidth: 2,
             },
@@ -325,13 +338,13 @@ const DashboardCharts = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="bg-white p-7 rounded-2xl shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-teal-50 hover:shadow-xl transition-all duration-300 anim-rise">
         <div className="flex items-center mb-6">
-          <div className="bg-blue-100 p-2 rounded-xl mr-3">
-            <Clock className="h-6 w-6 text-blue-600" />
+          <div className="bg-teal-100 p-2.5 rounded-xl mr-3">
+            <Clock className="h-6 w-6 text-teal-700" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800">Weekly Attendance</h3>
+          <h3 className="text-xl font-display font-bold text-[var(--brand-ink)]">Weekly Attendance</h3>
         </div>
         <div className="h-80">
           <Bar
@@ -368,12 +381,12 @@ const DashboardCharts = () => {
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300">
+      <div className="bg-white p-7 rounded-2xl shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-emerald-50 hover:shadow-xl transition-all duration-300 anim-rise" style={{ animationDelay: "0.08s" }}>
         <div className="flex items-center mb-6">
-          <div className="bg-green-100 p-2 rounded-xl mr-3">
-            <Building2 className="h-6 w-6 text-green-600" />
+          <div className="bg-emerald-100 p-2.5 rounded-xl mr-3">
+            <Building2 className="h-6 w-6 text-emerald-700" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800">
+          <h3 className="text-xl font-display font-bold text-[var(--brand-ink)]">
             Department Distribution
           </h3>
         </div>
@@ -408,55 +421,57 @@ const QuickActions = ({ setActiveItem }) => {
       icon: Users,
       label: "Add Employee",
       action: "employeeMaster",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
+      iconBg: "bg-teal-100",
+      iconColor: "text-teal-700",
     },
     {
       icon: Calendar,
       label: "Leave",
       action: "leaveMaster",
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-700",
     },
     {
       icon: Clock,
       label: "Time Cards",
       action: "TimeCard",
-      iconBg: "bg-yellow-100",
-      iconColor: "text-yellow-600",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-700",
     },
     {
       icon: DollarSign,
       label: "Loan",
       action: "employeeLoan",
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600",
+      iconBg: "bg-sky-100",
+      iconColor: "text-sky-700",
     },
     {
       icon: PieChart,
       label: "Leave Calendar",
       action: "leavecalendar",
-      iconBg: "bg-pink-100",
-      iconColor: "text-pink-600",
+      iconBg: "bg-orange-100",
+      iconColor: "text-[#FF6B4A]",
     },
   ];
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-8">
-      <h3 className="text-xl font-bold text-gray-800 mb-6">Quick Actions</h3>
+    <div className="bg-white/90 p-7 rounded-2xl shadow-[0_12px_40px_rgba(6,42,50,0.08)] border border-teal-50 mb-8">
+      <h3 className="font-display text-xl font-bold text-[var(--brand-ink)] mb-5">
+        Quick Actions
+      </h3>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {actions.map((action, index) => (
           <button
             key={index}
             onClick={() => setActiveItem(action.action)}
-            className="group flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-white hover:to-gray-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
+            className="group flex flex-col items-center justify-center p-5 rounded-2xl bg-gradient-to-br from-teal-50/80 to-white border border-teal-50 hover:border-teal-200 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5"
           >
             <div
               className={`${action.iconBg} p-3 rounded-xl mb-3 group-hover:scale-110 transition-transform duration-300`}
             >
               <action.icon className={`h-6 w-6 ${action.iconColor}`} />
             </div>
-            <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors duration-300">
+            <span className="text-sm font-semibold text-slate-700 group-hover:text-[var(--brand-ink)]">
               {action.label}
             </span>
           </button>
@@ -721,6 +736,12 @@ const Dashboard = ({ user, onLogout }) => {
             <Overtime />
           </ProtectedComponent>
         );
+      case "lateEarlyApproval":
+        return (
+          <ProtectedComponent module="lateEarlyApproval" action="view">
+            <LateEarlyApproval />
+          </ProtectedComponent>
+        );
       case "departmentMaster":
         return (
           <ProtectedComponent module="departmentMaster" action="view">
@@ -842,6 +863,12 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="absentReport" action="view">
             <AbsentReport />
+          </ProtectedComponent>
+        );
+      case "shiftHoursReport":
+        return (
+          <ProtectedComponent module="shiftHoursReport" action="view">
+            <ShiftHoursReport />
           </ProtectedComponent>
         );
         {/*
@@ -1143,6 +1170,12 @@ const Dashboard = ({ user, onLogout }) => {
             <LeaveSettings />
           </ProtectedComponent>
         );
+      case "employeeLeaveBalance":
+        return (
+          <ProtectedComponent module="employeeLeaveBalance" action="view">
+            <EmployeeLeaveBalance />
+          </ProtectedComponent>
+        );
       case "dinnerAllowance":
         return (
           <ProtectedComponent module="dinnerAllowance" action="view">
@@ -1171,6 +1204,17 @@ const Dashboard = ({ user, onLogout }) => {
           </ProtectedComponent>
         );
 
+      case "advanceApprovals":
+        return (
+          <ProtectedComponent module="advanceApprovals" action="view">
+            <AdvanceApprovals />
+          </ProtectedComponent>
+        );
+
+      case "employeePortal":
+        window.location.href = "/employee-portal";
+        return null;
+
       case "salaryRecords":
         return (
           <ProtectedComponent module="salaryRecords" action="view">
@@ -1185,17 +1229,26 @@ const Dashboard = ({ user, onLogout }) => {
       default:
         // Home / dashboard view
         return (
-          <div className="space-y-8">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-xl p-8 mb-8 text-center">
-              <h1 className="text-4xl font-bold text-white mb-2">
-                {user.role === "employee"
-                  ? "Employee Dashboard"
-                  : "HRM Dashboard"}
+          <div className="space-y-8 anim-rise">
+            <div
+              className="relative overflow-hidden rounded-3xl shadow-[0_20px_50px_rgba(6,42,50,0.18)] p-8 sm:p-10 text-white"
+              style={{
+                background:
+                  "linear-gradient(125deg, #062A32 0%, #0B4F5C 40%, #0D9488 78%, #FF6B4A 125%)",
+              }}
+            >
+              <div className="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-white/10 blur-2xl anim-float" />
+              <div className="absolute -left-8 bottom-0 w-40 h-40 rounded-full bg-amber-300/20 blur-xl" />
+              <p className="relative text-xs font-bold uppercase tracking-[0.2em] text-teal-100/90">
+                Management dashboard
+              </p>
+              <h1 className="relative font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold mt-2 max-w-2xl leading-tight">
+                {user.role === "employee" ? "Your staff portal" : "SPM Tax HR control center"}
               </h1>
-              <p className="text-blue-50 text-lg">
+              <p className="relative mt-3 text-teal-50/90 text-base sm:text-lg max-w-xl">
                 {user.role === "employee"
-                  ? "Welcome to your employee portal"
-                  : "Welcome to your comprehensive HR management system"}
+                  ? "Attendance, leave and payslips — clear and colorful."
+                  : "Workforce, attendance, leave and payroll at a glance."}
               </p>
             </div>
             {user.role === "employee" ? (
@@ -1215,7 +1268,7 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen dash-shell flex">
       <Sidebar
         user={user}
         employeeProfile={employeeProfile}
@@ -1225,16 +1278,15 @@ const Dashboard = ({ user, onLogout }) => {
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
       />
-      <div className="flex-1 flex flex-col lg:ml-0">
-        {/* Navbar */}
-        <nav className="bg-white shadow-lg border-b border-gray-200 flex-shrink-0 z-10">
+      <div className="flex-1 flex flex-col lg:ml-0 min-w-0">
+        <nav className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-teal-100/70 shadow-sm flex-shrink-0">
           <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
             <div className="flex justify-between h-14 sm:h-16">
               <div className="flex items-center lg:hidden">
                 <button
                   data-hamburger
                   onClick={toggle}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                  className="text-teal-800 hover:text-[var(--brand-ink)] focus:outline-none p-2 rounded-xl hover:bg-teal-50 transition-colors duration-200"
                 >
                   <svg
                     className="h-6 w-6"
@@ -1253,34 +1305,43 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
               <div className="hidden lg:flex items-center">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md"
+                    style={{
+                      background: "linear-gradient(135deg, #0D9488, #FF6B4A)",
+                    }}
+                  >
                     <Building2 className="h-5 w-5 text-white" />
                   </div>
-                  <span className="text-xl font-bold text-gray-900">
-                    {user.role === "employee"
-                      ? "Employee Dashboard"
-                      : "HRM Dashboard"}
-                  </span>
+                  <div>
+                    <span className="font-display text-lg font-bold text-[var(--brand-ink)] block leading-tight">
+                      {user.role === "employee" ? "Staff Portal" : "HR Dashboard"}
+                    </span>
+                    <span className="text-[11px] font-semibold text-teal-700/80 tracking-wide">
+                      Professional management
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-gray-700 flex items-center gap-2">
-                  Welcome, {user.name}
-                  <span className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-semibold px-3 py-1 rounded-full">
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M10 2a4 4 0 00-4 4v1H4a2 2 0 00-2 2v2h16V9a2 2 0 00-2-2h-2V6a4 4 0 00-4-4zm-2 5V6a2 2 0 114 0v1H8zm-4 6v3a2 2 0 002 2h8a2 2 0 002-2v-3H4z" />
-                    </svg>
+              <div className="flex items-center gap-3 sm:gap-4">
+                <span className="hidden sm:flex text-slate-700 items-center gap-2 text-sm">
+                  Welcome, <strong className="text-[var(--brand-ink)]">{user.name}</strong>
+                  <span
+                    className="inline-flex items-center gap-1 text-white text-xs font-bold px-3 py-1 rounded-full capitalize shadow-sm"
+                    style={{
+                      background: "linear-gradient(120deg, #0D9488, #0B4F5C 70%, #FF6B4A)",
+                    }}
+                  >
                     {user.role}
                   </span>
                 </span>
                 <NotificationBell />
                 <button
                   onClick={onLogout}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="text-white px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 shadow-md hover:brightness-110"
+                  style={{
+                    background: "linear-gradient(120deg, #FF6B4A, #e11d48)",
+                  }}
                 >
                   Logout
                 </button>
@@ -1289,9 +1350,8 @@ const Dashboard = ({ user, onLogout }) => {
           </div>
         </nav>
 
-        {/* Page content */}
         <div className="flex-1">
-          <div className="py-3 sm:py-4 lg:py-6 px-3 sm:px-4 lg:px-6 xl:px-8">
+          <div className="py-4 sm:py-5 lg:py-7 px-3 sm:px-4 lg:px-6 xl:px-8">
             {renderContent()}
           </div>
         </div>

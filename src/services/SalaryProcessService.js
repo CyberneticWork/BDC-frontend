@@ -59,6 +59,31 @@ export const saveSalaryData = async (data) => {
   }
 };
 
+export const processSalaries = async ({ data, month, year, reprocess = false }) => {
+  const response = await axios.post("/salary-process/store", {
+    data,
+    month,
+    year,
+    reprocess,
+  });
+  return response.data;
+};
+
+export const unlockSalariesForRevision = async ({
+  month,
+  year,
+  employee_nos,
+  force_unissue = false,
+}) => {
+  const response = await axios.post("/salary-process/unlock", {
+    month,
+    year,
+    employee_nos,
+    force_unissue,
+  });
+  return response.data;
+};
+
 export const updateSlaryStatus = async (status) => {
   try {
     const response = await axios.get(`/salary/update/status?status=${status}`);

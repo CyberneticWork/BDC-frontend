@@ -125,121 +125,122 @@ const EmployeeDashboard = ({
   };
 
   return (
-    <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
+    <div className="space-y-6 min-h-screen">
       {/* Quick Actions - Moved to Top */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <button
           onClick={() => setActiveItem('myProfile')}
-          className="group bg-white p-8 rounded-2xl shadow-lg border border-gray-200 hover:border-blue-500 hover:shadow-2xl transition-all text-left transform hover:-translate-y-1"
+          className="group bg-white p-7 rounded-2xl shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-teal-50 hover:border-teal-300 hover:shadow-xl transition-all text-left transform hover:-translate-y-1"
         >
           <div className="flex items-center gap-4">
-            <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl group-hover:scale-110 transition-transform shadow-lg">
+            <div className="p-4 bg-gradient-to-br from-teal-500 to-teal-700 rounded-2xl group-hover:scale-110 transition-transform shadow-lg">
               <User className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-lg mb-1">My Profile</h3>
-              <p className="text-sm text-gray-600">View & edit details</p>
+              <h3 className="font-display font-bold text-[var(--brand-ink)] text-lg mb-1">My Profile</h3>
+              <p className="text-sm text-slate-500">View & edit details</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setActiveItem('leaveMaster')}
-          className="group bg-gradient-to-br from-green-500 to-green-600 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all text-left transform hover:scale-105"
+          className="group p-7 rounded-2xl shadow-xl hover:shadow-2xl transition-all text-left transform hover:scale-[1.02] text-white"
+          style={{ background: "linear-gradient(135deg, #0D9488, #0B4F5C)" }}
         >
           <div className="flex items-center gap-4">
             <div className="p-4 bg-white/20 rounded-2xl group-hover:bg-white/30 transition-colors shadow-lg">
               <Calendar className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-lg mb-1">Apply Leave</h3>
-              <p className="text-sm text-green-100">Request time off</p>
+              <h3 className="font-display font-bold text-lg mb-1">Apply Leave</h3>
+              <p className="text-sm text-teal-50">Request time off</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setActiveItem('attendanceReport')}
-          className="group bg-white p-8 rounded-2xl shadow-lg border border-gray-200 hover:border-indigo-500 hover:shadow-2xl transition-all text-left transform hover:-translate-y-1"
+          className="group bg-white p-7 rounded-2xl shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-orange-50 hover:border-[#FF6B4A]/40 hover:shadow-xl transition-all text-left transform hover:-translate-y-1"
         >
           <div className="flex items-center gap-4">
-            <div className="p-4 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl group-hover:scale-110 transition-transform shadow-lg">
+            <div className="p-4 rounded-2xl group-hover:scale-110 transition-transform shadow-lg" style={{ background: "linear-gradient(135deg, #FF6B4A, #F5A524)" }}>
               <BarChart3 className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-lg mb-1">My Attendance</h3>
-              <p className="text-sm text-gray-600">View report</p>
+              <h3 className="font-display font-bold text-[var(--brand-ink)] text-lg mb-1">My Attendance</h3>
+              <p className="text-sm text-slate-500">View report</p>
             </div>
           </div>
         </button>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-shadow">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-emerald-50 border-l-4 border-l-emerald-500 hover:shadow-xl transition-shadow anim-rise">
           <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <UserCheck className="h-6 w-6 text-green-600" />
+            <div className="p-3 bg-emerald-100 rounded-xl">
+              <UserCheck className="h-6 w-6 text-emerald-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{attendanceSummary.present}</p>
-          <p className="text-sm text-gray-600 mt-2">Present Days</p>
+          <p className="text-3xl font-display font-bold text-[var(--brand-ink)]">{attendanceSummary.present}</p>
+          <p className="text-sm text-slate-500 mt-2">Present Days</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-orange-500 hover:shadow-xl transition-shadow">
+        <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-orange-50 border-l-4 border-l-[#FF6B4A] hover:shadow-xl transition-shadow anim-rise" style={{ animationDelay: "0.05s" }}>
           <div className="flex items-center justify-between mb-3">
             <div className="p-3 bg-orange-100 rounded-xl">
-              <Clock className="h-6 w-6 text-orange-600" />
+              <Clock className="h-6 w-6 text-[#FF6B4A]" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{lateCount}</p>
-          <p className="text-sm text-gray-600 mt-2">Late Days</p>
+          <p className="text-3xl font-display font-bold text-[var(--brand-ink)]">{lateCount}</p>
+          <p className="text-sm text-slate-500 mt-2">Late Days</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
+        <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-teal-50 border-l-4 border-l-teal-500 hover:shadow-xl transition-shadow anim-rise" style={{ animationDelay: "0.1s" }}>
           <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Clock className="h-6 w-6 text-blue-600" />
+            <div className="p-3 bg-teal-100 rounded-xl">
+              <Clock className="h-6 w-6 text-teal-700" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{otSummary.totalHours}</p>
-          <p className="text-sm text-gray-600 mt-2">OT Hours</p>
+          <p className="text-3xl font-display font-bold text-[var(--brand-ink)]">{otSummary.totalHours}</p>
+          <p className="text-sm text-slate-500 mt-2">OT Hours</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
+        <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-amber-50 border-l-4 border-l-amber-500 hover:shadow-xl transition-shadow anim-rise" style={{ animationDelay: "0.15s" }}>
           <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <DollarSign className="h-6 w-6 text-purple-600" />
+            <div className="p-3 bg-amber-100 rounded-xl">
+              <DollarSign className="h-6 w-6 text-amber-600" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-gray-900">Rs. 0.00</div>
-          <p className="text-sm text-gray-600 mt-2">Loan Balance</p>
+          <div className="text-3xl font-display font-bold text-[var(--brand-ink)]">Rs. {Number(loanSummary.balance || 0).toLocaleString()}</div>
+          <p className="text-sm text-slate-500 mt-2">Loan Balance</p>
         </div>
       </div>
 
       {/* Profile & Salary Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Profile Card */}
         {employeeProfile && (
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <User className="h-5 w-5 text-blue-600" />
+          <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-teal-50 hover:shadow-xl transition-shadow">
+            <h3 className="font-display font-bold text-[var(--brand-ink)] mb-4 flex items-center gap-2 text-lg">
+              <div className="p-2 bg-teal-100 rounded-lg">
+                <User className="h-5 w-5 text-teal-700" />
               </div>
               Employee Profile
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Name</span>
-                <span className="text-sm font-medium text-gray-900">{employeeProfile.name_with_initials || 'N/A'}</span>
+                <span className="text-sm text-slate-500">Name</span>
+                <span className="text-sm font-medium text-[var(--brand-ink)]">{employeeProfile.name_with_initials || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Department</span>
-                <span className="text-sm font-medium text-gray-900">{employeeProfile.organization_assignment?.department?.name || 'N/A'}</span>
+                <span className="text-sm text-slate-500">Department</span>
+                <span className="text-sm font-medium text-[var(--brand-ink)]">{employeeProfile.organization_assignment?.department?.name || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Employee ID</span>
-                <span className="text-sm font-medium text-gray-900">{employeeProfile.attendance_employee_no || 'N/A'}</span>
+                <span className="text-sm text-slate-500">Employee ID</span>
+                <span className="text-sm font-medium text-[var(--brand-ink)]">{employeeProfile.attendance_employee_no || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -247,29 +248,29 @@ const EmployeeDashboard = ({
 
         {/* Salary Card */}
         {employeeProfile && (
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="h-5 w-5 text-green-600" />
+          <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-emerald-50 hover:shadow-xl transition-shadow">
+            <h3 className="font-display font-bold text-[var(--brand-ink)] mb-4 flex items-center gap-2 text-lg">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <DollarSign className="h-5 w-5 text-emerald-600" />
               </div>
               Current Salary
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Basic Salary</span>
-                <span className="text-sm font-medium text-gray-900">Rs. {(parseFloat(latestSalaryRecord?.salary_breakdown?.basic_salary || latestSalaryRecord?.basic_salary || employeeProfile.compensation?.basic_salary) || 0).toLocaleString()}</span>
+                <span className="text-sm text-slate-500">Basic Salary</span>
+                <span className="text-sm font-medium text-[var(--brand-ink)]">Rs. {(parseFloat(latestSalaryRecord?.salary_breakdown?.basic_salary || latestSalaryRecord?.basic_salary || employeeProfile.compensation?.basic_salary) || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Allowances</span>
-                <span className="text-sm font-medium text-green-600">+ Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_allowances || 0).toLocaleString()}</span>
+                <span className="text-sm text-slate-500">Allowances</span>
+                <span className="text-sm font-medium text-emerald-600">+ Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_allowances || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Deductions</span>
-                <span className="text-sm font-medium text-red-600">- Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_deductions || 0).toLocaleString()}</span>
+                <span className="text-sm text-slate-500">Deductions</span>
+                <span className="text-sm font-medium text-[#FF6B4A]">- Rs. {parseFloat(latestSalaryRecord?.salary_breakdown?.total_deductions || 0).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between pt-3 border-t border-gray-200">
-                <span className="text-base font-bold text-gray-900">Net Salary</span>
-                <span className="text-base font-bold text-green-600">
+              <div className="flex justify-between pt-3 border-t border-teal-50">
+                <span className="text-base font-bold text-[var(--brand-ink)]">Net Salary</span>
+                <span className="text-base font-bold text-teal-700">
                   Rs. {latestSalaryRecord ? parseFloat(latestSalaryRecord.salary_breakdown?.net_salary || 0).toLocaleString() : (parseFloat(latestSalaryRecord?.salary_breakdown?.basic_salary || latestSalaryRecord?.basic_salary || employeeProfile.compensation?.basic_salary || 0)).toLocaleString()}
                 </span>
               </div>
@@ -277,7 +278,8 @@ const EmployeeDashboard = ({
             <div className="flex gap-3 mt-4">
               <button
                 onClick={() => setShowSalarySlip(true)}
-                className="w-full bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="w-full text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg"
+                style={{ background: "linear-gradient(135deg, #0D9488, #0B4F5C)" }}
               >
                 View Salary Slip
               </button>
@@ -287,9 +289,9 @@ const EmployeeDashboard = ({
       </div>
 
       {/* Leave Records */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-green-600" />
+      <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-teal-50">
+        <h3 className="font-display font-semibold text-[var(--brand-ink)] mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-teal-600" />
           My Leave Requests
         </h3>
         {leaveRecords.length === 0 ? (
@@ -298,30 +300,30 @@ const EmployeeDashboard = ({
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Date</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Type</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Duration</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border">Status</th>
+                <tr className="bg-teal-50/60">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-teal-800 uppercase border border-teal-100">Date</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-teal-800 uppercase border border-teal-100">Type</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-teal-800 uppercase border border-teal-100">Duration</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-teal-800 uppercase border border-teal-100">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {leaveRecords.slice(0, 5).map((leave) => (
-                  <tr key={leave.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 border text-sm">
+                  <tr key={leave.id} className="hover:bg-teal-50/40">
+                    <td className="px-4 py-2 border border-teal-50 text-sm">
                       {leave.leave_date || `${leave.leave_from} to ${leave.leave_to}`}
                     </td>
-                    <td className="px-4 py-2 border text-sm">{leave.leave_type}</td>
-                    <td className="px-4 py-2 border text-sm">
+                    <td className="px-4 py-2 border border-teal-50 text-sm">{leave.leave_type}</td>
+                    <td className="px-4 py-2 border border-teal-50 text-sm">
                       {leave.is_short_leave ? 'Short Leave' : leave.is_half_day ? 'Half Day' : `${leave.leave_duration} day(s)`}
                     </td>
-                    <td className="px-4 py-2 border text-sm">
+                    <td className="px-4 py-2 border border-teal-50 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         leave.status === 'Approved' || leave.status === 'HR_Approved'
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-emerald-100 text-emerald-800'
                           : leave.status === 'Rejected'
                           ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                          : 'bg-amber-100 text-amber-800'
                       }`}>
                         {leave.status}
                       </span>
@@ -334,7 +336,7 @@ const EmployeeDashboard = ({
         )}
         <button
           onClick={() => setActiveItem('leaveMaster')}
-          className="w-full mt-4 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="w-full mt-4 bg-teal-50 hover:bg-teal-100 text-teal-800 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
         >
           View All / Apply Leave
         </button>
@@ -342,50 +344,49 @@ const EmployeeDashboard = ({
 
       {/* Attendance Summary */}
       <div className="grid grid-cols-1 gap-6">
-        {/* Attendance Summary */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-600" />
+        <div className="bg-white rounded-2xl p-6 shadow-[0_12px_36px_rgba(6,42,50,0.08)] border border-teal-50">
+          <h3 className="font-display font-semibold text-[var(--brand-ink)] mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-teal-600" />
             Monthly Attendance Summary
           </h3>
           {isLoadingAttendance ? (
             <div className="py-8 text-center">
-              <div className="inline-block w-6 h-6 border-t-2 border-b-2 border-blue-600 rounded-full animate-spin"></div>
+              <div className="inline-block w-6 h-6 border-t-2 border-b-2 border-teal-600 rounded-full animate-spin"></div>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-green-50 rounded-lg p-3 text-center border border-green-200">
+                <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200">
                   <div className="flex items-center justify-center gap-1 mb-1">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <CheckCircle className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <p className="text-2xl font-bold text-green-600">{attendanceSummary.present}</p>
-                  <p className="text-xs text-gray-600 mt-1">Present</p>
+                  <p className="text-2xl font-display font-bold text-emerald-600">{attendanceSummary.present}</p>
+                  <p className="text-xs text-slate-500 mt-1">Present</p>
                 </div>
-                <div className="bg-red-50 rounded-lg p-3 text-center border border-red-200">
+                <div className="bg-red-50 rounded-xl p-3 text-center border border-red-200">
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <XCircle className="h-4 w-4 text-red-600" />
                   </div>
-                  <p className="text-2xl font-bold text-red-600">{attendanceSummary.absent}</p>
-                  <p className="text-xs text-gray-600 mt-1">Absent</p>
+                  <p className="text-2xl font-display font-bold text-red-600">{attendanceSummary.absent}</p>
+                  <p className="text-xs text-slate-500 mt-1">Absent</p>
                 </div>
-                <div className="bg-yellow-50 rounded-lg p-3 text-center border border-yellow-200">
+                <div className="bg-amber-50 rounded-xl p-3 text-center border border-amber-200">
                   <div className="flex items-center justify-center gap-1 mb-1">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
                   </div>
-                  <p className="text-2xl font-bold text-yellow-600">{attendanceSummary.late}</p>
-                  <p className="text-xs text-gray-600 mt-1">Late</p>
+                  <p className="text-2xl font-display font-bold text-amber-600">{attendanceSummary.late}</p>
+                  <p className="text-xs text-slate-500 mt-1">Late</p>
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
+              <div className="bg-teal-50/50 rounded-xl p-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total Days</span>
-                  <span className="text-lg font-bold text-gray-900">{attendanceSummary.total}</span>
+                  <span className="text-sm text-slate-500">Total Days</span>
+                  <span className="text-lg font-display font-bold text-[var(--brand-ink)]">{attendanceSummary.total}</span>
                 </div>
               </div>
               <button
                 onClick={() => setActiveItem('attendanceReport')}
-                className="w-full mt-4 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="w-full mt-4 bg-teal-50 hover:bg-teal-100 text-teal-800 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
               >
                 View Full Report
               </button>
@@ -416,17 +417,17 @@ const EmployeeDashboard = ({
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
               {/* Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white flex justify-between items-center sticky top-0 rounded-t-2xl">
+              <div className="p-6 text-white flex justify-between items-center sticky top-0 rounded-t-2xl" style={{ background: "linear-gradient(135deg, #0D9488, #062A32)" }}>
                 <div>
-                  <h2 className="text-2xl font-bold">Salary Slip</h2>
-                  <p className="text-blue-100 text-sm mt-1">Period: {period}</p>
+                  <h2 className="text-2xl font-display font-bold">Salary Slip</h2>
+                  <p className="text-teal-100 text-sm mt-1">Period: {period}</p>
                 </div>
                 <button onClick={() => setShowSalarySlip(false)} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">✕</button>
               </div>
 
               <div className="p-6 space-y-5">
                 {/* Employee Info */}
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-teal-50 rounded-xl p-4 border border-teal-200 grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <p className="text-xs text-gray-500 uppercase font-semibold">Name</p>
                     <p className="font-bold text-gray-900 mt-1">{employeeProfile?.name_with_initials || 'N/A'}</p>
@@ -443,7 +444,7 @@ const EmployeeDashboard = ({
                     <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
                     <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
                       status === 'processed' ? 'bg-green-100 text-green-800' :
-                      status === 'issued' ? 'bg-blue-100 text-blue-800' :
+                      status === 'issued' ? 'bg-teal-100 text-teal-800' :
                       'bg-yellow-100 text-yellow-800'
                     }`}>{status}</span>
                   </div>
@@ -539,12 +540,12 @@ const EmployeeDashboard = ({
                 </div>
 
                 {/* Net Salary */}
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white flex justify-between items-center">
+                <div className="rounded-xl p-6 text-white flex justify-between items-center" style={{ background: "linear-gradient(135deg, #0D9488, #0B4F5C)" }}>
                   <div>
-                    <p className="text-blue-100 text-sm font-semibold uppercase">Net Salary</p>
-                    <p className="text-blue-100 text-xs mt-1">Amount to be credited</p>
+                    <p className="text-teal-100 text-sm font-semibold uppercase">Net Salary</p>
+                    <p className="text-teal-100 text-xs mt-1">Amount to be credited</p>
                   </div>
-                  <p className="text-4xl font-bold">Rs. {netSalary.toLocaleString()}</p>
+                  <p className="text-4xl font-display font-bold">Rs. {netSalary.toLocaleString()}</p>
                 </div>
 
                 {/* Extra Info */}

@@ -322,12 +322,52 @@ const TimeCard = ({ employeeProfile }) => {
     return filtered;
   };
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
+    if (!dateFrom || !dateTo) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Select date range',
+        text: 'Please select both From Date and To Date, then click Process.',
+      });
+      return;
+    }
+    if (dateFrom > dateTo) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid range',
+        text: 'From Date cannot be after To Date.',
+      });
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      setFilteredData(filterAttendance());
+    setFilterDate('');
+    try {
+      let data = await fetchTimeCards({ from_date: dateFrom, to_date: dateTo });
+      if (!Array.isArray(data)) data = [];
+      data = filterFirstInLastOut(data);
+      setAttendanceData(data);
+
+      let filtered = data;
+      if (filterOption === 'employee' && employeeSearch) {
+        const q = employeeSearch.toLowerCase();
+        filtered = filtered.filter(
+          (rec) =>
+            (rec.nic && rec.nic.toLowerCase().includes(q)) ||
+            (rec.empNo && rec.empNo.toLowerCase().includes(q)) ||
+            (rec.name && rec.name.toLowerCase().includes(q))
+        );
+      }
+      setFilteredData(filtered);
+    } catch (e) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Load failed',
+        text: e.response?.data?.message || e.message || 'Could not load time cards.',
+      });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handleLeave = () => {
@@ -1134,11 +1174,28 @@ const TimeCard = ({ employeeProfile }) => {
 
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Date</label>
+                  <label className="block text-sm font-semibold text-slate-700">From Date</label>
                   <DatePickerInput
                     className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
-                    value={filterDate}
-                    onChange={e => setFilterDate(e.target.value)}
+                    value={dateFrom}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setDateFrom(v);
+                      setFilterDate('');
+                      if (dateTo && v && dateTo < v) setDateTo(v);
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">To Date</label>
+                  <DatePickerInput
+                    className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
+                    value={dateTo}
+                    min={dateFrom || undefined}
+                    onChange={e => {
+                      setDateTo(e.target.value);
+                      setFilterDate('');
+                    }}
                   />
                 </div>
               </div>
@@ -1151,7 +1208,48 @@ const TimeCard = ({ employeeProfile }) => {
                 onClick={handleProcess}
                 disabled={isLoading}
               >
-                {isLoading ? 'Processing...' : 'Process'}
+                {isLoading ? 'Loading...' : 'Process'}
+              </button>
+              <button
+                className="px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base"
+                onClick={async () => {
+                  if (!dateFrom || !dateTo) {
+                    Swal.fire({ icon: 'warning', title: 'Select date range', text: 'From Date and To Date are required to recalculate.' });
+                    return;
+                  }
+                  const ask = await Swal.fire({
+                    title: 'Recalculate attendance?',
+                    html: `Rebuild Early OUT / OUT / Late Coming using current active roster for <b>${dateFrom}</b> to <b>${dateTo}</b>.`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, recalculate',
+                  });
+                  if (!ask.isConfirmed) return;
+                  setIsLoading(true);
+                  try {
+                    const result = await timeCardService.recalculateAttendance({
+                      from_date: dateFrom,
+                      to_date: dateTo,
+                    });
+                    await handleProcess();
+                    Swal.fire({
+                      icon: 'success',
+                      title: 'Recalculation complete',
+                      html: `Updated <b>${result.updated ?? 0}</b> punch(es).`,
+                    });
+                  } catch (e) {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Recalculation failed',
+                      text: e.response?.data?.message || e.message,
+                    });
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+              >
+                Recalculate
               </button>
               <button
                 className="px-4 sm:px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base"
@@ -1956,12 +2054,52 @@ const TimeCard = () => {
     return filtered;
   };
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
+    if (!dateFrom || !dateTo) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Select date range',
+        text: 'Please select both From Date and To Date, then click Process.',
+      });
+      return;
+    }
+    if (dateFrom > dateTo) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid range',
+        text: 'From Date cannot be after To Date.',
+      });
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
-      setFilteredData(filterAttendance());
+    setFilterDate('');
+    try {
+      let data = await fetchTimeCards({ from_date: dateFrom, to_date: dateTo });
+      if (!Array.isArray(data)) data = [];
+      data = filterFirstInLastOut(data);
+      setAttendanceData(data);
+
+      let filtered = data;
+      if (filterOption === 'employee' && employeeSearch) {
+        const q = employeeSearch.toLowerCase();
+        filtered = filtered.filter(
+          (rec) =>
+            (rec.nic && rec.nic.toLowerCase().includes(q)) ||
+            (rec.empNo && rec.empNo.toLowerCase().includes(q)) ||
+            (rec.name && rec.name.toLowerCase().includes(q))
+        );
+      }
+      setFilteredData(filtered);
+    } catch (e) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Load failed',
+        text: e.response?.data?.message || e.message || 'Could not load time cards.',
+      });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handleLeave = () => {
@@ -2722,12 +2860,30 @@ const TimeCard = () => {
                 
                 
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-slate-700">Date</label>
+                  <label className="block text-sm font-semibold text-slate-700">From Date</label>
                   <input
                     type="date"
                     className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
-                    value={filterDate}
-                    onChange={e => setFilterDate(e.target.value)}
+                    value={dateFrom}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setDateFrom(v);
+                      setFilterDate('');
+                      if (dateTo && v && dateTo < v) setDateTo(v);
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">To Date</label>
+                  <input
+                    type="date"
+                    className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 bg-white shadow-sm hover:shadow-md text-sm sm:text-base"
+                    value={dateTo}
+                    min={dateFrom || undefined}
+                    onChange={e => {
+                      setDateTo(e.target.value);
+                      setFilterDate('');
+                    }}
                   />
                 </div>
               </div>
@@ -2740,7 +2896,7 @@ const TimeCard = () => {
                 onClick={handleProcess}
                 disabled={isLoading}
               >
-                {isLoading ? 'Processing...' : 'Process'}
+                {isLoading ? 'Loading...' : 'Process'}
               </button>
               <button
                 className="px-4 sm:px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm sm:text-base"

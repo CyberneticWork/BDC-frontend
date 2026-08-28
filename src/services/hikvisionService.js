@@ -36,6 +36,16 @@ const hikvisionService = {
     return res.data;
   },
 
+  getAgentConfig: async (id) => {
+    const res = await axios.get(`/hikvision/devices/${id}/agent-config`);
+    return res.data?.data ?? res.data;
+  },
+
+  getSetupGuide: async () => {
+    const res = await axios.get(`/hikvision/setup-guide`);
+    return res.data?.data ?? res.data;
+  },
+
   getEventLogs: async (id, limit = 20) => {
     const res = await axios.get(`/hikvision/devices/${id}/logs`, { params: { limit } });
     return res.data?.data ?? [];

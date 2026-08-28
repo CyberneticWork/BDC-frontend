@@ -27,7 +27,7 @@ const ModesGroup = memo(({ selectedTab, onTabSelect }) => {
                         : inactiveStyles
                     }`}
             >
-                Company Wise
+                Company Wise (Predefine)
             </button>
 
             <button
@@ -38,7 +38,7 @@ const ModesGroup = memo(({ selectedTab, onTabSelect }) => {
                         : inactiveStyles
                     }`}
             >
-                Employee Wise
+                Assign (All / Employee)
             </button>
         </div>
     );

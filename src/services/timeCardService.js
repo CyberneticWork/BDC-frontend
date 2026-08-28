@@ -158,9 +158,21 @@ const timeCardService = {
   },
 
   async getTimeCardsByDate(date) {
-    const response = await axios.get('/time-cards/by-date', {
+    const response = await axios.get('/time-cards', {
       params: { date }
     });
+    return response.data;
+  },
+
+  async getTimeCardsByDateRange(from_date, to_date) {
+    const response = await axios.get('/time-cards', {
+      params: { from_date, to_date }
+    });
+    return response.data;
+  },
+
+  async recalculateAttendance(params) {
+    const response = await axios.post('/attendance/recalculate', params);
     return response.data;
   },
 

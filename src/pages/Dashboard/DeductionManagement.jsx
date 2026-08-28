@@ -19,14 +19,14 @@ const ModesGroup = memo(({ selectedTab, onTabSelect }) => {
                 onClick={() => onTabSelect("company")}
                 className={`${baseButtonStyles} ${selectedTab === "company" ? activeStyles : inactiveStyles}`}
             >
-                Company Wise
+                Company Wise (Predefine)
             </button>
             <button
                 type="button"
                 onClick={() => onTabSelect("employee")}
                 className={`${baseButtonStyles} ${selectedTab === "employee" ? activeStyles : inactiveStyles}`}
             >
-                Employee Wise
+                Assign (All / Employee)
             </button>
         </div>
     );

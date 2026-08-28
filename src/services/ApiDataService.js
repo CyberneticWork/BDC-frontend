@@ -147,9 +147,9 @@ export const deleteSubDepartment = async (id) => {
   }
 };
 
-export const fetchTimeCards = async () => {
+export const fetchTimeCards = async (params = {}) => {
   try {
-    const response = await axios.get("/time-cards");
+    const response = await axios.get("/time-cards", { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching time cards:", error);

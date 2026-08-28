@@ -50,6 +50,7 @@ const Sidebar = ({
     if (user?.role === 'employee') {
       return [
         { id: "dashboard", name: "Dashboard", icon: Home },
+        { id: "employeePortal", name: "Employee Portal", icon: Briefcase },
         { id: "myProfile", name: "My Profile", icon: User },
         { id: "changePassword", name: "Change Password", icon: Key },
         //{ id: "chatbot", name: "Chat with System", icon: MessageCircle },
@@ -137,12 +138,14 @@ const Sidebar = ({
             subItems: [
               { id: "TimeCard", name: "Time Card" },
               { id: "Overtime", name: "Over Time" },
+              { id: "lateEarlyApproval", name: "Late / Early Approval" },
               { id: "leaveMaster", name: "Leave Form" },
               { id: "leaveApproval", name: "Leave Approval" },
               { id: "supervisorLeaveApproval", name: "Supervisor Leave Approval" },
               { id: "midShiftBreaks", name: "Mid-Shift Breaks" },
               { id: "hrLeaveApproval", name: "HR Leave Approval" },
               { id: "noPayManagement", name: "NoPay" },
+              { id: "advanceApprovals", name: "Advance Approvals" },
               { id: "leavecalendar", name: "Leave Calendar" },
             ],
           },
@@ -161,6 +164,7 @@ const Sidebar = ({
               { id: "attendanceReport", name: "Attendance Report" },
               { id: "singleEntryReport", name: "Single Entry Report" },
               { id: "absentReport", name: "Absent Report" },
+              { id: "shiftHoursReport", name: "Shift Hours Reports" },
             ],
           },
           {
@@ -179,6 +183,7 @@ const Sidebar = ({
         icon: Settings,
         subItems: [
           { id: "leaveSettings", name: "Leave Settings" },
+          { id: "employeeLeaveBalance", name: "Employee Leave Balances" },
         ],
       },
     ];
@@ -244,44 +249,65 @@ const Sidebar = ({
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-[var(--brand-ink)]/40 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      <div className={`min-h-screen bg-white border-r border-gray-200 shadow-lg z-50 transform transition-transform duration-300 ease-in-out w-64 fixed left-0 top-0 lg:static lg:z-0 lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        {/* Logo Section */}
-        <div className="p-6 border-b border-gray-100 flex-shrink-0">
+      <div
+        className={`min-h-screen z-50 transform transition-transform duration-300 ease-in-out w-[272px] fixed left-0 top-0 lg:static lg:z-0 lg:translate-x-0 flex flex-col text-white ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{
+          background:
+            "linear-gradient(180deg, #062A32 0%, #0B4F5C 48%, #0A3D47 100%)",
+          boxShadow: "8px 0 40px rgba(6,42,50,0.25)",
+        }}
+      >
+        <div className="p-5 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 p-2 rounded-lg">
+            <div
+              className="p-2.5 rounded-2xl shadow-lg"
+              style={{
+                background: "linear-gradient(135deg, #2DD4BF, #0D9488 50%, #FF6B4A)",
+              }}
+            >
               <Building2 className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900 leading-tight">
-                {user?.role === 'employee' ? 'Staff Portal' : 'HRM Admin'}
+              <h2 className="font-display font-bold text-white leading-tight text-lg">
+                {user?.role === "employee" ? "Staff Portal" : "SPM Tax HR"}
               </h2>
-              <p className="text-xs text-gray-500">v2.1.0</p>
+              <p className="text-[11px] text-teal-200/80 font-medium tracking-wide">
+                Management Suite
+              </p>
             </div>
           </div>
         </div>
 
-        {/* User Info Section */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-            <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold text-sm">
+        <div className="p-4 border-b border-white/10">
+          <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/8 border border-white/10">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-teal-400 to-teal-700 text-white overflow-hidden ring-2 ring-white/20">
               {employeeProfile?.profile_photo_path ? (
-                <img src={`${config.apiBaseUrl}/storage/${employeeProfile.profile_photo_path}`} className="w-full h-full rounded-full object-cover" alt="Profile" />
-              ) : user?.name?.charAt(0)}
+                <img
+                  src={`${config.apiBaseUrl}/storage/${employeeProfile.profile_photo_path}`}
+                  className="w-full h-full rounded-full object-cover"
+                  alt="Profile"
+                />
+              ) : (
+                user?.name?.charAt(0)
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">{user?.role}</p>
+              <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
+              <p className="text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
+                {user?.role}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4">
+        <nav className="flex-1 overflow-y-auto p-3 sidebar-scroll">
           <ul className="space-y-1">
             {filteredMenuItems.map((item) => (
               <li key={item.id}>
@@ -289,34 +315,50 @@ const Sidebar = ({
                   <div className="mb-1">
                     <button
                       onClick={() => toggleSection(item.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${expandedItems[item.id] ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-50"}`}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                        expandedItems[item.id]
+                          ? "bg-white/12 text-white"
+                          : "text-teal-50/80 hover:bg-white/8 hover:text-white"
+                      }`}
                     >
                       <div className="flex items-center gap-3">
-                        <item.icon className="h-4 w-4" />
+                        <item.icon className="h-4 w-4 text-teal-300" />
                         <span>{item.name}</span>
                       </div>
-                      {expandedItems[item.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      {expandedItems[item.id] ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                     </button>
                     {expandedItems[item.id] && (
-                      <ul className="mt-1 ml-4 border-l border-gray-100 pl-2 space-y-1">
+                      <ul className="mt-1 ml-3 border-l border-teal-400/25 pl-2 space-y-0.5">
                         {item.subItems.map((sub) => (
                           <li key={sub.id}>
                             {sub.subItems ? (
                               <div>
                                 <button
                                   onClick={() => toggleSection(sub.id)}
-                                  className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-900"
+                                  className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-teal-100/70 hover:text-white"
                                 >
                                   <span>{sub.name}</span>
-                                  {expandedItems[sub.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  {expandedItems[sub.id] ? (
+                                    <ChevronDown className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3" />
+                                  )}
                                 </button>
                                 {expandedItems[sub.id] && (
-                                  <ul className="ml-3 space-y-1">
+                                  <ul className="ml-2 space-y-0.5">
                                     {sub.subItems.map((nested) => (
                                       <li key={nested.id}>
                                         <button
                                           onClick={() => setActiveItem(nested.id)}
-                                          className={`w-full text-left px-3 py-1.5 rounded-md text-[13px] ${activeItem === nested.id ? "bg-indigo-100 text-indigo-700 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
+                                          className={`w-full text-left px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
+                                            activeItem === nested.id
+                                              ? "bg-gradient-to-r from-teal-500 to-teal-600 text-white font-semibold shadow-md"
+                                              : "text-teal-50/75 hover:bg-white/8"
+                                          }`}
                                         >
                                           {nested.name}
                                         </button>
@@ -328,7 +370,11 @@ const Sidebar = ({
                             ) : (
                               <button
                                 onClick={() => setActiveItem(sub.id)}
-                                className={`w-full text-left px-3 py-1.5 rounded-md text-[13px] ${activeItem === sub.id ? "bg-indigo-100 text-indigo-700 font-semibold" : "text-gray-600 hover:bg-gray-50"}`}
+                                className={`w-full text-left px-3 py-1.5 rounded-lg text-[13px] transition-colors ${
+                                  activeItem === sub.id
+                                    ? "bg-gradient-to-r from-teal-500 to-teal-600 text-white font-semibold shadow-md"
+                                    : "text-teal-50/75 hover:bg-white/8"
+                                }`}
                               >
                                 {sub.name}
                               </button>
@@ -341,7 +387,19 @@ const Sidebar = ({
                 ) : (
                   <button
                     onClick={() => setActiveItem(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeItem === item.id ? "bg-indigo-600 text-white shadow-md" : "text-gray-600 hover:bg-gray-50"}`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      activeItem === item.id
+                        ? "text-white shadow-lg shadow-teal-900/40"
+                        : "text-teal-50/85 hover:bg-white/8"
+                    }`}
+                    style={
+                      activeItem === item.id
+                        ? {
+                            background:
+                              "linear-gradient(120deg, #0D9488 0%, #FF6B4A 160%)",
+                          }
+                        : undefined
+                    }
                   >
                     <item.icon className="h-4 w-4" />
                     <span>{item.name}</span>
@@ -352,13 +410,12 @@ const Sidebar = ({
           </ul>
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-white/10">
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors group"
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-coral-200 hover:bg-red-500/15 rounded-xl transition-colors"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4 text-[#FF6B4A]" />
             <span>Sign Out</span>
           </button>
         </div>
@@ -498,6 +555,7 @@ const Sidebar = ({
           subItems: [
             { id: "TimeCard", name: "Time Card" },
             { id: "Overtime", name: "Over Time" },
+            { id: "lateEarlyApproval", name: "Late / Early Approval" },
             { id: "leaveMaster", name: "Leave Form" },
             { id: "leaveApproval", name: "Leave Approval" },
             { id: "supervisorLeaveApproval", name: "Supervisor Leave Approval" },//new one
@@ -522,6 +580,7 @@ const Sidebar = ({
             { id: "attendanceReport", name: "Attendance Report" },
             { id: "singleEntryReport", name: "Single Entry Report" },
             { id: "absentReport", name: "Absent Report" },
+            { id: "shiftHoursReport", name: "Shift Hours Reports" },
           ],
         },
         // --- අලුතින් එකතු කළ Salary Reports කොටස ---
@@ -543,6 +602,7 @@ const Sidebar = ({
       badge: null,
       subItems: [
         { id: "leaveSettings", name: "Leave Settings" },
+        { id: "employeeLeaveBalance", name: "Employee Leave Balances" },
       ],
     },
   ], [user?.role]);
@@ -628,7 +688,7 @@ const Sidebar = ({
       timecardReports:
         path.includes("timecardReports") ||
         activeItem === "timecardReports" ||
-        ["attendanceReport", "singleEntryReport","absentReport"].includes(activeItem),
+        ["attendanceReport", "singleEntryReport","absentReport","shiftHoursReport"].includes(activeItem),
       
       // --- අලුතින් එකතු කළ කොටස ---
       salaryReports:
@@ -640,7 +700,7 @@ const Sidebar = ({
       settings:
         path.includes("settings") ||
         activeItem === "settings" ||
-        ["leaveSettings"].includes(activeItem)
+        ["leaveSettings", "employeeLeaveBalance"].includes(activeItem)
     });
   }, [activeItem, menuItems]);
 
