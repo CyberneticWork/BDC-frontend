@@ -46,19 +46,20 @@ const AuthForm = ({
 
       <div>
         <label htmlFor="identifier" className="block text-sm font-semibold text-slate-700 mb-2">
-          Email
+          Email or NIC
         </label>
         <div className="relative">
           <Mail className="absolute left-3.5 top-3.5 h-5 w-5 text-teal-600/70" />
           <input
             id="identifier"
             name="identifier"
-            type="email"
+            type="text"
             required
+            autoComplete="username"
             value={formData.identifier || ""}
             onChange={onChange}
             className={fieldClass}
-            placeholder="Enter your email"
+            placeholder="Enter your email or NIC"
           />
         </div>
         {errors.identifier && (
