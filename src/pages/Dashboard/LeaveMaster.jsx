@@ -124,7 +124,16 @@ const LeaveMaster = ({ employeeProfile }) => {
   // Helper function to get current date in YYYY-MM-DD format
   function getCurrentDate() {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // Earliest leave date allowed on the form (backdating from April 1 of this year)
+  function getMinLeaveDate() {
+    const year = new Date().getFullYear();
+    return `${year}-04-01`;
   }
 
   // Function to format date for display
@@ -1485,7 +1494,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                               className={getDateInputStyle(
                                 formData.leaveDate.single
                               )}
-                              min={getCurrentDate()}
+                              min={getMinLeaveDate()}
                               onKeyDown={(e) => e.preventDefault()}
                             />
                             {hoveredDate === formData.leaveDate.single &&
@@ -1522,7 +1531,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 className={getDateInputStyle(
                                   formData.leaveDate.single
                                 )}
-                                min={getCurrentDate()}
+                                min={getMinLeaveDate()}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
                               {hoveredDate === formData.leaveDate.single &&
@@ -1575,7 +1584,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 className={getDateInputStyle(
                                   formData.leaveDate.single
                                 )}
-                                min={getCurrentDate()}
+                                min={getMinLeaveDate()}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
                               {hoveredDate === formData.leaveDate.single &&
@@ -1630,7 +1639,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 className={getDateInputStyle(
                                   formData.leaveDate.from
                                 )}
-                                min={getCurrentDate()}
+                                min={getMinLeaveDate()}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
                               {hoveredDate === formData.leaveDate.from &&
@@ -2077,7 +2086,16 @@ const LeaveMaster = ({ employeeProfile }) => {
   // Helper function to get current date in YYYY-MM-DD format
   function getCurrentDate() {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // Earliest leave date allowed on the form (backdating from April 1 of this year)
+  function getMinLeaveDate() {
+    const year = new Date().getFullYear();
+    return `${year}-04-01`;
   }
 
   // Function to format date for display
@@ -2986,7 +3004,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
                               className={getDateInputStyle(
                                 formData.leaveDate.single
                               )}
-                              min={getCurrentDate()}
+                              min={getMinLeaveDate()}
                               onKeyDown={(e) => e.preventDefault()}
                             />
                             {hoveredDate === formData.leaveDate.single &&
@@ -3023,7 +3041,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
                                 className={getDateInputStyle(
                                   formData.leaveDate.single
                                 )}
-                                min={getCurrentDate()}
+                                min={getMinLeaveDate()}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
                               {hoveredDate === formData.leaveDate.single &&
@@ -3076,7 +3094,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
                                 className={getDateInputStyle(
                                   formData.leaveDate.single
                                 )}
-                                min={getCurrentDate()}
+                                min={getMinLeaveDate()}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
                               {hoveredDate === formData.leaveDate.single &&
@@ -3131,7 +3149,7 @@ console.log("eligible_leaves:", eligibilityData?.eligible_leaves);
                                 className={getDateInputStyle(
                                   formData.leaveDate.from
                                 )}
-                                min={getCurrentDate()}
+                                min={getMinLeaveDate()}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
                               {hoveredDate === formData.leaveDate.from &&

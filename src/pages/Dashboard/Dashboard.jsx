@@ -54,6 +54,7 @@ import Department from "@dashboard/Department";
 import Grouproster from "@dashboard/Grouproster";
 import LeaveMaster from "@dashboard/LeaveMaster";
 import NoPayManagement from "@dashboard/NoPayManagement";
+import MonthlyLateDeduction from "@dashboard/MonthlyLateDeduction";
 import LeaveCalendar from "@dashboard/LeaveCalendar";
 import SalaryProcessPage from "@dashboard/SalaryProcessPage";
 import LeaveApproval from "@dashboard/LeaveApproval";
@@ -700,6 +701,12 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="noPayManagement" action="view">
             <NoPayManagement />
+          </ProtectedComponent>
+        );
+      case "monthlyLateDeduction":
+        return (
+          <ProtectedComponent module="monthlyLateDeduction" action="view">
+            <MonthlyLateDeduction />
           </ProtectedComponent>
         );
       case "hrLeaveApproval":

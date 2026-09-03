@@ -69,7 +69,24 @@ const LeaveCalendar = ({ employeeProfile }) => {
 
   const getCurrentDate = () => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  // Allow backdating leave from April 1 of the current year
+  const getMinLeaveDate = () => {
+    const year = new Date().getFullYear();
+    return `${year}-04-01`;
+  };
+
+  const isBeforeMinLeaveDate = (dateValue) => {
+    const selectedDate = new Date(dateValue);
+    selectedDate.setHours(0, 0, 0, 0);
+    const minDate = new Date(getMinLeaveDate());
+    minDate.setHours(0, 0, 0, 0);
+    return selectedDate < minDate;
   };
 
   // Fetch companies and leave data on component mount
@@ -395,15 +412,11 @@ const LeaveCalendar = ({ employeeProfile }) => {
       "0"
     )}-${String(day).padStart(2, "0")}`;
 
-    // Check if selected date is in the past
-    const selectedDate = new Date(dateString);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate < today) {
+    // Allow backdating from April 1 of the current year
+    if (isBeforeMinLeaveDate(dateString)) {
       Swal.fire({
         title: "Invalid Date",
-        text: "You cannot select past dates for leave requests",
+        text: `Leave can only be entered from ${getMinLeaveDate()} onward`,
         icon: "warning",
       });
       return;
@@ -1210,16 +1223,12 @@ const LeaveCalendar = ({ employeeProfile }) => {
                   <input
                     type="date"
                     value={startDate}
-                    min={getCurrentDate()}
+                    min={getMinLeaveDate()}
                     onChange={(e) => {
-                      const selectedDate = new Date(e.target.value);
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-
-                      if (selectedDate < today) {
+                      if (isBeforeMinLeaveDate(e.target.value)) {
                         Swal.fire({
                           title: "Invalid Date",
-                          text: "You cannot select past dates for leave requests",
+                          text: `Leave can only be entered from ${getMinLeaveDate()} onward`,
                           icon: "warning",
                         });
                         return;
@@ -1236,16 +1245,12 @@ const LeaveCalendar = ({ employeeProfile }) => {
                   <input
                     type="date"
                     value={endDate}
-                    min={startDate || getCurrentDate()}
+                    min={startDate || getMinLeaveDate()}
                     onChange={(e) => {
-                      const selectedDate = new Date(e.target.value);
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-
-                      if (selectedDate < today) {
+                      if (isBeforeMinLeaveDate(e.target.value)) {
                         Swal.fire({
                           title: "Invalid Date",
-                          text: "You cannot select past dates for leave requests",
+                          text: `Leave can only be entered from ${getMinLeaveDate()} onward`,
                           icon: "warning",
                         });
                         return;
