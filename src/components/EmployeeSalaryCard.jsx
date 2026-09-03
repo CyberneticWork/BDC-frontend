@@ -69,7 +69,10 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   const fullDayNoPay = Number(breakdown.full_day_nopay_deduction || 0);
   const saturdayNoPay = Number(breakdown.saturday_nopay_deduction || 0);
   const earlyOutNoPay = Number(breakdown.early_out_nopay_deduction || 0);
-  const majorLateNoPay = Number(breakdown.major_late_deduction || 0);
+  const majorLateNoPay = Number(
+    breakdown.monthly_late_nopay_deduction ?? breakdown.major_late_deduction ?? 0
+  );
+  const lateNoPayDays = Number(breakdown.monthly_late_nopay_days || 0);
   const shortLeaveLate = Number(breakdown.short_leave_deduction || 0);
   const halfDayLate = Number(breakdown.half_day_deduction || 0);
   const epfEmployee = Number(breakdown.epf_employee_deduction || 0);
@@ -98,7 +101,13 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   ];
 
   const bonusDeductionLines = [
-    { label: "Major Late (>30m)", amount: majorLateNoPay },
+    {
+      label: "Late Coming NoPay (after leave)",
+      amount: majorLateNoPay,
+      hint: lateNoPayDays > 0
+        ? `${lateNoPayDays} day(s) × basic/day → bonus deduct`
+        : "valued from basic, deducted from bonus",
+    },
     { label: "Short Leave Penalty (Late)", amount: shortLeaveLate },
     { label: "Half Day Penalty (Late)", amount: halfDayLate },
     { label: "Early Out No-Pay", amount: earlyOutNoPay },

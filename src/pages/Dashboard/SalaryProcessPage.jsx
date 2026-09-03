@@ -435,7 +435,10 @@ const SalaryProcessPage = () => {
     
 
     const bonusDeductions = [
-      { label: "Major Late Deduction (>30m)", amount: Number(breakdown.major_late_deduction || 0) },
+      {
+        label: "Late Coming NoPay (after leave) → Bonus",
+        amount: Number(breakdown.monthly_late_nopay_deduction ?? breakdown.major_late_deduction ?? 0),
+      },
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
       { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
@@ -1246,7 +1249,10 @@ const SalaryProcessPage = () => {
     }));
 
     const bonusDeductions = [
-      { label: "Major Late Deduction (>30m)", amount: Number(breakdown.major_late_deduction || 0) },
+      {
+        label: "Late Coming NoPay (after leave) → Bonus",
+        amount: Number(breakdown.monthly_late_nopay_deduction ?? breakdown.major_late_deduction ?? 0),
+      },
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
       // Early Out අයකිරීම Bonus එකට එකතු කර ඇත
