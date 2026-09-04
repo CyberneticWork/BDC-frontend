@@ -942,35 +942,99 @@ const LeaveMaster = ({ employeeProfile }) => {
         const usedDays = parseFloat(selectedLeaveInfo.usage);
         const actNote = selectedLeaveInfo.note || "";
 
-        // 3. ඉල්ලන ගාණ, තියෙන Balance එකට වඩා වැඩි නම් Error එකක් දීලා නවත්තනවා
-        if (requestedDuration > availableBalance) {
-          let reasonText = actNote;
-          if (entitledTotal <= 0) {
-            reasonText = actNote || `No ${formData.leaveType} entitlement under Shop & Office Act for this period.`;
-          } else if (availableBalance <= 0) {
-            reasonText = `All ${formData.leaveType} is already used (${usedDays}/${entitledTotal} days). ${actNote}`.trim();
-          } else {
-            reasonText = `Requested ${requestedDuration} day(s) but only ${availableBalance} day(s) remain (entitled ${entitledTotal}, used ${usedDays}). ${actNote}`.trim();
-          }
+        // Combined Annual + Casual: e.g. need 1 day, have 0.5 Annual + 0.5 Casual
+        const annualInfo = leaveUsageData.find((item) =>
+          String(item.leaveType || "").toLowerCase().includes("annual")
+        );
+        const casualInfo = leaveUsageData.find((item) =>
+          String(item.leaveType || "").toLowerCase().includes("casual")
+        );
+        const annualAvail = parseFloat(annualInfo?.balance ?? 0) || 0;
+        const casualAvail = parseFloat(casualInfo?.balance ?? 0) || 0;
+        const combinedAvail = annualAvail + casualAvail;
+        const isAnnualOrCasual =
+          String(formData.leaveType || "").toLowerCase().includes("annual") ||
+          String(formData.leaveType || "").toLowerCase().includes("casual");
 
-          Swal.fire({
-            icon: "error",
-            title: "Cannot Apply Leave",
-            html: `
-              <div class="text-left">
-                <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
-                <p>Leave type: <b>${formData.leaveType}</b></p>
-                <p class="mt-1">Requested: <b>${requestedDuration}</b> day(s)</p>
-                <p>Available balance: <b>${availableBalance}</b> day(s)</p>
-                <p class="mt-3"><b>Reason:</b> ${reasonText}</p>
-                ${leaveLawInfo?.lawReference ? `<p class="mt-2 text-xs text-gray-500">${leaveLawInfo.lawReference}</p>` : ""}
-              </div>
-            `,
-            confirmButtonColor: "#3085d6",
-            confirmButtonText: "OK",
-          });
-          setIsSubmitting(false);
-          return;
+        if (requestedDuration > availableBalance) {
+          if (isAnnualOrCasual && requestedDuration <= combinedAvail + 0.0001) {
+            const preferred = String(formData.leaveType || "").toLowerCase().includes("annual")
+              ? "Annual Leave"
+              : "Casual Leave";
+            const other = preferred === "Annual Leave" ? "Casual Leave" : "Annual Leave";
+            const preferredAvail = preferred === "Annual Leave" ? annualAvail : casualAvail;
+            const otherAvail = preferred === "Annual Leave" ? casualAvail : annualAvail;
+            const fromPreferred = Math.min(requestedDuration, preferredAvail);
+            const fromOther = Math.min(
+              Math.round((requestedDuration - fromPreferred) * 10000) / 10000,
+              otherAvail
+            );
+
+            const confirmSplit = await Swal.fire({
+              icon: "info",
+              title: "Use combined leave balances?",
+              html: `
+                <div class="text-left text-sm">
+                  <p><b>${formData.leaveType}</b> alone has only <b>${availableBalance}</b> day(s).</p>
+                  <p class="mt-2">Requested: <b>${requestedDuration}</b> day(s)</p>
+                  <p class="mt-2">Available:</p>
+                  <ul class="list-disc pl-5 mt-1">
+                    <li>Annual: <b>${annualAvail}</b> day(s)</li>
+                    <li>Casual: <b>${casualAvail}</b> day(s)</li>
+                    <li>Combined: <b>${combinedAvail}</b> day(s)</li>
+                  </ul>
+                  <p class="mt-3">This leave will be split as:</p>
+                  <ul class="list-disc pl-5 mt-1">
+                    <li><b>${fromPreferred}</b> day(s) from ${preferred}</li>
+                    <li><b>${fromOther}</b> day(s) from ${other}</li>
+                  </ul>
+                </div>
+              `,
+              showCancelButton: true,
+              confirmButtonText: "Yes, use both balances",
+              cancelButtonText: "Cancel",
+              confirmButtonColor: "#0f766e",
+            });
+
+            if (!confirmSplit.isConfirmed) {
+              setIsSubmitting(false);
+              return;
+            }
+            // Continue submit — backend will create split leave records
+          } else {
+            let reasonText = actNote;
+            if (entitledTotal <= 0) {
+              reasonText = actNote || `No ${formData.leaveType} entitlement under Shop & Office Act for this period.`;
+            } else if (availableBalance <= 0) {
+              reasonText = `All ${formData.leaveType} is already used (${usedDays}/${entitledTotal} days). ${actNote}`.trim();
+            } else {
+              reasonText = `Requested ${requestedDuration} day(s) but only ${availableBalance} day(s) remain (entitled ${entitledTotal}, used ${usedDays}). ${actNote}`.trim();
+            }
+
+            if (isAnnualOrCasual && combinedAvail > 0) {
+              reasonText += ` Combined Annual (${annualAvail}) + Casual (${casualAvail}) = ${combinedAvail} day(s), which is still less than requested ${requestedDuration}.`;
+            }
+
+            Swal.fire({
+              icon: "error",
+              title: "Cannot Apply Leave",
+              html: `
+                <div class="text-left">
+                  <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
+                  <p>Leave type: <b>${formData.leaveType}</b></p>
+                  <p class="mt-1">Requested: <b>${requestedDuration}</b> day(s)</p>
+                  <p>Available balance: <b>${availableBalance}</b> day(s)</p>
+                  ${isAnnualOrCasual ? `<p>Combined Annual + Casual: <b>${combinedAvail}</b> day(s)</p>` : ""}
+                  <p class="mt-3"><b>Reason:</b> ${reasonText}</p>
+                  ${leaveLawInfo?.lawReference ? `<p class="mt-2 text-xs text-gray-500">${leaveLawInfo.lawReference}</p>` : ""}
+                </div>
+              `,
+              confirmButtonColor: "#3085d6",
+              confirmButtonText: "OK",
+            });
+            setIsSubmitting(false);
+            return;
+          }
         }
       } else if (leaveUsageData.length > 0) {
         Swal.fire({
@@ -1024,15 +1088,34 @@ const LeaveMaster = ({ employeeProfile }) => {
       }
 
       try {
-        await createLeave(leaveData);
+        const created = await createLeave(leaveData);
 
-        // Show success message
-        Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: "Leave request submitted successfully!",
-          confirmButtonColor: "#3085d6",
-        });
+        if (created?.combined_balance && Array.isArray(created?.split)) {
+          const splitHtml = created.split
+            .map(
+              (part) =>
+                `<li><b>${part.days}</b> day(s) from <b>${part.leave_type}</b></li>`
+            )
+            .join("");
+          Swal.fire({
+            icon: "success",
+            title: "Leave submitted (combined balances)",
+            html: `
+              <div class="text-left text-sm">
+                <p>Leave was split across Annual and Casual balances:</p>
+                <ul class="list-disc pl-5 mt-2">${splitHtml}</ul>
+              </div>
+            `,
+            confirmButtonColor: "#3085d6",
+          });
+        } else {
+          Swal.fire({
+            icon: "success",
+            title: "Success",
+            text: "Leave request submitted successfully!",
+            confirmButtonColor: "#3085d6",
+          });
+        }
 
         await handleSubmitSuccess();
       } catch (error) {
