@@ -61,6 +61,7 @@ import LeaveApproval from "@dashboard/LeaveApproval";
 import HRLeaveApproval from "@dashboard/HRLeaveApproval";
 import Resignation from "@dashboard/Resignation";
 import Termination from "@dashboard/Termination";
+import NopayWorkingDaysSettings from "@dashboard/NopayWorkingDaysSettings";
 
 import ViewLoans from "@dashboard/viewLoans";
 import SalaryPage from "@dashboard/SalaryPage";
@@ -1181,6 +1182,12 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="employeeLeaveBalance" action="view">
             <EmployeeLeaveBalance />
+          </ProtectedComponent>
+        );
+      case "nopayWorkingDays":
+        return (
+          <ProtectedComponent module="nopayWorkingDays" action="view">
+            <NopayWorkingDaysSettings />
           </ProtectedComponent>
         );
       case "dinnerAllowance":

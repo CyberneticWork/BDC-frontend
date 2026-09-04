@@ -69,7 +69,7 @@ function RulesBanner({ rules }) {
         <Info className="h-5 w-5 text-teal-700" />
         <h3 className="font-semibold text-slate-800">Monthly late deduction rules</h3>
       </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {rules.map((rule) => (
           <div
             key={rule.band}
@@ -81,8 +81,8 @@ function RulesBanner({ rules }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        Short leave uses Casual balance first, then Annual. Excess beyond 2h 30m uses Annual first, then Casual. Remaining becomes NoPay.
-        Applying creates Approved leave and NoPay records automatically.
+        Late is judged day by day (not by totaling monthly minutes). First 3 late days ≤30 minutes are free.
+        Any day over 30 minutes (e.g. 35m) is a half-day. Half days use Casual → Annual → remaining NoPay.
       </p>
     </div>
   );
@@ -107,12 +107,12 @@ function BreakdownPanel({ employee }) {
           <p className="text-xs text-slate-500">Deducting {employee.casual_leave_days} day(s)</p>
         </div>
         <div className="rounded-xl bg-white p-3 border border-slate-200">
-          <p className="text-[11px] font-semibold uppercase text-slate-500">Short leaves</p>
+          <p className="text-[11px] font-semibold uppercase text-slate-500">Half days</p>
           <p className="mt-1 text-sm font-bold text-amber-800">
-            {employee.short_leave_count} ({employee.short_leave_days} day)
+            {employee.half_day_count ?? 0} ({employee.half_day_days ?? employee.short_leave_days ?? 0} day)
           </p>
           <p className="text-xs text-slate-500">
-            Casual {employee.short_from_casual} · Annual {employee.short_from_annual}
+            Grace used {employee.grace_day_count ?? 0}/{employee.grace_day_limit ?? 3}
           </p>
         </div>
         <div className="rounded-xl bg-white p-3 border border-slate-200">
@@ -159,6 +159,7 @@ function BreakdownPanel({ employee }) {
                   <th className="px-3 py-2">Shift start</th>
                   <th className="px-3 py-2">In time</th>
                   <th className="px-3 py-2">Late</th>
+                  <th className="px-3 py-2">Day action</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
               </thead>
@@ -169,6 +170,22 @@ function BreakdownPanel({ employee }) {
                     <td className="px-3 py-2 text-slate-600">{day.shift_start}</td>
                     <td className="px-3 py-2 text-slate-600">{day.in_time}</td>
                     <td className="px-3 py-2 font-semibold text-rose-700">{day.late_display}</td>
+                    <td className="px-3 py-2 text-xs">
+                      <span
+                        className={
+                          day.action === "grace"
+                            ? "text-emerald-700"
+                            : day.action === "half_day"
+                              ? "text-orange-700 font-medium"
+                              : "text-slate-600"
+                        }
+                      >
+                        {day.action_label || "—"}
+                      </span>
+                      {day.leave_source ? (
+                        <span className="block text-[11px] text-slate-500">→ {day.leave_source}</span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 text-slate-600">{day.status}</td>
                   </tr>
                 ))}
@@ -441,7 +458,7 @@ export default function MonthlyLateDeduction() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard label="Employees with late" value={summary.employees_with_late} accent="slate" />
           <StatCard label="Need deduction" value={summary.employees_with_deduction} accent="amber" />
-          <StatCard label="Short leaves" value={summary.total_short_leaves} hint="Auto short leave units" accent="teal" />
+          <StatCard label="Half days" value={summary.total_half_days ?? summary.total_short_leaves} hint="Day-by-day half-day units" accent="teal" />
           <StatCard
             label="Annual + Casual days"
             value={`${summary.total_annual_days} / ${summary.total_casual_days}`}
@@ -606,10 +623,10 @@ export default function MonthlyLateDeduction() {
           <div>
             <p className="font-semibold">How apply works</p>
             <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-amber-900/90">
-              <li>Creates Approved short leave entries (Casual first, then Annual).</li>
-              <li>Creates Approved Annual/Casual leave for remaining time beyond 2h 30m.</li>
-              <li>Creates Approved NoPay (`LATE_MONTHLY`) for any balance still uncovered.</li>
-              <li>Salary process uses monthly NoPay and no longer double-charges the old ≤30m short/half pay cuts.</li>
+              <li>Judges each late day separately (does not total monthly late minutes).</li>
+              <li>First 3 late days ≤30 minutes = grace (no deduction).</li>
+              <li>Any day over 30 minutes (e.g. 35m) = half-day that day.</li>
+              <li>Creates Approved half-day leave (Casual → Annual) and NoPay (`LATE_MONTHLY`) for shortfall.</li>
             </ul>
             <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-800">
               <CalendarDays className="h-3.5 w-3.5" />

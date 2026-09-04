@@ -15,6 +15,7 @@ import {
   deleteSubDepartment,
 } from '../../services/ApiDataService';
 import Swal from "sweetalert2";
+import { useAuth } from "../../contexts/AuthContext";
 
 // EditModal
 const EditModal = ({
@@ -22,7 +23,8 @@ const EditModal = ({
   companyForm,
   editingCompany,
   setShowAddModal,
-  refreshAll
+  refreshAll,
+  canEditNopayDays = false,
 }) => {
   const [localForm, setLocalForm] = React.useState(companyForm);
   const [errors, setErrors] = React.useState({});
@@ -62,6 +64,12 @@ const EditModal = ({
       !validateEstablished(localForm.established)
     ) {
       newErrors.established = "Established year must be a valid 4-digit year, not in the future, and positive.";
+    }
+    if (canEditNopayDays || isAddMode) {
+      const days = Number(localForm.nopay_working_days);
+      if (!Number.isFinite(days) || days < 1 || days > 31) {
+        newErrors.nopay_working_days = "Working days must be between 1 and 31.";
+      }
     }
     return newErrors;
   };
@@ -140,6 +148,30 @@ const EditModal = ({
               pattern="\d{4}"
             />
           </div>
+          {(canEditNopayDays || isAddMode) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                NoPay working days (divisor)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={localForm.nopay_working_days ?? 30}
+                onChange={(e) =>
+                  setLocalForm({ ...localForm, nopay_working_days: e.target.value })
+                }
+                className={`w-full px-3 py-2 border ${errors.nopay_working_days ? "border-red-500" : "border-gray-300"} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                placeholder="30"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Leave NoPay day rate = amount ÷ this value (e.g. 30, 25, 22). ACL: nopayWorkingDays.
+              </p>
+              {errors.nopay_working_days && (
+                <div className="text-red-600 text-sm mt-1">{errors.nopay_working_days}</div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex justify-end space-x-3 mt-6">
           <button
@@ -161,6 +193,11 @@ const EditModal = ({
                 company_code: (localForm.company_code || "").trim().toUpperCase(),
                 established: localForm.established ? Number(localForm.established) : null,
               };
+              if (!canEditNopayDays && !isAddMode) {
+                delete payload.nopay_working_days;
+              } else {
+                payload.nopay_working_days = Number(localForm.nopay_working_days || 30);
+              }
               try {
                 if (editingCompany) {
                   await updateCompany(editingCompany.id, payload);
@@ -214,6 +251,8 @@ const EditModal = ({
 };
 
 const Department = () => {
+  const { hasPermission } = useAuth();
+  const canEditNopayDays = hasPermission("nopayWorkingDays", "edit");
   const [activeTab, setActiveTab] = useState('companies');
   // Separate search terms for each tab
   const [companySearch, setCompanySearch] = useState('');
@@ -229,7 +268,8 @@ const Department = () => {
     name: '',
     location: '',
     employees: '',
-    established: ''
+    established: '',
+    nopay_working_days: 30,
   });
   const [deptForm, setDeptForm] = useState({
     company_id: '',
@@ -434,7 +474,8 @@ const Department = () => {
                             name: company.name || '',
                             location: company.location || '',
                             employees: company.employees || '',
-                            established: company.established || ''
+                            established: company.established || '',
+                            nopay_working_days: company.nopay_working_days ?? 30,
                           });
                           setShowAddModal(true);
                         }}
@@ -1420,7 +1461,7 @@ const Department = () => {
                 <button
                   onClick={() => {
                     setModalMode('add');
-                    setCompanyForm({ company_code: '', name: '', location: '', employees: '', established: '' });
+                    setCompanyForm({ company_code: '', name: '', location: '', employees: '', established: '', nopay_working_days: 30 });
                     setShowAddModal(true);
                   }}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -1460,6 +1501,7 @@ const Department = () => {
             editingCompany={editingCompany}
             setShowAddModal={setShowAddModal}
             refreshAll={refreshAll}
+            canEditNopayDays={canEditNopayDays}
           />
 
           {/* Add Department Modal */}

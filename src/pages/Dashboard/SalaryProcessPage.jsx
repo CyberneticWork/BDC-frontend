@@ -400,6 +400,10 @@ const SalaryProcessPage = () => {
     const basicDeductions = [
       { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
       { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
+      {
+        label: "Leave Shortfall NoPay → Basic",
+        amount: Number(breakdown.leave_shortfall_nopay_basic_deduction || 0),
+      },
       // --- අලුතින් එකතු කළ කොටස් ---
       { label: "Probation Leave Deduction", amount: Number(breakdown.probation_deduction || 0) },
       { label: "Stamp Duty", amount: Number(breakdown.stamp_duty || 0) },
@@ -437,8 +441,12 @@ const SalaryProcessPage = () => {
 
     const bonusDeductions = [
       {
-        label: "Late Coming NoPay (after leave) → Bonus",
+        label: "Late Deduction NoPay → Monthly Bonus",
         amount: Number(breakdown.monthly_late_nopay_deduction ?? breakdown.major_late_deduction ?? 0),
+      },
+      {
+        label: "Leave Shortfall NoPay → Monthly Bonus",
+        amount: Number(breakdown.leave_shortfall_nopay_bonus_deduction || 0),
       },
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
@@ -1221,6 +1229,10 @@ const SalaryProcessPage = () => {
     const basicDeductions = [
       { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
       { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
+      {
+        label: "Leave Shortfall NoPay → Basic",
+        amount: Number(breakdown.leave_shortfall_nopay_basic_deduction || 0),
+      },
       ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
       ...(loanTarget === 'basic' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
     ].filter((item) => item.amount > 0);
@@ -1243,8 +1255,12 @@ const SalaryProcessPage = () => {
 
     const bonusDeductions = [
       {
-        label: "Late Coming NoPay (after leave) → Bonus",
+        label: "Late Deduction NoPay → Monthly Bonus",
         amount: Number(breakdown.monthly_late_nopay_deduction ?? breakdown.major_late_deduction ?? 0),
+      },
+      {
+        label: "Leave Shortfall NoPay → Monthly Bonus",
+        amount: Number(breakdown.leave_shortfall_nopay_bonus_deduction || 0),
       },
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },

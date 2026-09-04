@@ -185,6 +185,7 @@ const Sidebar = ({
         subItems: [
           { id: "leaveSettings", name: "Leave Settings" },
           { id: "employeeLeaveBalance", name: "Employee Leave Balances" },
+          { id: "nopayWorkingDays", name: "NoPay Working Days" },
         ],
       },
     ];
@@ -605,6 +606,7 @@ const Sidebar = ({
       subItems: [
         { id: "leaveSettings", name: "Leave Settings" },
         { id: "employeeLeaveBalance", name: "Employee Leave Balances" },
+        { id: "nopayWorkingDays", name: "NoPay Working Days" },
       ],
     },
   ], [user?.role]);
@@ -702,7 +704,7 @@ const Sidebar = ({
       settings:
         path.includes("settings") ||
         activeItem === "settings" ||
-        ["leaveSettings", "employeeLeaveBalance"].includes(activeItem)
+        ["leaveSettings", "employeeLeaveBalance", "nopayWorkingDays"].includes(activeItem)
     });
   }, [activeItem, menuItems]);
 

@@ -102,6 +102,7 @@ export const permissions = {
     productType: { view: true, edit: true },
     pendingApprovals: { view: true, edit: true },
     leaveSettings: { view: true, edit: true },
+    nopayWorkingDays: { view: true, edit: true },
     supervisorLeaveApproval: { view: true, approve: true },
     midShiftBreaks: { view: true, edit: true },
 
@@ -193,6 +194,7 @@ dinnerAllowance: { view: true, edit: true, approve: true },
     productList: { view: true, edit: true },
     discountLevel: { view: true, edit: true },
     leaveSettings: { view: true, edit: true },
+    nopayWorkingDays: { view: true, edit: true },
     dinnerAllowance: { view: true, edit: true, approve: true },
      
     allowancesReport: { view: true },

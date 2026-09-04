@@ -8,7 +8,10 @@ const formatMoney = (value) =>
   });
 
 const sumAmounts = (items) =>
-  (items || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  (items || []).reduce((sum, item) => {
+    if (item?.infoOnly) return sum;
+    return sum + (Number(item.amount) || 0);
+  }, 0);
 
 const Line = ({ label, amount, tone = "red", hint = null }) => {
   if (!amount && amount !== 0) return null;
@@ -67,6 +70,9 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   const net = Number(breakdown.net_salary || 0);
 
   const fullDayNoPay = Number(breakdown.full_day_nopay_deduction || 0);
+  const leaveShortfallBasicNoPay = Number(breakdown.leave_shortfall_nopay_basic_deduction || 0);
+  const leaveShortfallBonusNoPay = Number(breakdown.leave_shortfall_nopay_bonus_deduction || 0);
+  const leaveShortfallDays = Number(breakdown.leave_shortfall_nopay_days || 0);
   const saturdayNoPay = Number(breakdown.saturday_nopay_deduction || 0);
   const earlyOutNoPay = Number(breakdown.early_out_nopay_deduction || 0);
   const majorLateNoPay = Number(
@@ -94,6 +100,13 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
     { label: "EPF Employee (8%)", amount: epfEmployee },
     { label: "EPF/ETF Fixed Deductions", amount: epfEtfFixed },
     { label: "Full Day No-Pay (Weekdays)", amount: fullDayNoPay },
+    {
+      label: "Leave Shortfall NoPay → Basic",
+      amount: leaveShortfallBasicNoPay,
+      hint: leaveShortfallDays > 0
+        ? `${leaveShortfallDays} day(s) × basic/${breakdown.nopay_working_days || 30}`
+        : `(basic + bonus)/${breakdown.nopay_working_days || 30} split`,
+    },
     { label: "Probation Leave Deduction", amount: probationDeduction },
     ...(loanTarget === "basic" && loanPrincipal > 0
       ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }]
@@ -105,11 +118,27 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
 
   const bonusDeductionLines = [
     {
-      label: "Late Coming NoPay (after leave)",
+      label: "Late Deduction NoPay → Monthly Bonus",
       amount: majorLateNoPay,
       hint: lateNoPayDays > 0
-        ? `${lateNoPayDays} day(s) × basic/day → bonus deduct`
-        : "valued from basic, deducted from bonus",
+        ? `${lateNoPayDays} day(s) × monthly bonus/${breakdown.nopay_working_days || 30}`
+        : "valued from monthly bonus, deducted from bonus",
+    },
+    {
+      label: "Leave Shortfall NoPay → Monthly Bonus",
+      amount: leaveShortfallBonusNoPay,
+      hint: leaveShortfallDays > 0
+        ? `${leaveShortfallDays} day(s) × monthly bonus/${breakdown.nopay_working_days || 30}`
+        : `(basic + bonus)/${breakdown.nopay_working_days || 30} split`,
+    },
+    {
+      label: "Total NoPay under Monthly Bonus",
+      amount: Number(
+        breakdown.bonus_nopay_total
+        ?? (leaveShortfallBonusNoPay + majorLateNoPay)
+      ),
+      hint: "Leave shortfall bonus portion + late deduction NoPay (summary only)",
+      infoOnly: true,
     },
     { label: "Short Leave Penalty (Late)", amount: shortLeaveLate },
     { label: "Half Day Penalty (Late)", amount: halfDayLate },
@@ -291,7 +320,13 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
           <div className="rounded-2xl border border-red-100 p-4">
             <div className="text-sm font-bold text-gray-800 mb-3">Bonus-side / penalty / custom deductions</div>
             {bonusDeductionLines.map((line, i) => (
-              <Line key={`bnd-${i}`} label={line.label} amount={line.amount} hint={line.hint} />
+              <Line
+                key={`bnd-${i}`}
+                label={line.label}
+                amount={line.amount}
+                hint={line.hint}
+                tone={line.infoOnly ? "muted" : "red"}
+              />
             ))}
             <Subtotal label="Bonus-side deductions subtotal" amount={bonusDeductionsSum} />
           </div>
