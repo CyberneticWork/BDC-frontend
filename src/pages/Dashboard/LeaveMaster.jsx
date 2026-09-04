@@ -1872,8 +1872,8 @@ const LeaveMaster = ({ employeeProfile }) => {
                             : ""}
                         </p>
                         <ul className="mt-2 list-disc pl-4 text-blue-800 space-y-0.5">
-                          <li>1st year: no Annual; Casual = 1 day per 2 completed months</li>
-                          <li>2nd year: Annual 14/10/7/4 by join quarter; Casual 7</li>
+                          <li>1st year: no Annual; Casual = 0.5/month from month after join (hire month ignored)</li>
+                          <li>2nd year: Annual 14/10/7/4 by join quarter; Casual = 0.5/month from month after join</li>
                           <li>3rd year+: Annual 14; Casual 7</li>
                         </ul>
                       </div>
