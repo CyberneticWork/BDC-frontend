@@ -65,3 +65,20 @@ export const fetchLoanReport = async (employeeNo = null, loanId = null) => {
     throw error;
   }
 };
+
+export const requestLoanSkip = async (loanId, installmentNo, reason) => {
+  const response = await axios.post(`${API_PREFIX}/${loanId}/skip-request`, {
+    installment_no: installmentNo,
+    reason,
+  });
+  return response.data;
+};
+
+export const decideLoanSkip = async (loanId, installmentNo, action, approverNote = null) => {
+  const response = await axios.post(`${API_PREFIX}/${loanId}/skip-decide`, {
+    installment_no: installmentNo,
+    action,
+    approver_note: approverNote,
+  });
+  return response.data;
+};

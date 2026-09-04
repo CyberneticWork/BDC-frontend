@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
-import { fetchLoans, updateLoan, fetchLoanReport } from "@services/LoanService";
+import { fetchLoans, updateLoan, fetchLoanReport, requestLoanSkip, decideLoanSkip } from "@services/LoanService";
 import { exportLoanReportCSV, exportLoanReportPDF } from "@utils/loanReportExport";
 import Swal from "sweetalert2";
 import {
@@ -115,14 +115,73 @@ const ViewLoans = () => {
       paid: "bg-green-100 text-green-800",
       pending: "bg-amber-100 text-amber-800",
       overdue: "bg-red-100 text-red-800",
+      pending_approval: "bg-orange-100 text-orange-800",
+      approved_deferred: "bg-blue-100 text-blue-800",
+      rejected: "bg-rose-100 text-rose-800",
     };
-    const labels = { paid: "Paid", pending: "Pending", overdue: "Overdue" };
+    const labels = {
+      paid: "Paid",
+      pending: "Pending",
+      overdue: "Overdue",
+      pending_approval: "Skip Pending",
+      approved_deferred: "Deferred",
+      rejected: "Skip Rejected",
+    };
     const key = (status || "").toLowerCase();
     return (
       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${styles[key] || "bg-gray-100 text-gray-700"}`}>
-        {labels[key] || status || "â€”"}
+        {labels[key] || status || "—"}
       </span>
     );
+  };
+
+  const refreshLoanInState = (updatedLoan) => {
+    setLoans((prev) => prev.map((l) => (l.id === updatedLoan.id ? updatedLoan : l)));
+    setFilteredLoans((prev) => prev.map((l) => (l.id === updatedLoan.id ? updatedLoan : l)));
+    setShowDetails(updatedLoan);
+  };
+
+  const handleRequestSkip = async (loan, installmentNo) => {
+    const { value: reason } = await Swal.fire({
+      title: `Skip installment #${installmentNo}?`,
+      input: "textarea",
+      inputLabel: "Reason (required)",
+      inputPlaceholder: "Why should this month not be deducted?",
+      showCancelButton: true,
+      confirmButtonText: "Submit for approval",
+      inputValidator: (v) => (!v || !String(v).trim() ? "Reason is required" : undefined),
+    });
+    if (!reason) return;
+    try {
+      const res = await requestLoanSkip(loan.id, installmentNo, reason);
+      refreshLoanInState(res.loan);
+      Swal.fire({ icon: "success", title: "Submitted", text: res.message, timer: 2000, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Failed", text: err.response?.data?.message || "Could not submit skip request" });
+    }
+  };
+
+  const handleDecideSkip = async (loan, installmentNo, action) => {
+    const { value: note } = await Swal.fire({
+      title: action === "approve" ? "Approve skip (higher approval)?" : "Reject skip request?",
+      text:
+        action === "approve"
+          ? "This month will not be deducted. Installment and later rows defer by 1 month."
+          : "The installment will remain due as scheduled.",
+      input: "text",
+      inputLabel: "Approver note (optional)",
+      showCancelButton: true,
+      confirmButtonText: action === "approve" ? "Approve & defer" : "Reject",
+      confirmButtonColor: action === "approve" ? "#2563eb" : "#dc2626",
+    });
+    if (note === undefined) return;
+    try {
+      const res = await decideLoanSkip(loan.id, installmentNo, action, note || null);
+      refreshLoanInState(res.loan);
+      Swal.fire({ icon: "success", title: "Done", text: res.message, timer: 2200, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Failed", text: err.response?.data?.message || "Could not update skip request" });
+    }
   };
 
   const runReportExport = async (type, { employeeNo = null, loanId = null } = {}) => {
@@ -450,7 +509,12 @@ const ViewLoans = () => {
                 </button>
               </div>
 
-              <h4 className="font-bold mb-3 text-gray-800">Repayment Schedule</h4>
+              <h4 className="font-bold mb-3 text-gray-800">Repayment Schedule (reducing interest)</h4>
+              <p className="text-xs text-gray-500 mb-3">
+                Deduct from: <strong>{showDetails.deduct_from === "basic" ? "Basic Salary" : "Monthly Bonus"}</strong>
+                {" · "}
+                To skip a month: Request Skip → Higher Approve (defers installment).
+              </p>
               <div className="overflow-x-auto border rounded-lg">
                 <table className="min-w-full text-xs">
                   <thead className="bg-slate-100">
@@ -461,24 +525,60 @@ const ViewLoans = () => {
                       <th className="p-2 text-right">Principal</th>
                       <th className="p-2 text-right">Interest</th>
                       <th className="p-2 text-right">Balance</th>
-                      <th className="p-2 text-center">Status</th>
+                      <th className="p-2 text-center">Skip</th>
+                      <th className="p-2 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {getScheduleRows(showDetails).length === 0 ? (
-                      <tr><td colSpan={7} className="p-4 text-center text-gray-500">No schedule â€” use Full Report for generated installment lines.</td></tr>
+                      <tr><td colSpan={8} className="p-4 text-center text-gray-500">No schedule saved for this loan.</td></tr>
                     ) : (
-                      getScheduleRows(showDetails).map((row, idx) => (
-                        <tr key={idx} className="border-t hover:bg-gray-50">
-                          <td className="p-2">{row.no || row.installment_no || idx + 1}</td>
-                          <td className="p-2">{row.dueDate || row.due_date || row.due_date_display}</td>
-                          <td className="p-2 text-right font-bold">{formatCurrency(row.installmentAmount || row.installment_amount)}</td>
-                          <td className="p-2 text-right">{formatCurrency(row.capitalRepayment || row.capital_repayment || row.principal_deduction)}</td>
-                          <td className="p-2 text-right">{formatCurrency(row.interestPayment || row.interest_payment || row.interest_deduction)}</td>
-                          <td className="p-2 text-right">{formatCurrency(row.dueBalance || row.due_balance || row.balance_after)}</td>
-                          <td className="p-2 text-center">{statusBadge(row.status)}</td>
-                        </tr>
-                      ))
+                      getScheduleRows(showDetails).map((row, idx) => {
+                        const no = row.no || row.installment_no || idx + 1;
+                        const skipStatus = (row.skip_status || "").toLowerCase();
+                        return (
+                          <tr key={idx} className="border-t hover:bg-gray-50">
+                            <td className="p-2">{no}</td>
+                            <td className="p-2">{row.dueDateIso || row.dueDate || row.due_date || row.due_date_display}</td>
+                            <td className="p-2 text-right font-bold">{formatCurrency(row.installmentAmount || row.installment_amount)}</td>
+                            <td className="p-2 text-right">{formatCurrency(row.capitalRepayment || row.capital_repayment || row.principal_deduction)}</td>
+                            <td className="p-2 text-right">{formatCurrency(row.interestPayment || row.interest_payment || row.interest_deduction)}</td>
+                            <td className="p-2 text-right">{formatCurrency(row.dueBalance || row.due_balance || row.balance_after)}</td>
+                            <td className="p-2 text-center">{statusBadge(skipStatus || row.status)}</td>
+                            <td className="p-2 text-center">
+                              <div className="flex flex-wrap justify-center gap-1">
+                                {showDetails.status === "active" && !skipStatus && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRequestSkip(showDetails, no)}
+                                    className="px-2 py-1 rounded bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                  >
+                                    Request Skip
+                                  </button>
+                                )}
+                                {skipStatus === "pending_approval" && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDecideSkip(showDetails, no, "approve")}
+                                      className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDecideSkip(showDetails, no, "reject")}
+                                      className="px-2 py-1 rounded bg-rose-100 text-rose-700 hover:bg-rose-200"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

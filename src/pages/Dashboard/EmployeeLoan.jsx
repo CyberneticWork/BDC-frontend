@@ -199,7 +199,6 @@ const EmployeeLoan = () => {
   }, [employeeNo]);
 
   const calculateLoan = () => {
-    // Validation
     if (
       !employeeNo ||
       !startDate ||
@@ -208,10 +207,7 @@ const EmployeeLoan = () => {
       (calculationType === "byCount" && !installmentCount) ||
       (interestType === "withInterest" && !interestRate)
     ) {
-      showErrorMessage(
-        "Missing Information",
-        "Please fill all required fields"
-      );
+      showErrorMessage("Missing Information", "Please fill all required fields");
       return;
     }
 
@@ -225,103 +221,95 @@ const EmployeeLoan = () => {
       showErrorMessage("Invalid Amount", "Please enter a valid loan amount");
       return;
     }
-    if (
-      interestType === "withInterest" &&
-      (isNaN(ratePercent) || ratePercent < 0)
-    ) {
+    if (interestType === "withInterest" && (isNaN(ratePercent) || ratePercent < 0)) {
       showErrorMessage("Invalid Rate", "Please enter a valid interest rate");
       return;
     }
 
-    // Flat interest model
-    const totalInterest = round2(principal * (ratePercent / 100));
-    const totalRepayable = round2(principal + totalInterest);
-
-    let numberOfInstallments;
-    let installmentAmt;
+    // Reducing-balance interest: each month interest = outstanding × rate%
+    // Capital repayment reduces outstanding; next month interest is lower.
+    let capitalPerMonth = 0;
+    let maxMonths = 600;
 
     if (calculationType === "byCount") {
-      numberOfInstallments = parseInt(installmentCount, 10);
-      if (!numberOfInstallments || numberOfInstallments <= 0) {
-        showErrorMessage(
-          "Invalid Count",
-          "Installment count must be a positive integer"
-        );
+      const n = parseInt(installmentCount, 10);
+      if (!n || n <= 0) {
+        showErrorMessage("Invalid Count", "Installment count must be a positive integer");
         return;
       }
-      const baseInstallment = totalRepayable / numberOfInstallments;
-      installmentAmt = round2(baseInstallment);
-      setInstallmentAmount(installmentAmt.toFixed(2));
+      capitalPerMonth = round2(principal / n);
+      maxMonths = n;
+      setInstallmentAmount(capitalPerMonth.toFixed(2));
     } else {
-      installmentAmt = parseFloat(installmentAmount);
-      if (isNaN(installmentAmt) || installmentAmt <= 0) {
-        showErrorMessage(
-          "Invalid Installment",
-          "Installment amount must be greater than 0"
-        );
+      capitalPerMonth = parseFloat(installmentAmount);
+      if (isNaN(capitalPerMonth) || capitalPerMonth <= 0) {
+        showErrorMessage("Invalid Installment", "Installment (capital) amount must be greater than 0");
         return;
       }
-      numberOfInstallments = Math.ceil(totalRepayable / installmentAmt);
-      setInstallmentCount(numberOfInstallments.toString());
+      if (ratePercent <= 0 && capitalPerMonth > principal) {
+        showErrorMessage("Invalid Installment", "Installment cannot exceed loan amount");
+        return;
+      }
     }
 
-    // Build schedule with evenly distributed interest; last row adjusts for rounding
     const details = [];
-    let principalRemaining = principal;
-    let sumInstallments = 0;
-    let sumInterest = 0;
+    let outstanding = round2(principal);
+    let i = 0;
 
-    const baseInterestPerInst =
-      numberOfInstallments > 0 ? totalInterest / numberOfInstallments : 0;
+    while (outstanding > 0.009 && i < maxMonths) {
+      i += 1;
+      const interest = round2(outstanding * (ratePercent / 100));
+      let capital = round2(
+        calculationType === "byCount" && i === maxMonths
+          ? outstanding
+          : Math.min(capitalPerMonth, outstanding)
+      );
 
-    for (let i = 1; i <= numberOfInstallments; i++) {
-      // Installment amount for this row
-      let thisInstallment;
-      if (calculationType === "byCount") {
-        if (i < numberOfInstallments) {
-          thisInstallment = round2(totalRepayable / numberOfInstallments);
-        } else {
-          thisInstallment = round2(totalRepayable - sumInstallments);
-        }
-      } else {
-        if (i < numberOfInstallments) {
-          thisInstallment = round2(installmentAmt);
-        } else {
-          thisInstallment = round2(totalRepayable - sumInstallments);
-        }
+      // Last installment by count: clear remaining principal
+      if (calculationType === "byCount" && i === maxMonths) {
+        capital = round2(outstanding);
       }
 
-      // Interest for this row
-      let thisInterest;
-      if (i < numberOfInstallments) {
-        thisInterest = round2(baseInterestPerInst);
-      } else {
-        thisInterest = round2(totalInterest - sumInterest);
+      // Safety: if interest-only would never clear principal when capital is 0
+      if (capital <= 0 && outstanding > 0) {
+        capital = round2(outstanding);
       }
 
-      // Principal portion
-      let thisPrincipal = round2(thisInstallment - thisInterest);
-      if (thisPrincipal < 0) {
-        thisInterest = thisInstallment;
-        thisPrincipal = 0;
-      }
+      outstanding = round2(outstanding - capital);
+      if (outstanding < 0.01) outstanding = 0;
 
-      principalRemaining = round2(principalRemaining - thisPrincipal);
-      if (principalRemaining < 0.01) principalRemaining = 0;
+      const totalInstallment = round2(capital + interest);
+      const due = addMonthsToDate(startDate, i);
 
       details.push({
         no: i,
-        dueDate: calculateDueDate(startDate, i),
+        dueDate: due.display,
+        dueDateIso: due.iso,
         days: 30,
-        capitalOutstanding: principalRemaining,
-        capitalRepayment: thisPrincipal,
-        interestPayment: thisInterest,
-        installmentAmount: thisInstallment,
-        dueBalance: principalRemaining,
+        capitalOutstanding: outstanding,
+        capitalRepayment: capital,
+        interestPayment: interest,
+        installmentAmount: totalInstallment,
+        dueBalance: outstanding,
+        skipped: false,
+        skip_status: null,
+        skip_reason: null,
+        status: "pending",
       });
+    }
 
-      sumInstallments = round2(sumInstallments + thisInstallment);
-      sumInterest = round2(sumInterest + thisInterest);
+    if (outstanding > 0.01) {
+      showErrorMessage(
+        "Schedule Incomplete",
+        "Could not clear the loan with the given installment. Increase capital installment or count."
+      );
+      return;
+    }
+
+    setInstallmentCount(String(details.length));
+    if (calculationType === "byCount" && details.length > 0) {
+      // Show first-month total (capital+interest) as reference; capital is stored separately in rows
+      setInstallmentAmount(String(details[0].capitalRepayment));
     }
 
     setLoanDetails(details);
@@ -330,21 +318,27 @@ const EmployeeLoan = () => {
     Swal.fire({
       position: "center",
       icon: "success",
-      title: "Loan Calculated",
+      title: "Reducing Interest Calculated",
+      text: `${details.length} installment(s). Interest falls as capital is repaid.`,
       showConfirmButton: false,
-      timer: 1500,
+      timer: 1800,
     });
   };
 
-  const calculateDueDate = (startDate, installmentNo) => {
-    if (!startDate) return "N/A";
-    const date = new Date(startDate);
+  const addMonthsToDate = (start, installmentNo) => {
+    const date = new Date(start);
     date.setMonth(date.getMonth() + installmentNo);
-    return date.toLocaleDateString("en-LK", {
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const display = date.toLocaleDateString("en-LK", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
+    return { iso, display };
+  };
+
+  const calculateDueDate = (startDateVal, installmentNo) => {
+    return addMonthsToDate(startDateVal, installmentNo).display;
   };
 
   const showInstallmentDetails = (detail) => {
@@ -561,7 +555,7 @@ const EmployeeLoan = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Interest Rate (%)
+                  Interest Rate (% per installment)
                   {interestType === "withInterest" && (
                     <span className="text-red-500 ml-1">*</span>
                   )}
@@ -574,19 +568,22 @@ const EmployeeLoan = () => {
                     }`}
                   value={interestRate}
                   onChange={(e) => setInterestRate(e.target.value)}
-                  placeholder="Enter Rate"
+                  placeholder="e.g. 10 → month1: 100000×10%, month2: 90000×10%"
                   disabled={interestType === "withoutInterest"}
                   required={interestType === "withInterest"}
                   min="0"
                   max="100"
                   step="0.01"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Reducing balance: interest = outstanding capital × rate each month.
+                </p>
               </div>
 
               {/* new loan */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Deduct From  <span className="text-red-500 ml-1">*</span>
+                  Deduct Installment From <span className="text-red-500 ml-1">*</span>
                 </label>
                 <select
                   className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
@@ -594,8 +591,8 @@ const EmployeeLoan = () => {
                   onChange={(e) => setDeductFrom(e.target.value)}
                   required
                 >
-                  <option value="bonus">Monthly Bonus </option>
-                  <option value="basic">Basic Salary </option>
+                  <option value="bonus">Monthly Bonus (capital + interest)</option>
+                  <option value="basic">Basic Salary (capital + interest)</option>
                 </select>
               </div>
 
@@ -638,7 +635,7 @@ const EmployeeLoan = () => {
               {calculationType === "byAmount" ? (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Installment Amount (LKR)
+                    Capital Installment (LKR)
                     <span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
@@ -646,7 +643,7 @@ const EmployeeLoan = () => {
                     className="w-full p-3 border-2 border-gray-300 rounded-lg"
                     value={installmentAmount}
                     onChange={(e) => setInstallmentAmount(e.target.value)}
-                    placeholder="Enter Amount per Installment"
+                    placeholder="Principal per month (interest added separately)"
                     required
                     min="0"
                     step="0.01"
@@ -1429,7 +1426,7 @@ const EmployeeLoan = () => {
               {calculationType === "byAmount" ? (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Installment Amount (LKR)
+                    Capital Installment (LKR)
                     <span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
@@ -1437,7 +1434,7 @@ const EmployeeLoan = () => {
                     className="w-full p-3 border-2 border-gray-300 rounded-lg"
                     value={installmentAmount}
                     onChange={(e) => setInstallmentAmount(e.target.value)}
-                    placeholder="Enter Amount per Installment"
+                    placeholder="Principal per month (interest added separately)"
                     required
                     min="0"
                     step="0.01"

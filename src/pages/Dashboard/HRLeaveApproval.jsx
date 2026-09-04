@@ -110,6 +110,10 @@ const HRLeaveApproval = () => {
           rejectedBy: leave.rejected_by || "",
           rejectedDate: leave.rejected_date || "",
           rejectionReason: leave.rejection_reason || "",
+          requestedDays: leave.requested_days ?? durationVal,
+          leaveBalanceDays: leave.leave_balance_days,
+          nopayDays: Number(leave.nopay_days ?? leave.over_limit ?? 0) || 0,
+          nopayApplied: !!leave.nopay_applied,
         };
       });
 
@@ -152,9 +156,13 @@ const HRLeaveApproval = () => {
 
   // Handle HR approval with email notification
   const handleHRApprove = async (id) => {
+    const pending = leaveRequests.find((r) => r.id === id);
+    const nopayHint = Number(pending?.nopayDays || 0);
     const result = await Swal.fire({
       title: "Approve Leave?",
-      text: "An email notification will be sent to the employee",
+      html: nopayHint > 0
+        ? `<div class="text-left text-sm"><p>An email notification will be sent to the employee.</p><p class="mt-2 text-orange-700"><b>Estimated NoPay:</b> ${nopayHint} day(s) will be applied if leave balance is still short.</p></div>`
+        : "An email notification will be sent to the employee",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#4ade80",
@@ -167,7 +175,7 @@ const HRLeaveApproval = () => {
       try {
         setEmailSending(true);
 
-        await updateLeaveStatus(id, {
+        const approveRes = await updateLeaveStatus(id, {
           status: "Approved",
         });
 
@@ -179,15 +187,21 @@ const HRLeaveApproval = () => {
                 status: "Approved",
                 hrApprovedBy: "HR Director",
                 hrApprovedDate: new Date().toISOString().split("T")[0],
+                nopayDays: Number(approveRes?.nopay_days ?? request.nopayDays ?? 0),
+                nopayApplied: !!approveRes?.nopay_applied,
+                leaveBalanceDays: approveRes?.leave_balance_days ?? request.leaveBalanceDays,
               }
               : request
           )
         );
 
+        const appliedNopay = Number(approveRes?.nopay_days ?? 0);
         Swal.fire({
           icon: "success",
           title: "Approved!",
-          text: "Leave request has been approved. Email sent to employee.",
+          html: appliedNopay > 0
+            ? `<div class="text-left text-sm"><p>Leave approved. Email sent to employee.</p><p class="mt-2"><b>NoPay applied:</b> ${appliedNopay} day(s)</p></div>`
+            : "Leave request has been approved. Email sent to employee.",
           confirmButtonColor: "#3b82f6",
         });
 
@@ -636,6 +650,11 @@ const HRLeaveApproval = () => {
                               {request.timeSlotInfo && (
                                 <div className="text-xs text-blue-600 mt-1 font-medium bg-blue-50 inline-block px-2 py-0.5 rounded">
                                   {request.timeSlotInfo}
+                                </div>
+                              )}
+                              {Number(request.nopayDays) > 0 && (
+                                <div className="text-xs text-orange-700 mt-1 font-medium bg-orange-50 inline-block px-2 py-0.5 rounded">
+                                  {request.nopayApplied ? "NoPay applied" : "NoPay pending"}: {request.nopayDays} day(s)
                                 </div>
                               )}
                             </td>

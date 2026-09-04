@@ -404,7 +404,8 @@ const SalaryProcessPage = () => {
       { label: "Probation Leave Deduction", amount: Number(breakdown.probation_deduction || 0) },
       { label: "Stamp Duty", amount: Number(breakdown.stamp_duty || 0) },
       // --------------------------
-      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
+      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
+      ...(loanTarget === 'basic' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
     ].filter((item) => item.amount > 0);
 
     const bonusEarnings = [
@@ -445,7 +446,7 @@ const SalaryProcessPage = () => {
       
       { label: "Saturday No-Pay Deduction", amount: Number(breakdown.saturday_nopay_deduction || 0) },
       // --------------------------------------------------------
-      { label: "Loan Interest", amount: loanInterest },
+      ...(loanTarget === 'bonus' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
       { label: "Sports Fund", amount: Number(breakdown.sports_fund_deduction || 0) },
       { label: "Staff Fund", amount: Number(breakdown.staff_fund_deduction || 0) },
       ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
@@ -745,45 +746,37 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, is
     } catch (error) { notify.error("Error", "Operation failed"); }
   };
 
-// තෝරපු Company, Department, මාසය සහ අවුරුද්දට අදාල අයිතමය වලංගුදැයි බැලීම (Filter Logic)
+  // Active predefined items for company/dept — Fixed/Variable months are set at Assign, not on master.
   const isItemValidForSelectedMonth = (item) => {
-    // 1. Inactive නම් කොහොමත් පෙන්වන්නේ නෑ
     if (item.status !== "active") return false;
 
-    // 2. Company Filter: තෝරාගත් Company එකක් තියෙනවා නම්, අයිතමය ඒ Company එකට අදාල විය යුතුයි
     if (selectedCompany && item.company_id && String(item.company_id) !== String(selectedCompany)) {
       return false;
     }
 
-    // 3. Department Filter: අයිතමයට විශේෂිත Department එකක් දීලා තියෙනවා නම්, ඒක තෝරාගත් Department එකට සමාන විය යුතුයි
-    // (අයිතමයේ department_id එක null නම්, ඒක මුළු Company එකටම අදාල නිසා පෙන්වනවා)
     if (selectedDepartment && item.department_id && String(item.department_id) !== String(selectedDepartment)) {
       return false;
     }
 
-    const itemType = item.allowance_type || item.deduction_type || item.bonus_type;
-
-    // 4. Fixed නම් ඕනෑම මාසෙකට වලංගුයි
-    if (itemType === "fixed") return true;
-
-    // 5. Variable නම් තෝරපු මාසය/අවුරුද්ද ඇතුළත තියෙනවාදැයි බැලීම
-    if (itemType === "variable" && month && year) {
+    // Bonuses may still use master date windows
+    if (item.bonus_type === "variable" && month && year) {
       const fromDateStr = item.variable_from || item.startDate;
       const toDateStr = item.variable_to || item.endDate;
-
       if (!fromDateStr || !toDateStr) return false;
 
       const fromDate = new Date(fromDateStr);
       const toDate = new Date(toDateStr);
-
-      const selectedYearMonth = parseInt(`${year}${String(month).padStart(2, '0')}`);
-      const fromYearMonth = parseInt(`${fromDate.getFullYear()}${String(fromDate.getMonth() + 1).padStart(2, '0')}`);
-      const toYearMonth = parseInt(`${toDate.getFullYear()}${String(toDate.getMonth() + 1).padStart(2, '0')}`);
-
+      const selectedYearMonth = parseInt(`${year}${String(month).padStart(2, "0")}`);
+      const fromYearMonth = parseInt(
+        `${fromDate.getFullYear()}${String(fromDate.getMonth() + 1).padStart(2, "0")}`
+      );
+      const toYearMonth = parseInt(
+        `${toDate.getFullYear()}${String(toDate.getMonth() + 1).padStart(2, "0")}`
+      );
       return selectedYearMonth >= fromYearMonth && selectedYearMonth <= toYearMonth;
     }
 
-    return false;
+    return true;
   };
   
 
@@ -1228,8 +1221,8 @@ const SalaryProcessPage = () => {
     const basicDeductions = [
       { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
       { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
-      // Loan එක Basic එකෙන් කපන්න දීලා නම් විතරක් මෙතනින් Principal එක කැපෙනවා
-      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : [])
+      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
+      ...(loanTarget === 'basic' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
     ].filter((item) => item.amount > 0);
 
     // ==========================================
@@ -1255,13 +1248,9 @@ const SalaryProcessPage = () => {
       },
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
-      // Early Out අයකිරීම Bonus එකට එකතු කර ඇත
       { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
-      // Loan Interest එක අනිවාර්යයෙන්ම Bonus එකෙන් කැපේ
-      { label: "Loan Interest", amount: loanInterest }, 
-      // Loan එක Bonus එකෙන් කපන්න දීලා නම් විතරක් මෙතනින් Principal එක කැපෙනවා
+      ...(loanTarget === 'bonus' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
       ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
-      // වෙනම එකතු කළ (Custom) Deductions ටිකත් Bonus එකෙන්ම කැපෙනවා
       ...customDeductionsList 
     ].filter((item) => item.amount > 0);
 

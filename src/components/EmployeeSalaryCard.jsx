@@ -98,6 +98,9 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
     ...(loanTarget === "basic" && loanPrincipal > 0
       ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }]
       : []),
+    ...(loanTarget === "basic" && loanInterest > 0
+      ? [{ label: "Loan Interest", amount: loanInterest }]
+      : []),
   ];
 
   const bonusDeductionLines = [
@@ -119,7 +122,9 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
     })),
     { label: "Sports Fund", amount: sportsFund },
     { label: "Staff Fund", amount: staffFund },
-    ...(loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
+    ...(loanTarget === "bonus" && loanInterest > 0
+      ? [{ label: "Loan Interest", amount: loanInterest }]
+      : []),
     ...(loanTarget === "bonus" && loanPrincipal > 0
       ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }]
       : []),

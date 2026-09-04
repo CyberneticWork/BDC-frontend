@@ -255,7 +255,14 @@ const LeaveMaster = ({ employeeProfile }) => {
       }
     }
 
-    const hasOverLimit = leaveData.over_limit && leaveData.over_limit > 0;
+    const nopayDays = parseFloat(leaveData.nopay_days ?? 0) || 0;
+    const hasNopay = nopayDays > 0 || (leaveData.over_limit && leaveData.over_limit > 0);
+    const overLimitVal = nopayDays > 0 ? nopayDays : (hasNopay ? leaveData.over_limit : 0);
+    const requestedDays = parseFloat(leaveData.requested_days ?? leaveData.leave_duration) || actualDuration;
+    const leaveBalanceDays =
+      leaveData.leave_balance_days != null
+        ? parseFloat(leaveData.leave_balance_days)
+        : Math.max(0, requestedDays - overLimitVal);
 
     let cleanLeaveType = leaveData.leave_type || "";
     if (cleanLeaveType.includes("(Probat")) {
@@ -280,8 +287,12 @@ const LeaveMaster = ({ employeeProfile }) => {
       leaveType: cleanLeaveType,
       status: leaveData.status,
       duration: actualDuration,
-      hasOverLimit: hasOverLimit,
-      overLimit: hasOverLimit ? leaveData.over_limit : 0,
+      requestedDays,
+      leaveBalanceDays,
+      hasOverLimit: hasNopay,
+      overLimit: overLimitVal,
+      nopayDays: overLimitVal,
+      nopayApplied: !!leaveData.nopay_applied,
     };
   }
 
@@ -492,6 +503,9 @@ const LeaveMaster = ({ employeeProfile }) => {
           joinDate: eligibilityData.join_date,
           isFirstYear: eligibilityData.is_first_year,
           isSecondYear: eligibilityData.is_second_year,
+          actAccrualEnabled: !!eligibilityData.act_accrual_enabled,
+          actAccrualStartsOn: eligibilityData.act_accrual_starts_on || "2026-12-31",
+          message: eligibilityData.message || "",
         });
       } else {
         setLeaveUsageData([]);
@@ -1004,7 +1018,7 @@ const LeaveMaster = ({ employeeProfile }) => {
           } else {
             let reasonText = actNote;
             if (entitledTotal <= 0) {
-              reasonText = actNote || `No ${formData.leaveType} entitlement under Shop & Office Act for this period.`;
+              reasonText = actNote || `No ${formData.leaveType} balance available for this period.`;
             } else if (availableBalance <= 0) {
               reasonText = `All ${formData.leaveType} is already used (${usedDays}/${entitledTotal} days). ${actNote}`.trim();
             } else {
@@ -1015,42 +1029,78 @@ const LeaveMaster = ({ employeeProfile }) => {
               reasonText += ` Combined Annual (${annualAvail}) + Casual (${casualAvail}) = ${combinedAvail} day(s), which is still less than requested ${requestedDuration}.`;
             }
 
-            Swal.fire({
-              icon: "error",
-              title: "Cannot Apply Leave",
+            const leaveCovered = Math.max(0, Math.min(requestedDuration, availableBalance));
+            const nopayPreview = Math.round((requestedDuration - leaveCovered) * 10000) / 10000;
+
+            const confirmNopay = await Swal.fire({
+              icon: "warning",
+              title: "Insufficient leave balance",
               html: `
-                <div class="text-left">
-                  <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
-                  <p>Leave type: <b>${formData.leaveType}</b></p>
-                  <p class="mt-1">Requested: <b>${requestedDuration}</b> day(s)</p>
+                <div class="text-left text-sm">
+                  <p>You can still submit this leave.</p>
+                  <p class="mt-2">Leave type: <b>${formData.leaveType}</b></p>
+                  <p>Requested: <b>${requestedDuration}</b> day(s)</p>
                   <p>Available balance: <b>${availableBalance}</b> day(s)</p>
                   ${isAnnualOrCasual ? `<p>Combined Annual + Casual: <b>${combinedAvail}</b> day(s)</p>` : ""}
-                  <p class="mt-3"><b>Reason:</b> ${reasonText}</p>
-                  ${leaveLawInfo?.lawReference ? `<p class="mt-2 text-xs text-gray-500">${leaveLawInfo.lawReference}</p>` : ""}
+                  <p class="mt-3"><b>On HR approve:</b></p>
+                  <ul class="list-disc pl-5 mt-1">
+                    <li><b>${leaveCovered}</b> day(s) from leave balance</li>
+                    <li><b>${nopayPreview}</b> day(s) as NoPay deduction</li>
+                  </ul>
+                  <p class="mt-3 text-xs text-gray-600">${reasonText}</p>
                 </div>
               `,
-              confirmButtonColor: "#3085d6",
-              confirmButtonText: "OK",
+              showCancelButton: true,
+              confirmButtonText: "Submit (NoPay on approve)",
+              cancelButtonText: "Cancel",
+              confirmButtonColor: "#c2410c",
             });
-            setIsSubmitting(false);
-            return;
+
+            if (!confirmNopay.isConfirmed) {
+              setIsSubmitting(false);
+              return;
+            }
           }
         }
       } else if (leaveUsageData.length > 0) {
-        Swal.fire({
-          icon: "error",
-          title: "Cannot Apply Leave",
+        const confirmUnknownType = await Swal.fire({
+          icon: "warning",
+          title: "Leave type not in balance list",
           html: `
-            <div class="text-left">
-              <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
-              <p><b>Reason:</b> "${formData.leaveType}" is not available in your current leave entitlement.</p>
-              <p class="mt-2 text-sm text-gray-600">Please select Casual Leave or Annual Leave (or a type set by HR).</p>
+            <div class="text-left text-sm">
+              <p><b>${formData.leaveType}</b> is not in the current leave balances.</p>
+              <p class="mt-2">You can still submit. On HR approve, the full <b>${requestedDuration}</b> day(s) will be treated as NoPay.</p>
             </div>
           `,
-          confirmButtonColor: "#3085d6",
+          showCancelButton: true,
+          confirmButtonText: "Submit as NoPay",
+          cancelButtonText: "Cancel",
+          confirmButtonColor: "#c2410c",
         });
-        setIsSubmitting(false);
-        return;
+        if (!confirmUnknownType.isConfirmed) {
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        // No balances loaded (e.g. 2026 manual-only year before Act start)
+        const confirmNoBalance = await Swal.fire({
+          icon: "warning",
+          title: "No leave balance found",
+          html: `
+            <div class="text-left text-sm">
+              <p>No leave balances are available for this employee/year.</p>
+              <p class="mt-2">You can still submit. On HR approve, <b>${requestedDuration}</b> day(s) will be treated as NoPay unless HR has entered balances.</p>
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: "Submit anyway",
+          cancelButtonText: "Cancel",
+          confirmButtonColor: "#c2410c",
+        });
+        if (!confirmNoBalance.isConfirmed) {
+          setIsSubmitting(false);
+          return;
+        }
       }
       // ===================================================================
 
@@ -1109,17 +1159,79 @@ const LeaveMaster = ({ employeeProfile }) => {
             confirmButtonColor: "#3085d6",
           });
         } else {
-          Swal.fire({
-            icon: "success",
-            title: "Success",
-            text: "Leave request submitted successfully!",
-            confirmButtonColor: "#3085d6",
-          });
+          const nopayPreview = Number(created?.nopay_preview_days ?? created?.nopay_days ?? 0);
+          if (nopayPreview > 0) {
+            Swal.fire({
+              icon: "success",
+              title: "Leave submitted",
+              html: `
+                <div class="text-left text-sm">
+                  <p>Leave request submitted successfully.</p>
+                  <p class="mt-2">Estimated shortfall: <b>${nopayPreview}</b> day(s) will become <b>NoPay</b> when HR approves.</p>
+                </div>
+              `,
+              confirmButtonColor: "#3085d6",
+            });
+          } else {
+            Swal.fire({
+              icon: "success",
+              title: "Success",
+              text: "Leave request submitted successfully!",
+              confirmButtonColor: "#3085d6",
+            });
+          }
         }
 
         await handleSubmitSuccess();
       } catch (error) {
-        // Hard block: Shop & Office Act / entitlement exceeded (no override allowed)
+        // Soft allow path: backend may still return soft entitlement warnings only if old code
+        if (
+          error.response?.status === 422 &&
+          error.response?.data?.continue_allowed === true &&
+          (error.response?.data?.entitlement_exceeded || error.response?.data?.limit_exceeded)
+        ) {
+          const data = error.response.data;
+          const nopayPreview = Number(data.nopay_preview_days ?? 0);
+          const retry = await Swal.fire({
+            icon: "warning",
+            title: "Insufficient leave balance",
+            html: `
+              <div class="text-left text-sm">
+                <p>${data.message || ""}</p>
+                <p class="mt-2"><b>Reason:</b> ${data.reason || ""}</p>
+                ${data.available_days != null ? `<p class="mt-2">Available: <b>${data.available_days}</b> day(s)</p>` : ""}
+                ${nopayPreview > 0 ? `<p>NoPay on HR approve: <b>${nopayPreview}</b> day(s)</p>` : ""}
+              </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "Submit anyway",
+            cancelButtonText: "Cancel",
+            confirmButtonColor: "#c2410c",
+          });
+          if (retry.isConfirmed) {
+            try {
+              const leaveDataRetry = { ...leaveData, force_continue: true };
+              const createdRetry = await createLeave(leaveDataRetry);
+              Swal.fire({
+                icon: "success",
+                title: "Leave submitted",
+                text: createdRetry?.message || "Leave request submitted successfully!",
+                confirmButtonColor: "#3085d6",
+              });
+              await handleSubmitSuccess();
+            } catch (retryErr) {
+              Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: retryErr.response?.data?.message || "Failed to submit leave request",
+                confirmButtonColor: "#3085d6",
+              });
+            }
+          }
+          setIsSubmitting(false);
+          return;
+        }
+
         if (
           error.response?.status === 422 &&
           (error.response?.data?.entitlement_exceeded ||
@@ -1131,14 +1243,8 @@ const LeaveMaster = ({ employeeProfile }) => {
             title: "Cannot Apply Leave",
             html: `
               <div class="text-left">
-                <p class="text-red-600 font-bold mb-2">You cannot get this leave.</p>
                 <p>${data.message || ""}</p>
                 <p class="mt-3"><b>Reason:</b> ${data.reason || data.message || "Leave entitlement exceeded."}</p>
-                ${data.leave_type ? `<p class="mt-2">Leave type: <b>${data.leave_type}</b></p>` : ""}
-                ${data.requested_days != null ? `<p>Requested: <b>${data.requested_days}</b> day(s)</p>` : ""}
-                ${data.available_days != null ? `<p>Available: <b>${data.available_days}</b> day(s)</p>` : ""}
-                ${data.entitled_days != null ? `<p>Entitled: <b>${data.entitled_days}</b> | Used: <b>${data.used_days ?? 0}</b></p>` : ""}
-                ${data.law_reference ? `<p class="mt-2 text-xs text-gray-500">${data.law_reference}</p>` : ""}
               </div>
             `,
             confirmButtonColor: "#3085d6",
@@ -1862,8 +1968,10 @@ const LeaveMaster = ({ employeeProfile }) => {
                         <p className="font-medium">{leaveLawInfo.lawReference}</p>
                         <p className="mt-1 text-blue-800">
                           {leaveLawInfo.balanceSource === "employee_leave_balances"
-                            ? "Balances use HR employee override for this year."
-                            : "Entitlements calculated under Shop & Office Act (Annual + Casual)."}
+                            ? "Balances use HR employee override for this year (manual)."
+                            : leaveLawInfo.balanceSource === "manual_only_until_act_start"
+                              ? `Act earning leave starts from ${leaveLawInfo.actAccrualStartsOn}. Until then, only HR-entered balances apply.`
+                              : "Entitlements calculated under Shop & Office Act (Annual + Casual)."}
                           {leaveLawInfo.employmentYear
                             ? ` Employment year: ${leaveLawInfo.employmentYear}.`
                             : ""}
@@ -1871,7 +1979,12 @@ const LeaveMaster = ({ employeeProfile }) => {
                             ? ` Calendar year: ${leaveLawInfo.calendarYear}.`
                             : ""}
                         </p>
+                        {leaveLawInfo.message ? (
+                          <p className="mt-1 text-amber-800">{leaveLawInfo.message}</p>
+                        ) : null}
                         <ul className="mt-2 list-disc pl-4 text-blue-800 space-y-0.5">
+                          <li>Leave can be submitted even if balance is short; shortfall becomes NoPay on HR approve.</li>
+                          <li>Act auto earning: from {leaveLawInfo.actAccrualStartsOn || "2026-12-31"} onward</li>
                           <li>1st year: no Annual; Casual = 0.5/month from month after join (hire month ignored)</li>
                           <li>2nd year: Annual 14/10/7/4 by join quarter; Casual = 0.5/month from month after join</li>
                           <li>3rd year+: Annual 14; Casual 7</li>
@@ -1997,7 +2110,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 Status
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
-                                Limit
+                                NoPay
                               </th>
                             </tr>
                           </thead>
@@ -2012,6 +2125,12 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   {record.duration} days
+                                  {record.requestedDays != null &&
+                                    Number(record.requestedDays) !== Number(record.duration) ? (
+                                    <span className="block text-xs text-gray-500">
+                                      Requested: {record.requestedDays}
+                                    </span>
+                                  ) : null}
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   {record.reportDate}
@@ -2024,7 +2143,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
                                   <span
-                                    className={`px-2 py-1 rounded-full text-xs font-medium ${record.status === "Approved"
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${record.status === "Approved" || record.status === "HR_Approved"
                                       ? "bg-green-100 text-green-800"
                                       : record.status === "Rejected"
                                         ? "bg-red-100 text-red-800"
@@ -2035,13 +2154,14 @@ const LeaveMaster = ({ employeeProfile }) => {
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 border text-sm">
-                                  {record.hasOverLimit ? (
+                                  {record.hasOverLimit || record.nopayDays > 0 ? (
                                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                      Over limit: {record.overLimit}
+                                      {record.nopayApplied ? "NoPay applied: " : "NoPay (pending approve): "}
+                                      {record.nopayDays || record.overLimit} day(s)
                                     </span>
                                   ) : (
                                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                      Within limit
+                                      No NoPay
                                     </span>
                                   )}
                                 </td>
