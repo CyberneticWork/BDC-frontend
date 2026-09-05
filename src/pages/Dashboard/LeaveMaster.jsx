@@ -36,6 +36,8 @@ const LeaveMaster = ({ employeeProfile }) => {
     department: "",
     reportingDate: getCurrentDate(),
     leaveType: "",
+    // Date selection (single day vs range) is separate from day unit (full/half/short)
+    dateSelection: "single",
     leaveDateType: "fullDay",
     halfDayPeriod: "morning",
     shortLeaveSlot: "slot1",
@@ -106,16 +108,15 @@ const LeaveMaster = ({ employeeProfile }) => {
     if (formData.attendanceNo) {
       let selectedDate = getCurrentDate();
 
-      if (formData.leaveDateType === "manual" && formData.leaveDate.from) {
+      if (formData.dateSelection === "range" && formData.leaveDate.from) {
         selectedDate = formData.leaveDate.from;
       } else if (formData.leaveDate.single) {
         selectedDate = formData.leaveDate.single;
       }
 
-      //
       fetchLeaveUsage(formData.attendanceNo, selectedDate);
     }
-  }, [formData.leaveDate.single, formData.leaveDate.from, formData.leaveDateType]);
+  }, [formData.leaveDate.single, formData.leaveDate.from, formData.dateSelection, formData.attendanceNo]);
 
 
 
@@ -144,7 +145,33 @@ const LeaveMaster = ({ employeeProfile }) => {
     return date.toISOString().split("T")[0];
   }
 
+  const getLeaveUnitValue = (dayUnit = formData.leaveDateType) => {
+    if (dayUnit === "halfDay") return 0.5;
+    if (dayUnit === "shortLeave") return 0.25;
+    return 1;
+  };
 
+  const getLeaveCalendarDays = () => {
+    if (formData.dateSelection === "single") return 1;
+    const fromDate = new Date(formData.leaveDate.from);
+    const toDate = new Date(formData.leaveDate.to);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || toDate < fromDate) {
+      return 0;
+    }
+    return Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 3600 * 24)) + 1;
+  };
+
+  const getRequestedLeaveDuration = () => {
+    const calendarDays = getLeaveCalendarDays();
+    const unit = getLeaveUnitValue();
+    return Math.round(calendarDays * unit * 10000) / 10000;
+  };
+
+  const getLeaveUnitLabel = () => {
+    if (formData.leaveDateType === "halfDay") return "Half Day (0.5)";
+    if (formData.leaveDateType === "shortLeave") return "Short Leave (0.25)";
+    return "Full Day (1)";
+  };
 
   /*
   // Function to format leave record for display
@@ -224,34 +251,30 @@ const LeaveMaster = ({ employeeProfile }) => {
     const actualDuration = parseFloat(leaveData.leave_duration) ||
       (leaveData.is_short_leave ? 0.25 : (leaveData.is_half_day ? 0.5 : 1));
 
-    if (leaveData.leave_date) {
-      leaveDateDisplay = formatDate(leaveData.leave_date);
+    const slots = {
+      slot1: "8:30 AM - 10:30 AM",
+      slot2: "10:30 AM - 12:30 PM",
+      slot3: "1:30 PM - 3:30 PM",
+      slot4: "3:30 PM - 5:30 PM",
+    };
 
-      // Short leave සහ Half leave වල period එක පෙන්වීම
-      // මෙතන Number(actualDuration) === 0.25 කියලා දැඩිව බලන්න ඕනේ
-      if (leaveData.is_short_leave || Number(actualDuration) === 0.25) {
-        const slots = {
-          "slot1": "8:30 AM - 10:30 AM",
-          "slot2": "10:30 AM - 12:30 PM",
-          "slot3": "1:30 PM - 3:30 PM",
-          "slot4": "3:30 PM - 5:30 PM"
-        };
-        // Backend එකෙන් එන short_leave_slot එක අනුව පෙන්වයි
+    if (leaveData.leave_from && leaveData.leave_to) {
+      leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(leaveData.leave_to)}`;
+      leaveDateDisplay += ` (${actualDuration} day(s))`;
+      if (leaveData.is_half_day && leaveData.period) {
+        leaveDateDisplay += ` · ${leaveData.period}`;
+      }
+      if (leaveData.is_short_leave && leaveData.short_leave_slot) {
+        leaveDateDisplay += ` · ${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot}`;
+      }
+    } else if (leaveData.leave_date) {
+      leaveDateDisplay = formatDate(leaveData.leave_date);
+      if (leaveData.is_short_leave) {
         if (leaveData.short_leave_slot) {
           leaveDateDisplay += ` (${slots[leaveData.short_leave_slot] || leaveData.short_leave_slot})`;
         }
-      } else if (leaveData.is_half_day || Number(actualDuration) === 0.5) {
-        // Half day එකේ Morning ද Afternoon ද යන්න පෙන්වයි
-        if (leaveData.period) {
-          leaveDateDisplay += ` (${leaveData.period})`;
-        }
-      }
-    } else if (leaveData.leave_from && leaveData.leave_to) {
-      leaveDateDisplay = `${formatDate(leaveData.leave_from)} to ${formatDate(
-        leaveData.leave_to
-      )}`;
-      if (actualDuration > 1) {
-        leaveDateDisplay += ` (${actualDuration} days)`;
+      } else if (leaveData.is_half_day && leaveData.period) {
+        leaveDateDisplay += ` (${leaveData.period})`;
       }
     }
 
@@ -269,12 +292,12 @@ const LeaveMaster = ({ employeeProfile }) => {
       cleanLeaveType = "Casual Leave";
     }
 
-    // 2. Type එක (Full, Half, Short) තීරණය කිරීම 
+    // 2. Type එක (Full, Half, Short) තීරණය කිරීම — flags win over duration
     let displayType = "Full Day";
-    if (leaveData.is_short_leave || Number(actualDuration) === 0.25) {
-      displayType = "Short Leave";
-    } else if (leaveData.is_half_day || Number(actualDuration) === 0.5) {
-      displayType = "Half Day";
+    if (leaveData.is_short_leave) {
+      displayType = actualDuration > 0.25 ? `Short Leave × range (${actualDuration}d)` : "Short Leave";
+    } else if (leaveData.is_half_day) {
+      displayType = actualDuration > 0.5 ? `Half Day × range (${actualDuration}d)` : "Half Day";
     } else if (actualDuration > 1) {
       displayType = "Multiple Days";
     }
@@ -858,20 +881,14 @@ const LeaveMaster = ({ employeeProfile }) => {
       // First validate all selected dates
       let invalidDates = [];
 
-      if (formData.leaveDateType === "fullDay") {
+      if (formData.dateSelection === "single") {
         if (isDateDisabled(formData.leaveDate.single)) {
           invalidDates.push(formData.leaveDate.single);
         }
-      } else if (formData.leaveDateType === "halfDay") {
-        if (isDateDisabled(formData.leaveDate.single)) {
-          invalidDates.push(formData.leaveDate.single);
-        }
-      } else if (formData.leaveDateType === "manual") {
-        // Check each date in the range
+      } else {
         const fromDate = new Date(formData.leaveDate.from);
         const toDate = new Date(formData.leaveDate.to);
 
-        // Validate date range (to date should be after or equal to from date)
         if (toDate < fromDate) {
           Swal.fire({
             icon: "error",
@@ -921,19 +938,17 @@ const LeaveMaster = ({ employeeProfile }) => {
       // අලුතින් එකතු කළ කොටස: Balance එකට වඩා නිවාඩු දාන එක Block කිරීම
       // ===================================================================
 
-      // 1. ඉල්ලන නිවාඩු දවස් ගාණ කීයද කියලා මුලින්ම ගණනය කරනවා
-      let requestedDuration = 0;
-      if (formData.leaveDateType === "fullDay") {
-        requestedDuration = 1;
-      } else if (formData.leaveDateType === "halfDay") {
-        requestedDuration = 0.5;
-      } else if (formData.leaveDateType === "shortLeave") {
-        requestedDuration = 0.25;
-      } else if (formData.leaveDateType === "manual") {
-        const fromDate = new Date(formData.leaveDate.from);
-        const toDate = new Date(formData.leaveDate.to);
-        const timeDiff = toDate.getTime() - fromDate.getTime();
-        requestedDuration = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+      // 1. calendar days × full(1) / half(0.5) / short(0.25)
+      let requestedDuration = getRequestedLeaveDuration();
+      if (!requestedDuration || requestedDuration <= 0) {
+        Swal.fire({
+          icon: "error",
+          title: "Invalid leave dates",
+          text: "Please select a valid date or date range.",
+          confirmButtonColor: "#3085d6",
+        });
+        setIsSubmitting(false);
+        return;
       }
 
       // 2. තෝරපු Leave Type එකේ Balance එක හොයාගන්නවා
@@ -1120,21 +1135,28 @@ const LeaveMaster = ({ employeeProfile }) => {
         leave_duration: requestedDuration // කලින් හදපු duration එක මෙතනට දෙනවා
       };
 
-      if (formData.leaveDateType === "fullDay") {
-        leaveData.leave_date = formData.leaveDate.single;
-        leaveData.is_half_day = false;
-      } else if (formData.leaveDateType === "halfDay") {
-        leaveData.leave_date = formData.leaveDate.single;
+      const isHalf = formData.leaveDateType === "halfDay";
+      const isShort = formData.leaveDateType === "shortLeave";
+      leaveData.is_half_day = isHalf;
+      leaveData.is_short_leave = isShort;
+      if (isHalf) {
         leaveData.period = formData.halfDayPeriod === "morning" ? "Morning" : "Afternoon";
-        leaveData.is_half_day = true;
-      } else if (formData.leaveDateType === "shortLeave") {
-        leaveData.leave_date = formData.leaveDate.single;
-        leaveData.is_short_leave = true;
+      }
+      if (isShort) {
         leaveData.short_leave_slot = formData.shortLeaveSlot;
-      } else if (formData.leaveDateType === "manual") {
+      }
+
+      if (formData.dateSelection === "single") {
+        leaveData.leave_date = formData.leaveDate.single;
+        leaveData.leave_from = formData.leaveDate.single;
+        leaveData.leave_to = formData.leaveDate.single;
+      } else {
         leaveData.leave_from = formData.leaveDate.from;
         leaveData.leave_to = formData.leaveDate.to;
-        leaveData.is_half_day = false;
+        // Keep leave_date for single-day ranges (from === to)
+        if (formData.leaveDate.from === formData.leaveDate.to) {
+          leaveData.leave_date = formData.leaveDate.from;
+        }
       }
 
       try {
@@ -1332,6 +1354,7 @@ const LeaveMaster = ({ employeeProfile }) => {
       ...formData,
       reportingDate: getCurrentDate(),
       leaveType: "",
+      dateSelection: "single",
       leaveDateType: "fullDay",
       halfDayPeriod: "morning",
       shortLeaveSlot: "slot1",
@@ -1589,89 +1612,45 @@ const LeaveMaster = ({ employeeProfile }) => {
 
                     <div className="mt-6">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Leave Duration <span className="text-red-500">*</span>
+                        Date selection <span className="text-red-500">*</span>
                       </label>
                       <div className="flex flex-wrap gap-4 mb-4">
                         <div className="flex items-center">
                           <input
                             type="radio"
-                            id="fullDay"
-                            name="leaveDateType"
-                            value="fullDay"
-                            checked={formData.leaveDateType === "fullDay"}
+                            id="dateSingle"
+                            name="dateSelection"
+                            value="single"
+                            checked={formData.dateSelection === "single"}
                             onChange={handleDateChange}
                             className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
                           />
-                          <label
-                            htmlFor="fullDay"
-                            className="text-sm text-gray-700"
-                          >
-                            Full Day
+                          <label htmlFor="dateSingle" className="text-sm text-gray-700">
+                            Single Date
                           </label>
                         </div>
                         <div className="flex items-center">
                           <input
                             type="radio"
-                            id="halfDay"
-                            name="leaveDateType"
-                            value="halfDay"
-                            checked={formData.leaveDateType === "halfDay"}
+                            id="dateRange"
+                            name="dateSelection"
+                            value="range"
+                            checked={formData.dateSelection === "range"}
                             onChange={handleDateChange}
                             className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
                           />
-                          <label
-                            htmlFor="halfDay"
-                            className="text-sm text-gray-700"
-                          >
-                            Half Day
-                          </label>
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="radio"
-                            id="shortLeave"
-                            name="leaveDateType"
-                            value="shortLeave"
-                            checked={formData.leaveDateType === "shortLeave"}
-                            onChange={handleDateChange}
-                            className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label
-                            htmlFor="shortLeave"
-                            className="text-sm text-gray-700"
-                          >
-                            Short Leave
-                          </label>
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="radio"
-                            id="manual"
-                            name="leaveDateType"
-                            value="manual"
-                            checked={formData.leaveDateType === "manual"}
-                            onChange={handleDateChange}
-                            className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label
-                            htmlFor="manual"
-                            className="text-sm text-gray-700"
-                          >
+                          <label htmlFor="dateRange" className="text-sm text-gray-700">
                             Date Range
                           </label>
                         </div>
                       </div>
 
-                      {formData.leaveDateType === "fullDay" && (
+                      {formData.dateSelection === "single" && (
                         <div className="mb-4 relative">
-                          <label className="block text-xs text-gray-500 mb-1">
-                            Date
-                          </label>
+                          <label className="block text-xs text-gray-500 mb-1">Date</label>
                           <div
                             className="relative"
-                            onMouseEnter={() =>
-                              setHoveredDate(formData.leaveDate.single)
-                            }
+                            onMouseEnter={() => setHoveredDate(formData.leaveDate.single)}
                             onMouseLeave={() => setHoveredDate(null)}
                           >
                             <input
@@ -1680,9 +1659,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                               value={formData.leaveDate.single}
                               onChange={handleDateChange}
                               required
-                              className={getDateInputStyle(
-                                formData.leaveDate.single
-                              )}
+                              className={getDateInputStyle(formData.leaveDate.single)}
                               min={getMinLeaveDate()}
                               onKeyDown={(e) => e.preventDefault()}
                             />
@@ -1698,125 +1675,13 @@ const LeaveMaster = ({ employeeProfile }) => {
                         </div>
                       )}
 
-                      {formData.leaveDateType === "halfDay" && (
-                        <div className="space-y-4">
+                      {formData.dateSelection === "range" && (
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                           <div className="relative">
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Date
-                            </label>
+                            <label className="block text-xs text-gray-500 mb-1">From</label>
                             <div
                               className="relative"
-                              onMouseEnter={() =>
-                                setHoveredDate(formData.leaveDate.single)
-                              }
-                              onMouseLeave={() => setHoveredDate(null)}
-                            >
-                              <input
-                                type="date"
-                                name="leaveDate.single"
-                                value={formData.leaveDate.single}
-                                onChange={handleDateChange}
-                                required
-                                className={getDateInputStyle(
-                                  formData.leaveDate.single
-                                )}
-                                min={getMinLeaveDate()}
-                                onKeyDown={(e) => e.preventDefault()}
-                              />
-                              {hoveredDate === formData.leaveDate.single &&
-                                getDateHoverContent(formData.leaveDate.single)}
-                            </div>
-                            {isDateDisabled(formData.leaveDate.single) && (
-                              <p className="mt-1 text-xs text-red-600 flex items-center">
-                                <AlertCircle className="w-3 h-3 mr-1" />
-                                This date is unavailable for leave
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Period
-                            </label>
-                            <select
-                              name="halfDayPeriod"
-                              value={formData.halfDayPeriod}
-                              onChange={handleDateChange}
-                              required
-                              className="w-full sm:w-1/2 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            >
-                              <option value="morning">Morning</option>
-                              <option value="afternoon">Afternoon</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
-                      {formData.leaveDateType === "shortLeave" && (
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Date
-                            </label>
-                            <div
-                              className="relative"
-                              onMouseEnter={() =>
-                                setHoveredDate(formData.leaveDate.single)
-                              }
-                              onMouseLeave={() => setHoveredDate(null)}
-                            >
-                              <input
-                                type="date"
-                                name="leaveDate.single"
-                                value={formData.leaveDate.single}
-                                onChange={handleDateChange}
-                                required
-                                className={getDateInputStyle(
-                                  formData.leaveDate.single
-                                )}
-                                min={getMinLeaveDate()}
-                                onKeyDown={(e) => e.preventDefault()}
-                              />
-                              {hoveredDate === formData.leaveDate.single &&
-                                getDateHoverContent(formData.leaveDate.single)}
-                            </div>
-                            {isDateDisabled(formData.leaveDate.single) && (
-                              <p className="mt-1 text-xs text-red-600 flex items-center">
-                                <AlertCircle className="w-3 h-3 mr-1" />
-                                This date is unavailable for leave
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Time Slot (2 hours)
-                            </label>
-                            <select
-                              name="shortLeaveSlot"
-                              value={formData.shortLeaveSlot}
-                              onChange={handleDateChange}
-                              required
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            >
-                              <option value="slot1">8:30 AM - 10:30 AM</option>
-                              <option value="slot2">10:30 AM - 12:30 PM</option>
-                              <option value="slot3">1:30 PM - 3:30 PM</option>
-                              <option value="slot4">3:30 PM - 5:30 PM</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
-                      {formData.leaveDateType === "manual" && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="relative">
-                            <label className="block text-xs text-gray-500 mb-1">
-                              From
-                            </label>
-                            <div
-                              className="relative"
-                              onMouseEnter={() =>
-                                setHoveredDate(formData.leaveDate.from)
-                              }
+                              onMouseEnter={() => setHoveredDate(formData.leaveDate.from)}
                               onMouseLeave={() => setHoveredDate(null)}
                             >
                               <input
@@ -1825,9 +1690,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 value={formData.leaveDate.from}
                                 onChange={handleDateChange}
                                 required
-                                className={getDateInputStyle(
-                                  formData.leaveDate.from
-                                )}
+                                className={getDateInputStyle(formData.leaveDate.from)}
                                 min={getMinLeaveDate()}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
@@ -1842,14 +1705,10 @@ const LeaveMaster = ({ employeeProfile }) => {
                             )}
                           </div>
                           <div className="relative">
-                            <label className="block text-xs text-gray-500 mb-1">
-                              To
-                            </label>
+                            <label className="block text-xs text-gray-500 mb-1">To</label>
                             <div
                               className="relative"
-                              onMouseEnter={() =>
-                                setHoveredDate(formData.leaveDate.to)
-                              }
+                              onMouseEnter={() => setHoveredDate(formData.leaveDate.to)}
                               onMouseLeave={() => setHoveredDate(null)}
                             >
                               <input
@@ -1858,9 +1717,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                                 value={formData.leaveDate.to}
                                 onChange={handleDateChange}
                                 required
-                                className={getDateInputStyle(
-                                  formData.leaveDate.to
-                                )}
+                                className={getDateInputStyle(formData.leaveDate.to)}
                                 min={formData.leaveDate.from}
                                 onKeyDown={(e) => e.preventDefault()}
                               />
@@ -1876,6 +1733,94 @@ const LeaveMaster = ({ employeeProfile }) => {
                           </div>
                         </div>
                       )}
+
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Day type <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex flex-wrap gap-4 mb-4">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="fullDay"
+                            name="leaveDateType"
+                            value="fullDay"
+                            checked={formData.leaveDateType === "fullDay"}
+                            onChange={handleDateChange}
+                            className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="fullDay" className="text-sm text-gray-700">
+                            Full Day
+                          </label>
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="halfDay"
+                            name="leaveDateType"
+                            value="halfDay"
+                            checked={formData.leaveDateType === "halfDay"}
+                            onChange={handleDateChange}
+                            className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="halfDay" className="text-sm text-gray-700">
+                            Half Day
+                          </label>
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="shortLeave"
+                            name="leaveDateType"
+                            value="shortLeave"
+                            checked={formData.leaveDateType === "shortLeave"}
+                            onChange={handleDateChange}
+                            className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="shortLeave" className="text-sm text-gray-700">
+                            Short Leave
+                          </label>
+                        </div>
+                      </div>
+
+                      {formData.leaveDateType === "halfDay" && (
+                        <div className="mb-4">
+                          <label className="block text-xs text-gray-500 mb-1">Period (each day)</label>
+                          <select
+                            name="halfDayPeriod"
+                            value={formData.halfDayPeriod}
+                            onChange={handleDateChange}
+                            required
+                            className="w-full sm:w-1/2 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          >
+                            <option value="morning">Morning</option>
+                            <option value="afternoon">Afternoon</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {formData.leaveDateType === "shortLeave" && (
+                        <div className="mb-4">
+                          <label className="block text-xs text-gray-500 mb-1">Time Slot (2 hours, each day)</label>
+                          <select
+                            name="shortLeaveSlot"
+                            value={formData.shortLeaveSlot}
+                            onChange={handleDateChange}
+                            required
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          >
+                            <option value="slot1">8:30 AM - 10:30 AM</option>
+                            <option value="slot2">10:30 AM - 12:30 PM</option>
+                            <option value="slot3">1:30 PM - 3:30 PM</option>
+                            <option value="slot4">3:30 PM - 5:30 PM</option>
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="mb-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                        <span className="font-medium">Leave calculation: </span>
+                        {getLeaveCalendarDays()} calendar day(s) × {getLeaveUnitLabel()} ={" "}
+                        <span className="font-bold">{getRequestedLeaveDuration()}</span> day(s)
+                      </div>
                     </div>
 
 
@@ -1914,8 +1859,10 @@ const LeaveMaster = ({ employeeProfile }) => {
                           department: "",
                           reportingDate: getCurrentDate(),
                           leaveType: "",
+                          dateSelection: "single",
                           leaveDateType: "fullDay",
                           halfDayPeriod: "morning",
+                          shortLeaveSlot: "slot1",
                           leaveDate: {
                             single: getCurrentDate(),
                             from: getCurrentDate(),

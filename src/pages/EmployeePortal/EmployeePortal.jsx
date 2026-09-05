@@ -485,6 +485,27 @@ export default function EmployeePortal() {
                       <option value="SHORT">Short leave</option>
                     </select>
                   </label>
+                  {leaveForm.leave_from && leaveForm.leave_to && (
+                    <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2 text-sm text-slate-700">
+                      Leave calculation:{" "}
+                      {(() => {
+                        const from = new Date(leaveForm.leave_from);
+                        const to = new Date(leaveForm.leave_to);
+                        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) {
+                          return "select a valid date range";
+                        }
+                        const calendarDays = Math.ceil((to - from) / (1000 * 3600 * 24)) + 1;
+                        const unit = leaveForm.day_type === "HALF" ? 0.5 : leaveForm.day_type === "SHORT" ? 0.25 : 1;
+                        const total = Math.round(calendarDays * unit * 10000) / 10000;
+                        const unitLabel = leaveForm.day_type === "HALF" ? "Half (0.5)" : leaveForm.day_type === "SHORT" ? "Short (0.25)" : "Full (1)";
+                        return (
+                          <>
+                            {calendarDays} calendar day(s) × {unitLabel} = <b>{total}</b> day(s)
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <label className="block text-sm font-semibold text-slate-700">
                     Reason
                     <textarea
