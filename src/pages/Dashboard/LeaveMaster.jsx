@@ -986,22 +986,26 @@ const LeaveMaster = ({ employeeProfile }) => {
           String(formData.leaveType || "").toLowerCase().includes("casual");
 
         if (requestedDuration > availableBalance) {
-          if (isAnnualOrCasual && requestedDuration <= combinedAvail + 0.0001) {
-            const preferred = String(formData.leaveType || "").toLowerCase().includes("annual")
-              ? "Annual Leave"
-              : "Casual Leave";
-            const other = preferred === "Annual Leave" ? "Casual Leave" : "Annual Leave";
-            const preferredAvail = preferred === "Annual Leave" ? annualAvail : casualAvail;
-            const otherAvail = preferred === "Annual Leave" ? casualAvail : annualAvail;
-            const fromPreferred = Math.min(requestedDuration, preferredAvail);
-            const fromOther = Math.min(
-              Math.round((requestedDuration - fromPreferred) * 10000) / 10000,
-              otherAvail
-            );
+          const preferred = String(formData.leaveType || "").toLowerCase().includes("annual")
+            ? "Annual Leave"
+            : "Casual Leave";
+          const other = preferred === "Annual Leave" ? "Casual Leave" : "Annual Leave";
+          const preferredAvail = preferred === "Annual Leave" ? annualAvail : casualAvail;
+          const otherAvail = preferred === "Annual Leave" ? casualAvail : annualAvail;
+          const fromPreferred = Math.min(requestedDuration, preferredAvail);
+          const fromOther = Math.min(
+            Math.round((requestedDuration - fromPreferred) * 10000) / 10000,
+            otherAvail
+          );
+          const nopayPart = Math.round((requestedDuration - fromPreferred - fromOther) * 10000) / 10000;
 
+          // Annual/Casual: use both balances when the selected type alone is short
+          if (isAnnualOrCasual && fromOther > 0.0001) {
             const confirmSplit = await Swal.fire({
-              icon: "info",
-              title: "Use combined leave balances?",
+              icon: nopayPart > 0.0001 ? "warning" : "info",
+              title: nopayPart > 0.0001
+                ? "Use combined balances + NoPay?"
+                : "Use combined leave balances?",
               html: `
                 <div class="text-left text-sm">
                   <p><b>${formData.leaveType}</b> alone has only <b>${availableBalance}</b> day(s).</p>
@@ -1012,24 +1016,27 @@ const LeaveMaster = ({ employeeProfile }) => {
                     <li>Casual: <b>${casualAvail}</b> day(s)</li>
                     <li>Combined: <b>${combinedAvail}</b> day(s)</li>
                   </ul>
-                  <p class="mt-3">This leave will be split as:</p>
+                  <p class="mt-3">This leave will be applied as:</p>
                   <ul class="list-disc pl-5 mt-1">
                     <li><b>${fromPreferred}</b> day(s) from ${preferred}</li>
                     <li><b>${fromOther}</b> day(s) from ${other}</li>
+                    ${nopayPart > 0.0001 ? `<li><b>${nopayPart}</b> day(s) as NoPay on HR approve</li>` : ""}
                   </ul>
                 </div>
               `,
               showCancelButton: true,
-              confirmButtonText: "Yes, use both balances",
+              confirmButtonText: nopayPart > 0.0001
+                ? "Submit (split + NoPay)"
+                : "Yes, use both balances",
               cancelButtonText: "Cancel",
-              confirmButtonColor: "#0f766e",
+              confirmButtonColor: nopayPart > 0.0001 ? "#c2410c" : "#0f766e",
             });
 
             if (!confirmSplit.isConfirmed) {
               setIsSubmitting(false);
               return;
             }
-            // Continue submit — backend will create split leave records
+            // Continue submit — backend will create split leave records (+ NoPay row if needed)
           } else {
             let reasonText = actNote;
             if (entitledTotal <= 0) {
@@ -1040,12 +1047,15 @@ const LeaveMaster = ({ employeeProfile }) => {
               reasonText = `Requested ${requestedDuration} day(s) but only ${availableBalance} day(s) remain (entitled ${entitledTotal}, used ${usedDays}). ${actNote}`.trim();
             }
 
-            if (isAnnualOrCasual && combinedAvail > 0) {
-              reasonText += ` Combined Annual (${annualAvail}) + Casual (${casualAvail}) = ${combinedAvail} day(s), which is still less than requested ${requestedDuration}.`;
-            }
-
-            const leaveCovered = Math.max(0, Math.min(requestedDuration, availableBalance));
+            // For Annual/Casual with no other balance, still show combined for clarity
+            const leaveCovered = isAnnualOrCasual
+              ? Math.max(0, Math.min(requestedDuration, combinedAvail))
+              : Math.max(0, Math.min(requestedDuration, availableBalance));
             const nopayPreview = Math.round((requestedDuration - leaveCovered) * 10000) / 10000;
+
+            if (isAnnualOrCasual && combinedAvail > 0) {
+              reasonText += ` Combined Annual (${annualAvail}) + Casual (${casualAvail}) = ${combinedAvail} day(s).`;
+            }
 
             const confirmNopay = await Swal.fire({
               icon: "warning",
@@ -1055,7 +1065,7 @@ const LeaveMaster = ({ employeeProfile }) => {
                   <p>You can still submit this leave.</p>
                   <p class="mt-2">Leave type: <b>${formData.leaveType}</b></p>
                   <p>Requested: <b>${requestedDuration}</b> day(s)</p>
-                  <p>Available balance: <b>${availableBalance}</b> day(s)</p>
+                  <p>Available (${formData.leaveType}): <b>${availableBalance}</b> day(s)</p>
                   ${isAnnualOrCasual ? `<p>Combined Annual + Casual: <b>${combinedAvail}</b> day(s)</p>` : ""}
                   <p class="mt-3"><b>On HR approve:</b></p>
                   <ul class="list-disc pl-5 mt-1">
