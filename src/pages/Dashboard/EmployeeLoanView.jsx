@@ -182,7 +182,20 @@ const EmployeeLoanView = ({ employeeProfile }) => {
               <div className="flex justify-between mb-6">
                 <div>
                   <h4 className="text-xl font-bold text-blue-900">{showDetails.loan_id}</h4>
-                  <p className="text-sm text-gray-500 mt-1">Deduct From: <span className="font-semibold capitalize">{showDetails.deduct_from || 'N/A'}</span></p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Deduct From:{" "}
+                    <span className="font-semibold">
+                      {(() => {
+                        const legacy = showDetails.deduct_from === "basic" ? "basic" : "bonus";
+                        const inst = showDetails.installment_deduct_from || legacy;
+                        const interest = showDetails.interest_deduct_from || inst;
+                        const lab = (v) => (v === "basic" ? "Basic" : "Monthly Bonus");
+                        return inst === interest
+                          ? `Installment and interest from ${lab(inst)}`
+                          : `Installment from ${lab(inst)}, interest from ${lab(interest)}`;
+                      })()}
+                    </span>
+                  </p>
                 </div>
                 <span className={`px-4 py-1 rounded-full h-fit text-sm font-bold ${showDetails.with_interest ? 'bg-indigo-100 text-indigo-800' : 'bg-green-100 text-green-800'}`}>
                   {showDetails.with_interest ? "With Interest" : "No Interest"}

@@ -15,6 +15,16 @@ import {
   Percent,
 } from "lucide-react";
 
+const paySourceLabel = (from) => (String(from || "").toLowerCase() === "basic" ? "Basic" : "Monthly Bonus");
+
+const loanDeductSummary = (loan) => {
+  const legacy = loan?.deduct_from === "basic" ? "basic" : "bonus";
+  const inst = loan?.installment_deduct_from || legacy;
+  const interest = loan?.interest_deduct_from || inst;
+  if (inst === interest) return `Installment and interest from ${paySourceLabel(inst)}`;
+  return `Installment from ${paySourceLabel(inst)}, interest from ${paySourceLabel(interest)}`;
+};
+
 const ViewLoans = () => {
   const [loans, setLoans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -248,16 +258,25 @@ const ViewLoans = () => {
       installment_amount: loan.installment_amount,
       interest_rate_per_annum: loan.interest_rate_per_annum,
       start_from: loan.start_from ? loan.start_from.slice(0, 10) : "",
-      deduct_from: loan.deduct_from || "bonus",
+      installment_deduct_from: loan.installment_deduct_from || (loan.deduct_from === "basic" ? "basic" : "bonus"),
+      interest_deduct_from: loan.interest_deduct_from || loan.installment_deduct_from || (loan.deduct_from === "basic" ? "basic" : "bonus"),
       status: loan.status || "active",
     });
   };
 
   const handleEditSave = async () => {
+    const instFrom = editForm.installment_deduct_from || "bonus";
+    const intFrom = editForm.interest_deduct_from || instFrom;
+    const payload = {
+      ...editForm,
+      installment_deduct_from: instFrom,
+      interest_deduct_from: intFrom,
+      deduct_from: instFrom === intFrom ? instFrom : "split",
+    };
     setIsSaving(true);
     try {
-      await updateLoan(editLoan.id, editForm);
-      setLoans((prev) => prev.map((l) => l.id === editLoan.id ? { ...l, ...editForm } : l));
+      await updateLoan(editLoan.id, payload);
+      setLoans((prev) => prev.map((l) => l.id === editLoan.id ? { ...l, ...payload } : l));
       setEditLoan(null);
       Swal.fire({ icon: "success", title: "Updated!", timer: 1500, showConfirmButton: false });
     } catch (err) {
@@ -413,13 +432,37 @@ const ViewLoans = () => {
                 <input type="date" className="w-full p-2 border rounded-lg" value={editForm.start_from}
                   onChange={(e) => setEditForm({ ...editForm, start_from: e.target.value })} />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Deduct From</label>
-                <select className="w-full p-2 border rounded-lg" value={editForm.deduct_from}
-                  onChange={(e) => setEditForm({ ...editForm, deduct_from: e.target.value })}>
-                  <option value="bonus">Monthly Bonus</option>
-                  <option value="basic">Basic Salary</option>
-                </select>
+              <div className="col-span-2 rounded-xl border-2 border-blue-100 bg-blue-50/50 p-4">
+                <p className="text-sm font-bold text-gray-800 mb-1">Where to deduct</p>
+                <p className="text-xs text-gray-600 mb-3">Capital installment and interest can come from different payslips.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="rounded-lg border-2 border-blue-200 bg-white p-3">
+                    <p className="font-semibold text-sm mb-2">Capital installment from</p>
+                    <label className="flex items-center gap-2 mb-1 text-sm">
+                      <input type="radio" checked={editForm.installment_deduct_from === "basic"}
+                        onChange={() => setEditForm({ ...editForm, installment_deduct_from: "basic" })} />
+                      Basic salary
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="radio" checked={editForm.installment_deduct_from === "bonus"}
+                        onChange={() => setEditForm({ ...editForm, installment_deduct_from: "bonus" })} />
+                      Monthly Bonus
+                    </label>
+                  </div>
+                  <div className="rounded-lg border-2 border-indigo-200 bg-white p-3">
+                    <p className="font-semibold text-sm mb-2">Interest from</p>
+                    <label className="flex items-center gap-2 mb-1 text-sm">
+                      <input type="radio" checked={editForm.interest_deduct_from === "basic"}
+                        onChange={() => setEditForm({ ...editForm, interest_deduct_from: "basic" })} />
+                      Basic salary
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="radio" checked={editForm.interest_deduct_from === "bonus"}
+                        onChange={() => setEditForm({ ...editForm, interest_deduct_from: "bonus" })} />
+                      Monthly Bonus
+                    </label>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
@@ -470,8 +513,11 @@ const ViewLoans = () => {
                 <div><p className="text-xs text-gray-500">Installment</p><p className="font-bold text-green-600">{formatCurrency(showDetails.installment_amount)}</p></div>
                 <div><p className="text-xs text-gray-500">Interest Rate</p><p className="font-bold">{showDetails.interest_rate_per_annum}% p.a.</p></div>
                 <div><p className="text-xs text-gray-500">Start Date</p><p className="font-bold">{formatDate(showDetails.start_from)}</p></div>
-                <div><p className="text-xs text-gray-500">Deduct From</p><p className="font-bold capitalize">{showDetails.deduct_from === "basic" ? "Basic Salary" : "Monthly Bonus"}</p></div>
-                <div><p className="text-xs text-gray-500">Installments Left</p><p className="font-bold">{showDetails.installment_count ?? "â€”"}</p></div>
+                <div>
+                  <p className="text-xs text-gray-500">Deduct From</p>
+                  <p className="font-bold">{loanDeductSummary(showDetails)}</p>
+                </div>
+                <div><p className="text-xs text-gray-500">Installments Left</p><p className="font-bold">{showDetails.installment_count ?? "—"}</p></div>
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
@@ -511,7 +557,8 @@ const ViewLoans = () => {
 
               <h4 className="font-bold mb-3 text-gray-800">Repayment Schedule (reducing interest)</h4>
               <p className="text-xs text-gray-500 mb-3">
-                Deduct from: <strong>{showDetails.deduct_from === "basic" ? "Basic Salary" : "Monthly Bonus"}</strong>
+                Deduct from:{" "}
+                <strong>{loanDeductSummary(showDetails)}</strong>
                 {" · "}
                 To skip a month: Request Skip → Higher Approve (defers installment).
               </p>

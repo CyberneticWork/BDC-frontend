@@ -92,6 +92,18 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   const loanTarget = String(rawLoanTarget).toLowerCase().trim();
   const loanPrincipal = Number(breakdown.loan_principal || breakdown.loan_installment || 0);
   const loanInterest = Number(breakdown.loan_interest || 0);
+  const loanBasicPrincipal = Number(
+    breakdown.loan_basic_principal ?? (loanTarget === "basic" ? loanPrincipal : 0)
+  );
+  const loanBasicInterest = Number(
+    breakdown.loan_basic_interest ?? (loanTarget === "basic" ? loanInterest : 0)
+  );
+  const loanBonusPrincipal = Number(
+    breakdown.loan_bonus_principal ?? (loanTarget === "bonus" || loanTarget === "split" ? (loanTarget === "bonus" ? loanPrincipal : 0) : 0)
+  );
+  const loanBonusInterest = Number(
+    breakdown.loan_bonus_interest ?? (loanTarget === "bonus" ? loanInterest : 0)
+  );
 
   const totalLatePenalty = shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay;
 
@@ -108,11 +120,11 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
         : `(basic + bonus)/${breakdown.nopay_working_days || 30} split`,
     },
     { label: "Probation Leave Deduction", amount: probationDeduction },
-    ...(loanTarget === "basic" && loanPrincipal > 0
-      ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }]
+    ...(loanBasicPrincipal > 0
+      ? [{ label: "Loan Installment (Principal) → Basic", amount: loanBasicPrincipal }]
       : []),
-    ...(loanTarget === "basic" && loanInterest > 0
-      ? [{ label: "Loan Interest", amount: loanInterest }]
+    ...(loanBasicInterest > 0
+      ? [{ label: "Loan Interest → Basic", amount: loanBasicInterest }]
       : []),
   ];
 
@@ -151,11 +163,11 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
     })),
     { label: "Sports Fund", amount: sportsFund },
     { label: "Staff Fund", amount: staffFund },
-    ...(loanTarget === "bonus" && loanInterest > 0
-      ? [{ label: "Loan Interest", amount: loanInterest }]
+    ...(loanBonusInterest > 0
+      ? [{ label: "Loan Interest → Monthly Bonus", amount: loanBonusInterest }]
       : []),
-    ...(loanTarget === "bonus" && loanPrincipal > 0
-      ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }]
+    ...(loanBonusPrincipal > 0
+      ? [{ label: "Loan Installment (Principal) → Monthly Bonus", amount: loanBonusPrincipal }]
       : []),
   ];
 

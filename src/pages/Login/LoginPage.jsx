@@ -28,7 +28,9 @@ function LoginPage({ onSuccess }) {
       if (validationErrors) return { errors: validationErrors };
       setError(
         err?.response?.data?.message ||
-          "Login failed. Please check your credentials."
+          (err?.response?.status === 500
+            ? "Login service error. Please try again."
+            : "Login failed. Please check your credentials.")
       );
       return {};
     } finally {

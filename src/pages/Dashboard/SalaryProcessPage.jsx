@@ -383,6 +383,10 @@ const SalaryProcessPage = () => {
     const loanTarget = breakdown.loan_deduct_from || 'bonus';
     const loanPrincipal = Number(breakdown.loan_principal || 0);
     const loanInterest = Number(breakdown.loan_interest || 0);
+    const loanBasicPrincipal = Number(breakdown.loan_basic_principal ?? (loanTarget === 'basic' ? loanPrincipal : 0));
+    const loanBasicInterest = Number(breakdown.loan_basic_interest ?? (loanTarget === 'basic' ? loanInterest : 0));
+    const loanBonusPrincipal = Number(breakdown.loan_bonus_principal ?? (loanTarget === 'bonus' ? loanPrincipal : 0));
+    const loanBonusInterest = Number(breakdown.loan_bonus_interest ?? (loanTarget === 'bonus' ? loanInterest : 0));
 
     const basicEarnings = [
       { label: "Basic Salary", amount: Number(breakdown.basic_salary || emp?.basic_salary || 0) },
@@ -408,8 +412,8 @@ const SalaryProcessPage = () => {
       { label: "Probation Leave Deduction", amount: Number(breakdown.probation_deduction || 0) },
       { label: "Stamp Duty", amount: Number(breakdown.stamp_duty || 0) },
       // --------------------------
-      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
-      ...(loanTarget === 'basic' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
+      ...(loanBasicPrincipal > 0 ? [{ label: "Loan Installment (Principal) → Basic", amount: loanBasicPrincipal }] : []),
+      ...(loanBasicInterest > 0 ? [{ label: "Loan Interest → Basic", amount: loanBasicInterest }] : []),
     ].filter((item) => item.amount > 0);
 
     const bonusEarnings = [
@@ -454,10 +458,10 @@ const SalaryProcessPage = () => {
       
       { label: "Saturday No-Pay Deduction", amount: Number(breakdown.saturday_nopay_deduction || 0) },
       // --------------------------------------------------------
-      ...(loanTarget === 'bonus' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
+      ...(loanBonusInterest > 0 ? [{ label: "Loan Interest → Monthly Bonus", amount: loanBonusInterest }] : []),
       { label: "Sports Fund", amount: Number(breakdown.sports_fund_deduction || 0) },
       { label: "Staff Fund", amount: Number(breakdown.staff_fund_deduction || 0) },
-      ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
+      ...(loanBonusPrincipal > 0 ? [{ label: "Loan Installment (Principal) → Monthly Bonus", amount: loanBonusPrincipal }] : []),
       ...customDeductionsList 
     ].filter((item) => item.amount > 0);
 
@@ -1216,6 +1220,10 @@ const SalaryProcessPage = () => {
     const loanTarget = breakdown.loan_deduct_from || 'bonus';
     const loanPrincipal = Number(breakdown.loan_principal || 0);
     const loanInterest = Number(breakdown.loan_interest || 0);
+    const loanBasicPrincipal = Number(breakdown.loan_basic_principal ?? (loanTarget === 'basic' ? loanPrincipal : 0));
+    const loanBasicInterest = Number(breakdown.loan_basic_interest ?? (loanTarget === 'basic' ? loanInterest : 0));
+    const loanBonusPrincipal = Number(breakdown.loan_bonus_principal ?? (loanTarget === 'bonus' ? loanPrincipal : 0));
+    const loanBonusInterest = Number(breakdown.loan_bonus_interest ?? (loanTarget === 'bonus' ? loanInterest : 0));
 
     // ==========================================
     // BASIC PAYSLIP කොටස
@@ -1233,8 +1241,8 @@ const SalaryProcessPage = () => {
         label: "Leave Shortfall NoPay → Basic",
         amount: Number(breakdown.leave_shortfall_nopay_basic_deduction || 0),
       },
-      ...(loanTarget === 'basic' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
-      ...(loanTarget === 'basic' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
+      ...(loanBasicPrincipal > 0 ? [{ label: "Loan Installment (Principal) → Basic", amount: loanBasicPrincipal }] : []),
+      ...(loanBasicInterest > 0 ? [{ label: "Loan Interest → Basic", amount: loanBasicInterest }] : []),
     ].filter((item) => item.amount > 0);
 
     // ==========================================
@@ -1265,8 +1273,8 @@ const SalaryProcessPage = () => {
       { label: "Short Leave Penalty (Late)", amount: Number(breakdown.short_leave_deduction || 0) },
       { label: "Half Day Penalty (Late)", amount: Number(breakdown.half_day_deduction || 0) },
       { label: "Early Out No Pay Deduction", amount: Number(breakdown.early_out_nopay_deduction || 0) }, 
-      ...(loanTarget === 'bonus' && loanInterest > 0 ? [{ label: "Loan Interest", amount: loanInterest }] : []),
-      ...(loanTarget === 'bonus' && loanPrincipal > 0 ? [{ label: "Loan Installment (Principal)", amount: loanPrincipal }] : []),
+      ...(loanBonusInterest > 0 ? [{ label: "Loan Interest → Monthly Bonus", amount: loanBonusInterest }] : []),
+      ...(loanBonusPrincipal > 0 ? [{ label: "Loan Installment (Principal) → Monthly Bonus", amount: loanBonusPrincipal }] : []),
       ...customDeductionsList 
     ].filter((item) => item.amount > 0);
 

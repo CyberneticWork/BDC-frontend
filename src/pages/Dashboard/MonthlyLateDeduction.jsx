@@ -27,8 +27,11 @@ const MONTHS = [
 
 const bandStyles = {
   free: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  grace_only: "bg-emerald-50 text-emerald-800 border-emerald-200",
   one_short: "bg-amber-50 text-amber-900 border-amber-200",
   two_short: "bg-orange-50 text-orange-900 border-orange-200",
+  half_day: "bg-orange-50 text-orange-900 border-orange-200",
+  half_day_nopay: "bg-rose-50 text-rose-900 border-rose-200",
   excess: "bg-rose-50 text-rose-900 border-rose-200",
 };
 
@@ -81,8 +84,10 @@ function RulesBanner({ rules }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        Late is judged day by day (not by totaling monthly minutes). First 3 late days ≤30 minutes are free.
-        Any day over 30 minutes (e.g. 35m) is a half-day. Half days use Casual → Annual → remaining NoPay.
+        ≤30m and &gt;30m late days are counted separately, on any dates. First 3 days ≤30m are free.
+        The 4th–5th ≤30m days take short leave. From the 6th ≤30m day, every ≤30m day becomes a half day.
+        Any day over 30 minutes is a half day that day and does not use grace or short-leave slots.
+        Deducted days use Casual → Annual → remaining NoPay.
       </p>
     </div>
   );
@@ -107,12 +112,17 @@ function BreakdownPanel({ employee }) {
           <p className="text-xs text-slate-500">Deducting {employee.casual_leave_days} day(s)</p>
         </div>
         <div className="rounded-xl bg-white p-3 border border-slate-200">
-          <p className="text-[11px] font-semibold uppercase text-slate-500">Half days</p>
+          <p className="text-[11px] font-semibold uppercase text-slate-500">Half / short leave</p>
           <p className="mt-1 text-sm font-bold text-amber-800">
-            {employee.half_day_count ?? 0} ({employee.half_day_days ?? employee.short_leave_days ?? 0} day)
+            {employee.half_day_count ?? 0} half ({employee.half_day_days ?? 0}d)
+            {(employee.short_leave_count ?? 0) > 0
+              ? ` · ${employee.short_leave_count} short (${employee.short_leave_days}d)`
+              : ""}
           </p>
           <p className="text-xs text-slate-500">
-            Grace used {employee.grace_day_count ?? 0}/{employee.grace_day_limit ?? 3}
+            ≤30m {employee.within_30_day_count ?? 0} · &gt;30m {employee.over_30_day_count ?? 0}
+            {" · "}Grace {employee.grace_day_count ?? 0}/{employee.grace_day_limit ?? 3}
+            {employee.six_plus_converted ? " · 6+ days within 30m → those days all half" : ""}
           </p>
         </div>
         <div className="rounded-xl bg-white p-3 border border-slate-200">
@@ -147,6 +157,9 @@ function BreakdownPanel({ employee }) {
       <div>
         <h4 className="mb-2 text-sm font-semibold text-slate-700">
           Late days this month ({employee.late_day_count})
+          <span className="ml-2 font-normal text-slate-500">
+            {employee.within_30_day_count ?? 0} ≤30m · {employee.over_30_day_count ?? 0} &gt;30m
+          </span>
         </h4>
         {(employee.late_days || []).length === 0 ? (
           <p className="text-sm text-slate-500">No late punches recorded.</p>
@@ -156,6 +169,7 @@ function BreakdownPanel({ employee }) {
               <thead className="bg-slate-100 text-left text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-3 py-2">Date</th>
+                  <th className="px-3 py-2">Track</th>
                   <th className="px-3 py-2">Shift start</th>
                   <th className="px-3 py-2">In time</th>
                   <th className="px-3 py-2">Late</th>
@@ -167,6 +181,17 @@ function BreakdownPanel({ employee }) {
                 {employee.late_days.map((day) => (
                   <tr key={day.date} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-medium text-slate-800">{day.date}</td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={
+                          day.late_bucket === "over_30"
+                            ? "rounded-md bg-orange-100 px-1.5 py-0.5 text-[11px] font-semibold text-orange-800"
+                            : "rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-semibold text-sky-800"
+                        }
+                      >
+                        {day.late_bucket === "over_30" ? ">30m" : "≤30m"}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-slate-600">{day.shift_start}</td>
                     <td className="px-3 py-2 text-slate-600">{day.in_time}</td>
                     <td className="px-3 py-2 font-semibold text-rose-700">{day.late_display}</td>
@@ -175,9 +200,11 @@ function BreakdownPanel({ employee }) {
                         className={
                           day.action === "grace"
                             ? "text-emerald-700"
-                            : day.action === "half_day"
-                              ? "text-orange-700 font-medium"
-                              : "text-slate-600"
+                            : day.action === "short_leave"
+                              ? "text-amber-800 font-medium"
+                              : day.action === "half_day"
+                                ? "text-orange-700 font-medium"
+                                : "text-slate-600"
                         }
                       >
                         {day.action_label || "—"}
@@ -266,6 +293,17 @@ export default function MonthlyLateDeduction() {
     if (filterBand === "all") return list;
     if (filterBand === "deduction") return list.filter((e) => e.has_deduction);
     if (filterBand === "applied") return list.filter((e) => e.already_applied);
+    if (filterBand === "free" || filterBand === "grace_only") {
+      return list.filter((e) => e.band === "grace_only" || e.band === "free");
+    }
+    if (filterBand === "one_short" || filterBand === "two_short") {
+      return list.filter((e) => e.band === "one_short" || e.band === "two_short");
+    }
+    if (filterBand === "excess" || filterBand === "half_day") {
+      return list.filter(
+        (e) => e.band === "half_day" || e.band === "half_day_nopay" || e.band === "excess"
+      );
+    }
     return list.filter((e) => e.band === filterBand);
   }, [preview, filterBand]);
 
@@ -458,7 +496,8 @@ export default function MonthlyLateDeduction() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard label="Employees with late" value={summary.employees_with_late} accent="slate" />
           <StatCard label="Need deduction" value={summary.employees_with_deduction} accent="amber" />
-          <StatCard label="Half days" value={summary.total_half_days ?? summary.total_short_leaves} hint="Day-by-day half-day units" accent="teal" />
+          <StatCard label="Half days" value={summary.total_half_days ?? 0} hint="0.5 each for >30m days, and for 6+ days within 30m" accent="teal" />
+          <StatCard label="Short leaves" value={summary.total_short_leaves ?? 0} hint="4th–5th day ≤30m only (over 30m does not use this)" accent="amber" />
           <StatCard
             label="Annual + Casual days"
             value={`${summary.total_annual_days} / ${summary.total_casual_days}`}
@@ -474,10 +513,9 @@ export default function MonthlyLateDeduction() {
         {[
           { id: "all", label: "All" },
           { id: "deduction", label: "With deduction" },
-          { id: "free", label: "Free band" },
-          { id: "one_short", label: "1 Short Leave" },
-          { id: "two_short", label: "2 Short Leaves" },
-          { id: "excess", label: "Excess / NoPay" },
+          { id: "grace_only", label: "Grace only (no deduct)" },
+          { id: "one_short", label: "Short leave" },
+          { id: "half_day", label: "Half day / NoPay" },
           { id: "applied", label: "Already applied" },
         ].map((f) => (
           <button
@@ -511,7 +549,7 @@ export default function MonthlyLateDeduction() {
           <span className="text-xs text-slate-500">{employees.length} shown</span>
         </div>
 
-        {loading ? (
+        {loading && !preview ? (
           <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
             <Loader2 className="h-5 w-5 animate-spin" />
             Calculating late totals…
@@ -519,10 +557,18 @@ export default function MonthlyLateDeduction() {
         ) : employees.length === 0 ? (
           <div className="py-16 text-center text-slate-500">
             <Clock className="mx-auto mb-3 h-8 w-8 opacity-40" />
-            No late records for this month/filter.
+            {loading
+              ? "Calculating late totals…"
+              : "No late records for this month/filter."}
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className={`divide-y divide-slate-100 ${loading ? "opacity-60 pointer-events-none" : ""}`}>
+            {loading && (
+              <div className="flex items-center justify-center gap-2 border-b border-slate-100 py-2 text-xs text-slate-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Updating {MONTHS[(month || 1) - 1]} {year}…
+              </div>
+            )}
             {employees.map((emp) => {
               const open = !!expanded[emp.employee_id];
               const canSelect = emp.has_deduction && !emp.already_applied;
@@ -558,7 +604,9 @@ export default function MonthlyLateDeduction() {
                           )}
                         </div>
                         <p className="mt-1 text-xs text-slate-500">
-                          {emp.company_name || "—"} · {emp.late_day_count} late day(s) · Shift {emp.shift_hours}h
+                          {emp.company_name || "—"} · {emp.late_day_count} late day(s)
+                          {" "}({emp.within_30_day_count ?? 0} ≤30m / {emp.over_30_day_count ?? 0} &gt;30m)
+                          {" "}· Shift {emp.shift_hours}h
                         </p>
                       </div>
                     </div>
@@ -623,10 +671,9 @@ export default function MonthlyLateDeduction() {
           <div>
             <p className="font-semibold">How apply works</p>
             <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-amber-900/90">
-              <li>Judges each late day separately (does not total monthly late minutes).</li>
-              <li>First 3 late days ≤30 minutes = grace (no deduction).</li>
-              <li>Any day over 30 minutes (e.g. 35m) = half-day that day.</li>
-              <li>Creates Approved half-day leave (Casual → Annual) and NoPay (`LATE_MONTHLY`) for shortfall.</li>
+              <li>≤30m late days (any dates) are counted on their own: first 3 = grace, 4th–5th = short leave, 6+ = half day for every ≤30m day.</li>
+              <li>Days over 30 minutes (e.g. 35m) = half day that day. They do not use grace or short-leave slots.</li>
+              <li>Creates Approved leave (Casual → Annual) and NoPay (`LATE_MONTHLY`) for shortfall.</li>
             </ul>
             <p className="mt-2 inline-flex items-center gap-1 text-xs text-amber-800">
               <CalendarDays className="h-3.5 w-3.5" />

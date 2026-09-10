@@ -19,8 +19,8 @@ const EmployeeLoan = () => {
   const [calculationType, setCalculationType] = useState("byAmount"); // byAmount or byCount
   const [installmentCount, setInstallmentCount] = useState("");
 
-  // අලුතින් එකතු කළ State එක (Loan එක කොහෙන්ද කැපෙන්නේ කියලා අල්ලගන්න)
-  const [deductFrom, setDeductFrom] = useState("bonus");
+  const [installmentDeductFrom, setInstallmentDeductFrom] = useState("bonus");
+  const [interestDeductFrom, setInterestDeductFrom] = useState("bonus");
 
   // Format currency as LKR
   const formatCurrency = (amount) => {
@@ -124,7 +124,6 @@ const EmployeeLoan = () => {
         return;
       }
 
-      // මෙන්න මේ පල්ලෙහා තියෙන ටික හොඳට බලන්න
       const payload = {
         loan_id: loanId,
         // මෙතන 'attendance_employee_no' කියන නම අකුරක් නෑර නිවැරදි විය යුතුයි
@@ -136,7 +135,11 @@ const EmployeeLoan = () => {
         with_interest: interestType === "withInterest", // Backend එකට boolean එකක් යනවා
         installment_count: loanDetails.length,
         schedule: loanDetails,
-        deduct_from: deductFrom,
+        installment_deduct_from: installmentDeductFrom,
+        interest_deduct_from: interestType === "withInterest" ? interestDeductFrom : installmentDeductFrom,
+        deduct_from: installmentDeductFrom === (interestType === "withInterest" ? interestDeductFrom : installmentDeductFrom)
+          ? installmentDeductFrom
+          : "split",
       };
 
       console.log("Sending Payload:", payload); // Debug කරලා බලන්න console එකේ පේනවා මොනවද යන්නේ කියලා
@@ -166,7 +169,8 @@ const EmployeeLoan = () => {
     setIsCalculated(false);
     setInstallmentCount("");
     setCalculationType("byAmount");
-    setDeductFrom("bonus"); // Form එක රීසෙට් කරද්දී ආයේ Default අගය දානවා
+    setInstallmentDeductFrom("bonus");
+    setInterestDeductFrom("bonus");
   };
 
   // Auto-generate Loan ID
@@ -580,20 +584,46 @@ const EmployeeLoan = () => {
                 </p>
               </div>
 
-              {/* new loan */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Deduct Installment From <span className="text-red-500 ml-1">*</span>
-                </label>
-                <select
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                  value={deductFrom}
-                  onChange={(e) => setDeductFrom(e.target.value)}
-                  required
-                >
-                  <option value="bonus">Monthly Bonus (capital + interest)</option>
-                  <option value="basic">Basic Salary (capital + interest)</option>
-                </select>
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 rounded-xl border-2 border-blue-100 bg-blue-50/50 p-4">
+                <p className="text-sm font-bold text-gray-800 mb-1">
+                  Where to deduct <span className="text-red-500">*</span>
+                </p>
+                <p className="text-xs text-gray-600 mb-4">
+                  Capital installment and interest can come from different payslips. Example: installment from Basic, interest from Monthly Bonus.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border-2 border-blue-200 bg-white p-4">
+                    <p className="font-semibold text-gray-800 mb-3">Capital installment from</p>
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                      <input type="radio" name="installmentDeductFrom" checked={installmentDeductFrom === "basic"}
+                        onChange={() => setInstallmentDeductFrom("basic")} />
+                      <span>Basic salary</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="installmentDeductFrom" checked={installmentDeductFrom === "bonus"}
+                        onChange={() => setInstallmentDeductFrom("bonus")} />
+                      <span>Monthly Bonus</span>
+                    </label>
+                  </div>
+                  <div className={`rounded-xl border-2 bg-white p-4 ${interestType === "withoutInterest" ? "border-gray-200 opacity-60" : "border-indigo-200"}`}>
+                    <p className="font-semibold text-gray-800 mb-3">Interest from</p>
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                      <input type="radio" name="interestDeductFrom" disabled={interestType === "withoutInterest"}
+                        checked={interestDeductFrom === "basic"}
+                        onChange={() => setInterestDeductFrom("basic")} />
+                      <span>Basic salary</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="interestDeductFrom" disabled={interestType === "withoutInterest"}
+                        checked={interestDeductFrom === "bonus"}
+                        onChange={() => setInterestDeductFrom("bonus")} />
+                      <span>Monthly Bonus</span>
+                    </label>
+                    {interestType === "withoutInterest" && (
+                      <p className="mt-2 text-xs text-gray-500">No interest on this loan.</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="mb-4 col-span-1 md:col-span-2 lg:col-span-3">
