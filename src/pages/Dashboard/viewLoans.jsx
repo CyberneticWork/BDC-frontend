@@ -223,7 +223,7 @@ const ViewLoans = () => {
   const exportToCSV = () => {
     if (filteredLoans.length === 0) return;
 
-    const headers = ["Loan ID", "Employee No", "Employee Name", "Amount", "Interest Rate", "Installment", "Start Date", "With Interest"];
+    const headers = ["Loan ID", "Employee No", "Employee Name", "Amount", "Interest Rate", "Installment", "Request Date", "Deduct From Month", "With Interest"];
     const csvData = filteredLoans.map((loan) => [
       loan.loan_id,
       loan.employee?.attendance_employee_no || "N/A",
@@ -231,6 +231,7 @@ const ViewLoans = () => {
       loan.loan_amount,
       loan.interest_rate_per_annum + "%",
       loan.installment_amount,
+      loan.request_date || "",
       loan.start_from,
       loan.with_interest ? "Yes" : "No",
     ]);
@@ -257,7 +258,8 @@ const ViewLoans = () => {
       loan_amount: loan.loan_amount,
       installment_amount: loan.installment_amount,
       interest_rate_per_annum: loan.interest_rate_per_annum,
-      start_from: loan.start_from ? loan.start_from.slice(0, 10) : "",
+      request_date: loan.request_date ? String(loan.request_date).slice(0, 10) : "",
+      start_from: loan.start_from ? String(loan.start_from).slice(0, 7) : "",
       installment_deduct_from: loan.installment_deduct_from || (loan.deduct_from === "basic" ? "basic" : "bonus"),
       interest_deduct_from: loan.interest_deduct_from || loan.installment_deduct_from || (loan.deduct_from === "basic" ? "basic" : "bonus"),
       status: loan.status || "active",
@@ -428,8 +430,13 @@ const ViewLoans = () => {
                   onChange={(e) => setEditForm({ ...editForm, interest_rate_per_annum: e.target.value })} min="0" step="0.01" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Start Date</label>
-                <input type="date" className="w-full p-2 border rounded-lg" value={editForm.start_from}
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Request Date</label>
+                <input type="date" className="w-full p-2 border rounded-lg" value={editForm.request_date || ""}
+                  onChange={(e) => setEditForm({ ...editForm, request_date: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Deduction start month</label>
+                <input type="month" className="w-full p-2 border rounded-lg" value={editForm.start_from || ""}
                   onChange={(e) => setEditForm({ ...editForm, start_from: e.target.value })} />
               </div>
               <div className="col-span-2 rounded-xl border-2 border-blue-100 bg-blue-50/50 p-4">
@@ -512,7 +519,8 @@ const ViewLoans = () => {
                 <div><p className="text-xs text-gray-500">Loan Amount</p><p className="font-bold">{formatCurrency(showDetails.loan_amount)}</p></div>
                 <div><p className="text-xs text-gray-500">Installment</p><p className="font-bold text-green-600">{formatCurrency(showDetails.installment_amount)}</p></div>
                 <div><p className="text-xs text-gray-500">Interest Rate</p><p className="font-bold">{showDetails.interest_rate_per_annum}% p.a.</p></div>
-                <div><p className="text-xs text-gray-500">Start Date</p><p className="font-bold">{formatDate(showDetails.start_from)}</p></div>
+                <div><p className="text-xs text-gray-500">Request Date</p><p className="font-bold">{formatDate(showDetails.request_date)}</p></div>
+                <div><p className="text-xs text-gray-500">Deduct From Month</p><p className="font-bold">{formatDate(showDetails.start_from)}</p></div>
                 <div>
                   <p className="text-xs text-gray-500">Deduct From</p>
                   <p className="font-bold">{loanDeductSummary(showDetails)}</p>

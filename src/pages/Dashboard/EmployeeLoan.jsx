@@ -8,7 +8,8 @@ const EmployeeLoan = () => {
   const [interestType, setInterestType] = useState("withInterest");
   const [employeeNo, setEmployeeNo] = useState("");
   const [employeeIdd, setEmployeeIdd] = useState("");
-  const [startDate, setStartDate] = useState("");
+  const [requestDate, setRequestDate] = useState("");
+  const [deductStartMonth, setDeductStartMonth] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
   const [interestRate, setInterestRate] = useState("");
   const [installmentAmount, setInstallmentAmount] = useState("");
@@ -131,7 +132,8 @@ const EmployeeLoan = () => {
         loan_amount: parseFloat(loanAmount),
         interest_rate_per_annum: interestType === "withInterest" ? parseFloat(interestRate) : 0,
         installment_amount: parseFloat(installmentAmount),
-        start_from: startDate,
+        request_date: requestDate,
+        start_from: deductStartMonth ? `${deductStartMonth}-01` : "",
         with_interest: interestType === "withInterest", // Backend එකට boolean එකක් යනවා
         installment_count: loanDetails.length,
         schedule: loanDetails,
@@ -161,7 +163,8 @@ const EmployeeLoan = () => {
 
   const resetForm = () => {
     setEmployeeNo("");
-    setStartDate("");
+    setRequestDate("");
+    setDeductStartMonth("");
     setLoanAmount("");
     setInterestRate("");
     setInstallmentAmount("");
@@ -175,8 +178,8 @@ const EmployeeLoan = () => {
 
   // Auto-generate Loan ID
   useEffect(() => {
-    if (employeeNo && startDate) {
-      const date = new Date(startDate);
+    if (employeeNo && requestDate) {
+      const date = new Date(requestDate);
       const yyyymmdd = `${date.getFullYear()}${String(
         date.getMonth() + 1
       ).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
@@ -185,7 +188,7 @@ const EmployeeLoan = () => {
     } else {
       setLoanId("");
     }
-  }, [employeeNo, startDate]);
+  }, [employeeNo, requestDate]);
 
   // Fetch employee name when employeeNo changes
   useEffect(() => {
@@ -205,7 +208,8 @@ const EmployeeLoan = () => {
   const calculateLoan = () => {
     if (
       !employeeNo ||
-      !startDate ||
+      !requestDate ||
+      !deductStartMonth ||
       !loanAmount ||
       (calculationType === "byAmount" && !installmentAmount) ||
       (calculationType === "byCount" && !installmentCount) ||
@@ -283,7 +287,7 @@ const EmployeeLoan = () => {
       if (outstanding < 0.01) outstanding = 0;
 
       const totalInstallment = round2(capital + interest);
-      const due = addMonthsToDate(startDate, i);
+      const due = addMonthsToDate(deductStartMonth, i - 1);
 
       details.push({
         no: i,
@@ -329,14 +333,18 @@ const EmployeeLoan = () => {
     });
   };
 
-  const addMonthsToDate = (start, installmentNo) => {
-    const date = new Date(start);
-    date.setMonth(date.getMonth() + installmentNo);
-    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const addMonthsToDate = (start, monthsToAdd) => {
+    const base = String(start || "").length === 7 ? `${start}-01` : start;
+    const parts = String(base).split("-").map(Number);
+    const year = parts[0];
+    const monthIndex = (parts[1] || 1) - 1 + monthsToAdd;
+    const y = year + Math.floor(monthIndex / 12);
+    const m = ((monthIndex % 12) + 12) % 12;
+    const iso = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const date = new Date(`${iso}T00:00:00`);
     const display = date.toLocaleDateString("en-LK", {
       year: "numeric",
       month: "short",
-      day: "numeric",
     });
     return { iso, display };
   };
@@ -529,15 +537,30 @@ const EmployeeLoan = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Start Date
+                  Loan request date
                   <span className="text-red-500 ml-1">*</span>
                 </label>
                 <DatePickerInput
                   className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-gray-400"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  value={requestDate}
+                  onChange={(e) => setRequestDate(e.target.value)}
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Deduction start month
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                <input
+                  type="month"
+                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-gray-400"
+                  value={deductStartMonth}
+                  onChange={(e) => setDeductStartMonth(e.target.value)}
+                  required
+                />
+                <p className="mt-1 text-xs text-gray-500">First salary month this loan is deducted.</p>
               </div>
 
               <div>
@@ -755,7 +778,7 @@ const EmployeeLoan = () => {
                   <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
                     <th className="py-4 px-6 text-left font-semibold">No</th>
                     <th className="py-4 px-6 text-left font-semibold">
-                      Due Date
+                      Due Month
                     </th>
                     <th className="py-4 px-6 text-left font-semibold">Days</th>
                     <th className="py-4 px-6 text-right font-semibold">
@@ -1547,7 +1570,7 @@ const EmployeeLoan = () => {
                   <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
                     <th className="py-4 px-6 text-left font-semibold">No</th>
                     <th className="py-4 px-6 text-left font-semibold">
-                      Due Date
+                      Due Month
                     </th>
                     <th className="py-4 px-6 text-left font-semibold">Days</th>
                     <th className="py-4 px-6 text-right font-semibold">

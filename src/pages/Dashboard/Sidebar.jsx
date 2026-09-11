@@ -140,6 +140,7 @@ const Sidebar = ({
               { id: "Overtime", name: "Over Time" },
               { id: "lateEarlyApproval", name: "Late / Early Approval" },
               { id: "monthlyLateDeduction", name: "Monthly Late Deduction" },
+              { id: "excessLateReview", name: "Late Over 30 Minutes" },
               { id: "leaveMaster", name: "Leave Form" },
               { id: "leaveApproval", name: "Leave Approval" },
               { id: "supervisorLeaveApproval", name: "Supervisor Leave Approval" },
@@ -559,6 +560,7 @@ const Sidebar = ({
             { id: "Overtime", name: "Over Time" },
             { id: "lateEarlyApproval", name: "Late / Early Approval" },
             { id: "monthlyLateDeduction", name: "Monthly Late Deduction" },
+            { id: "excessLateReview", name: "Late Over 30 Minutes" },
             { id: "leaveMaster", name: "Leave Form" },
             { id: "leaveApproval", name: "Leave Approval" },
             { id: "supervisorLeaveApproval", name: "Supervisor Leave Approval" },//new one

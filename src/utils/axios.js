@@ -16,6 +16,10 @@ axios.interceptors.request.use((req) => {
   if (token !== null) {
     req.headers.Authorization = `Bearer ${token}`;
   }
+  const cyberneticToken = localStorage.getItem("cybernetic_admin_token");
+  if (cyberneticToken) {
+    req.headers["X-Cybernetic-Token"] = cyberneticToken;
+  }
   return req;
 });
 

@@ -79,6 +79,8 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
     breakdown.monthly_late_nopay_deduction ?? breakdown.major_late_deduction ?? 0
   );
   const lateNoPayDays = Number(breakdown.monthly_late_nopay_days || 0);
+  const excessLateBasic = Number(breakdown.excess_late_nopay_basic || 0);
+  const excessLateBonus = Number(breakdown.excess_late_nopay_bonus || 0);
   const shortLeaveLate = Number(breakdown.short_leave_deduction || 0);
   const halfDayLate = Number(breakdown.half_day_deduction || 0);
   const epfEmployee = Number(breakdown.epf_employee_deduction || 0);
@@ -120,6 +122,11 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
         : `(basic + bonus)/${breakdown.nopay_working_days || 30} split`,
     },
     { label: "Probation Leave Deduction", amount: probationDeduction },
+    {
+      label: "Late >30m NoPay → Basic",
+      amount: excessLateBasic,
+      hint: "Rejected leave — deducted for late minutes",
+    },
     ...(loanBasicPrincipal > 0
       ? [{ label: "Loan Installment (Principal) → Basic", amount: loanBasicPrincipal }]
       : []),
@@ -135,6 +142,11 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
       hint: lateNoPayDays > 0
         ? `${lateNoPayDays} day(s) × monthly bonus/${breakdown.nopay_working_days || 30}`
         : "valued from monthly bonus, deducted from bonus",
+    },
+    {
+      label: "Late >30m NoPay → Monthly Bonus",
+      amount: excessLateBonus,
+      hint: "Rejected leave — deducted for late minutes",
     },
     {
       label: "Leave Shortfall NoPay → Monthly Bonus",

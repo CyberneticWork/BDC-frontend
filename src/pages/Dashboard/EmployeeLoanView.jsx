@@ -132,7 +132,8 @@ const EmployeeLoanView = ({ employeeProfile }) => {
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Interest</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Installment</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Request Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deduct Month</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
                 </tr>
@@ -148,6 +149,7 @@ const EmployeeLoanView = ({ employeeProfile }) => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-bold text-green-600">{formatCurrency(loan.installment_amount)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{formatDate(loan.request_date)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{formatDate(loan.start_from)}</td>
                     <td className="px-6 py-4 text-center">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${loan.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
@@ -206,7 +208,8 @@ const EmployeeLoanView = ({ employeeProfile }) => {
                 <div><p className="text-xs text-gray-500">Loan Amount</p><p className="font-bold">{formatCurrency(showDetails.loan_amount)}</p></div>
                 <div><p className="text-xs text-gray-500">Installment</p><p className="font-bold text-green-600">{formatCurrency(showDetails.installment_amount)}</p></div>
                 <div><p className="text-xs text-gray-500">Interest Rate</p><p className="font-bold">{showDetails.interest_rate_per_annum}%</p></div>
-                <div><p className="text-xs text-gray-500">Start Date</p><p className="font-bold">{formatDate(showDetails.start_from)}</p></div>
+                <div><p className="text-xs text-gray-500">Request Date</p><p className="font-bold">{formatDate(showDetails.request_date)}</p></div>
+                <div><p className="text-xs text-gray-500">Deduct From Month</p><p className="font-bold">{formatDate(showDetails.start_from)}</p></div>
                 <div><p className="text-xs text-gray-500">Total Installments</p><p className="font-bold">{showDetails.installment_count}</p></div>
                 <div><p className="text-xs text-gray-500">Status</p><p className="font-bold capitalize">{showDetails.status}</p></div>
               </div>

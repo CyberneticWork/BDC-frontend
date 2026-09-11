@@ -52,7 +52,7 @@ export function exportLoanReportCSV(report, filenamePrefix = "loan_report") {
     "Loan ID", "Employee No", "Employee Name", "Company", "Department",
     "Loan Amount", "Interest Rate %", "Monthly Installment", "Total Installments",
     "Paid", "Remaining", "Outstanding", "Total Repaid", "Interest Paid",
-    "Principal Paid", "Deduct From", "Start Date", "Next Due", "Status",
+    "Principal Paid", "Deduct From", "Request Date", "Deduct From Month", "Next Due", "Status",
   ].map(escapeCsv).join(","));
 
   (report.loans || []).forEach((loan) => {
@@ -73,6 +73,7 @@ export function exportLoanReportCSV(report, filenamePrefix = "loan_report") {
       fmtNum(loan.total_interest_paid),
       fmtNum(loan.total_principal_paid),
       loan.deduct_from_label,
+      loan.request_date || "—",
       loan.start_from,
       loan.next_due_date || "—",
       loan.status,
@@ -205,7 +206,8 @@ export function exportLoanReportPDF(report, filenamePrefix = "loan_report") {
         ["Interest Rate", `${loan.interest_rate_per_annum}% p.a.`],
         ["Monthly Installment", fmt(loan.installment_amount)],
         ["Deduct From", loan.deduct_from_label],
-        ["Start Date", loan.start_from_display || loan.start_from],
+        ["Request Date", loan.request_date_display || loan.request_date || "—"],
+        ["Deduct From Month", loan.start_from_display || loan.start_from],
         ["Installments", `${loan.installments_paid} paid / ${loan.installments_remaining} remaining of ${loan.installment_count_total}`],
         ["Outstanding", fmt(loan.outstanding_balance)],
         ["Total Repaid", fmt(loan.total_repaid)],

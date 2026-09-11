@@ -4,15 +4,23 @@ import Login from "./Login";
 import { setUser } from "../../services/UserService";
 import { Shield, Users, Clock3, Mail, Phone } from "lucide-react";
 import { motion } from "framer-motion";
+import { useBranding } from "../../contexts/BrandingContext";
 
 function LoginPage({ onSuccess }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentYear] = useState(new Date().getFullYear());
+  const { branding } = useBranding();
+  const companyName = branding?.name || "SPM Tax and Management Consultants HR";
+  const theme = branding?.theme || {};
+  const primary = theme.primary || "#0B4F5C";
+  const secondary = theme.secondary || "#0D9488";
+  const accent = theme.accent || "#FF6B4A";
+  const ink = theme.ink || "#062A32";
 
   useEffect(() => {
-    document.title = "Sign in · SPM Tax and Management Consultants HR";
-  }, []);
+    document.title = `Sign in · ${companyName}`;
+  }, [companyName]);
 
   const handleLogin = async (credentials) => {
     setLoading(true);
@@ -66,7 +74,7 @@ function LoginPage({ onSuccess }) {
         className="relative lg:w-[52%] min-h-[42vh] lg:min-h-screen px-8 py-10 lg:px-14 lg:py-12 flex flex-col justify-between text-white overflow-hidden"
         style={{
           background:
-            "linear-gradient(145deg, #062A32 0%, #0B4F5C 42%, #0D9488 78%, #FF6B4A 130%)",
+            `linear-gradient(145deg, ${ink} 0%, ${primary} 42%, ${secondary} 78%, ${accent} 130%)`,
         }}
       >
         <div className="pointer-events-none absolute inset-0">
@@ -86,13 +94,16 @@ function LoginPage({ onSuccess }) {
         </div>
 
         <div className="relative z-10">
+          {branding?.logo_url && (
+            <img src={branding.logo_url} alt="" className="h-14 w-auto object-contain drop-shadow-lg" />
+          )}
           <motion.h1
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.28, duration: 0.55 }}
             className="font-display mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] max-w-xl"
           >
-            SPM Tax and Management Consultants HR
+            {companyName}
           </motion.h1>
 
           <motion.p

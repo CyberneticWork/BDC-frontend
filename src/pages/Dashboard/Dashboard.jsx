@@ -55,6 +55,7 @@ import Grouproster from "@dashboard/Grouproster";
 import LeaveMaster from "@dashboard/LeaveMaster";
 import NoPayManagement from "@dashboard/NoPayManagement";
 import MonthlyLateDeduction from "@dashboard/MonthlyLateDeduction";
+import ExcessLateReview from "@dashboard/ExcessLateReview";
 import LeaveCalendar from "@dashboard/LeaveCalendar";
 import SalaryProcessPage from "@dashboard/SalaryProcessPage";
 import LeaveApproval from "@dashboard/LeaveApproval";
@@ -708,6 +709,12 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="monthlyLateDeduction" action="view">
             <MonthlyLateDeduction />
+          </ProtectedComponent>
+        );
+      case "excessLateReview":
+        return (
+          <ProtectedComponent module="excessLateReview" action="view">
+            <ExcessLateReview />
           </ProtectedComponent>
         );
       case "hrLeaveApproval":

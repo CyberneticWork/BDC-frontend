@@ -84,9 +84,8 @@ function RulesBanner({ rules }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        ≤30m and &gt;30m late days are counted separately, on any dates. First 3 days ≤30m are free.
-        The 4th–5th ≤30m days take short leave. From the 6th ≤30m day, every ≤30m day becomes a half day.
-        Any day over 30 minutes is a half day that day and does not use grace or short-leave slots.
+        This screen uses only lates within the first 30 minutes. Days late more than 30 minutes appear on Late Over 30 Minutes.
+        First 3 days ≤30m are free. The 4th–5th take short leave. From the 6th ≤30m day, every ≤30m day becomes a half day.
         Deducted days use Casual → Annual → remaining NoPay.
       </p>
     </div>
@@ -253,7 +252,8 @@ export default function MonthlyLateDeduction() {
           axios.get("/apiData/companies"),
         ]);
         setRules(rulesRes.rules || []);
-        setCompanies(Array.isArray(companiesRes.data) ? companiesRes.data : []);
+        const rows = Array.isArray(companiesRes.data) ? companiesRes.data : [];
+        setCompanies(rows.filter((c) => c.late_attendance_policy_enabled));
       } catch (e) {
         console.error(e);
       }

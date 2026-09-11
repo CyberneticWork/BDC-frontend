@@ -103,14 +103,34 @@ export default function HikvisionDevicePanel({ companies = [] }) {
             <p><b>Webhook URL:</b></p>
             <code class="block break-all bg-slate-100 p-2 rounded text-xs">${webhook}</code>
             <p class="mt-2">Device IP: <b>${cfg?.device?.ip}:${cfg?.device?.port}</b> · User: <b>${cfg?.device?.username}</b></p>
-            <p class="text-xs text-slate-600">Copy <code>scripts/hikvision-bridge</code> to an office PC → set .env → <code>npm start</code></p>
+            <p class="text-xs text-slate-600">Same method as Solar: copy <code>scripts/hikvision-bridge</code> to an office PC, save .env, run <code>npm start</code> or install-autostart.bat.</p>
           </div>
         `,
-        confirmButtonText: "Copy Punches URL",
+        confirmButtonText: "Download office .env",
+        showDenyButton: true,
+        denyButtonText: "Copy Punches URL",
         showCancelButton: true,
         cancelButtonText: "Close",
       }).then((r) => {
-        if (r.isConfirmed && punches && navigator.clipboard) {
+        if (r.isConfirmed) {
+          const envText = [
+            `DEVICE_IP=${cfg?.device?.ip || ""}`,
+            `DEVICE_PORT=${cfg?.device?.port || 80}`,
+            `DEVICE_USER=${cfg?.device?.username || "admin"}`,
+            `DEVICE_PASSWORD=${cfg?.device?.password || ""}`,
+            `CLOUD_PUNCHES_URL=${punches}`,
+            `CLOUD_BASE_URL=${cfg?.cloud?.public_api_url || ""}`,
+            cfg?.cloud?.secret_header ? `HIKVISION_SECRET=${cfg.cloud.secret_header}` : "",
+            "POLL_SECONDS=60",
+            "LOOKBACK_MINUTES=180",
+          ].filter(Boolean).join("\n");
+          const blob = new Blob([envText], { type: "text/plain" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "hikvision-bridge.env";
+          a.click();
+        }
+        if (r.isDenied && punches && navigator.clipboard) {
           navigator.clipboard.writeText(punches);
         }
       });

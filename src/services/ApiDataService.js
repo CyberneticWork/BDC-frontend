@@ -95,6 +95,16 @@ export const updateCompany = async (id, data) => {
   }
 };
 
+export const uploadCompanyLogo = async (id, file, extra = {}) => {
+  const form = new FormData();
+  if (file) form.append("logo", file);
+  if (extra.logo_url) form.append("logo_url", extra.logo_url);
+  const response = await axios.post(`/companies/${id}/logo`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
+};
+
 export const deleteCompany = async (id) => {
   try {
     await axios.delete(`/companies/${id}`);

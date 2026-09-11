@@ -3,11 +3,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import OTPLogin from "./pages/Auth/OTPLogin.jsx";
 import EmployeePortal from "./pages/EmployeePortal/EmployeePortal.jsx";
+import CyberneticAdminPage from "./pages/CyberneticAdmin/CyberneticAdminPage.jsx";
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/cybernetic-admin" element={<CyberneticAdminPage />} />
       <Route path="/otp-login" element={<OTPLogin />} />
       <Route path="/employee-portal" element={<EmployeePortal />} />
       <Route path="/employee-login" element={<Navigate to="/otp-login" replace />} />

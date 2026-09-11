@@ -4,7 +4,6 @@ import {
   fetchCompanies,
   fetchDepartments,
   fetchSubDepartments,
-  createCompany,
   updateCompany,
   deleteCompany,
   createDepartment,
@@ -28,7 +27,6 @@ const EditModal = ({
 }) => {
   const [localForm, setLocalForm] = React.useState(companyForm);
   const [errors, setErrors] = React.useState({});
-
   const isAddMode = !editingCompany;
 
   React.useEffect(() => {
@@ -208,13 +206,12 @@ const EditModal = ({
                     showConfirmButton: false,
                   });
                 } else {
-                  await createCompany(payload);
                   Swal.fire({
-                    icon: "success",
-                    title: "Company added successfully!",
-                    timer: 1500,
-                    showConfirmButton: false,
+                    icon: "info",
+                    title: "Use Cybernetic Admin",
+                    text: "New companies are created at /cybernetic-admin",
                   });
+                  return;
                 }
                 setShowAddModal(false);
                 await refreshAll?.();
@@ -270,6 +267,12 @@ const Department = () => {
     employees: '',
     established: '',
     nopay_working_days: 30,
+    slug: '',
+    frontend_host: '',
+    logo_url: '',
+    theme_primary: '#0B4F5C',
+    theme_secondary: '#0D9488',
+    theme_accent: '#FF6B4A',
   });
   const [deptForm, setDeptForm] = useState({
     company_id: '',
@@ -435,6 +438,7 @@ const Department = () => {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company ID</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HR URL</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employees</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Established</th>
@@ -450,13 +454,20 @@ const Department = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <Building2 className="w-5 h-5 text-gray-400 mr-3" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{company.name}</div>
-                      </div>
-                    </div>
-                  </td>
+                        <div className="flex items-center">
+                          {company.logo_url ? (
+                            <img src={company.logo_url} alt="" className="w-8 h-8 object-contain mr-3" />
+                          ) : (
+                            <Building2 className="w-5 h-5 text-gray-400 mr-3" />
+                          )}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{company.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-teal-800">
+                        {company.frontend_host || "—"}
+                      </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{company.location}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {company.employees}
@@ -476,6 +487,12 @@ const Department = () => {
                             employees: company.employees || '',
                             established: company.established || '',
                             nopay_working_days: company.nopay_working_days ?? 30,
+                            slug: company.slug || '',
+                            frontend_host: company.frontend_host || '',
+                            logo_url: company.logo_url || '',
+                            theme_primary: company.theme_primary || '#0B4F5C',
+                            theme_secondary: company.theme_secondary || '#0D9488',
+                            theme_accent: company.theme_accent || '#FF6B4A',
                           });
                           setShowAddModal(true);
                         }}
@@ -1457,19 +1474,6 @@ const Department = () => {
                 Search
               </button> */}
               {/* Add buttons based on activeTab */}
-              {activeTab === 'companies' && (
-                <button
-                  onClick={() => {
-                    setModalMode('add');
-                    setCompanyForm({ company_code: '', name: '', location: '', employees: '', established: '', nopay_working_days: 30 });
-                    setShowAddModal(true);
-                  }}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add New Company
-                </button>
-              )}
               {activeTab === 'departments' && (
                 <button
                   onClick={() => setShowAddDeptModal(true)}
