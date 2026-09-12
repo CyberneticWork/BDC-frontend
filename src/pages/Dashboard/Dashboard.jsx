@@ -1329,7 +1329,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md"
                     style={{
-                      background: "linear-gradient(135deg, #0D9488, #FF6B4A)",
+                      background: "linear-gradient(135deg, var(--brand-teal), var(--brand-coral))",
                     }}
                   >
                     <Building2 className="h-5 w-5 text-white" />
@@ -1350,7 +1350,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <span
                     className="inline-flex items-center gap-1 text-white text-xs font-bold px-3 py-1 rounded-full capitalize shadow-sm"
                     style={{
-                      background: "linear-gradient(120deg, #0D9488, #0B4F5C 70%, #FF6B4A)",
+                      background: "linear-gradient(120deg, var(--brand-teal), var(--brand-deep) 70%, var(--brand-coral))",
                     }}
                   >
                     {user.role}
@@ -1361,7 +1361,7 @@ const Dashboard = ({ user, onLogout }) => {
                   onClick={onLogout}
                   className="text-white px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 shadow-md hover:brightness-110"
                   style={{
-                    background: "linear-gradient(120deg, #FF6B4A, #e11d48)",
+                    background: "linear-gradient(120deg, var(--brand-coral), #e11d48)",
                   }}
                 >
                   Logout

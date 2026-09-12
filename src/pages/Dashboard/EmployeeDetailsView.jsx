@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { User, Mail, Phone, MapPin, Briefcase, DollarSign, FileText } from "lucide-react";
 import employeeService from "@services/EmployeeDataService";
 import config from "@src/config";
+import { mediaUrl } from "../../utils/mediaUrl";
 
 export default function EmployeeDetailsView({ employeeId }) {
   const [employee, setEmployee] = useState(null);
@@ -43,7 +44,7 @@ export default function EmployeeDetailsView({ employeeId }) {
           {employee.profile_photo_path && (
             <div className="col-span-full flex justify-center mb-4">
               <img 
-                src={`${config.apiBaseUrl}/storage/${employee.profile_photo_path}`} 
+                src={mediaUrl(employee.profile_photo_path)} 
                 alt={employee.full_name}
                 className="w-32 h-32 rounded-full object-cover border-4 border-blue-100"
               />
@@ -167,7 +168,7 @@ export default function EmployeeDetailsView({ employeeId }) {
               <li key={doc.id} className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-gray-500" />
                 <a 
-                  href={`${config.apiBaseUrl}/storage/${doc.document_path}`} 
+                  href={mediaUrl(doc.document_path)} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline"

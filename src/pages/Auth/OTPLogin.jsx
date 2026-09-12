@@ -2,9 +2,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Key, LogIn, ArrowLeft } from 'lucide-react';
 import axios from '../../utils/axios';
+import { useBranding } from '../../contexts/BrandingContext';
 
 export default function OTPLogin() {
   const navigate = useNavigate();
+  const { branding } = useBranding();
+  const companyName = branding?.name || 'Human Resources';
+  const theme = branding?.theme || {};
+  const primary = theme.primary || '#0B4F5C';
+  const secondary = theme.secondary || '#0D9488';
+  const accent = theme.accent || '#FF6B4A';
+  const ink = theme.ink || '#062A32';
   const [step, setStep] = useState(1); // 1: email, 2: OTP
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -58,8 +66,7 @@ export default function OTPLogin() {
       <div
         className="absolute inset-0"
         style={{
-          background:
-            "radial-gradient(900px 500px at 15% 10%, rgba(45,212,191,0.35), transparent 55%), radial-gradient(700px 420px at 90% 0%, rgba(255,107,74,0.22), transparent 50%), linear-gradient(160deg, #062A32 0%, #0B4F5C 45%, #0D9488 100%)",
+          background: `radial-gradient(900px 500px at 15% 10%, ${secondary}55, transparent 55%), radial-gradient(700px 420px at 90% 0%, ${accent}38, transparent 50%), linear-gradient(160deg, ${ink} 0%, ${primary} 45%, ${secondary} 100%)`,
         }}
       />
       <div className="absolute -top-24 -left-16 w-72 h-72 rounded-full bg-teal-300/20 blur-3xl anim-float" />
@@ -67,8 +74,16 @@ export default function OTPLogin() {
 
       <div className="relative w-full max-w-md anim-rise">
         <div className="text-center mb-8">
-          <p className="font-display text-3xl font-bold text-white">SPM Tax HR</p>
-          <p className="text-teal-100/90 text-sm mt-1">Employee Portal</p>
+          {branding?.logo_url ? (
+            <img
+              src={branding.logo_url}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="mx-auto mb-4 h-16 w-16 rounded-2xl bg-white object-contain p-1.5 shadow-lg"
+            />
+          ) : null}
+          <p className="font-display text-3xl font-bold text-white">{companyName}</p>
+          <p className="text-white/85 text-sm mt-1">Employee Portal</p>
         </div>
 
         <div className="glass-panel rounded-3xl p-8 border border-white/30">
@@ -120,7 +135,7 @@ export default function OTPLogin() {
                 type="submit"
                 disabled={loading}
                 className="w-full text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-50 shadow-lg hover:shadow-xl transition-all"
-                style={{ background: "linear-gradient(135deg, #0D9488, #0B4F5C)" }}
+                style={{ background: `linear-gradient(135deg, ${secondary}, ${primary})` }}
               >
                 {loading ? 'Sending...' : 'Send OTP'}
               </button>
@@ -149,7 +164,7 @@ export default function OTPLogin() {
                 type="submit"
                 disabled={loading}
                 className="w-full text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-50 shadow-lg hover:shadow-xl transition-all"
-                style={{ background: "linear-gradient(135deg, #FF6B4A, #F5A524)" }}
+                style={{ background: `linear-gradient(135deg, ${accent}, ${primary})` }}
               >
                 {loading ? (
                   'Verifying...'

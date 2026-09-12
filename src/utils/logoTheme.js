@@ -1,12 +1,14 @@
+export const DEFAULT_THEME = {
+  primary: "#0B4F5C",
+  secondary: "#0D9488",
+  accent: "#FF6B4A",
+  ink: "#062A32",
+  surface: "#F3FBF9",
+};
+
 export function extractThemeFromImageFile(file) {
   return new Promise((resolve) => {
-    const fallback = {
-      primary: "#0B4F5C",
-      secondary: "#0D9488",
-      accent: "#FF6B4A",
-      ink: "#062A32",
-      surface: "#F3FBF9",
-    };
+    const fallback = { ...DEFAULT_THEME };
     if (!file || !file.type?.startsWith("image/")) {
       resolve(fallback);
       return;
@@ -66,16 +68,31 @@ export function extractThemeFromImageFile(file) {
 }
 
 export function applyThemeToDocument(theme) {
-  if (typeof document === "undefined" || !theme) return;
+  if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const primary = theme.primary || "#0B4F5C";
-  const secondary = theme.secondary || "#0D9488";
-  const accent = theme.accent || "#FF6B4A";
-  const ink = theme.ink || "#062A32";
+  const primary = theme?.primary || DEFAULT_THEME.primary;
+  const secondary = theme?.secondary || DEFAULT_THEME.secondary;
+  const accent = theme?.accent || DEFAULT_THEME.accent;
+  const ink = theme?.ink || DEFAULT_THEME.ink;
+  const surface = theme?.surface || DEFAULT_THEME.surface;
   root.style.setProperty("--brand-ink", ink);
   root.style.setProperty("--brand-deep", primary);
   root.style.setProperty("--brand-teal", secondary);
   root.style.setProperty("--brand-coral", accent);
+  root.style.setProperty("--surface-0", surface);
+  root.style.setProperty("--brand-mint", shade(secondary, 0.35));
+  root.style.setProperty("--brand-deep-rgb", hexToRgb(primary));
+  root.style.setProperty("--brand-teal-rgb", hexToRgb(secondary));
+  root.style.setProperty("--brand-coral-rgb", hexToRgb(accent));
+  root.style.setProperty("--brand-ink-rgb", hexToRgb(ink));
+}
+
+function hexToRgb(hex) {
+  const h = String(hex || "").replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  if (Number.isNaN(n)) return "11, 79, 92";
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
 }
 
 function rgbToHex(r, g, b) {

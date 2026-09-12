@@ -27,7 +27,7 @@ const Login = ({ onSuccess, loading: parentLoading }) => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5, delay: 1.2 }}
+      transition={{ duration: 0.35, delay: 0.08 }}
     >
       <AuthForm
         isLogin={true}

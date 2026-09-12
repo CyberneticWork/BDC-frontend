@@ -1,4 +1,9 @@
 import axios from "@utils/axios";
+import {
+  companiesForCurrentUrl,
+  companyListQueryParams,
+  ensureBrandedCompany,
+} from "../utils/tenantCompanies";
 
 const API_PREFIX = "/apiData";
 
@@ -15,10 +20,19 @@ const normalizeCompany = (company) => {
   };
 };
 
-export const fetchCompanies = async () => {
+export const fetchCompanies = async (options = {}) => {
   try {
-    const response = await axios.get(`${API_PREFIX}/companies`);
-    return (response.data || []).map(normalizeCompany);
+    if (!options.all) {
+      await ensureBrandedCompany();
+    }
+    const response = await axios.get(`${API_PREFIX}/companies`, {
+      params: options.all ? { all: 1 } : companyListQueryParams(),
+    });
+    const rows = (response.data || []).map(normalizeCompany);
+    if (options.all) {
+      return rows;
+    }
+    return companiesForCurrentUrl(rows);
   } catch (error) {
     console.error("Error fetching companies:", error);
     return [];
@@ -27,7 +41,10 @@ export const fetchCompanies = async () => {
 
 export const fetchDepartments = async () => {
   try {
-    const response = await axios.get(`${API_PREFIX}/departments`);
+    await ensureBrandedCompany();
+    const response = await axios.get(`${API_PREFIX}/departments`, {
+      params: companyListQueryParams(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error fetching departments:", error);
@@ -47,7 +64,10 @@ export const fetchDepartmentsById = async (id) => {
 
 export const fetchSubDepartments = async () => {
   try {
-    const response = await axios.get(`${API_PREFIX}/subDepartments`);
+    await ensureBrandedCompany();
+    const response = await axios.get(`${API_PREFIX}/subDepartments`, {
+      params: companyListQueryParams(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error fetching sub-departments:", error);
@@ -93,6 +113,11 @@ export const updateCompany = async (id, data) => {
     console.error("Error updating company:", error);
     throw error;
   }
+};
+
+export const activateCompanyPortal = async (id) => {
+  const response = await axios.post(`/companies/${id}/activate-portal`);
+  return response.data;
 };
 
 export const uploadCompanyLogo = async (id, file, extra = {}) => {

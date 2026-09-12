@@ -8,11 +8,58 @@
   --brand-coral: #ff6b4a;
   --brand-amber: #f5a524;
   --brand-sky: #38bdf8;
+  --brand-ink-rgb: 6, 42, 50;
+  --brand-deep-rgb: 11, 79, 92;
+  --brand-teal-rgb: 13, 148, 136;
+  --brand-coral-rgb: 255, 107, 74;
   --surface-0: #f3fbf9;
   --surface-1: #ffffff;
   --text-muted: #5b6b73;
   --shadow-soft: 0 18px 50px rgba(6, 42, 50, 0.12);
   --radius-xl: 1.25rem;
+}
+
+@theme inline {
+  --color-blue-50: color-mix(in srgb, var(--brand-teal) 10%, white);
+  --color-blue-100: color-mix(in srgb, var(--brand-teal) 16%, white);
+  --color-blue-200: color-mix(in srgb, var(--brand-teal) 28%, white);
+  --color-blue-300: color-mix(in srgb, var(--brand-teal) 42%, white);
+  --color-blue-400: color-mix(in srgb, var(--brand-teal) 70%, white);
+  --color-blue-500: var(--brand-teal);
+  --color-blue-600: var(--brand-deep);
+  --color-blue-700: var(--brand-ink);
+  --color-blue-800: var(--brand-ink);
+  --color-blue-900: var(--brand-ink);
+  --color-indigo-50: color-mix(in srgb, var(--brand-deep) 10%, white);
+  --color-indigo-100: color-mix(in srgb, var(--brand-deep) 16%, white);
+  --color-indigo-200: color-mix(in srgb, var(--brand-deep) 28%, white);
+  --color-indigo-300: color-mix(in srgb, var(--brand-deep) 42%, white);
+  --color-indigo-400: color-mix(in srgb, var(--brand-teal) 70%, white);
+  --color-indigo-500: var(--brand-teal);
+  --color-indigo-600: var(--brand-deep);
+  --color-indigo-700: var(--brand-ink);
+  --color-indigo-800: var(--brand-ink);
+  --color-indigo-900: var(--brand-ink);
+  --color-teal-50: color-mix(in srgb, var(--brand-teal) 10%, white);
+  --color-teal-100: color-mix(in srgb, var(--brand-teal) 16%, white);
+  --color-teal-200: color-mix(in srgb, var(--brand-teal) 28%, white);
+  --color-teal-300: color-mix(in srgb, var(--brand-teal) 42%, white);
+  --color-teal-400: var(--brand-mint);
+  --color-teal-500: var(--brand-teal);
+  --color-teal-600: var(--brand-deep);
+  --color-teal-700: var(--brand-ink);
+  --color-teal-800: var(--brand-ink);
+  --color-cyan-500: var(--brand-teal);
+  --color-cyan-600: var(--brand-deep);
+  --color-sky-500: var(--brand-teal);
+  --color-sky-600: var(--brand-deep);
+  --color-purple-400: var(--brand-coral);
+  --color-purple-500: var(--brand-coral);
+  --color-purple-600: color-mix(in srgb, var(--brand-coral) 70%, var(--brand-ink));
+  --color-violet-500: var(--brand-coral);
+  --color-violet-600: var(--brand-deep);
+  --color-slate-800: var(--brand-ink);
+  --color-slate-900: var(--brand-ink);
 }
 
 html,
@@ -25,10 +72,11 @@ body {
   margin: 0;
   font-family: "Manrope", system-ui, sans-serif;
   color: var(--brand-ink);
+  accent-color: var(--brand-deep);
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(45, 212, 191, 0.28), transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, rgba(255, 107, 74, 0.16), transparent 50%),
-    linear-gradient(165deg, #f3fbf9 0%, #eef8ff 45%, #fff8f1 100%);
+    radial-gradient(1200px 600px at 10% -10%, rgba(var(--brand-teal-rgb), 0.28), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(var(--brand-coral-rgb), 0.16), transparent 50%),
+    linear-gradient(165deg, var(--surface-0) 0%, color-mix(in srgb, var(--brand-teal) 8%, white) 45%, color-mix(in srgb, var(--brand-coral) 6%, white) 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
@@ -41,7 +89,23 @@ h3,
   letter-spacing: -0.02em;
 }
 
-/* Soft page entrance */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+select,
+textarea {
+  color: var(--brand-ink);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline-color: var(--brand-teal);
+}
+
+.btn-brand {
+  background: linear-gradient(120deg, var(--brand-teal) 0%, var(--brand-deep) 55%, var(--brand-coral) 140%);
+  color: #fff;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -81,7 +145,7 @@ h3,
 }
 
 .brand-gradient-text {
-  background: linear-gradient(120deg, #0d9488 0%, #0b4f5c 45%, #ff6b4a 100%);
+  background: linear-gradient(120deg, var(--brand-teal) 0%, var(--brand-deep) 45%, var(--brand-coral) 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -98,9 +162,9 @@ h3,
 
 .dash-shell {
   background:
-    radial-gradient(800px 400px at 0% 0%, rgba(13, 148, 136, 0.08), transparent 60%),
-    radial-gradient(700px 360px at 100% 0%, rgba(255, 107, 74, 0.07), transparent 55%),
-    #f4faf8;
+    radial-gradient(800px 400px at 0% 0%, rgba(var(--brand-teal-rgb), 0.08), transparent 60%),
+    radial-gradient(700px 360px at 100% 0%, rgba(var(--brand-coral-rgb), 0.07), transparent 55%),
+    var(--surface-0);
 }
 
 .sidebar-scroll::-webkit-scrollbar {
@@ -111,8 +175,20 @@ h3,
   border-radius: 999px;
 }
 
-/* Toast polish */
+.swal2-confirm {
+  background: linear-gradient(120deg, var(--brand-teal), var(--brand-deep)) !important;
+  border: 0 !important;
+}
+
+.swal2-styled.swal2-confirm:focus {
+  box-shadow: 0 0 0 3px rgba(var(--brand-teal-rgb), 0.35) !important;
+}
+
 .Toastify__toast {
   border-radius: 12px !important;
   font-family: "Manrope", sans-serif !important;
+}
+
+.Toastify__progress-bar--success {
+  background: var(--brand-teal) !important;
 }

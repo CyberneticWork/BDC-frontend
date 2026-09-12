@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import axios from "@utils/axios";
+import { fetchCompanies as fetchCompaniesApi } from "@services/ApiDataService";
 import { format, parseISO } from "date-fns";
 import Swal from "sweetalert2";
 import NoPayService from "@services/Nopayservice";
@@ -55,8 +56,8 @@ const NoPayManagement = () => {
 
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get("/apiData/companies");
-      setCompanies(Array.isArray(response.data) ? response.data : []);
+      const data = await fetchCompaniesApi();
+      setCompanies(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching companies:", error);
     }
@@ -1071,6 +1072,7 @@ import {
   X,
 } from "lucide-react";
 import axios from "@utils/axios";
+import { fetchCompanies as fetchCompaniesApi } from "@services/ApiDataService";
 import { format, parseISO } from "date-fns";
 import Swal from "sweetalert2";
 import NoPayService from "@services/Nopayservice";
@@ -1111,8 +1113,8 @@ const NoPayManagement = () => {
 
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get("/apiData/companies");
-      setCompanies(Array.isArray(response.data) ? response.data : []);
+      const data = await fetchCompaniesApi();
+      setCompanies(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching companies:", error);
     }

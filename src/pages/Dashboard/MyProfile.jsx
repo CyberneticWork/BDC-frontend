@@ -17,6 +17,7 @@ import {
 import employeeService from "@services/EmployeeDataService";
 import { getUser, setUser } from "../../services/UserService";
 import config from "../../config";
+import { mediaUrl } from "../../utils/mediaUrl";
 import axios from "../../utils/axios";
 
 const apiUrl = config.apiBaseUrl;
@@ -202,7 +203,7 @@ const MyProfile = () => {
               <div className="relative h-32 w-32 md:h-40 md:w-40 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden border-4 border-white/50 shadow-2xl transform group-hover:scale-105 transition-transform duration-300">
                 {employee.profile_photo_path ? (
                   <img
-                    src={`${apiUrl}/storage/${employee.profile_photo_path}`}
+                    src={mediaUrl(employee.profile_photo_path)}
                     alt="Profile photo"
                     className="h-full w-full object-cover"
                   />

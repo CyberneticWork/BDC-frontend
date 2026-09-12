@@ -1,4 +1,47 @@
 import axios from "@utils/axios";
+import { isFirebaseConfigured, uploadToFirebase } from "./firebaseStorage";
+
+async function appendEmployeeMedia(formData, submissionData) {
+  if (formData.personal.profilePicture instanceof File) {
+    if (await isFirebaseConfigured()) {
+      const url = await uploadToFirebase(formData.personal.profilePicture, "hr/employee/photos");
+      submissionData.append("profile_picture_url", url);
+    } else {
+      submissionData.append("profile_picture", formData.personal.profilePicture);
+    }
+  } else if (
+    typeof formData.personal.profilePicturePreview === "string" &&
+    /^https?:\/\//i.test(formData.personal.profilePicturePreview)
+  ) {
+    submissionData.append("profile_picture_url", formData.personal.profilePicturePreview);
+  }
+
+  const remote = [];
+  const documentsMeta = [];
+  let fileIndex = 0;
+  for (const doc of formData.documents || []) {
+    if (doc.url && /^https?:\/\//i.test(doc.url) && !doc.file) {
+      remote.push({ type: doc.type || "unknown", name: doc.name || "document", url: doc.url });
+      continue;
+    }
+    if (doc.file instanceof File) {
+      if (await isFirebaseConfigured()) {
+        const url = await uploadToFirebase(doc.file, "hr/employee/documents");
+        remote.push({ type: doc.type || "unknown", name: doc.name || doc.file.name, url });
+      } else {
+        submissionData.append(`documents[${fileIndex}]`, doc.file);
+        documentsMeta.push({ type: doc.type || "unknown" });
+        fileIndex += 1;
+      }
+    }
+  }
+  if (documentsMeta.length) {
+    submissionData.append("documents", JSON.stringify(documentsMeta));
+  }
+  if (remote.length) {
+    submissionData.append("documents_remote", JSON.stringify(remote));
+  }
+}
 
 const employeeService = {
   // Submit employee data with file uploads
@@ -7,13 +50,7 @@ const employeeService = {
       // Create FormData for file uploads
       const submissionData = new FormData();
 
-      // Append profile picture if exists
-      if (formData.personal.profilePicture) {
-        submissionData.append(
-          "profile_picture",
-          formData.personal.profilePicture
-        );
-      }
+      await appendEmployeeMedia(formData, submissionData);
 
       // Append all other form data as JSON
       submissionData.append(
@@ -33,18 +70,6 @@ const employeeService = {
         "organization",
         JSON.stringify(formData.organization)
       );
-
-      // Append documents if any
-      if (formData.documents && formData.documents.length > 0) {
-        const documentsMeta = [];
-        formData.documents.forEach((doc, index) => {
-          if (doc.file) {
-            submissionData.append(`documents[${index}]`, doc.file);
-            documentsMeta.push({ type: doc.type || 'unknown' });
-          }
-        });
-        submissionData.append('documents', JSON.stringify(documentsMeta));
-      }
 
       const response = await axios.post("/employees", submissionData, {
         headers: {
@@ -74,13 +99,7 @@ const employeeService = {
       // Create FormData for file uploads
       const submissionData = new FormData();
 
-      // Append profile picture if exists
-      if (formData.personal.profilePicture) {
-        submissionData.append(
-          "profile_picture",
-          formData.personal.profilePicture
-        );
-      }
+      await appendEmployeeMedia(formData, submissionData);
 
       // Append all other form data as JSON
       submissionData.append(
@@ -100,18 +119,6 @@ const employeeService = {
         "organization",
         JSON.stringify(formData.organization)
       );
-
-      // Append documents if any
-      if (formData.documents && formData.documents.length > 0) {
-        const documentsMeta = [];
-        formData.documents.forEach((doc, index) => {
-          if (doc.file) {
-            submissionData.append(`documents[${index}]`, doc.file);
-            documentsMeta.push({ type: doc.type || 'unknown' });
-          }
-        });
-        submissionData.append('documents', JSON.stringify(documentsMeta));
-      }
 
       const response = await axios.post(
         "/employes/post/update",

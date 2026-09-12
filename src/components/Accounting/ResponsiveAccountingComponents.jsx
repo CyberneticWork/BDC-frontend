@@ -234,12 +234,12 @@ export const ResponsiveButton = ({
   };
 
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
+    primary: 'bg-[var(--brand-deep)] hover:bg-[var(--brand-ink)] text-white focus:ring-[var(--brand-teal)]',
     secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900 focus:ring-gray-500',
     success: 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500',
     danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
     warning: 'bg-yellow-600 hover:bg-yellow-700 text-white focus:ring-yellow-500',
-    outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500'
+    outline: 'border-2 border-[var(--brand-deep)] text-[var(--brand-deep)] hover:bg-[color-mix(in_srgb,var(--brand-teal)_12%,white)] focus:ring-[var(--brand-teal)]'
   };
 
   return (

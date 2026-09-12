@@ -1,4 +1,9 @@
 import axios from "@utils/axios";
+import {
+  companiesForCurrentUrl,
+  companyListQueryParams,
+  ensureBrandedCompany,
+} from "../utils/tenantCompanies";
 
 const timeCardService = {
   // ...existing methods...
@@ -95,8 +100,9 @@ const timeCardService = {
   },
 
   async fetchCompanies() {
-    const res = await axios.get('/companies');
-    return (res.data || []).map((company) => {
+    await ensureBrandedCompany();
+    const res = await axios.get('/companies', { params: companyListQueryParams() });
+    const rows = (res.data || []).map((company) => {
       const rawName = company?.name || company?.company_name || "";
       const code = company?.company_code || company?.companyCode || company?.code || "";
       const displayName = code && rawName ? `${code} - ${rawName}` : code || rawName || "Unnamed company";
@@ -108,6 +114,7 @@ const timeCardService = {
         display_name: displayName,
       };
     });
+    return companiesForCurrentUrl(rows);
   },
 
   async fetchTodayStats() {

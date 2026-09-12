@@ -16,6 +16,7 @@
     "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
     "feather-icons": "^4.29.2",
+    "firebase": "^12.19.0",
     "framer-motion": "^12.23.6",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",

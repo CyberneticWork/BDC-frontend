@@ -145,7 +145,7 @@ const Employeedocument = ({ onNext, onPrevious }) => {
                   Drop files here or click to browse
                 </h3>
                 <p className="text-gray-500">
-                  Support for multiple file types • Maximum 10MB per file
+                    Support for multiple file types • Uploads to Firebase Storage · Maximum 10MB per file
                 </p>
               </div>
 

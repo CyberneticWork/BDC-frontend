@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Ban, CheckCircle2, Clock, Loader2, RefreshCw } from "lucide-react";
 import Swal from "sweetalert2";
-import axios from "@utils/axios";
+import { fetchCompanies } from "@services/ApiDataService";
 import ExcessLateReviewService from "@services/ExcessLateReviewService";
 
 const MONTHS = [
@@ -30,9 +30,8 @@ export default function ExcessLateReview() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await axios.get("/apiData/companies");
-        const rows = Array.isArray(data) ? data : [];
-        setCompanies(rows.filter((c) => c.late_attendance_policy_enabled));
+        const rows = await fetchCompanies();
+        setCompanies((Array.isArray(rows) ? rows : []).filter((c) => c.late_attendance_policy_enabled));
       } catch (e) {
         console.error(e);
       }

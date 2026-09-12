@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import axios from "@utils/axios";
-import { applyThemeToDocument } from "@utils/logoTheme";
+import { applyThemeToDocument, DEFAULT_THEME } from "@utils/logoTheme";
+import { setBrandedCompany } from "../utils/tenantCompanies";
 
 const BrandingContext = createContext({ branding: null, loading: true });
 
@@ -23,7 +24,8 @@ export function BrandingProvider({ children }) {
         if (cancelled) return;
         const row = data?.data || null;
         setBranding(row);
-        if (row?.theme) applyThemeToDocument(row.theme);
+        setBrandedCompany(row);
+        applyThemeToDocument(row?.theme || DEFAULT_THEME);
         if (row?.name) document.title = `${row.name} HR`;
         if (row?.logo_url) {
           const link = document.querySelector("link[rel='icon']");
@@ -31,7 +33,11 @@ export function BrandingProvider({ children }) {
         }
       })
       .catch(() => {
-        if (!cancelled) setBranding(null);
+        if (!cancelled) {
+          setBranding(null);
+          setBrandedCompany(null);
+          applyThemeToDocument(DEFAULT_THEME);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

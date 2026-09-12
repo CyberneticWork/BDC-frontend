@@ -2,16 +2,25 @@ import React, { useState, useEffect } from "react";
 import { login, loadUser } from "../../services/AuthService";
 import Login from "./Login";
 import { setUser } from "../../services/UserService";
-import { Shield, Users, Clock3, Mail, Phone } from "lucide-react";
+import { Shield, Users, Clock3, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import { useBranding } from "../../contexts/BrandingContext";
+
+function companyInitials(name) {
+  const parts = String(name || "HR")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() || "").join("") || "HR";
+}
 
 function LoginPage({ onSuccess }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentYear] = useState(new Date().getFullYear());
-  const { branding } = useBranding();
-  const companyName = branding?.name || "SPM Tax and Management Consultants HR";
+  const { branding, loading: brandingLoading } = useBranding();
+  const companyName = branding?.name || "Human Resources";
+  const location = branding?.location || "";
   const theme = branding?.theme || {};
   const primary = theme.primary || "#0B4F5C";
   const secondary = theme.secondary || "#0D9488";
@@ -50,12 +59,12 @@ function LoginPage({ onSuccess }) {
     {
       icon: Users,
       title: "People operations",
-      text: "Employees, rosters, leave and payroll in one place.",
+      text: "Employees, rosters, leave and payroll in one workspace.",
     },
     {
       icon: Clock3,
       title: "Live attendance",
-      text: "Fingerprint sync, time cards and approvals.",
+      text: "Time cards, approvals and biometric sync.",
     },
     {
       icon: Shield,
@@ -65,63 +74,81 @@ function LoginPage({ onSuccess }) {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden">
-      {/* Brand plane — first viewport composition */}
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden bg-[var(--surface-0)]">
       <motion.section
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.6 }}
-        className="relative lg:w-[52%] min-h-[42vh] lg:min-h-screen px-8 py-10 lg:px-14 lg:py-12 flex flex-col justify-between text-white overflow-hidden"
+        transition={{ duration: 0.55 }}
+        className="relative lg:w-[54%] min-h-[38vh] lg:min-h-screen px-8 py-10 lg:px-16 lg:py-14 flex flex-col justify-between text-white overflow-hidden"
         style={{
-          background:
-            `linear-gradient(145deg, ${ink} 0%, ${primary} 42%, ${secondary} 78%, ${accent} 130%)`,
+          background: `linear-gradient(152deg, ${ink} 0%, ${primary} 46%, ${secondary} 86%, ${accent} 145%)`,
         }}
       >
         <div className="pointer-events-none absolute inset-0">
-          <div className="anim-float absolute -top-16 -right-10 w-72 h-72 rounded-full bg-teal-300/20 blur-2xl" />
+          <div className="absolute -top-24 right-0 h-80 w-80 rounded-full blur-3xl opacity-30" style={{ background: accent }} />
+          <div className="absolute bottom-0 -left-16 h-96 w-96 rounded-full blur-3xl opacity-25" style={{ background: secondary }} />
           <div
-            className="anim-float absolute bottom-10 -left-20 w-96 h-96 rounded-full bg-coral-400/10 blur-3xl"
-            style={{ animationDelay: "1.2s" }}
-          />
-          <div
-            className="absolute inset-0 opacity-[0.12]"
+            className="absolute inset-0 opacity-[0.14]"
             style={{
               backgroundImage:
-                "radial-gradient(circle at 20% 30%, white 1px, transparent 1.5px), radial-gradient(circle at 80% 70%, white 1px, transparent 1.5px)",
-              backgroundSize: "42px 42px",
+                "radial-gradient(circle at 18% 22%, white 1px, transparent 1.5px)",
+              backgroundSize: "36px 36px",
             }}
           />
         </div>
 
         <div className="relative z-10">
-          {branding?.logo_url && (
-            <img src={branding.logo_url} alt="" className="h-14 w-auto object-contain drop-shadow-lg" />
-          )}
-          <motion.h1
-            initial={{ y: 24, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.28, duration: 0.55 }}
-            className="font-display mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] max-w-xl"
-          >
-            {companyName}
-          </motion.h1>
+          <div className="inline-flex items-center gap-4 rounded-2xl bg-white/12 border border-white/20 px-4 py-3 backdrop-blur-md">
+            {branding?.logo_url ? (
+              <img
+                src={branding.logo_url}
+                alt={companyName}
+                referrerPolicy="no-referrer"
+                className="h-14 w-14 rounded-xl bg-white object-contain p-1.5 shadow-lg"
+              />
+            ) : (
+              <div
+                className="h-14 w-14 rounded-xl grid place-items-center font-display text-lg font-bold shadow-lg"
+                style={{ background: "rgba(255,255,255,0.18)" }}
+              >
+                {companyInitials(companyName)}
+              </div>
+            )}
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/70">Workforce portal</p>
+              <p className="font-semibold leading-tight">{companyName}</p>
+            </div>
+          </div>
 
-          <motion.p
-            initial={{ y: 20, opacity: 0 }}
+          <motion.h1
+            initial={{ y: 22, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.42, duration: 0.5 }}
-            className="mt-5 max-w-md text-base sm:text-lg text-white/85 leading-relaxed"
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="font-display mt-8 text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold leading-[1.08] max-w-xl"
           >
-            Professional workforce management for attendance, leave, payroll and
-            employee self-service.
+            Sign in to manage your people
+          </motion.h1>
+          <motion.p
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.35, duration: 0.45 }}
+            className="mt-4 max-w-md text-base sm:text-lg text-white/85 leading-relaxed"
+          >
+            Attendance, leave, payroll and employee self-service — branded for your organisation.
           </motion.p>
+          {location ? (
+            <p className="mt-4 inline-flex items-center gap-2 text-sm text-white/75">
+              <MapPin className="h-4 w-4" />
+              {location}
+            </p>
+          ) : null}
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55, duration: 0.5 }}
-          className="relative z-10 mt-10 space-y-4"
+          transition={{ delay: 0.45, duration: 0.45 }}
+          className="relative z-10 mt-10 grid gap-3 sm:grid-cols-1"
         >
           {features.map((f) => (
             <div
@@ -132,40 +159,33 @@ function LoginPage({ onSuccess }) {
                 <f.icon className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-semibold text-white">{f.title}</p>
+                <p className="font-semibold">{f.title}</p>
                 <p className="text-sm text-white/80">{f.text}</p>
               </div>
             </div>
           ))}
-
-          <div className="pt-4 flex flex-wrap gap-4 text-sm text-white/75 border-t border-white/15">
-            <span className="inline-flex items-center gap-2">
-              <Mail className="h-4 w-4" /> info@cybernetic.lk
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <Phone className="h-4 w-4" /> +94 70 250 5007
-            </span>
-          </div>
         </motion.div>
       </motion.section>
 
-      {/* Sign-in composition */}
       <motion.section
-        initial={{ opacity: 0, x: 24 }}
+        initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.55, delay: 0.2 }}
+        transition={{ duration: 0.5, delay: 0.12 }}
         className="flex-1 flex flex-col justify-center px-6 py-10 sm:px-10 lg:px-16"
       >
         <div className="w-full max-w-md mx-auto">
-          <div className="glass-panel rounded-3xl p-8 sm:p-9">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-700">
+          <div className="rounded-3xl border border-white/70 bg-white/90 p-8 sm:p-9 shadow-[0_24px_60px_rgba(6,42,50,0.12)]">
+            {brandingLoading ? (
+              <p className="text-sm text-slate-500">Loading company branding…</p>
+            ) : null}
+            <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: secondary }}>
               Secure sign-in
             </p>
             <h2 className="font-display mt-2 text-3xl font-bold text-[var(--brand-ink)]">
               Welcome back
             </h2>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
-              Enter your credentials to open the management dashboard.
+              Use your email or NIC and password to open the {companyName} dashboard.
             </p>
 
             {error && (
@@ -180,26 +200,17 @@ function LoginPage({ onSuccess }) {
             </div>
 
             <div className="mt-6 text-center space-y-2">
-              <a
-                href="/otp-login"
-                className="block text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors"
-              >
+              <a href="/otp-login" className="block text-sm font-semibold hover:underline" style={{ color: primary }}>
                 Employee OTP login →
               </a>
-              <a
-                href="/employee-portal"
-                className="block text-sm font-semibold text-slate-600 hover:text-teal-800 transition-colors"
-              >
+              <a href="/employee-portal" className="block text-sm font-semibold text-slate-600 hover:text-slate-900">
                 Open employee portal →
               </a>
-              <p className="mt-3 text-xs text-[var(--text-muted)]">
-                Need help? Contact your system administrator.
-              </p>
             </div>
           </div>
 
           <p className="mt-8 text-center text-xs text-[var(--text-muted)]">
-            © {currentYear} SPM Tax and Management Consultants HR
+            © {currentYear} {companyName}
           </p>
         </div>
       </motion.section>

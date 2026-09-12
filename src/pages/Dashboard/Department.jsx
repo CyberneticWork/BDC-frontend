@@ -15,6 +15,7 @@ import {
 } from '../../services/ApiDataService';
 import Swal from "sweetalert2";
 import { useAuth } from "../../contexts/AuthContext";
+import { isDedicatedCompanyUrl, scopeOrgRecords } from "../../utils/tenantCompanies";
 
 // EditModal
 const EditModal = ({
@@ -308,9 +309,10 @@ const Department = () => {
       fetchDepartments(),
       fetchSubDepartments()
     ]).then(([companiesData, departmentsData, subDepartmentsData]) => {
-      setCompanies(companiesData);
-      setDepartments(departmentsData);
-      setSubDepartments(subDepartmentsData);
+      const scoped = scopeOrgRecords(companiesData, departmentsData, subDepartmentsData);
+      setCompanies(scoped.companies);
+      setDepartments(scoped.departments);
+      setSubDepartments(scoped.subDepartments);
       setLoading(false);
     });
   }, []);
@@ -1080,10 +1082,19 @@ const Department = () => {
       fetchDepartments(),
       fetchSubDepartments(),
     ]);
-    setCompanies(companiesData);
-    setDepartments(departmentsData);
-    setSubDepartments(subDepartmentsData);
+    const scoped = scopeOrgRecords(companiesData, departmentsData, subDepartmentsData);
+    setCompanies(scoped.companies);
+    setDepartments(scoped.departments);
+    setSubDepartments(scoped.subDepartments);
   };
+
+  const tenantLocked = isDedicatedCompanyUrl(companies);
+
+  useEffect(() => {
+    if (tenantLocked && activeTab === "companies") {
+      setActiveTab("departments");
+    }
+  }, [tenantLocked, activeTab]);
 
   const handleCreateSubDept = async (form) => {
     try {
@@ -1385,18 +1396,22 @@ const Department = () => {
           <div className="mb-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg shadow-lg">
             <h1 className="text-3xl font-bold mb-2">Department Management</h1>
             <p className="text-blue-100">
-              Manage your organization's structure including companies, departments, and subdepartments.
+              {tenantLocked
+                ? "This URL is this company only. Organisation is departments and subdepartments under it."
+                : "Companies that share this URL appear here. Companies with a different HR URL are not listed."}
             </p>
           </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {!tenantLocked && (
             <StatCard 
               icon={Building2} 
               title="Total Companies" 
               value={companies.length} 
               color="bg-blue-500" 
             />
+            )}
             <StatCard 
               icon={Users} 
               title="Total Departments" 
@@ -1421,10 +1436,10 @@ const Department = () => {
           {/* Navigation Tabs */}
           <div className="flex space-x-1 mb-6">
             {[
-              { key: 'companies', label: 'Companies', icon: Building2 },
+              !tenantLocked && { key: 'companies', label: 'Companies', icon: Building2 },
               { key: 'departments', label: 'Departments', icon: Users },
               { key: 'subdepartments', label: 'Subdepartments', icon: UserCheck }
-            ].map(tab => (
+            ].filter(Boolean).map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
