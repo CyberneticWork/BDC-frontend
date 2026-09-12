@@ -49,7 +49,10 @@ import EmployeeLoanView from "@dashboard/EmployeeLoanView";
 import TimeCard from "@dashboard/TimeCard";
 import Overtime from "@dashboard/Overtime";
 import LateEarlyApproval from "@dashboard/LateEarlyApproval";
+import TimeCardApproval from "@dashboard/TimeCardApproval";
+import TimeCardAuditReport from "@dashboard/TimeCardAuditReport";
 import ShiftHoursReport from "@dashboard/ShiftHoursReport";
+import MonthlyHoursReport from "@dashboard/MonthlyHoursReport";
 import Department from "@dashboard/Department";
 import Grouproster from "@dashboard/Grouproster";
 import LeaveMaster from "@dashboard/LeaveMaster";
@@ -757,6 +760,12 @@ const Dashboard = ({ user, onLogout }) => {
             <LateEarlyApproval />
           </ProtectedComponent>
         );
+      case "timeCardApproval":
+        return (
+          <ProtectedComponent module="timeCardApproval" action="view">
+            <TimeCardApproval />
+          </ProtectedComponent>
+        );
       case "departmentMaster":
         return (
           <ProtectedComponent module="departmentMaster" action="view">
@@ -884,6 +893,30 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="shiftHoursReport" action="view">
             <ShiftHoursReport />
+          </ProtectedComponent>
+        );
+      case "monthlyWorkingHoursReport":
+        return (
+          <ProtectedComponent module="monthlyWorkingHoursReport" action="view">
+            <MonthlyHoursReport reportType="working" />
+          </ProtectedComponent>
+        );
+      case "monthlyOtHoursReport":
+        return (
+          <ProtectedComponent module="monthlyOtHoursReport" action="view">
+            <MonthlyHoursReport reportType="ot" />
+          </ProtectedComponent>
+        );
+      case "timeCardAuditReport":
+        return (
+          <ProtectedComponent module="timeCardAuditReport" action="view">
+            <TimeCardAuditReport />
+          </ProtectedComponent>
+        );
+      case "deletedTimeCardReport":
+        return (
+          <ProtectedComponent module="deletedTimeCardReport" action="view">
+            <TimeCardAuditReport defaultAction="deleted" />
           </ProtectedComponent>
         );
         {/*

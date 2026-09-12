@@ -35,9 +35,12 @@ const timeCardService = {
   },
 
   // Updated to match the new backend destroy method
-  deleteTimeCard: async (id) => {
+  deleteTimeCard: async (id, reason) => {
     try {
-      const response = await axios.delete(`/time-cards/${id}`);
+      const response = await axios.delete(`/time-cards/${id}`, {
+        data: { reason },
+        params: { reason },
+      });
       return response.data;
     } catch (error) {
       console.error("Error deleting time card:", error);

@@ -33,6 +33,21 @@ const PROCESS_OPTIONS = [
   },
 ];
 
+const OT_HOUR_OPTIONS = [
+  {
+    key: "current",
+    label: "Current OT hours",
+    summary:
+      "Keep the existing OT hour rule: time is taken in 30-minute blocks, and OT is saved only when it is more than 0.5 hours.",
+  },
+  {
+    key: "minute_band",
+    label: "Minute-band OT hours",
+    summary:
+      "0h 00–29m = 0. 0h 30–44m = 0.30. 0h 45–59m = 0.45. For 1h+: 00–14m keep whole hours; 15–29m add 0.15; 30–44m add 0.30; 45–59m add 0.45.",
+  },
+];
+
 const FUTURE_CONFIGS = [
   {
     key: "leave_rules",
@@ -67,6 +82,7 @@ const emptyForm = {
   late_attendance_policy_enabled: false,
   portal_active: false,
   attendance_process: "spm_standard",
+  ot_hour_calculation: "current",
 };
 
 export default function CyberneticAdminPage() {
@@ -154,6 +170,7 @@ export default function CyberneticAdminPage() {
       late_attendance_policy_enabled: !!company.late_attendance_policy_enabled,
       portal_active: !!company.portal_active,
       attendance_process: company.attendance_process || "spm_standard",
+      ot_hour_calculation: company.process_config?.ot_hour_calculation || "current",
     });
   };
 
@@ -176,6 +193,7 @@ export default function CyberneticAdminPage() {
         attendance_process: form.attendance_process || "spm_standard",
         process_config: {
           attendance_process: form.attendance_process || "spm_standard",
+          ot_hour_calculation: form.ot_hour_calculation || "current",
         },
       };
       let saved;
@@ -314,6 +332,7 @@ export default function CyberneticAdminPage() {
                   <th className="py-2 pr-3">Login brand</th>
                   <th className="py-2 pr-3">Late policy</th>
                   <th className="py-2 pr-3">Payroll process</th>
+                  <th className="py-2 pr-3">OT hours</th>
                   <th className="py-2"> </th>
                 </tr>
               </thead>
@@ -367,6 +386,13 @@ export default function CyberneticAdminPage() {
                         <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">Shift &amp; roster</span>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">SPM current</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-3 text-xs">
+                      {company.process_config?.ot_hour_calculation === "minute_band" ? (
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-900">Minute band</span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">Current</span>
                       )}
                     </td>
                     <td className="py-3 text-right">
@@ -472,6 +498,36 @@ export default function CyberneticAdminPage() {
                       value={option.key}
                       checked={selected}
                       onChange={() => setForm({ ...form, attendance_process: option.key })}
+                    />
+                    <span>
+                      <span className="font-semibold text-slate-900">{option.label}</span>
+                      <span className="block text-xs text-slate-600 mt-0.5">{option.summary}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 pt-2">OT hour calculation</p>
+            <p className="text-xs text-slate-600">
+              Separate from attendance process. Current OT stays as it is unless you pick minute-band rounding for this company.
+            </p>
+            <div className="space-y-2">
+              {OT_HOUR_OPTIONS.map((option) => {
+                const selected = (form.ot_hour_calculation || "current") === option.key;
+                return (
+                  <label
+                    key={option.key}
+                    className={`flex items-start gap-2 rounded-lg border p-3 text-sm cursor-pointer ${
+                      selected ? "border-teal-500 bg-white" : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      name="ot_hour_calculation"
+                      value={option.key}
+                      checked={selected}
+                      onChange={() => setForm({ ...form, ot_hour_calculation: option.key })}
                     />
                     <span>
                       <span className="font-semibold text-slate-900">{option.label}</span>

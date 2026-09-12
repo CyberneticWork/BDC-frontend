@@ -142,6 +142,7 @@ const Sidebar = ({
               { id: "TimeCard", name: "Time Card" },
               { id: "Overtime", name: "Over Time" },
               { id: "lateEarlyApproval", name: "Late / Early Approval" },
+              { id: "timeCardApproval", name: "Time Card Approval" },
               { id: "monthlyLateDeduction", name: "Monthly Late Deduction" },
               { id: "excessLateReview", name: "Late Over 30 Minutes" },
               { id: "leaveMaster", name: "Leave Form" },
@@ -170,6 +171,10 @@ const Sidebar = ({
               { id: "singleEntryReport", name: "Single Entry Report" },
               { id: "absentReport", name: "Absent Report" },
               { id: "shiftHoursReport", name: "Shift Hours Reports" },
+              { id: "monthlyWorkingHoursReport", name: "Monthly Working Hours" },
+              { id: "monthlyOtHoursReport", name: "Monthly OT Hours" },
+              { id: "timeCardAuditReport", name: "Time Card Audit Report" },
+              { id: "deletedTimeCardReport", name: "Deleted Time Card Report" },
             ],
           },
           {
