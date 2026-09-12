@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import PMSService from "../../../services/PMS/PMSService"; // Updated import
+import { uploadToFirebase } from "../../../services/firebaseStorage";
 import { TaskProgressUpdateModal } from "./TaskProgressUpdateModal";
 import { TaskViewModal } from "./TaskViewModal";
 
@@ -298,10 +299,11 @@ const EmployeeKPIView = () => {
       
       // Append document metadata only if file exists
       if (progressData.file && progressData.documentName) {
+        const documentUrl = await uploadToFirebase(progressData.file, "hr/task-documents");
         formData.append('document_name', progressData.documentName);
         formData.append('document_size', progressData.documentSize || '0 KB');
         formData.append('document_type', progressData.documentType || 'unknown');
-        formData.append('document', progressData.file);
+        formData.append('document_url', documentUrl);
       }
 
       console.log("FormData ready for submission");

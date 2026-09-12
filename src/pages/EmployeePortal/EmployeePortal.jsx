@@ -10,9 +10,13 @@ import {
   Wallet,
   Banknote,
   ArrowLeft,
+  HeartPulse,
+  CalendarDays,
 } from "lucide-react";
 import {
   changeMyPassword,
+  getCoveringColleagues,
+  getCoveringLeaves,
   getMyAdvances,
   getMyAttendance,
   getMyLeaves,
@@ -20,11 +24,20 @@ import {
   getMyOvertime,
   getMySalary,
   getPortalHome,
+  respondCoveringLeave,
   submitAdvance,
   submitLeave,
 } from "../../services/EmployeePortalService";
 import { logout } from "../../services/AuthService";
 import { clearUser, getUser } from "../../services/UserService";
+import NotificationBell from "../../components/NotificationBell";
+import {
+  getMyMedicalClaims,
+  getMyWeeklyOffs,
+  submitMedicalClaim,
+  submitWeeklyOff,
+} from "../../services/BenefitPackService";
+import { uploadToFirebase } from "../../services/firebaseStorage";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -70,6 +83,8 @@ export default function EmployeePortal() {
   const [year, setYear] = useState(now.getFullYear());
 
   const [leaveHistory, setLeaveHistory] = useState([]);
+  const [colleagues, setColleagues] = useState([]);
+  const [coveringInbox, setCoveringInbox] = useState([]);
   const [advances, setAdvances] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [overtime, setOvertime] = useState([]);
@@ -83,12 +98,18 @@ export default function EmployeePortal() {
     leave_to: "",
     day_type: "FULL",
     reason: "",
+    covering_employee_id: "",
   });
   const [advanceForm, setAdvanceForm] = useState({
     amount: "",
     needed_on: "",
     reason: "",
   });
+  const [offForm, setOffForm] = useState({ off_date: "", day_type: "FULL", reason: "" });
+  const [weeklyOffs, setWeeklyOffs] = useState([]);
+  const [weeklySchedule, setWeeklySchedule] = useState([]);
+  const [medicalForm, setMedicalForm] = useState({ amount: "", description: "", bill: null });
+  const [medicalClaims, setMedicalClaims] = useState([]);
   const [passwordForm, setPasswordForm] = useState({
     current_password: "",
     new_password: "",
@@ -134,6 +155,14 @@ export default function EmployeePortal() {
   const loadLeave = async () => {
     const data = await getMyLeaves();
     setLeaveHistory(data.items || []);
+    if (home?.leaveWorkflow) {
+      const [people, covering] = await Promise.all([
+        getCoveringColleagues(),
+        getCoveringLeaves(),
+      ]);
+      setColleagues(people.items || []);
+      setCoveringInbox(covering.items || []);
+    }
   };
 
   const loadAdvances = async () => {
@@ -170,6 +199,19 @@ export default function EmployeePortal() {
     if (view === "advance") loadAdvances().catch(() => flash(false, "Failed to load advances"));
     if (view === "time") loadTime().catch(() => flash(false, "Failed to load attendance"));
     if (view === "pay") loadPay().catch(() => flash(false, "Failed to load pay data"));
+    if (view === "weekly-off" && home?.weeklyOffEnabled) {
+      getMyWeeklyOffs()
+        .then((data) => {
+          setWeeklyOffs(data.items || []);
+          setWeeklySchedule(data.schedule || []);
+        })
+        .catch(() => flash(false, "Failed to load weekly offs"));
+    }
+    if (view === "medical" && home?.medicalClaimsEnabled) {
+      getMyMedicalClaims()
+        .then((data) => setMedicalClaims(data.items || []))
+        .catch(() => flash(false, "Failed to load medical claims"));
+    }
   }, [view, month, year]);
 
   const open = (v) => setView(v);
@@ -197,11 +239,26 @@ export default function EmployeePortal() {
         leave_to: "",
         day_type: "FULL",
         reason: "",
+        covering_employee_id: "",
       });
       await loadLeave();
       await loadHome();
     } catch (err) {
       flash(false, err?.response?.data?.message || "Leave submit failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onCoveringRespond = async (id, action) => {
+    try {
+      setSaving(true);
+      await respondCoveringLeave(id, { action });
+      flash(true, action === "approve" ? "Covering approved" : "Covering rejected");
+      await loadLeave();
+      await loadHome();
+    } catch (err) {
+      flash(false, err?.response?.data?.message || "Covering update failed");
     } finally {
       setSaving(false);
     }
@@ -222,6 +279,50 @@ export default function EmployeePortal() {
       await loadHome();
     } catch (err) {
       flash(false, err?.response?.data?.message || "Advance submit failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onSubmitWeeklyOff = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await submitWeeklyOff(offForm);
+      flash(true, "Weekly off submitted");
+      setOffForm({ off_date: "", day_type: "FULL", reason: "" });
+      const data = await getMyWeeklyOffs();
+      setWeeklyOffs(data.items || []);
+      setWeeklySchedule(data.schedule || []);
+      await loadHome();
+    } catch (err) {
+      flash(false, err?.response?.data?.message || "Weekly off submit failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onSubmitMedical = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      if (!medicalForm.bill) {
+        throw new Error("Upload a medical bill.");
+      }
+      const billUrl = await uploadToFirebase(medicalForm.bill, "hr/medical-claims");
+      await submitMedicalClaim({
+        amount: medicalForm.amount,
+        description: medicalForm.description || "",
+        bill_url: billUrl,
+        bill_name: medicalForm.bill.name,
+      });
+      flash(true, "Medical claim submitted");
+      setMedicalForm({ amount: "", description: "", bill: null });
+      const data = await getMyMedicalClaims();
+      setMedicalClaims(data.items || []);
+      await loadHome();
+    } catch (err) {
+      flash(false, err?.response?.data?.message || "Medical claim submit failed");
     } finally {
       setSaving(false);
     }
@@ -284,6 +385,7 @@ export default function EmployeePortal() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
@@ -303,6 +405,8 @@ export default function EmployeePortal() {
         <div className="max-w-5xl mx-auto px-4 pb-3 flex flex-wrap gap-2">
           {navBtn("home", "Home", Home)}
           {navBtn("leave", "Leave", Calendar)}
+          {home?.weeklyOffEnabled && navBtn("weekly-off", "Weekly off", CalendarDays)}
+          {home?.medicalClaimsEnabled && navBtn("medical", "Medical", HeartPulse)}
           {navBtn("advance", "Advance", Wallet)}
           {navBtn("time", "Attendance", Clock)}
           {navBtn("pay", "Pay", Banknote)}
@@ -366,9 +470,31 @@ export default function EmployeePortal() {
                   ))}
                 </div>
 
+                {(home?.leaveBalances || []).length > 0 && (
+                  <div className="bg-white rounded-2xl border border-teal-50 p-5 shadow-sm">
+                    <h3 className="font-display font-bold text-[var(--brand-ink)] mb-3">Leave balance</h3>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {home.leaveBalances.map((row) => (
+                        <div key={row.leave_type} className="rounded-xl border border-teal-100 px-3 py-2">
+                          <p className="text-sm font-semibold text-slate-800">{row.leave_type}</p>
+                          <p className="text-xs text-slate-500">
+                            Available {row.available_days} of {row.total_days} · used {row.used_days}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid sm:grid-cols-2 gap-3">
                   {[
                     { title: "Request leave", text: "Submit and track your leave", go: "leave" },
+                    ...(home?.weeklyOffEnabled
+                      ? [{ title: "Weekly off", text: "Apply day offs and see the approved schedule", go: "weekly-off" }]
+                      : []),
+                    ...(home?.medicalClaimsEnabled
+                      ? [{ title: "Medical claims", text: "Upload bills and track your medical quota", go: "medical" }]
+                      : []),
                     { title: "Salary advance", text: "Request an advance for HR approval", go: "advance" },
                     { title: "My attendance", text: "View this month’s time cards", go: "time" },
                     { title: "Pay, OT & payslip", text: "View after salary is processed", go: "pay" },
@@ -438,6 +564,35 @@ export default function EmployeePortal() {
             {view === "leave" && (
               <section className="space-y-5 anim-rise">
                 <h2 className="font-display text-2xl font-bold text-[var(--brand-ink)]">Request leave</h2>
+                {(home?.leaveBalances || []).length > 0 && (
+                  <div className="bg-white rounded-2xl border border-teal-50 p-4 shadow-sm grid sm:grid-cols-2 gap-2">
+                    {home.leaveBalances.map((row) => (
+                      <div key={row.leave_type} className="text-sm">
+                        <span className="font-semibold">{row.leave_type}:</span> {row.available_days} available
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {home?.leaveWorkflow && coveringInbox.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+                    <h3 className="font-semibold text-amber-900">Covering requests for you</h3>
+                    {coveringInbox.map((row) => (
+                      <div key={row.id} className="bg-white rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm">
+                          {row.employee?.full_name || row.employee?.name_with_initials || "Employee"} · {row.leave_type} · {row.leave_from} – {row.leave_to}
+                        </p>
+                        <div className="flex gap-2">
+                          <button type="button" disabled={saving} onClick={() => onCoveringRespond(row.id, "approve")} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold">
+                            Approve
+                          </button>
+                          <button type="button" disabled={saving} onClick={() => onCoveringRespond(row.id, "reject")} className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-semibold">
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <form onSubmit={onSubmitLeave} className="bg-white rounded-2xl border border-teal-50 p-5 shadow space-y-3">
                   <label className="block text-sm font-semibold text-slate-700">
                     Leave type
@@ -506,6 +661,24 @@ export default function EmployeePortal() {
                       })()}
                     </div>
                   )}
+                  {home?.leaveWorkflow && (
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Covering person
+                      <select
+                        required
+                        className="mt-1 w-full border border-teal-100 rounded-xl px-3 py-2.5"
+                        value={leaveForm.covering_employee_id}
+                        onChange={(e) => setLeaveForm({ ...leaveForm, covering_employee_id: e.target.value })}
+                      >
+                        <option value="">Select covering person</option>
+                        {colleagues.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.full_name || person.name_with_initials} ({person.attendance_employee_no || person.id})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <label className="block text-sm font-semibold text-slate-700">
                     Reason
                     <textarea
@@ -552,9 +725,84 @@ export default function EmployeePortal() {
               </section>
             )}
 
+            {view === "weekly-off" && home?.weeklyOffEnabled && (
+              <section className="space-y-5 anim-rise">
+                <h2 className="font-display text-2xl font-bold text-[var(--brand-ink)]">Weekly offs</h2>
+                {home.weeklyOffBalance && (
+                  <div className="bg-white rounded-2xl border border-teal-50 p-4 text-sm">
+                    Available <b>{home.weeklyOffBalance.available}</b> of max {home.weeklyOffBalance.max_bank}
+                    ({home.weeklyOffBalance.weekly_rate}/week · {home.weeklyOffBalance.band})
+                  </div>
+                )}
+                <form onSubmit={onSubmitWeeklyOff} className="bg-white rounded-2xl border border-teal-50 p-5 shadow space-y-3">
+                  <label className="block text-sm font-semibold">Date
+                    <input required type="date" className="mt-1 w-full border rounded-xl px-3 py-2.5" value={offForm.off_date} onChange={(e) => setOffForm({ ...offForm, off_date: e.target.value })} />
+                  </label>
+                  <label className="block text-sm font-semibold">Day type
+                    <select className="mt-1 w-full border rounded-xl px-3 py-2.5" value={offForm.day_type} onChange={(e) => setOffForm({ ...offForm, day_type: e.target.value })}>
+                      <option value="FULL">Full (1)</option>
+                      <option value="HALF">Half (0.5)</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-semibold">Reason
+                    <textarea className="mt-1 w-full border rounded-xl px-3 py-2.5" value={offForm.reason} onChange={(e) => setOffForm({ ...offForm, reason: e.target.value })} />
+                  </label>
+                  <button type="submit" disabled={saving} className="px-4 py-2.5 rounded-xl text-white font-semibold" style={{ background: "linear-gradient(135deg, var(--brand-teal), var(--brand-deep))" }}>Apply weekly off</button>
+                </form>
+                <h3 className="font-bold">My requests</h3>
+                {weeklyOffs.map((row) => (
+                  <article key={row.id} className="bg-white rounded-xl border px-4 py-3 flex justify-between">
+                    <span>{String(row.off_date).slice(0, 10)} · {row.days} day(s)</span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass(row.status)}`}>{row.status}</span>
+                  </article>
+                ))}
+                <h3 className="font-bold">Approved schedule</h3>
+                {weeklySchedule.length === 0 && <p className="text-sm text-slate-500">No published weekly offs this period.</p>}
+                {weeklySchedule.map((row) => (
+                  <article key={`sch-${row.id}`} className="bg-white rounded-xl border px-4 py-3 text-sm">
+                    {String(row.off_date).slice(0, 10)} · {row.employee?.full_name || row.employee?.name_with_initials || "Employee"} · {row.days} day(s)
+                  </article>
+                ))}
+              </section>
+            )}
+
+            {view === "medical" && home?.medicalClaimsEnabled && (
+              <section className="space-y-5 anim-rise">
+                <h2 className="font-display text-2xl font-bold text-[var(--brand-ink)]">Medical claims</h2>
+                {home.medicalQuota && (
+                  <div className="bg-white rounded-2xl border border-teal-50 p-4 text-sm">
+                    Quota {money(home.medicalQuota.allocated)} · approved {money(home.medicalQuota.approved)} · pending {money(home.medicalQuota.pending)} · available <b>{money(home.medicalQuota.available)}</b>
+                  </div>
+                )}
+                <form onSubmit={onSubmitMedical} className="bg-white rounded-2xl border border-teal-50 p-5 shadow space-y-3">
+                  <label className="block text-sm font-semibold">Amount
+                    <input required type="number" min="1" step="0.01" className="mt-1 w-full border rounded-xl px-3 py-2.5" value={medicalForm.amount} onChange={(e) => setMedicalForm({ ...medicalForm, amount: e.target.value })} />
+                  </label>
+                  <label className="block text-sm font-semibold">Description
+                    <textarea className="mt-1 w-full border rounded-xl px-3 py-2.5" value={medicalForm.description} onChange={(e) => setMedicalForm({ ...medicalForm, description: e.target.value })} />
+                  </label>
+                  <label className="block text-sm font-semibold">Bill (PDF / image)
+                    <input required type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="mt-1 w-full text-sm" onChange={(e) => setMedicalForm({ ...medicalForm, bill: e.target.files?.[0] || null })} />
+                  </label>
+                  <button type="submit" disabled={saving} className="px-4 py-2.5 rounded-xl text-white font-semibold" style={{ background: "linear-gradient(135deg, var(--brand-teal), var(--brand-deep))" }}>Submit claim</button>
+                </form>
+                {medicalClaims.map((row) => (
+                  <article key={row.id} className="bg-white rounded-xl border px-4 py-3 flex justify-between">
+                    <span>{money(row.amount)} · {row.description || "Bill"}</span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass(row.status)}`}>{row.status}</span>
+                  </article>
+                ))}
+              </section>
+            )}
+
             {view === "advance" && (
               <section className="space-y-5 anim-rise">
                 <h2 className="font-display text-2xl font-bold text-[var(--brand-ink)]">Salary advance</h2>
+                {home?.salaryAdvancePack && home.advanceQuota && (
+                  <div className="bg-white rounded-2xl border border-teal-50 p-4 text-sm">
+                    Applicable {money(home.advanceQuota.cap)} ({home.advanceQuota.percent}% of basic {money(home.advanceQuota.basic_salary)}) · available <b>{money(home.advanceQuota.available)}</b>
+                  </div>
+                )}
                 <form onSubmit={onSubmitAdvance} className="bg-white rounded-2xl border border-teal-50 p-5 shadow space-y-3">
                   <label className="block text-sm font-semibold text-slate-700">
                     Amount (LKR)

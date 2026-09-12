@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const userData = await loadUser();
         setUser(userData);
-        setUserPermissions(permissions[userData.role] || {}); // Map role to permissions
+        setUserPermissions(userData.permissions || permissions[userData.role] || {});
       } catch {
         setUser(null);
         setUserPermissions({});
@@ -24,18 +24,20 @@ export const AuthProvider = ({ children }) => {
 
   // Keep permissions in sync if user's role changes (e.g., after re-login)
   useEffect(() => {
-    if (user && user.role) {
+    if (user && user.permissions) {
+      setUserPermissions(user.permissions);
+    } else if (user && user.role) {
       setUserPermissions(permissions[user.role] || {});
     } else {
       setUserPermissions({});
     }
-  }, [user?.role]);
+  }, [user]);
 
   // Allow app code to push a new user into context after login/register
   const setAuthUser = (newUser) => {
     setUser(newUser);
     const role = newUser?.role;
-    setUserPermissions(role ? permissions[role] || {} : {});
+    setUserPermissions(newUser?.permissions || (role ? permissions[role] || {} : {}));
   };
 
   // Clear auth state on logout
@@ -45,7 +47,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const hasPermission = (module, action) => {
-    return userPermissions[module]?.[action] || false;
+    const block = userPermissions[module] || {};
+    if (block[action]) return true;
+    if (action === "edit" && (block.update || block.add)) return true;
+    if (action === "add" && (block.create || block.edit)) return true;
+    return false;
   };
 
   return (

@@ -93,6 +93,10 @@ const HRLeaveApproval = () => {
             leave.employee?.full_name ||
             leave.employee?.name_with_initials ||
             "Unknown Employee",
+          coveringName:
+            leave.covering_employee?.full_name ||
+            leave.covering_employee?.name_with_initials ||
+            "",
           department:
             leave.employee?.organization_assignment?.department?.name || "N/A",
           leaveType: displayType, // මෙතනට අලුත් displayType එක දුන්නා

@@ -27,9 +27,9 @@ const PROCESS_OPTIONS = [
   },
   {
     key: "shift_roster",
-    label: "Shift time & roster",
+    label: "Multiple roster (manual table)",
     summary:
-      "Allow more than one shift on the same day. Working hours, OT, late, time attendance and salary are calculated from each assigned shift window.",
+      "One employee can work more than one roster on the same day (Kasun R1+R3, Saman R2+R4). Overnight rosters such as R4 18:00–02:00 next day are allowed. Early/late IN and OUT are recorded; OT or penalty is applied from the rules below.",
   },
 ];
 
@@ -49,11 +49,6 @@ const OT_HOUR_OPTIONS = [
 ];
 
 const FUTURE_CONFIGS = [
-  {
-    key: "leave_rules",
-    label: "Leave rules pack",
-    summary: "Company-specific entitlements, short leave and carry-forward.",
-  },
   {
     key: "holiday_calendar",
     label: "Holiday calendar pack",
@@ -83,6 +78,16 @@ const emptyForm = {
   portal_active: false,
   attendance_process: "spm_standard",
   ot_hour_calculation: "current",
+  early_in: "ot",
+  late_in: "penalty",
+  early_out: "penalty",
+  late_out: "ot",
+  leave_workflow: false,
+  weekly_off: false,
+  medical_claims: false,
+  salary_advance: false,
+  medical_annual_quota: 0,
+  salary_advance_percent: 50,
 };
 
 export default function CyberneticAdminPage() {
@@ -171,6 +176,28 @@ export default function CyberneticAdminPage() {
       portal_active: !!company.portal_active,
       attendance_process: company.attendance_process || "spm_standard",
       ot_hour_calculation: company.process_config?.ot_hour_calculation || "current",
+      early_in: company.process_config?.multi_roster?.early_in || "ot",
+      late_in: company.process_config?.multi_roster?.late_in || "penalty",
+      early_out: company.process_config?.multi_roster?.early_out || "penalty",
+      late_out: company.process_config?.multi_roster?.late_out || "ot",
+      leave_workflow: !!(
+        company.process_config?.leave_workflow?.enabled ??
+        company.process_config?.leave_workflow
+      ),
+      weekly_off: !!(
+        company.process_config?.weekly_off?.enabled ??
+        company.process_config?.weekly_off
+      ),
+      medical_claims: !!(
+        company.process_config?.medical_claims?.enabled ??
+        company.process_config?.medical_claims
+      ),
+      salary_advance: !!(
+        company.process_config?.salary_advance?.enabled ??
+        company.process_config?.salary_advance
+      ),
+      medical_annual_quota: company.process_config?.medical_claims?.annual_quota || 0,
+      salary_advance_percent: company.process_config?.salary_advance?.percent || 50,
     });
   };
 
@@ -194,6 +221,22 @@ export default function CyberneticAdminPage() {
         process_config: {
           attendance_process: form.attendance_process || "spm_standard",
           ot_hour_calculation: form.ot_hour_calculation || "current",
+          multi_roster: {
+            early_in: form.early_in || "ot",
+            late_in: form.late_in || "penalty",
+            early_out: form.early_out || "penalty",
+            late_out: form.late_out || "ot",
+          },
+          leave_workflow: { enabled: !!form.leave_workflow },
+          weekly_off: { enabled: !!form.weekly_off },
+          medical_claims: {
+            enabled: !!form.medical_claims,
+            annual_quota: Number(form.medical_annual_quota || 0),
+          },
+          salary_advance: {
+            enabled: !!form.salary_advance,
+            percent: Number(form.salary_advance_percent || 50),
+          },
         },
       };
       let saved;
@@ -333,6 +376,7 @@ export default function CyberneticAdminPage() {
                   <th className="py-2 pr-3">Late policy</th>
                   <th className="py-2 pr-3">Payroll process</th>
                   <th className="py-2 pr-3">OT hours</th>
+                  <th className="py-2 pr-3">Leave</th>
                   <th className="py-2"> </th>
                 </tr>
               </thead>
@@ -383,7 +427,7 @@ export default function CyberneticAdminPage() {
                     </td>
                     <td className="py-3 pr-3 text-xs">
                       {company.attendance_process === "shift_roster" ? (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">Shift &amp; roster</span>
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">Multi roster</span>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">SPM current</span>
                       )}
@@ -391,6 +435,13 @@ export default function CyberneticAdminPage() {
                     <td className="py-3 pr-3 text-xs">
                       {company.process_config?.ot_hour_calculation === "minute_band" ? (
                         <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-900">Minute band</span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">Current</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-3 text-xs">
+                      {company.process_config?.leave_workflow?.enabled || company.process_config?.leave_workflow === true ? (
+                        <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-900">Covering workflow</span>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">Current</span>
                       )}
@@ -507,6 +558,52 @@ export default function CyberneticAdminPage() {
                 );
               })}
             </div>
+            {form.attendance_process === "shift_roster" && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 space-y-3">
+                <p className="text-xs font-semibold text-amber-950">Manual roster table (example)</p>
+                <p className="text-[11px] text-amber-900">
+                  Create these as Shift Time codes, then assign more than one on the same day in Roster. Overnight end time is next morning.
+                </p>
+                <table className="w-full text-xs bg-white rounded-md overflow-hidden">
+                  <thead className="bg-amber-100 text-amber-950">
+                    <tr>
+                      <th className="p-1.5 text-left">Code</th>
+                      <th className="p-1.5 text-left">Window</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t"><td className="p-1.5 font-mono font-bold">R1</td><td className="p-1.5">06:00am – 01:00pm</td></tr>
+                    <tr className="border-t"><td className="p-1.5 font-mono font-bold">R2</td><td className="p-1.5">10:00am – 04:00pm</td></tr>
+                    <tr className="border-t"><td className="p-1.5 font-mono font-bold">R3</td><td className="p-1.5">03:00pm – 08:00pm</td></tr>
+                    <tr className="border-t"><td className="p-1.5 font-mono font-bold">R4</td><td className="p-1.5">06:00pm – 02:00am (next day)</td></tr>
+                  </tbody>
+                </table>
+                <p className="text-[11px] text-amber-900">Kasun can be R1 + R3 the same day. Saman can be R2 + R4. R4 OUT is recorded on the next calendar date.</p>
+                <p className="text-[11px] uppercase tracking-wide text-amber-800 pt-1">OT or penalty (always recorded)</p>
+                {[
+                  { key: "early_in", label: "Early arrival" },
+                  { key: "late_in", label: "Late arrival" },
+                  { key: "early_out", label: "Early departure" },
+                  { key: "late_out", label: "Late departure" },
+                ].map((row) => (
+                  <label key={row.key} className="flex items-center justify-between gap-2 text-xs text-slate-800">
+                    <span>{row.label}</span>
+                    <select
+                      className="rounded border px-2 py-1 bg-white"
+                      value={form[row.key]}
+                      onChange={(e) => setForm({ ...form, [row.key]: e.target.value })}
+                    >
+                      {(row.key === "early_in" || row.key === "late_out"
+                        ? [["ot", "OT"], ["record_only", "Record only"]]
+                        : [["penalty", "Penalty"], ["record_only", "Record only"]]
+                      ).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            )}
             <p className="text-[11px] uppercase tracking-wide text-slate-500 pt-2">OT hour calculation</p>
             <p className="text-xs text-slate-600">
               Separate from attendance process. Current OT stays as it is unless you pick minute-band rounding for this company.
@@ -537,6 +634,88 @@ export default function CyberneticAdminPage() {
                 );
               })}
             </div>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.leave_workflow}
+                onChange={(e) => setForm({ ...form, leave_workflow: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Covering-person leave workflow</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Leave unchecked to keep the current leave process. Allow this pack to require a covering person, then supervisor, then HR, with portal balance and notifications.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.weekly_off}
+                onChange={(e) => setForm({ ...form, weekly_off: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Weekly off management</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Unchecked keeps the current day-off field only. Allow to earn weekly offs, apply from the portal, and publish an HR weekly-off calendar to employees after approve.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.medical_claims}
+                onChange={(e) => setForm({ ...form, medical_claims: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Medical claims</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Unchecked = no medical-claim module. Allow portal bill upload, quota check, HR approve/reject, and Pending Payments.
+                </span>
+              </span>
+            </label>
+            {form.medical_claims && (
+              <label className="block text-sm">
+                Default annual medical quota (LKR)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
+                  value={form.medical_annual_quota}
+                  onChange={(e) => setForm({ ...form, medical_annual_quota: e.target.value })}
+                />
+              </label>
+            )}
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.salary_advance}
+                onChange={(e) => setForm({ ...form, salary_advance: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Salary advance quota</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Unchecked keeps the current portal advance. Allow to show available amount, validate requests, notify, and send approved advances to Pending Payments.
+                </span>
+              </span>
+            </label>
+            {form.salary_advance && (
+              <label className="block text-sm">
+                Available advance (% of basic)
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
+                  value={form.salary_advance_percent}
+                  onChange={(e) => setForm({ ...form, salary_advance_percent: e.target.value })}
+                />
+              </label>
+            )}
             <div className="pt-1">
               <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Coming soon</p>
               <div className="space-y-2">
@@ -629,11 +808,18 @@ export default function CyberneticAdminPage() {
                     Swal.fire({
                       icon: "error",
                       title: "Firebase upload failed",
-                      text: err?.response?.data?.message || err?.message || "Logo will be saved on the server instead.",
+                      text: err?.response?.data?.message || err?.message || "Logo could not be uploaded to Firebase.",
                     });
                   } finally {
                     setUploadingLogo(false);
                   }
+                } else {
+                  Swal.fire({
+                    icon: "error",
+                    title: "Firebase is required",
+                    text: "Configure Firebase Storage. Logos and documents are stored only in Firebase.",
+                  });
+                  setLogoFile(null);
                 }
               }}
             />

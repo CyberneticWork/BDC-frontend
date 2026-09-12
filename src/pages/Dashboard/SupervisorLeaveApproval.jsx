@@ -131,7 +131,7 @@ const SupervisorLeaveApproval = () => {
           Supervisor Leave Approval
         </h1>
         <p className="text-slate-600">
-          Review and track all leave requests from <span className="font-semibold text-blue-700">Trainee</span> employees.
+          Review and track leave requests from trainees, and covering-workflow requests waiting for supervisor approval.
         </p>
       </div>
 

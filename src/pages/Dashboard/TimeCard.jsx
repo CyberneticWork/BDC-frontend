@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import DatePickerInput from '@components/DatePickerInput';
 import HikvisionDevicePanel from '@components/HikvisionDevicePanel';
 import hikvisionService from '@services/hikvisionService';
+import useAcl from '../../hooks/useAcl';
 
 // Pagination component for better UI/UX
 const Pagination = ({ page, totalPages, onPageChange }) => {
@@ -123,6 +124,7 @@ const filterFirstInLastOut = (records) => {
 // ==============================================================================
 
 const TimeCard = ({ employeeProfile }) => {
+  const { canEdit, canDelete } = useAcl('TimeCard');
   // Form state
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -1356,6 +1358,7 @@ const TimeCard = ({ employeeProfile }) => {
                               </span>
                             </td>
                             <td className="py-4 px-3 sm:px-6 flex gap-2">
+                              {canEdit && (
                               <button
                                 className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-150 text-xs sm:text-sm font-semibold shadow-sm"
                                 onClick={() => handleEdit(record, index)}
@@ -1366,6 +1369,8 @@ const TimeCard = ({ employeeProfile }) => {
                                 </svg>
                                 Edit
                               </button>
+                              )}
+                              {canDelete && (
                               <button
                                 className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 border border-red-200 rounded-lg hover:bg-red-600 hover:text-white transition-all duration-150 text-xs sm:text-sm font-semibold shadow-sm"
                                 onClick={() => handleDelete(record)}
@@ -1376,6 +1381,7 @@ const TimeCard = ({ employeeProfile }) => {
                                 </svg>
                                 Delete
                               </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -3004,6 +3010,7 @@ const TimeCard = () => {
 </span>
                             </td>
                             <td className="py-4 px-3 sm:px-6 flex gap-2">
+                              {canEdit && (
                               <button
                                 className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-150 text-xs sm:text-sm font-semibold shadow-sm"
                                 onClick={() => handleEdit(record, index)}
@@ -3014,6 +3021,8 @@ const TimeCard = () => {
                                 </svg>
                                 Edit
                               </button>
+                              )}
+                              {canDelete && (
                               <button
                                 className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 border border-red-200 rounded-lg hover:bg-red-600 hover:text-white transition-all duration-150 text-xs sm:text-sm font-semibold shadow-sm"
                                 onClick={() => handleDelete(record)}
@@ -3024,6 +3033,7 @@ const TimeCard = () => {
                                 </svg>
                                 Delete
                               </button>
+                              )}
                             </td>
                           </tr>
                         ))

@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import UserManagementService from "../../services/UserManagementService";
+import { useAuth } from "../../contexts/AuthContext";
+import useAcl from "../../hooks/useAcl";
+import UserAclModal from "./UserAclModal";
 
 // User form modal component defined outside to prevent re-creation on each render
 const UserFormModal = ({
@@ -226,6 +229,10 @@ const UserFormModal = ({
 };
 
 const UserManagement = () => {
+  const { user: authUser } = useAuth();
+  const { canAdd, canEdit, canDelete } = useAcl("userManagement");
+  const canAllocateAcl = (authUser?.role || "").toLowerCase() === "admin";
+  const [aclUser, setAclUser] = useState(null);
   // State variables
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -480,7 +487,7 @@ console.log("Submitting form data:", currentUser, formData);
             </div>
 
             <div className="flex items-center space-x-2 w-full sm:w-auto">
-              {/* Add User Button */}
+              {canAdd && (
               <button
                 onClick={handleAddClick}
                 className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center gap-2"
@@ -488,6 +495,7 @@ console.log("Submitting form data:", currentUser, formData);
                 <UserPlus className="h-5 w-5" />
                 <span>Add New User</span>
               </button>
+              )}
 
               {/* Refresh Button */}
               <button
@@ -619,6 +627,17 @@ console.log("Submitting form data:", currentUser, formData);
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
                         <div className="flex justify-center space-x-2">
+                          {canAllocateAcl &&
+                            ["hr", "supervisor", "user"].includes(String(user.role || "").toLowerCase()) && (
+                            <button
+                              onClick={() => setAclUser(user)}
+                              className="p-2 bg-teal-100 text-teal-800 rounded-lg hover:bg-teal-200 transition-colors"
+                              title="Allocate ACL"
+                            >
+                              <Shield size={16} />
+                            </button>
+                          )}
+                          {canEdit && (
                           <button
                             onClick={() => handleEditClick(user)}
                             className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
@@ -626,6 +645,8 @@ console.log("Submitting form data:", currentUser, formData);
                           >
                             <Edit size={16} />
                           </button>
+                          )}
+                          {canDelete && (
                           <button
                             onClick={() => handleDeleteClick(user.id)}
                             className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
@@ -633,6 +654,7 @@ console.log("Submitting form data:", currentUser, formData);
                           >
                             <Trash2 size={16} />
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -691,6 +713,7 @@ console.log("Submitting form data:", currentUser, formData);
         setShowPassword={setShowPassword}
         roles={roles}
       />
+      {aclUser && <UserAclModal user={aclUser} onClose={() => setAclUser(null)} />}
     </div>
   );
 };

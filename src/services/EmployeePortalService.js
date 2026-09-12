@@ -21,6 +21,15 @@ export const getMyLeaves = () =>
 export const submitLeave = (payload) =>
   axios.post('/me/leaves', payload).then((r) => r.data);
 
+export const getCoveringColleagues = () =>
+  axios.get('/me/covering-colleagues').then((r) => r.data);
+
+export const getCoveringLeaves = () =>
+  axios.get('/me/covering-leaves').then((r) => r.data);
+
+export const respondCoveringLeave = (id, payload) =>
+  axios.put(`/me/covering-leaves/${id}`, payload).then((r) => r.data);
+
 export const getMyAdvances = () =>
   axios.get('/me/advances').then((r) => r.data);
 

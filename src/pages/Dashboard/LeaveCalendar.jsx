@@ -182,9 +182,13 @@ const LeaveCalendar = ({ employeeProfile }) => {
 
           // Transform approved employee leave requests
           const approvedEmployeeLeaves = employeeLeaves
-            .filter(leave => 
-              (leave.status === 'approved' || leave.status === 'hr-approved' || leave.status === 'Approved')
-            )
+            .filter((leave) => {
+              const status = String(leave.status || "");
+              return ![
+                "Rejected",
+                "rejected",
+              ].includes(status);
+            })
             .map((leave) => {
               let dateRange = [];
               if (leave.leave_date) {
@@ -192,7 +196,11 @@ const LeaveCalendar = ({ employeeProfile }) => {
               } else if (leave.leave_from && leave.leave_to) {
                 dateRange = generateDateRange(leave.leave_from, leave.leave_to);
               }
-              
+              const rawStatus = String(leave.status || "Pending");
+              const calendarStatus = ["Approved", "HR_Approved", "approved", "hr-approved"].includes(rawStatus)
+                ? "Approved"
+                : "Pending";
+
               return {
                 id: `emp-${leave.id}`,
                 dates: dateRange,
@@ -200,9 +208,14 @@ const LeaveCalendar = ({ employeeProfile }) => {
                 endDate: leave.leave_date || leave.leave_to,
                 description: leave.reason || "Employee Leave",
                 type: leave.leave_type || "Leave",
-                status: "Approved",
+                status: calendarStatus,
+                workflowStatus: rawStatus,
                 duration: leave.leave_duration || dateRange.length,
-                employeeName: leave.employee?.name_with_initials || "Employee",
+                employeeName: leave.employee?.name_with_initials || leave.employee?.full_name || "Employee",
+                coveringName:
+                  leave.covering_employee?.name_with_initials ||
+                  leave.covering_employee?.full_name ||
+                  "",
                 isEmployeeLeave: true,
               };
             });
