@@ -140,7 +140,8 @@ const AuthForm = ({
         disabled={loading}
         className="w-full mt-2 py-3.5 px-4 rounded-xl font-bold text-white shadow-lg shadow-teal-700/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 hover:-translate-y-0.5"
         style={{
-          background: "linear-gradient(120deg, #0D9488 0%, #0B4F5C 55%, #FF6B4A 140%)",
+          background:
+            "linear-gradient(120deg, var(--brand-teal) 0%, var(--brand-deep) 55%, var(--brand-coral) 140%)",
         }}
       >
         {loading ? (

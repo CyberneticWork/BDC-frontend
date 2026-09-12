@@ -1,4 +1,5 @@
 import axios from "@utils/axios";
+import { companyListQueryParams, ensureBrandedCompany } from "../../utils/tenantCompanies";
 
 class PMSService {
   // Performance Reviews
@@ -232,7 +233,8 @@ class PMSService {
   
   async getCompanies() {
     try {
-      const response = await axios.get('/pms/companies');
+      await ensureBrandedCompany();
+      const response = await axios.get('/pms/companies', { params: companyListQueryParams() });
       return response.data;
     } catch (error) {
       console.error("Error fetching companies:", error);

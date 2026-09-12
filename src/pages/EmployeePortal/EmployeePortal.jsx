@@ -262,10 +262,10 @@ export default function EmployeePortal() {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(165deg,#f3fbf9,#eef8ff 45%,#fff8f1)" }}>
+    <div className="min-h-screen" style={{ background: "linear-gradient(165deg, var(--surface-0), color-mix(in srgb, var(--brand-teal) 8%, white) 45%, color-mix(in srgb, var(--brand-coral) 6%, white))" }}>
       <header
         className="sticky top-0 z-20 text-white shadow-lg"
-        style={{ background: "linear-gradient(135deg,#062A32,#0B4F5C 55%,#0D9488)" }}
+        style={{ background: "linear-gradient(135deg, var(--brand-ink), var(--brand-deep) 55%, var(--brand-teal))" }}
       >
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -332,7 +332,7 @@ export default function EmployeePortal() {
               type="button"
               onClick={() => navigate("/otp-login")}
               className="px-4 py-2 rounded-xl text-white font-semibold"
-              style={{ background: "linear-gradient(135deg,#0D9488,#0B4F5C)" }}
+              style={{ background: "linear-gradient(135deg, var(--brand-teal), var(--brand-deep))" }}
             >
               Back to login
             </button>
@@ -378,7 +378,7 @@ export default function EmployeePortal() {
                       type="button"
                       onClick={() => open(a.go)}
                       className="text-left rounded-2xl p-5 text-white shadow-lg hover:opacity-95 transition"
-                      style={{ background: "linear-gradient(135deg,#0D9488,#0B4F5C)" }}
+                      style={{ background: "linear-gradient(135deg, var(--brand-teal), var(--brand-deep))" }}
                     >
                       <strong className="font-display text-lg block">{a.title}</strong>
                       <span className="text-teal-50 text-sm">{a.text}</span>
@@ -427,7 +427,7 @@ export default function EmployeePortal() {
                     type="submit"
                     disabled={saving}
                     className="px-4 py-2.5 rounded-xl text-white font-semibold disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg,#0D9488,#0B4F5C)" }}
+                    style={{ background: "linear-gradient(135deg, var(--brand-teal), var(--brand-deep))" }}
                   >
                     Update password
                   </button>
@@ -520,7 +520,7 @@ export default function EmployeePortal() {
                     type="submit"
                     disabled={saving}
                     className="px-4 py-2.5 rounded-xl text-white font-semibold disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg,#0D9488,#0B4F5C)" }}
+                    style={{ background: "linear-gradient(135deg, var(--brand-teal), var(--brand-deep))" }}
                   >
                     Submit leave request
                   </button>
@@ -591,7 +591,7 @@ export default function EmployeePortal() {
                     type="submit"
                     disabled={saving}
                     className="px-4 py-2.5 rounded-xl text-white font-semibold disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg,#FF6B4A,#F5A524)" }}
+                    style={{ background: "linear-gradient(135deg, var(--brand-coral), var(--brand-amber))" }}
                   >
                     Submit advance request
                   </button>

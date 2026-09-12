@@ -19,7 +19,9 @@ import {
   Briefcase,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranding } from "../../contexts/BrandingContext";
 import config from "@src/config";
+import { mediaUrl } from "../../utils/mediaUrl";
 
 const Sidebar = ({
   user,
@@ -32,6 +34,7 @@ const Sidebar = ({
 }) => {
   const authContext = useAuth() || {};
   const hasPermission = authContext.hasPermission || (() => true);
+  const { branding } = useBranding();
 
   const [expandedItems, setExpandedItems] = useState({
     hrMaster: false,
@@ -139,6 +142,7 @@ const Sidebar = ({
               { id: "TimeCard", name: "Time Card" },
               { id: "Overtime", name: "Over Time" },
               { id: "lateEarlyApproval", name: "Late / Early Approval" },
+              { id: "timeCardApproval", name: "Time Card Approval" },
               { id: "monthlyLateDeduction", name: "Monthly Late Deduction" },
               { id: "excessLateReview", name: "Late Over 30 Minutes" },
               { id: "leaveMaster", name: "Leave Form" },
@@ -167,6 +171,10 @@ const Sidebar = ({
               { id: "singleEntryReport", name: "Single Entry Report" },
               { id: "absentReport", name: "Absent Report" },
               { id: "shiftHoursReport", name: "Shift Hours Reports" },
+              { id: "monthlyWorkingHoursReport", name: "Monthly Working Hours" },
+              { id: "monthlyOtHoursReport", name: "Monthly OT Hours" },
+              { id: "timeCardAuditReport", name: "Time Card Audit Report" },
+              { id: "deletedTimeCardReport", name: "Deleted Time Card Report" },
             ],
           },
           {
@@ -263,8 +271,8 @@ const Sidebar = ({
         }`}
         style={{
           background:
-            "linear-gradient(180deg, #062A32 0%, #0B4F5C 48%, #0A3D47 100%)",
-          boxShadow: "8px 0 40px rgba(6,42,50,0.25)",
+            "linear-gradient(180deg, var(--brand-ink) 0%, var(--brand-deep) 48%, color-mix(in srgb, var(--brand-ink) 70%, var(--brand-deep)) 100%)",
+          boxShadow: "8px 0 40px rgba(var(--brand-ink-rgb), 0.25)",
         }}
       >
         <div className="p-5 border-b border-white/10 flex-shrink-0">
@@ -272,14 +280,14 @@ const Sidebar = ({
             <div
               className="p-2.5 rounded-2xl shadow-lg"
               style={{
-                background: "linear-gradient(135deg, #2DD4BF, #0D9488 50%, #FF6B4A)",
+                background: "linear-gradient(135deg, var(--brand-mint), var(--brand-teal) 50%, var(--brand-coral))",
               }}
             >
               <Building2 className="h-6 w-6 text-white" />
             </div>
             <div>
               <h2 className="font-display font-bold text-white leading-tight text-lg">
-                {user?.role === "employee" ? "Staff Portal" : "SPM Tax HR"}
+                {user?.role === "employee" ? "Staff Portal" : branding?.name || "HR Dashboard"}
               </h2>
               <p className="text-[11px] text-teal-200/80 font-medium tracking-wide">
                 Management Suite
@@ -293,7 +301,7 @@ const Sidebar = ({
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-teal-400 to-teal-700 text-white overflow-hidden ring-2 ring-white/20">
               {employeeProfile?.profile_photo_path ? (
                 <img
-                  src={`${config.apiBaseUrl}/storage/${employeeProfile.profile_photo_path}`}
+                  src={mediaUrl(employeeProfile.profile_photo_path)}
                   className="w-full h-full rounded-full object-cover"
                   alt="Profile"
                 />
@@ -418,7 +426,7 @@ const Sidebar = ({
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-coral-200 hover:bg-red-500/15 rounded-xl transition-colors"
           >
-            <LogOut className="h-4 w-4 text-[#FF6B4A]" />
+            <LogOut className="h-4 w-4 text-[var(--brand-coral)]" />
             <span>Sign Out</span>
           </button>
         </div>
@@ -466,7 +474,9 @@ import {
   Briefcase,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranding } from "../../contexts/BrandingContext";
 import config from "@src/config";
+import { mediaUrl } from "../../utils/mediaUrl";
 
 const Sidebar = ({
   user,
@@ -812,7 +822,7 @@ const Sidebar = ({
             <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center overflow-hidden">
               {employeeProfile?.profile_photo_path ? (
                 <img
-                  src={`${config.apiBaseUrl}/storage/${employeeProfile.profile_photo_path}`}
+                  src={mediaUrl(employeeProfile.profile_photo_path)}
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />

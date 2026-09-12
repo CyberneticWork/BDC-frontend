@@ -102,6 +102,15 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
         setIsLoadingCompanies(false);
         setDesignations(DesignationsData);
         setIsLoadingDesignations(false);
+        if (companiesData.length && !formData.organization.company) {
+          const preferred =
+            companiesData.find((c) => c.portal_active) || companiesData[0];
+          updateFormData("organization", {
+            company: preferred.id,
+            companyCode: preferred.company_code || "",
+            companyName: preferred.name || "",
+          });
+        }
       } catch (e) {
         console.error("Error loading data:", e);
       }
@@ -313,7 +322,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                     className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.company
                       ? "border-red-500"
                       : "border-gray-300"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white`}
                   >
                     <option value="">Select Company ID</option>
                     {companies.map((c) => (
@@ -326,7 +335,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   </select>
                 )}
                 <p className="text-xs text-gray-500 mt-1">
-                  Select the Company ID. The company name is set automatically.
+                  Choose the company for this employee. Only companies in this organization are listed.
                 </p>
                 <FieldError error={errors.organization?.company} />
               </div>

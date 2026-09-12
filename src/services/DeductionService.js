@@ -1,4 +1,9 @@
 import axios from "@utils/axios";
+import {
+  companiesForCurrentUrl,
+  companyListQueryParams,
+  ensureBrandedCompany,
+} from "../utils/tenantCompanies";
 
 //fetch data from department
 export const getDepartments = async (id) => {
@@ -13,8 +18,11 @@ export const getDepartments = async (id) => {
 
 export const fetchCompanies = async () => {
   try {
-    const response = await axios.get(`/apiData/companies`);
-    return response.data;
+    await ensureBrandedCompany();
+    const response = await axios.get(`/apiData/companies`, {
+      params: companyListQueryParams(),
+    });
+    return companiesForCurrentUrl(response.data || []);
   } catch (error) {
     console.error("Error fetching companies:", error);
     return [];

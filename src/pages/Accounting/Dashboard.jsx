@@ -96,7 +96,7 @@ const ResponsiveButton = ({ children, variant = 'primary', size = 'md', classNam
   };
 
   const variantClasses = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
+    primary: 'bg-[var(--brand-deep)] text-white hover:bg-[var(--brand-ink)] focus:ring-[var(--brand-teal)]',
     secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
   };

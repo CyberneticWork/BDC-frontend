@@ -16,7 +16,7 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
-import config from "@src/config";
+import { mediaUrl } from "../../../utils/mediaUrl";
 import { getUser } from "@services/UserService";
 import DatePickerInput from "../../../components/DatePickerInput";
 
@@ -307,7 +307,7 @@ const EmpPersonalDetails = ({ onNext }) => {
           countryOfBirth: apiData.country_of_birth,
           profilePicture: null,
           profilePicturePreview: apiData.profile_photo_path
-            ? `${config.apiBaseUrl}/storage/${apiData.profile_photo_path}`
+            ? mediaUrl(apiData.profile_photo_path)
             : null,
           employmentStatus: normalizeEmploymentStatus(
             apiData.employment_type_id
@@ -433,9 +433,7 @@ const EmpPersonalDetails = ({ onNext }) => {
             type: doc.type,
             size: doc.size,
             status: doc.status,
-            preview: doc.path
-              ? `${config.apiBaseUrl}/storage/${doc.path}`
-              : null,
+            preview: mediaUrl(doc.path || doc.document_path),
           })) || [],
       };
 

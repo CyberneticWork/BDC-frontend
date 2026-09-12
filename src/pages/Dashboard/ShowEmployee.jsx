@@ -27,6 +27,7 @@ import { useNavigate } from "react-router-dom";
 import employeeService from "@services/EmployeeDataService";
 import { exportEmployeeReportCSV, exportEmployeeReportPDF } from "@utils/employeeReportExport";
 import config from "../../config";
+import { mediaUrl } from "../../utils/mediaUrl";
 import Swal from "sweetalert2";
 
 const apiUrl = config.apiBaseUrl;
@@ -376,7 +377,7 @@ const ShowEmployee = () => {
                               <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden">
                                 {employee.profile_photo_path ? (
                                   <img
-                                    src={`${apiUrl}/storage/${employee.profile_photo_path}`}
+                                    src={mediaUrl(employee.profile_photo_path)}
                                     alt="Profile photo"
                                     className="h-full w-full object-cover"
                                   />
@@ -582,7 +583,7 @@ const ShowEmployee = () => {
                     <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
                       {selectedEmployee.profile_photo_path ? (
                         <img
-                          src={`${apiUrl}/storage/${selectedEmployee.profile_photo_path}`}
+                          src={mediaUrl(selectedEmployee.profile_photo_path)}
                           alt="Profile photo"
                           className="h-full w-full object-cover"
                         />
@@ -631,7 +632,7 @@ const ShowEmployee = () => {
                     <div className="h-40 w-40 rounded-lg bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden shadow-lg">
                       {selectedEmployee.profile_photo_path ? (
                         <img
-                          src={`${apiUrl}/storage/${selectedEmployee.profile_photo_path}`}
+                          src={mediaUrl(selectedEmployee.profile_photo_path)}
                           alt="Profile photo"
                           className="h-full w-full object-cover"
                         />

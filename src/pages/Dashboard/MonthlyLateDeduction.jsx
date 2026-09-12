@@ -17,7 +17,7 @@ import {
   Ban,
 } from "lucide-react";
 import Swal from "sweetalert2";
-import axios from "@utils/axios";
+import { fetchCompanies } from "@services/ApiDataService";
 import MonthlyLateDeductionService from "@services/MonthlyLateDeductionService";
 
 const MONTHS = [
@@ -247,13 +247,12 @@ export default function MonthlyLateDeduction() {
   useEffect(() => {
     (async () => {
       try {
-        const [rulesRes, companiesRes] = await Promise.all([
+        const [rulesRes, rows] = await Promise.all([
           MonthlyLateDeductionService.getRules(),
-          axios.get("/apiData/companies"),
+          fetchCompanies(),
         ]);
         setRules(rulesRes.rules || []);
-        const rows = Array.isArray(companiesRes.data) ? companiesRes.data : [];
-        setCompanies(rows.filter((c) => c.late_attendance_policy_enabled));
+        setCompanies((Array.isArray(rows) ? rows : []).filter((c) => c.late_attendance_policy_enabled));
       } catch (e) {
         console.error(e);
       }

@@ -392,15 +392,23 @@ const TimeCard = ({ employeeProfile }) => {
       return;
     }
     const confirm = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'This will permanently delete the record.',
+      title: 'Delete time card entry?',
+      text: 'A reason is required. This is recorded on the deleted-entry report.',
+      input: 'textarea',
+      inputPlaceholder: 'Reason for deleting this entry',
+      inputValidator: (value) => {
+        if (!value || value.trim().length < 3) {
+          return 'Please enter a reason (at least 3 characters).';
+        }
+        return undefined;
+      },
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete it!',
+      confirmButtonText: 'Delete',
     });
     if (confirm.isConfirmed) {
       try {
-        await timeCardService.deleteTimeCard(record.id);
+        await timeCardService.deleteTimeCard(record.id, confirm.value.trim());
 
         preventPaginationReset.current = true;
 
@@ -411,7 +419,7 @@ const TimeCard = ({ employeeProfile }) => {
 
         Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1200, showConfirmButton: false });
       } catch (e) {
-        Swal.fire({ icon: 'error', title: 'Delete failed', text: e.message });
+        Swal.fire({ icon: 'error', title: 'Delete failed', text: e.response?.data?.message || e.message });
       }
     }
   };
@@ -493,11 +501,21 @@ const TimeCard = ({ employeeProfile }) => {
         return;
       }
 
+      const reasonPrompt = await Swal.fire({
+        title: 'Adjustment reason',
+        input: 'textarea',
+        inputPlaceholder: 'Why is this time card being corrected?',
+        showCancelButton: true,
+        confirmButtonText: 'Save',
+      });
+      if (!reasonPrompt.isConfirmed) return;
+
       const payload = {
         date: editDate,
         time: formatTimeForBackend(timeToSend),
         entry: editEntry,
         status: editStatus,
+        reason: (reasonPrompt.value || 'Time card adjusted from Time Card screen').trim(),
       };
 
       console.log('Saving payload:', payload); // Debug log
@@ -619,8 +637,8 @@ const TimeCard = ({ employeeProfile }) => {
       Swal.fire({
         icon: 'success',
         title: 'Success!',
-        text: 'Attendance record added successfully.',
-        timer: 1500,
+        text: 'Attendance record added and sent to Time Card Approval (Pending).',
+        timer: 1800,
         showConfirmButton: false,
       });
     } catch (e) {
