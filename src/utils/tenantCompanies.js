@@ -70,90 +70,35 @@ export function companyListQueryParams() {
   const params = { host };
   const slug = tenantSlugFromPath();
   if (slug) params.slug = slug;
-  if (isLocalAppHost(host)) {
-    const pinId = brandedCompanyId || Number(userCompanyId() || 0) || null;
-    if (pinId) {
-      params.company_id = pinId;
-    }
-  }
   return params;
 }
 
-function userCompanyId() {
-  try {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-    if (!raw) return null;
-    const user = JSON.parse(raw);
-    return (
-      user?.organization_assignment?.company_id ||
-      user?.organizationAssignment?.company_id ||
-      user?.company_id ||
-      null
-    );
-  } catch {
-    return null;
-  }
+function isSharedSpmPortal(host = currentAppHost()) {
+  return isLocalAppHost(host) || host.includes("spmhr") || host.includes("apispmhr");
 }
 
 /** Companies that belong on this login URL / organization group. */
 export function companiesForCurrentUrl(companies) {
   const list = Array.isArray(companies) ? companies : [];
   const host = currentAppHost();
-  const userId = Number(userCompanyId() || 0) || null;
 
-  const seed =
-    list.find((row) => Number(row.id) === Number(brandedCompanyId)) ||
-    list.find((row) => Number(row.id) === userId) ||
-    list.find((row) => normalizeCompanyHost(row.frontend_host) === host) ||
-    null;
+  if (isSharedSpmPortal(host)) {
+    return list;
+  }
 
-  const group = groupKey(seed) || groupKey(brandedCompany);
-  if (group) {
-    const grouped = list.filter((row) => groupKey(row) === group);
-    if (grouped.length) {
-      return grouped;
+  const onThisUrl = list.filter((row) => normalizeCompanyHost(row.frontend_host) === host);
+  if (onThisUrl.length) {
+    const group = groupKey(onThisUrl[0]);
+    if (group) {
+      const grouped = list.filter((row) => groupKey(row) === group);
+      if (grouped.length) {
+        return grouped;
+      }
     }
+    return onThisUrl;
   }
 
-  const seedCode = String(seed?.company_code || brandedCompany?.company_code || "")
-    .trim()
-    .toUpperCase();
-  if (seedCode.startsWith("SPM")) {
-    const spm = list.filter((row) =>
-      String(row.company_code || "")
-        .trim()
-        .toUpperCase()
-        .startsWith("SPM")
-    );
-    if (spm.length) {
-      return spm;
-    }
-  }
-
-  if (!isLocalAppHost(host)) {
-    const onThisUrl = list.filter((row) => normalizeCompanyHost(row.frontend_host) === host);
-    if (onThisUrl.length) {
-      return onThisUrl;
-    }
-  }
-
-  if (seed) {
-    return [seed];
-  }
-
-  const pinId = brandedCompanyId || userId;
-  if (pinId) {
-    const pinned = list.filter((row) => Number(row.id) === Number(pinId));
-    if (pinned.length) {
-      return pinned;
-    }
-  }
-
-  if (isLocalAppHost(host)) {
-    return [];
-  }
-
-  return list.filter((row) => !normalizeCompanyHost(row.frontend_host));
+  return list;
 }
 
 export function isDedicatedCompanyUrl(companies) {
