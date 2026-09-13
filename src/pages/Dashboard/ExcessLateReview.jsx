@@ -10,7 +10,7 @@ const MONTHS = [
 ];
 
 const fmt = (n) =>
-  new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR" }).format(Number(n || 0));
+  new Intl.NumberFormat("en-LK", {}).format(Number(n || 0));
 
 export default function ExcessLateReview() {
   const now = new Date();

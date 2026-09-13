@@ -344,11 +344,11 @@ const JournalEntry = () => {
                         <div className="flex items-center gap-3 text-sm">
                           <div>
                             <span className="text-xs text-gray-500">Debit: </span>
-                            <span className="font-medium">${parseFloat(entry.debit || 0).toFixed(2)}</span>
+                            <span className="font-medium">{parseFloat(entry.debit || 0).toFixed(2)}</span>
                           </div>
                           <div>
                             <span className="text-xs text-gray-500">Credit: </span>
-                            <span className="font-medium">${parseFloat(entry.credit || 0).toFixed(2)}</span>
+                            <span className="font-medium">{parseFloat(entry.credit || 0).toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
@@ -415,10 +415,10 @@ const JournalEntry = () => {
                           {entry.account_name}
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                          ${parseFloat(entry.debit || 0).toFixed(2)}
+                          {parseFloat(entry.debit || 0).toFixed(2)}
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                          ${parseFloat(entry.credit || 0).toFixed(2)}
+                          {parseFloat(entry.credit || 0).toFixed(2)}
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
@@ -732,16 +732,16 @@ const JournalEntry = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center md:text-left">
                     <span className="text-sm font-medium text-gray-700">Total Debits: </span>
-                    <span className="text-sm font-semibold">${totalDebits.toFixed(2)}</span>
+                    <span className="text-sm font-semibold">{totalDebits.toFixed(2)}</span>
                   </div>
                   <div className="text-center md:text-left">
                     <span className="text-sm font-medium text-gray-700">Total Credits: </span>
-                    <span className="text-sm font-semibold">${totalCredits.toFixed(2)}</span>
+                    <span className="text-sm font-semibold">{totalCredits.toFixed(2)}</span>
                   </div>
                   <div className="text-center md:text-left">
                     <span className="text-sm font-medium text-gray-700">Balance: </span>
                     <span className={`text-sm font-semibold flex items-center justify-center md:justify-start gap-1 ${isBalanced() ? 'text-green-600' : 'text-red-600'}`}>
-                      ${Math.abs(totalDebits - totalCredits).toFixed(2)}
+                      {Math.abs(totalDebits - totalCredits).toFixed(2)}
                       {isBalanced() ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                     </span>
                   </div>

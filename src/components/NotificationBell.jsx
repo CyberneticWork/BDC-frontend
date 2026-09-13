@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Bell } from "lucide-react";
 import NotificationService from "@services/NotificationService";
 
-const NotificationBell = () => {
+const NotificationBell = ({ variant = "default" }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -84,7 +84,11 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors duration-200"
+        className={`relative p-2 rounded-full transition-colors duration-200 ${
+          variant === "light"
+            ? "text-white hover:bg-white/15"
+            : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+        }`}
       >
         <Bell className="h-6 w-6" />
         {unreadCount > 0 && (

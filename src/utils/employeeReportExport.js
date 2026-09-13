@@ -3,8 +3,6 @@ import autoTable from "jspdf-autotable";
 
 const fmt = (amount) =>
   new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
     minimumFractionDigits: 2,
   }).format(Number(amount) || 0);
 

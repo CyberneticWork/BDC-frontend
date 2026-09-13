@@ -187,11 +187,11 @@ const AdvancePayment = () => {
                     </div>
                     <div>
                       <span className="text-gray-500">Amount:</span>
-                      <p className="font-medium text-green-600">${payment.amount?.toFixed(2)}</p>
+                      <p className="font-medium text-green-600">{payment.amount?.toFixed(2)}</p>
                     </div>
                     <div>
                       <span className="text-gray-500">Remaining:</span>
-                      <p className="font-medium text-blue-600">${payment.remainingAmount?.toFixed(2)}</p>
+                      <p className="font-medium text-blue-600">{payment.remainingAmount?.toFixed(2)}</p>
                     </div>
                   </div>
                   
@@ -280,12 +280,12 @@ const AdvancePayment = () => {
                     </ResponsiveTableCell>
                     <ResponsiveTableCell align="right">
                       <span className="font-medium text-green-600">
-                        ${payment.amount?.toFixed(2)}
+                        {payment.amount?.toFixed(2)}
                       </span>
                     </ResponsiveTableCell>
                     <ResponsiveTableCell align="right">
                       <span className="font-medium text-blue-600">
-                        ${payment.remainingAmount?.toFixed(2)}
+                        {payment.remainingAmount?.toFixed(2)}
                       </span>
                     </ResponsiveTableCell>
                     <ResponsiveTableCell>

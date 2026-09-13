@@ -19,6 +19,9 @@ export async function uploadToFirebase(file, folder = "hr", onProgress) {
   if (!file) {
     throw new Error("No file selected.");
   }
+  if (!(await isFirebaseConfigured())) {
+    throw new Error("Firebase is not configured. Images and documents must be uploaded to Firebase.");
+  }
 
   const form = new FormData();
   form.append("file", file);

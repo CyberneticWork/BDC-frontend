@@ -89,6 +89,8 @@ const Termination = () => {
           resignation.employee?.organization_assignment?.date_of_joining
         ),
         terminationDate: resignation.last_working_day || "",
+        submittedVia: resignation.submitted_via === "portal" ? "Employee portal" : "HR submission",
+        documents: resignation.documents || [],
       }));
 
       setResignationRequests(formattedData);
@@ -170,6 +172,7 @@ const Termination = () => {
         await ResignationService.updateResignationStatus(approvingRequestId, {
           status: "approved",
           notes: exitNotes,
+          last_working_day: terminationDate,
         });
 
         // Update local state to show the changes immediately
@@ -192,7 +195,7 @@ const Termination = () => {
         Swal.fire({
           icon: "success",
           title: "Resignation Approved",
-          text: "The resignation request has been approved and the employee will be terminated on the specified date.",
+          text: "The resignation request has been approved. The employee will be inactive from the last working day.",
           confirmButtonColor: "#3085d6",
         });
 
@@ -325,10 +328,10 @@ const Termination = () => {
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
           <div className="bg-gradient-to-r from-red-800 to-gray-900 px-4 sm:px-8 py-6 sm:py-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white text-center">
-              Employee Termination
+              Resignation Approval Process
             </h1>
             <p className="text-gray-300 text-center mt-2 text-sm sm:text-base">
-              Review and process employee resignation requests
+              Review portal and HR requests later, then approve or decline
             </p>
           </div>
 
@@ -737,6 +740,15 @@ const Termination = () => {
                               </p>
                             </div>
 
+                            <div>
+                              <h5 className="text-sm font-medium text-gray-500 mb-1">
+                                Source
+                              </h5>
+                              <p className="text-lg font-medium text-gray-900">
+                                {request.submittedVia || "HR submission"}
+                              </p>
+                            </div>
+
                             <div className="md:col-span-2">
                               <h5 className="text-sm font-medium text-gray-500 mb-1">
                                 Resignation Reason
@@ -762,7 +774,7 @@ const Termination = () => {
 
                                 <div>
                                   <h5 className="text-sm font-medium text-gray-500 mb-1">
-                                    Termination Date
+                                    Last working day
                                   </h5>
                                   <p className="text-gray-900">
                                     {formatDate(request.terminationDate)}
@@ -850,7 +862,7 @@ const Termination = () => {
                   <div className="flex items-center">
                     <AlertTriangle className="w-6 h-6 text-amber-500 mr-3" />
                     <h3 className="text-xl font-bold text-gray-900">
-                      Approve Resignation & Terminate
+                      Approve Resignation
                     </h3>
                   </div>
                   <button
@@ -876,7 +888,7 @@ const Termination = () => {
                               ).employeeName
                             }
                           </span>
-                          . This will initiate the termination process.
+                          . HR can complete this later. Approving will close the employee record.
                         </p>
                       </div>
                     )}
@@ -884,7 +896,7 @@ const Termination = () => {
                   <div className="space-y-4 mt-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Termination Date <span className="text-red-500">*</span>
+                        Last working day <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="date"
@@ -926,7 +938,7 @@ const Termination = () => {
                       } text-white rounded-lg transition-colors flex items-center gap-2`}
                   >
                     <Check className="w-4 h-4" />
-                    Confirm Termination
+                    Confirm approval
                   </button>
                 </div>
               </div>

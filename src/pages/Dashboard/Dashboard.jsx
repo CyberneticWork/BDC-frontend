@@ -55,6 +55,7 @@ import ShiftHoursReport from "@dashboard/ShiftHoursReport";
 import MonthlyHoursReport from "@dashboard/MonthlyHoursReport";
 import Department from "@dashboard/Department";
 import Grouproster from "@dashboard/Grouproster";
+import RosterCalendar from "@dashboard/RosterCalendar";
 import LeaveMaster from "@dashboard/LeaveMaster";
 import NoPayManagement from "@dashboard/NoPayManagement";
 import MonthlyLateDeduction from "@dashboard/MonthlyLateDeduction";
@@ -142,6 +143,11 @@ import AbsentReport from "../Reports/TimeCard/AbsentReport";
 
 import AllowancessPaymentFull from "../Dashboard/Allowancess_payment_full";
 import AdvanceApprovals from "../Dashboard/AdvanceApprovals";
+import LoanApprovals from "../Dashboard/LoanApprovals";
+import WeeklyOffManagement from "../Dashboard/WeeklyOffManagement";
+import MedicalClaims from "../Dashboard/MedicalClaims";
+import PendingPayments from "../Dashboard/PendingPayments";
+import CompanyNotices from "../Dashboard/CompanyNotices";
 
 import DinnerAllowance from "@dashboard/DinnerAllowance";
 
@@ -151,6 +157,7 @@ import MidShiftBreaks from "@dashboard/MidShiftBreaks";
 import SupervisorLeaveApproval from "@dashboard/SupervisorLeaveApproval";
 
 import { useLocation, useNavigate } from "react-router-dom";
+import { isEmployeeUser } from "../../services/UserService";
 import {
   sidebarUtils,
   toggleSidebar,
@@ -606,6 +613,12 @@ const Dashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (isEmployeeUser(user)) {
+      navigate("/employee-portal", { replace: true });
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     const parts = location.pathname.split("/").filter(Boolean);
     if (
       parts[0] === "dashboard" &&
@@ -692,6 +705,12 @@ const Dashboard = ({ user, onLogout }) => {
             <EmployeeLoan />
           </ProtectedComponent>
         );
+      case "loanApprovals":
+        return (
+          <ProtectedComponent module="loanApprovals" action="view">
+            <LoanApprovals />
+          </ProtectedComponent>
+        );
       case "viewLoans":
         return (
           <ProtectedComponent module="viewLoans" action="view">
@@ -776,6 +795,12 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="grouproster" action="view">
             <Grouproster />
+          </ProtectedComponent>
+        );
+      case "rosterCalendar":
+        return (
+          <ProtectedComponent module="rosterCalendar" action="view">
+            <RosterCalendar />
           </ProtectedComponent>
         );
       case "shiftOvertimeRates":
@@ -1262,6 +1287,34 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="advanceApprovals" action="view">
             <AdvanceApprovals />
+          </ProtectedComponent>
+        );
+
+      case "weeklyOffManagement":
+        return (
+          <ProtectedComponent module="weeklyOffManagement" action="view">
+            <WeeklyOffManagement />
+          </ProtectedComponent>
+        );
+
+      case "medicalClaims":
+        return (
+          <ProtectedComponent module="medicalClaims" action="view">
+            <MedicalClaims />
+          </ProtectedComponent>
+        );
+
+      case "companyNotices":
+        return (
+          <ProtectedComponent module="companyNotices" action="view">
+            <CompanyNotices />
+          </ProtectedComponent>
+        );
+
+      case "pendingPayments":
+        return (
+          <ProtectedComponent module="pendingPayments" action="view">
+            <PendingPayments />
           </ProtectedComponent>
         );
 

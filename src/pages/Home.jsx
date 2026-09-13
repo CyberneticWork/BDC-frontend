@@ -7,8 +7,10 @@ import {
   getUser,
   setUser as storeUser,
   clearUser,
+  isEmployeeUser,
+  homePathForUser,
 } from "../services/UserService";
-import { useNavigate, useLocation } from "react-router-dom"; // << added
+import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
 
@@ -26,20 +28,18 @@ function Home() {
         const userData = await loadUser();
         setUser(userData);
         storeUser(userData);
-        navigate("/dashboard", { replace: true }); // <-- redirect when found
+        navigate(homePathForUser(userData), { replace: true });
       } catch {
         setUser(null);
         clearUser();
       }
     }
-    // Only fetch if not already in localStorage
     if (!user) {
       fetchUser();
     } else {
-      // only navigate to /dashboard if we're not already on a dashboard route
-      // this prevents clobbering deep links like /dashboard/leaveApproval on refresh
-      if (!location.pathname.startsWith("/dashboard")) {
-        navigate("/dashboard", { replace: true });
+      const dest = homePathForUser(user);
+      if (location.pathname !== dest && !(dest === "/dashboard" && location.pathname.startsWith("/dashboard"))) {
+        navigate(dest, { replace: true });
       }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -50,10 +50,7 @@ function Home() {
       setUser(userData);
       storeUser(userData);
       setAuthUser(userData);
-      const dest =
-        (location.state && location.state.from) ||
-        (userData?.role === "employee" ? "/employee-portal" : "/dashboard");
-      navigate(dest);
+      navigate(homePathForUser(userData, location.state?.from), { replace: true });
     } catch {
       setUser(null);
       clearUser();
@@ -75,7 +72,9 @@ function Home() {
   };
 
   if (user) {
-    // keep the same Dashboard render so props are preserved
+    if (isEmployeeUser(user)) {
+      return <Navigate to="/employee-portal" replace />;
+    }
     return (
       <ErrorBoundary>
         <Dashboard user={user} onLogout={handleLogout} />

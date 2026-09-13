@@ -191,7 +191,7 @@ const PettyCash = () => {
               </div>
               <div className="ml-3">
                 <p className="text-xs font-medium text-gray-600">Current Balance</p>
-                <p className="text-lg font-semibold text-gray-900">${currentBalance.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-gray-900">{currentBalance.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -203,7 +203,7 @@ const PettyCash = () => {
               </div>
               <div className="ml-3">
                 <p className="text-xs font-medium text-gray-600">Total Expenses</p>
-                <p className="text-lg font-semibold text-red-600">${totalExpenses.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-red-600">{totalExpenses.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -215,7 +215,7 @@ const PettyCash = () => {
               </div>
               <div className="ml-3">
                 <p className="text-xs font-medium text-gray-600">Total Replenishments</p>
-                <p className="text-lg font-semibold text-green-600">${totalReplenishments.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-green-600">{totalReplenishments.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -321,7 +321,7 @@ const PettyCash = () => {
                         }`}>
                           <DollarSign className="h-3 w-3" />
                           <span>
-                            {transaction.transactionType === 'Expense' ? '-' : '+'}${transaction.amount?.toFixed(2)}
+                            {transaction.transactionType === 'Expense' ? '-' : '+'}{transaction.amount?.toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -381,7 +381,7 @@ const PettyCash = () => {
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <span className={transaction.transactionType === 'Expense' ? 'text-red-600' : 'text-green-600'}>
-                          {transaction.transactionType === 'Expense' ? '-' : '+'}${transaction.amount?.toFixed(2)}
+                          {transaction.transactionType === 'Expense' ? '-' : '+'}{transaction.amount?.toFixed(2)}
                         </span>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">

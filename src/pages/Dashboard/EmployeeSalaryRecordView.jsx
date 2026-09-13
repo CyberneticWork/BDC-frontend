@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DollarSign, Calendar, Loader2, FileText, Download, Eye, ArrowLeft, RefreshCw } from 'lucide-react';
 import { fetchSalaryDataAPI } from '@src/services/SalaryService';
-import jsPDF from 'jspdf';
+import { downloadPayslip } from '../../utils/payslipPdf';
 
 const POLL_INTERVAL = 30000; // 30 seconds
 
@@ -225,115 +225,7 @@ const SalaryRecordDetail = ({ record, onBack }) => {
   const handleDownload = () => {
     setIsDownloading(true);
     try {
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const W = 210;
-      const margin = 15;
-      let y = 0;
-
-      // Header bar
-      pdf.setFillColor(109, 40, 217);
-      pdf.rect(0, 0, W, 30, 'F');
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(18);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('SALARY SLIP', margin, 13);
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`${record.full_name}  |  ${record.employee_no}  |  ${record.month}/${record.year}`, margin, 22);
-      y = 40;
-
-      // Employee info box
-      pdf.setFillColor(245, 245, 250);
-      pdf.roundedRect(margin, y, W - margin * 2, 28, 3, 3, 'F');
-      pdf.setTextColor(60, 60, 60);
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Employee', margin + 4, y + 7);
-      pdf.text('Department', margin + 60, y + 7);
-      pdf.text('Company', margin + 120, y + 7);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(record.full_name || '-', margin + 4, y + 14);
-      pdf.text(record.department_name || '-', margin + 60, y + 14);
-      pdf.text(record.company_name || '-', margin + 120, y + 14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Employee ID', margin + 4, y + 22);
-      pdf.text('Period', margin + 60, y + 22);
-      pdf.text('Status', margin + 120, y + 22);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(record.employee_no || '-', margin + 4, y + 28);
-      pdf.text(`${record.month} / ${record.year}`, margin + 60, y + 28);
-      pdf.text((record.status || '-').toUpperCase(), margin + 120, y + 28);
-      y += 36;
-
-      // Earnings section
-      const colW = (W - margin * 2) / 2 - 3;
-      const drawSection = (title, color, items, total, totalLabel, xStart) => {
-        pdf.setFillColor(...color);
-        pdf.roundedRect(xStart, y, colW, 8, 2, 2, 'F');
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(title, xStart + 4, y + 5.5);
-        let rowY = y + 14;
-        pdf.setTextColor(50, 50, 50);
-        pdf.setFontSize(9);
-        items.forEach(([label, val]) => {
-          pdf.setFont('helvetica', 'normal');
-          pdf.text(label, xStart + 4, rowY);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(`Rs. ${parseFloat(val || 0).toLocaleString()}`, xStart + colW - 4, rowY, { align: 'right' });
-          rowY += 8;
-        });
-        // Total line
-        pdf.setDrawColor(...color);
-        pdf.line(xStart, rowY, xStart + colW, rowY);
-        rowY += 5;
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(10);
-        pdf.text(totalLabel, xStart + 4, rowY);
-        pdf.text(`Rs. ${parseFloat(total || 0).toLocaleString()}`, xStart + colW - 4, rowY, { align: 'right' });
-        return rowY + 6;
-      };
-
-      const earningsItems = [
-        ['Basic Salary', sb.basic_salary || record.basic_salary],
-        ...(sb.br_allowance > 0 ? [['BR Allowance', sb.br_allowance]] : []),
-        ...(sb.ot_morning_fees > 0 ? [['Morning OT', sb.ot_morning_fees]] : []),
-        ...(sb.ot_night_fees > 0 ? [['Evening OT', sb.ot_night_fees]] : []),
-        ...(sb.total_allowances > 0 ? [['Other Allowances', sb.total_allowances]] : []),
-      ];
-      const deductionItems = [
-        ['EPF (8%)', sb.epf_employee_deduction],
-        ...((sb.loan_principal > 0 || sb.loan_interest > 0) ? [['Loan Installment', (sb.loan_principal || 0) + (sb.loan_interest || 0)]] : []),
-        ...(sb.stamp_duty > 0 ? [['Stamp Duty', sb.stamp_duty]] : []),
-        ...(sb.total_fixed_deductions > 0 ? [['Other Deductions', sb.total_fixed_deductions]] : []),
-        ...(sb.full_day_nopay_deduction > 0 ? [['No Pay', sb.full_day_nopay_deduction]] : []),
-      ];
-
-      const maxRows = Math.max(earningsItems.length, deductionItems.length);
-      const sectionH = 14 + maxRows * 8 + 16;
-
-      drawSection('EARNINGS', [22, 163, 74], earningsItems, sb.gross_salary, 'Total Earnings', margin);
-      drawSection('DEDUCTIONS', [239, 68, 68], deductionItems, sb.total_deductions, 'Total Deductions', margin + colW + 6);
-      y += sectionH;
-
-      // Net Salary box
-      pdf.setFillColor(109, 40, 217);
-      pdf.roundedRect(margin, y, W - margin * 2, 16, 3, 3, 'F');
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(13);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('NET SALARY', margin + 4, y + 10);
-      pdf.text(`Rs. ${parseFloat(sb.net_salary || 0).toLocaleString()}`, W - margin - 4, y + 10, { align: 'right' });
-      y += 24;
-
-      // Footer
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      pdf.setFont('helvetica', 'italic');
-      pdf.text('This is a computer generated salary slip.', W / 2, y + 6, { align: 'center' });
-
-      pdf.save(`Salary_Slip_${record.employee_no}_${record.month}_${record.year}.pdf`);
+      downloadPayslip(record);
     } catch (err) {
       console.error('PDF generation failed:', err);
     } finally {

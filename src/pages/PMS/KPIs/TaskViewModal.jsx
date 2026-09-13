@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
+import { mediaUrl } from "../../../utils/mediaUrl";
 
 export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] }) => {
   const [activeTab, setActiveTab] = useState("details");
@@ -352,7 +353,11 @@ export const TaskViewModal = ({ isOpen, onClose, kpi = null, submissions = [] })
                                 {submission.document_size}
                               </span>
                               {submission.document_path && (
-                                <button className="p-1 text-gray-400 hover:text-indigo-600">
+                                <button
+                                  type="button"
+                                  className="p-1 text-gray-400 hover:text-indigo-600"
+                                  onClick={() => window.open(mediaUrl(submission.document_path), "_blank")}
+                                >
                                   <Download className="h-3 w-3" />
                                 </button>
                               )}

@@ -150,7 +150,7 @@ const Transactions = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-600">Total Debits</p>
-              <p className="text-lg sm:text-2xl font-bold text-green-600">${getTotalDebits().toFixed(2)}</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">{getTotalDebits().toFixed(2)}</p>
             </div>
             <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
           </div>
@@ -159,7 +159,7 @@ const Transactions = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-600">Total Credits</p>
-              <p className="text-lg sm:text-2xl font-bold text-red-600">${getTotalCredits().toFixed(2)}</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-600">{getTotalCredits().toFixed(2)}</p>
             </div>
             <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
           </div>
@@ -262,13 +262,13 @@ const Transactions = () => {
                         <div className="text-center">
                           <p className="text-xs text-gray-600">Debit</p>
                           <p className={`text-sm font-medium ${transaction.debit > 0 ? "text-green-600" : "text-gray-400"}`}>
-                            ${transaction.debit.toFixed(2)}
+                            {transaction.debit.toFixed(2)}
                           </p>
                         </div>
                         <div className="text-center">
                           <p className="text-xs text-gray-600">Credit</p>
                           <p className={`text-sm font-medium ${transaction.credit > 0 ? "text-red-600" : "text-gray-400"}`}>
-                            ${transaction.credit.toFixed(2)}
+                            {transaction.credit.toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -318,12 +318,12 @@ const Transactions = () => {
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right">
                       <span className={transaction.debit > 0 ? "text-green-600 font-medium" : "text-gray-400"}>
-                        ${transaction.debit.toFixed(2)}
+                        {transaction.debit.toFixed(2)}
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right">
                       <span className={transaction.credit > 0 ? "text-red-600 font-medium" : "text-gray-400"}>
-                        ${transaction.credit.toFixed(2)}
+                        {transaction.credit.toFixed(2)}
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center text-sm font-medium">

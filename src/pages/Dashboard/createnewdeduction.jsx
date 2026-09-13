@@ -22,13 +22,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 
 const emptyForm = () => ({
-  deduction_code: "",
-  deduction_name: "",
-  description: "",
+    deduction_code: "",
+    deduction_name: "",
+    description: "",
   company_id: "",
   department_id: "",
   amount: "",
-  status: "active",
+    status: "active",
 });
 
 export default function CreateNewDeduction() {
@@ -51,12 +51,12 @@ export default function CreateNewDeduction() {
       const [list, companyList] = await Promise.all([fetchDeductions(), fetchCompanies()]);
       setRows(Array.isArray(list) ? list : []);
       setCompanies(companyList || []);
-    } catch (err) {
+      } catch (err) {
       console.error(err);
       toast.error("Failed to load deductions");
-    } finally {
+      } finally {
       setLoading(false);
-    }
+      }
   }, []);
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function CreateNewDeduction() {
 
   useEffect(() => {
     if (!form.company_id) {
-      setDepartments([]);
+        setDepartments([]);
       return;
     }
     (async () => {
@@ -83,7 +83,7 @@ export default function CreateNewDeduction() {
     return rows.filter((r) => {
       if (filterCompany && String(r.company_id) !== String(filterCompany)) return false;
       if (!term) return true;
-      return (
+        return (
         String(r.deduction_code || "").toLowerCase().includes(term) ||
         String(r.deduction_name || "").toLowerCase().includes(term) ||
         String(r.company?.name || "").toLowerCase().includes(term)
@@ -220,7 +220,7 @@ export default function CreateNewDeduction() {
           <p className="mt-1 text-sm text-slate-600">
             Create the catalog only. Fixed or Variable is chosen later when you assign.
           </p>
-        </div>
+          </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -260,7 +260,7 @@ export default function CreateNewDeduction() {
             className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
           />
         </div>
-        <select
+          <select
           value={filterCompany}
           onChange={(e) => setFilterCompany(e.target.value)}
           className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-rose-500"
@@ -271,14 +271,14 @@ export default function CreateNewDeduction() {
               {c.company_label || c.name}
             </option>
           ))}
-        </select>
+          </select>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200">
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-rose-700" />
-          </div>
+        </div>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -290,8 +290,8 @@ export default function CreateNewDeduction() {
                 <th className="px-4 py-3">Default amount</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Actions</th>
-              </tr>
-            </thead>
+                </tr>
+              </thead>
             <tbody>
               {filtered.map((row) => (
                 <tr key={row.id} className="border-t border-slate-100 hover:bg-rose-50/40">
@@ -301,9 +301,9 @@ export default function CreateNewDeduction() {
                   <td className="px-4 py-3 text-slate-600">{row.department?.name || "All"}</td>
                   <td className="px-4 py-3 tabular-nums text-slate-800">
                     {Number(row.amount || 0).toFixed(2)}
-                  </td>
+                      </td>
                   <td className="px-4 py-3">
-                    <span
+                        <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         row.status === "active"
                           ? "bg-emerald-50 text-emerald-700"
@@ -311,40 +311,40 @@ export default function CreateNewDeduction() {
                       }`}
                     >
                       {row.status}
-                    </span>
-                  </td>
+                        </span>
+                      </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      <button
-                        type="button"
+                          <button
+                            type="button"
                         onClick={() => openEdit(row)}
                         className="rounded-lg p-1.5 text-rose-700 hover:bg-rose-50"
                         title="Edit"
                       >
                         <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
+                          </button>
+                        <button
                         type="button"
                         onClick={() => handleDelete(row.id)}
                         className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                        </button>
                     </div>
-                  </td>
-                </tr>
+                      </td>
+                    </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-14 text-center text-slate-500">
                     No predefined deductions yet. Click <strong>New Deduction</strong> to start.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
       </div>
 
       {modalOpen && (
@@ -383,24 +383,24 @@ export default function CreateNewDeduction() {
                 </Field>
               </div>
               <Field label="Company" error={errors.company_id}>
-                <select
+                    <select
                   value={form.company_id}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, company_id: e.target.value, department_id: "" }))
                   }
                   className="input"
-                  required
+                      required
                 >
                   <option value="">Select company</option>
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.company_label || c.name}
-                    </option>
-                  ))}
-                </select>
+                        </option>
+                      ))}
+                    </select>
               </Field>
               <Field label="Department (optional)">
-                <select
+                    <select
                   value={form.department_id}
                   onChange={(e) => setForm((f) => ({ ...f, department_id: e.target.value }))}
                   className="input"
@@ -410,23 +410,23 @@ export default function CreateNewDeduction() {
                   {departments.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
-                    </option>
-                  ))}
-                </select>
+                        </option>
+                      ))}
+                    </select>
               </Field>
               <Field label="Default amount" error={errors.amount}>
-                <input
-                  type="number"
-                  min="0"
+                    <input
+                    type="number"
+                    min="0"
                   step="0.01"
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                   className="input"
-                  required
+                    required
                 />
               </Field>
               <Field label="Description">
-                <textarea
+                  <textarea
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   className="input min-h-[80px]"
@@ -497,6 +497,6 @@ function Field({ label, error, children }) {
       <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
       {children}
       {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
-    </div>
+          </div>
   );
 }

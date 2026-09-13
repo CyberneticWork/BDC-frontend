@@ -133,8 +133,6 @@ const BankReconciliation = () => {
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "LKR",
       minimumFractionDigits: 2,
     }).format(amount);
   };

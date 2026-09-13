@@ -11,7 +11,7 @@ const EmployeeLoanView = ({ employeeProfile }) => {
   const [reportLoading, setReportLoading] = useState(false);
 
   const formatCurrency = (amount) =>
-    new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", minimumFractionDigits: 2 }).format(amount || 0);
+    new Intl.NumberFormat("en-LK", { minimumFractionDigits: 2 }).format(amount || 0);
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";

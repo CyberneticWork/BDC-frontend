@@ -328,7 +328,7 @@ const Resignation = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                 <FileText className="text-blue-500" size={20} />
-                Manage Resignation Details
+                Manage Resignation Request
               </h2>
             </div>
 

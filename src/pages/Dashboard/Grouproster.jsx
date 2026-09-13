@@ -761,6 +761,12 @@ const RosterManagementSystem = () => {
           View All Rosters
         </button>
       </div>
+      {companies.find((c) => String(c.id) === String(selectedCompany))?.attendance_process === "shift_roster" && (
+        <div className="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">Multiple roster is on for this company.</p>
+          <p className="mt-1">Select more than one shift (e.g. R1 and R3) for the same employee on the same day. Overnight shifts such as R4 18:00–02:00 next day are allowed. Open Roster Calendar to view the month grid.</p>
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Filters */}
