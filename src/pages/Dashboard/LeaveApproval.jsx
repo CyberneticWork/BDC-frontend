@@ -112,6 +112,11 @@ const LeaveApproval = () => {
           leaveBalanceDays: leave.leave_balance_days,
           nopayDays: Number(leave.nopay_days ?? leave.over_limit ?? 0) || 0,
           nopayApplied: !!leave.nopay_applied,
+          requiresEvidence: !!leave.requires_evidence,
+          evidencePath: leave.evidence_path || "",
+          evidenceName: leave.evidence_name || "",
+          medicalCasualDays: Number(leave.medical_casual_days ?? 0),
+          medicalAnnualDays: Number(leave.medical_annual_days ?? 0),
         };
       });
 
@@ -161,6 +166,14 @@ const LeaveApproval = () => {
   // Handle approval with email notification
   const handleApprove = async (id) => {
     const pending = leaveRequests.find((r) => r.id === id);
+    if (pending?.requiresEvidence && !pending?.evidencePath) {
+      Swal.fire({
+        icon: "warning",
+        title: "Medical evidence required",
+        text: "HR cannot approve this medical leave until the employee attaches a report or photo.",
+      });
+      return;
+    }
     const nopayHint = Number(pending?.nopayDays || 0);
     const result = await Swal.fire({
       title: "Approve Leave?",
@@ -216,7 +229,7 @@ const LeaveApproval = () => {
         Swal.fire({
           icon: "error",
           title: "Failed",
-          text: "Could not approve leave request. Please try again.",
+          text: error?.response?.data?.message || "Could not approve leave request. Please try again.",
           confirmButtonColor: "#3b82f6",
         });
       } finally {
@@ -732,13 +745,17 @@ const LeaveApproval = () => {
 
                                 {request.status === "Pending" && (
                                   <>
-                                    <button
-                                      onClick={() => handleApprove(request.id)}
-                                      className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                                      title="Approve"
-                                    >
-                                      <Check size={18} />
-                                    </button>
+                                    {request.requiresEvidence && !request.evidencePath ? (
+                                      <span className="text-xs text-amber-700 max-w-[7rem] text-left">Waiting for medical evidence</span>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleApprove(request.id)}
+                                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                                        title="Approve"
+                                      >
+                                        <Check size={18} />
+                                      </button>
+                                    )}
 
                                     <button
                                       onClick={() => handleReject(request.id)}
@@ -878,6 +895,17 @@ const LeaveApproval = () => {
                               <p className="text-gray-900 bg-gray-50 p-4 rounded-lg">
                                 {request.reason}
                               </p>
+                              {request.requiresEvidence && (
+                                <p className="text-sm mt-2">
+                                  {request.evidencePath ? (
+                                    <a href={request.evidencePath} target="_blank" rel="noreferrer" className="text-teal-700 underline">
+                                      Medical evidence{request.evidenceName ? `: ${request.evidenceName}` : ""}
+                                    </a>
+                                  ) : (
+                                    <span className="text-amber-700">No medical evidence yet — approve is disabled.</span>
+                                  )}
+                                </p>
+                              )}
                             </div>
 
                             <div>
@@ -960,9 +988,10 @@ const LeaveApproval = () => {
                                   handleApprove(request.id);
                                   setShowDetails(null);
                                 }}
-                                className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow"
+                                disabled={request.requiresEvidence && !request.evidencePath}
+                                className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow disabled:opacity-50"
                               >
-                                Approve Request
+                                {request.requiresEvidence && !request.evidencePath ? "Waiting for evidence" : "Approve Request"}
                               </button>
                             </div>
                           )}
@@ -1903,6 +1932,17 @@ const LeaveApproval = () => {
                               <p className="text-gray-900 bg-gray-50 p-4 rounded-lg">
                                 {request.reason}
                               </p>
+                              {request.requiresEvidence && (
+                                <p className="text-sm mt-2">
+                                  {request.evidencePath ? (
+                                    <a href={request.evidencePath} target="_blank" rel="noreferrer" className="text-teal-700 underline">
+                                      Medical evidence{request.evidenceName ? `: ${request.evidenceName}` : ""}
+                                    </a>
+                                  ) : (
+                                    <span className="text-amber-700">No medical evidence yet — approve is disabled.</span>
+                                  )}
+                                </p>
+                              )}
                             </div>
 
                             <div>
@@ -1985,9 +2025,10 @@ const LeaveApproval = () => {
                                   handleApprove(request.id);
                                   setShowDetails(null);
                                 }}
-                                className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow"
+                                disabled={request.requiresEvidence && !request.evidencePath}
+                                className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow disabled:opacity-50"
                               >
-                                Approve Request
+                                {request.requiresEvidence && !request.evidencePath ? "Waiting for evidence" : "Approve Request"}
                               </button>
                             </div>
                           )}

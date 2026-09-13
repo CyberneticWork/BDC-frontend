@@ -528,178 +528,173 @@ const SalaryProcessPage = () => {
   };
   */
 
-const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, isFirstPage = false) => {
-    if (!isFirstPage) doc.addPage();
-    
+const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, side = "left") => {
     const earningsTotal = (payslip.earnings || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const deductionsTotal = (payslip.deductions || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const netTotal = earningsTotal - deductionsTotal;
 
-    // Header Section
-    doc.setFontSize(12); 
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 7;
+    const gutter = 5;
+    const boxW = (pageW - margin * 2 - gutter) / 2;
+    const boxH = pageH - margin * 2;
+    const x0 = side === "right" ? margin + boxW + gutter : margin;
+    const y0 = margin;
+    const cx = x0 + boxW / 2;
+    const innerL = x0 + 3;
+    const innerR = x0 + boxW - 3;
+
+    if (side === "left") {
+      doc.setDrawColor(160);
+      const mid = pageW / 2;
+      for (let yy = margin; yy < pageH - margin; yy += 4) {
+        doc.line(mid, yy, mid, Math.min(yy + 1.6, pageH - margin));
+      }
+    }
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(x0, y0, boxW, boxH, "F");
+    doc.setDrawColor(11, 79, 92);
+    doc.setLineWidth(0.45);
+    doc.rect(x0, y0, boxW, boxH);
+
+    doc.setFillColor(11, 79, 92);
+    doc.rect(x0, y0, boxW, 18, "F");
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.text(`${emp.company_name || emp.employee?.organizationAssignment?.company?.name || "Company"}`, 105, 15, { align: "center" });
-    doc.text(`${payslip.title}`, 105, 22, { align: "center" });
-    doc.text(`${monthName} ${selectedYear}`, 105, 29, { align: "center" });
-    doc.text(`Payment Method: ${payslip.paymentMethod}`, 105, 36, { align: "center" });
-    
-    doc.rect(10, 8, 190, 34);
-
-    let y = 50; 
-    doc.setFontSize(9); 
+    doc.setFontSize(8.5);
+    doc.text(String(emp.company_name || emp.employee?.organizationAssignment?.company?.name || "Company"), cx, y0 + 5.5, { align: "center", maxWidth: boxW - 6 });
+    doc.setFontSize(9);
+    doc.text(String(payslip.title || "PAYSLIP"), cx, y0 + 10.5, { align: "center", maxWidth: boxW - 6 });
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(`${monthName} ${selectedYear}  ·  ${payslip.paymentMethod || ""}`, cx, y0 + 15.2, { align: "center", maxWidth: boxW - 6 });
 
-    // =========================================================================
-    // මෙතනින් තමයි දත්ත හරියටම අල්ලගන්නේ (Backend එකෙන් එන ඕනෑම විදිහකට Support කරයි)
-    // =========================================================================
-    const empObj = emp.employee || emp; // Employee object එක ඇතුලෙ තිබ්බොත් ඒක ගන්නවා
+    const empObj = emp.employee || emp;
     const contactInfo = empObj.contact_detail || empObj.contactDetail || emp.contact_detail || emp.contactDetail || {};
     const orgInfo = empObj.organization_assignment || empObj.organizationAssignment || emp.organization_assignment || emp.organizationAssignment || {};
-
     const empNo = empObj.employee_no || empObj.emp_no || empObj.attendance_employee_no || "-";
     const empName = empObj.full_name || empObj.name_with_initials || "-";
     const deptName = emp.department_name || orgInfo.department?.name || "-";
-    
     const epfNo = empObj.epf || empObj.epf_no || "-";
     const nicNo = empObj.nic || empObj.nic_number || "-";
-    const joinedDate = orgInfo.date_of_joining || empObj.date_of_joining || "-";
-    
-    const address = contactInfo.permanent_address || empObj.address || "-";
-    const contactNo = contactInfo.mobile_line || empObj.mobile_line || "-";
-    
-    const emgName = contactInfo.emg_name || empObj.emg_name || "-";
-    const emgRel = contactInfo.emg_relationship || empObj.emg_relationship || "-";
-    const emgTel = contactInfo.emg_tel || empObj.emg_tel || "-";
-    // =========================================================================
 
-    // Row 1: Employee No & EPF No
-    doc.text(`Employee No :`, 15, y); 
-    doc.text(`${empNo}`, 45, y);
-    doc.text(`EPF/ETF No :`, 110, y); 
-    doc.text(`${epfNo}`, 140, y); 
-    y += 6;
+    let y = y0 + 23;
+    doc.setTextColor(30);
+    doc.setFontSize(7);
+    [
+      ["Name", empName],
+      ["Emp No", empNo],
+      ["Department", deptName],
+      ["EPF/ETF", epfNo],
+      ["NIC", nicNo],
+    ].forEach(([k, v]) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${k}:`, innerL, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(v), innerL + 22, y, { maxWidth: boxW - 28 });
+      y += 4;
+    });
 
-    // Row 2: Name & NIC
-    doc.text(`Name :`, 15, y); 
-    doc.text(`${empName}`, 45, y);
-    doc.text(`NIC Number :`, 110, y); 
-    doc.text(`${nicNo}`, 140, y); 
-    y += 6;
-
-    // Row 3: Department & Joined Date
-    doc.text(`Department :`, 15, y); 
-    doc.text(`${deptName}`, 45, y);
-    doc.text(`Joined Date :`, 110, y); 
-    doc.text(`${joinedDate}`, 140, y); 
-    y += 6;
-
-    // Row 4: Contact & Address
-    doc.text(`Contact No :`, 15, y); 
-    doc.text(`${contactNo}`, 45, y);
-    doc.text(`Address :`, 110, y); 
-    doc.text(`${address}`.substring(0, 45), 140, y); // දිග නම් කපා හරී
-    y += 6;
-
-    // Row 5: Emergency Contact
-    doc.text(`Emg. Contact :`, 15, y); 
-    doc.text(`${emgName} (${emgRel}) - ${emgTel}`, 45, y); 
-    y += 8;
-
-    // Bank Details
     if (payslip.paymentMethod === "Bank Transfer" || payslip.paymentMethod === "Combined") {
       const bankName = empObj.compensation?.bank_name || emp.bank_name || "-";
-      const branchName = empObj.compensation?.branch_name || emp.branch_name || "-";
       const accNo = empObj.compensation?.bank_account_no || emp.bank_account_no || "-";
-      
       doc.setFont("helvetica", "bold");
-      doc.text(`Bank / Branch :`, 15, y); 
-      doc.setFont("helvetica", "normal"); 
-      doc.text(`${bankName} / ${branchName}`, 45, y);
-      
-      doc.setFont("helvetica", "bold");
-      doc.text(`Account No :`, 110, y); 
-      doc.setFont("helvetica", "normal"); 
-      doc.text(`${accNo}`, 140, y); 
-      y += 8;
+      doc.text("Bank:", innerL, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${bankName} / ${accNo}`, innerL + 22, y, { maxWidth: boxW - 28 });
+      y += 5;
+    }
+
+    doc.setDrawColor(11, 79, 92);
+    doc.line(innerL, y, innerR, y);
+    y += 5;
+
+    const moneyLine = (label, amount, bold = false) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(7);
+      doc.text(String(label), innerL, y, { maxWidth: boxW * 0.62 });
+      doc.text(formatMoney(amount), innerR, y, { align: "right" });
+      y += 4.2;
+    };
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("Earnings", innerL, y);
+    y += 5;
+    if ((payslip.earnings || []).length) {
+      payslip.earnings.forEach((item) => moneyLine(item.label, item.amount));
     } else {
-       y += 2; 
+      moneyLine("No earnings", 0);
     }
-
-    doc.line(10, y-3, 200, y-3); 
+    moneyLine("Total Earnings", earningsTotal, true);
+    y += 2;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("Deductions", innerL, y);
+    y += 5;
+    if ((payslip.deductions || []).length) {
+      payslip.deductions.forEach((item) => moneyLine(item.label, item.amount));
+    } else {
+      moneyLine("No deductions", 0);
+    }
+    moneyLine("Total Deductions", deductionsTotal, true);
     y += 3;
-
-    // Earnings Section
-    doc.setFontSize(10); 
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Earnings", 15, y); 
-    y += 8;
-    
+    doc.setFillColor(209, 250, 229);
+    doc.rect(innerL, y - 4, boxW - 6, 8, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(6, 95, 70);
+    doc.text("NET AMOUNT", innerL + 1.5, y + 1.2);
+    doc.text(formatMoney(netTotal), innerR, y + 1.2, { align: "right" });
+    doc.setTextColor(30);
+    doc.setFontSize(6.5);
     doc.setFont("helvetica", "normal");
-    if ((payslip.earnings || []).length > 0) {
-      payslip.earnings.forEach((item) => { 
-        doc.text(item.label, 15, y); 
-        doc.text(formatMoney(item.amount), 170, y, { align: "right" }); 
-        y += 6; 
-      });
-    } else { 
-      doc.text("No earnings", 15, y); 
-      y += 6; 
-    }
-
-    y += 4; 
-    
-    // Deductions Section
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Deductions", 15, y); 
-    y += 8;
-    
-    doc.setFont("helvetica", "normal");
-    if ((payslip.deductions || []).length > 0) {
-      payslip.deductions.forEach((item) => { 
-        doc.text(item.label, 15, y); 
-        doc.text(formatMoney(item.amount), 170, y, { align: "right" }); 
-        y += 6; 
-      });
-    } else { 
-      doc.text("No deductions", 15, y); 
-      y += 6; 
-    }
-
-    y += 8; 
-    
-    // Totals Section
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Total Earnings", 15, y); 
-    doc.text(formatMoney(earningsTotal), 170, y, { align: "right" }); 
-    y += 8;
-    
-    doc.text("Total Deductions", 15, y); 
-    doc.text(formatMoney(deductionsTotal), 170, y, { align: "right" }); 
-    y += 10;
-    
-    doc.setFontSize(12); 
-    doc.text("Net Amount", 15, y); 
-    doc.text(formatMoney(netTotal), 170, y, { align: "right" }); 
-    y += 12;
-    
-    doc.setFontSize(10); 
-    doc.text("LIFEHRMS", 15, y); 
-    
-    doc.rect(10, 45, 190, Math.max(80, y - 38));
+    doc.text("Half A4 portrait", innerL, y0 + boxH - 3);
   };
 
+  const writePayslipPair = (doc, items, monthName, selectedYear) => {
+    items.forEach((item, index) => {
+      if (index > 0 && index % 2 === 0) {
+        doc.addPage("a4", "portrait");
+      }
+      generateSinglePayslipPDF(doc, item.emp, item.payslip, monthName, selectedYear, index % 2 === 0 ? "left" : "right");
+    });
+    if (items.length % 2 === 1) {
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 7;
+      const gutter = 5;
+      const boxW = (pageW - margin * 2 - gutter) / 2;
+      const boxH = pageH - margin * 2;
+      const x0 = margin + boxW + gutter;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(x0, margin, boxW, boxH, "F");
+      doc.setDrawColor(200, 210, 216);
+      doc.setLineWidth(0.3);
+      doc.rect(x0, margin, boxW, boxH);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      doc.setTextColor(170);
+      doc.text("Blank half — fold / cut here", x0 + boxW / 2, pageH / 2, { align: "center" });
+    }
+  };
+
+  const collectEmployeePayslips = (emp) => {
+    const { basicPayslip, bonusPayslip, overtimePayslip, fullPayslip } = buildPayslipGroups(emp);
+    const items = [{ emp, payslip: basicPayslip }];
+    if (bonusPayslip.earnings.length > 0) items.push({ emp, payslip: bonusPayslip });
+    if (overtimePayslip.earnings.length > 0) items.push({ emp, payslip: overtimePayslip });
+    items.push({ emp, payslip: fullPayslip });
+    return items;
+  };
 
   const handleDownloadEmployeePayslips = (emp) => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const monthObj = months.find((m) => m.value === month);
     const monthName = monthObj ? monthObj.label : `${month}`;
-    const { basicPayslip, bonusPayslip, overtimePayslip, fullPayslip } = buildPayslipGroups(emp);
-
-    generateSinglePayslipPDF(doc, emp, basicPayslip, monthName, year, true);
-    if (bonusPayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, bonusPayslip, monthName, year, false);
-    if (overtimePayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, overtimePayslip, monthName, year, false);
-    generateSinglePayslipPDF(doc, emp, fullPayslip, monthName, year, false);
-
+    writePayslipPair(doc, collectEmployeePayslips(emp), monthName, year);
     doc.save(`payslips_${emp.emp_no || emp.employee_no}_${monthName}_${year}.pdf`);
   };
 
@@ -707,21 +702,16 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, is
     try {
       setIsLoading(true);
       if (!month || !year) return;
-      const doc = new jsPDF();
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const monthObj = months.find((m) => m.value === month);
       const monthName = monthObj ? monthObj.label : `${month}`;
-      let isFirstPage = true;
-
+      const items = [];
       processedDisplayedData.forEach((emp) => {
-        const { basicPayslip, bonusPayslip, overtimePayslip, fullPayslip } = buildPayslipGroups(emp);
-        generateSinglePayslipPDF(doc, emp, basicPayslip, monthName, year, isFirstPage);
-        isFirstPage = false;
-        if (bonusPayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, bonusPayslip, monthName, year, false);
-        if (overtimePayslip.earnings.length > 0) generateSinglePayslipPDF(doc, emp, overtimePayslip, monthName, year, false);
-        generateSinglePayslipPDF(doc, emp, fullPayslip, monthName, year, false);
+        items.push(...collectEmployeePayslips(emp));
       });
+      writePayslipPair(doc, items, monthName, year);
       doc.save(`all_payslips_${monthName}_${year}.pdf`);
-      notify.success("Success", "Payslips generated successfully!");
+      notify.success("Success", "Payslips generated: 2 half-A4 slips per portrait page.");
     } catch (error) { notify.error("PDF Error", "Error generating payslips."); } finally { setIsLoading(false); }
   };
 

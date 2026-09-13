@@ -122,18 +122,18 @@ const TrialBalance = () => {
           <div className={`text-sm font-medium ${
             account.balance > 0 ? 'text-blue-600' : account.balance < 0 ? 'text-green-600' : 'text-gray-900'
           }`}>
-            ${Math.abs(account.balance).toLocaleString()}
+            {Math.abs(account.balance).toLocaleString()}
           </div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
         <div className="flex justify-between">
           <span>Debit:</span>
-          <span>{account.debit > 0 ? `$${account.debit.toLocaleString()}` : '-'}</span>
+          <span>{account.debit > 0 ? `${account.debit.toLocaleString()}` : '-'}</span>
         </div>
         <div className="flex justify-between">
           <span>Credit:</span>
-          <span>{account.credit > 0 ? `$${account.credit.toLocaleString()}` : '-'}</span>
+          <span>{account.credit > 0 ? `${account.credit.toLocaleString()}` : '-'}</span>
         </div>
       </div>
     </div>
@@ -146,7 +146,7 @@ const TrialBalance = () => {
     >
       <div>
         <h4 className="font-medium text-gray-900">{type}s</h4>
-        <p className="text-xs text-gray-500">{count} accounts • ${Math.abs(total).toLocaleString()}</p>
+        <p className="text-xs text-gray-500">{count} accounts • {Math.abs(total).toLocaleString()}</p>
       </div>
       {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
     </div>
@@ -188,7 +188,7 @@ const TrialBalance = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm font-medium text-gray-600">Total Debits</p>
-                <p className="text-lg md:text-2xl font-bold text-blue-600">${totals.totalDebits.toLocaleString()}</p>
+                <p className="text-lg md:text-2xl font-bold text-blue-600">{totals.totalDebits.toLocaleString()}</p>
               </div>
               <TrendingUp className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             </div>
@@ -197,7 +197,7 @@ const TrialBalance = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm font-medium text-gray-600">Total Credits</p>
-                <p className="text-lg md:text-2xl font-bold text-green-600">${totals.totalCredits.toLocaleString()}</p>
+                <p className="text-lg md:text-2xl font-bold text-green-600">{totals.totalCredits.toLocaleString()}</p>
               </div>
               <TrendingDown className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
             </div>
@@ -207,7 +207,7 @@ const TrialBalance = () => {
               <div>
                 <p className="text-xs md:text-sm font-medium text-gray-600">Difference</p>
                 <p className={`text-lg md:text-2xl font-bold ${totals.difference === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${totals.difference.toLocaleString()}
+                  {totals.difference.toLocaleString()}
                 </p>
               </div>
               <DollarSign className={`h-6 w-6 md:h-8 md:w-8 ${totals.difference === 0 ? 'text-green-600' : 'text-red-600'}`} />
@@ -339,15 +339,15 @@ const TrialBalance = () => {
                                 {account.name}
                               </td>
                               <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                {account.debit > 0 ? `$${account.debit.toLocaleString()}` : '-'}
+                                {account.debit > 0 ? `${account.debit.toLocaleString()}` : '-'}
                               </td>
                               <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                {account.credit > 0 ? `$${account.credit.toLocaleString()}` : '-'}
+                                {account.credit > 0 ? `${account.credit.toLocaleString()}` : '-'}
                               </td>
                               <td className={`px-4 md:px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
                                 account.balance > 0 ? 'text-blue-600' : account.balance < 0 ? 'text-green-600' : 'text-gray-900'
                               }`}>
-                                ${Math.abs(account.balance).toLocaleString()}
+                                {Math.abs(account.balance).toLocaleString()}
                               </td>
                             </tr>
                           ))}
@@ -366,18 +366,18 @@ const TrialBalance = () => {
               <span className="text-base md:text-lg font-semibold text-gray-900">TOTALS</span>
               <div className="flex flex-col sm:flex-row gap-4 md:gap-8">
                 <div className="text-center sm:text-right">
-                  <div className="text-base md:text-lg font-bold text-blue-600">${totals.totalDebits.toLocaleString()}</div>
+                  <div className="text-base md:text-lg font-bold text-blue-600">{totals.totalDebits.toLocaleString()}</div>
                   <div className="text-xs md:text-sm text-gray-500">Total Debits</div>
                 </div>
                 <div className="text-center sm:text-right">
-                  <div className="text-base md:text-lg font-bold text-green-600">${totals.totalCredits.toLocaleString()}</div>
+                  <div className="text-base md:text-lg font-bold text-green-600">{totals.totalCredits.toLocaleString()}</div>
                   <div className="text-xs md:text-sm text-gray-500">Total Credits</div>
                 </div>
                 <div className="text-center sm:text-right">
                   <div className={`text-base md:text-lg font-bold ${
                     totals.isBalanced ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {totals.isBalanced ? 'BALANCED' : `OUT BY $${totals.difference.toLocaleString()}`}
+                    {totals.isBalanced ? 'BALANCED' : `OUT BY ${totals.difference.toLocaleString()}`}
                   </div>
                   <div className="text-xs md:text-sm text-gray-500">Status</div>
                 </div>
@@ -394,7 +394,7 @@ const TrialBalance = () => {
               <div>
                 <h4 className="font-medium text-red-800 text-sm md:text-base">Trial Balance is Out of Balance</h4>
                 <p className="text-xs md:text-sm text-red-700 mt-1">
-                  There is a difference of ${totals.difference.toLocaleString()} between total debits and credits. 
+                  There is a difference of {totals.difference.toLocaleString()} between total debits and credits. 
                   Please review your account balances and journal entries.
                 </p>
               </div>

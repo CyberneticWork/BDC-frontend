@@ -1520,7 +1520,7 @@ const staticData = {
   reports: [], // Placeholder
   settings: {
     companyName: "ABC Corp",
-    currency: "USD",
+    currency: "LKR",
     taxRate: 0.1,
   },
   usersAndRoles: [

@@ -3,7 +3,7 @@ import { Search, RefreshCw, Eye, Download, Filter, ChevronDown } from 'lucide-re
 import { fetchCompanies, fetchDepartmentsById } from '@services/ApiDataService';
 import { getProcessedSalaries } from '@services/SalaryProcessService';
 import Swal from 'sweetalert2';
-import jsPDF from 'jspdf';
+import { downloadPayslip, downloadPayslips } from '../../utils/payslipPdf';
 
 const notify = {
   success: (title, text) => Swal.fire({ icon: 'success', title, text, confirmButtonColor: '#3085d6' }),
@@ -143,89 +143,13 @@ const SalaryRecords = () => {
 
   const handleDownloadPayslip = (record) => {
     try {
-      const doc = new jsPDF();
-      const monthObj = months.find((m) => m.value === String(month).padStart(2, '0'));
-      const monthName = monthObj ? monthObj.label : `${month}`;
-
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${record.company_name}`, 105, 15, { align: 'center' });
-      doc.text('SALARY PAYSLIP', 105, 22, { align: 'center' });
-      doc.text(`${monthName} ${year}`, 105, 29, { align: 'center' });
-      doc.rect(10, 8, 190, 34);
-
-      let y = 50;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Employee No :`, 15, y);
-      doc.text(`${record.emp_no}`, 60, y);
-      y += 6;
-
-      doc.text(`Name :`, 15, y);
-      doc.text(`${record.full_name}`, 60, y);
-      y += 6;
-
-      doc.text(`Department :`, 15, y);
-      doc.text(`${record.department_name}`, 60, y);
-      y += 6;
-
-      if (record.compensation?.bank_name) {
-        doc.text(`Bank :`, 15, y);
-        doc.text(`${record.compensation.bank_name}`, 60, y);
-        y += 6;
-
-        doc.text(`Branch :`, 15, y);
-        doc.text(`${record.compensation.branch_name || 'N/A'}`, 60, y);
-        y += 6;
-
-        doc.text(`Account No :`, 15, y);
-        doc.text(`${record.compensation.bank_account_no || 'N/A'}`, 60, y);
-        y += 8;
-      } else {
-        y += 4;
-      }
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Earnings', 15, y);
-      y += 8;
-
-      doc.setFont('helvetica', 'normal');
-      doc.text('Basic Salary', 15, y);
-      doc.text(formatMoney(record.basic_salary), 170, y, { align: 'right' });
-      y += 6;
-
-      y += 4;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Deductions', 15, y);
-      y += 8;
-
-      doc.setFont('helvetica', 'normal');
-      doc.text('Total Deductions', 15, y);
-      doc.text(formatMoney(record.total_deductions), 170, y, { align: 'right' });
-      y += 8;
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Total Earnings', 15, y);
-      doc.text(formatMoney(record.basic_salary), 170, y, { align: 'right' });
-      y += 10;
-
-      doc.setFontSize(12);
-      doc.text('Net Salary', 15, y);
-      doc.text(formatMoney(record.net_salary), 170, y, { align: 'right' });
-      y += 12;
-
-      doc.setFontSize(10);
-      doc.text('LIFEHRMS', 15, y);
-      doc.rect(10, 45, 190, Math.max(80, y - 38));
-
-      doc.save(`payslip_${record.emp_no}_${monthName}_${year}.pdf`);
-      notify.success('Success', 'Payslip downloaded successfully');
+      downloadPayslip(record);
+      notify.success('Success', 'Payslip downloaded (half A4, left side)');
     } catch (error) {
       console.error('Error generating payslip:', error);
       notify.error('Download Failed', 'Error generating payslip');
     }
   };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 p-6">
       <div className="max-w-7xl mx-auto">

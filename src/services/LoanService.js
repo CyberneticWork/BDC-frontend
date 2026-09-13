@@ -82,3 +82,15 @@ export const decideLoanSkip = async (loanId, installmentNo, action, approverNote
   });
   return response.data;
 };
+
+export const getMyLoans = () =>
+  axios.get("/me/loans").then((r) => r.data);
+
+export const submitLoanRequest = (payload) =>
+  axios.post("/me/loans", payload).then((r) => r.data);
+
+export const listHrLoans = (params = {}) =>
+  axios.get("/hr/loans", { params }).then((r) => r.data);
+
+export const reviewLoanRequest = (id, payload) =>
+  axios.post(`/hr/loans/${id}/review`, payload).then((r) => r.data);

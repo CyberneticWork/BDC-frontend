@@ -11,7 +11,7 @@ import {
 
 const formatLKR = (val) =>
   val != null
-    ? new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR", minimumFractionDigits: 2 }).format(val)
+    ? new Intl.NumberFormat("en-LK", { minimumFractionDigits: 2 }).format(val)
     : "—";
 
 const round2 = (v) => Math.round((Number(v) + Number.EPSILON) * 100) / 100;

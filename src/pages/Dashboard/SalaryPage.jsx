@@ -19,8 +19,7 @@ import {
   Minus,
   Download,
 } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { downloadPayslip, downloadPayslips } from "../../utils/payslipPdf";
 import {
   updateSalaryAPI,
   deleteSalaryRecordAPI,
@@ -869,53 +868,12 @@ const SalaryPage = ({ employeeProfile }) => {
 
   // Download Pay Slip as PDF
   const downloadPaySlip = (record) => {
-    const doc = new jsPDF();
-    const sb = typeof record.salary_breakdown === 'string' ? JSON.parse(record.salary_breakdown) : (record.salary_breakdown || {});
-    const monthName = months.find(m => String(m.value) === String(record.month).padStart(2,'0'))?.label || record.month;
+    downloadPayslip(record);
+  };
 
-    doc.setFontSize(14); doc.setFont("helvetica", "bold");
-    doc.text("SALARY SLIP", 105, 15, { align: "center" });
-    doc.setFontSize(10); doc.setFont("helvetica", "normal");
-    doc.text(`Employee : ${record.full_name} (${record.employee_no})`, 14, 25);
-    doc.text(`Company  : ${record.company_name}`, 14, 31);
-    doc.text(`Department: ${record.department_name}`, 14, 37);
-    doc.text(`Period   : ${monthName} ${record.year}`, 14, 43);
-    doc.line(14, 47, 196, 47);
-
-    autoTable(doc, {
-      startY: 52,
-      head: [["Description", "Amount (LKR)"]],
-      body: [
-        ["Basic Salary", parseFloat(sb.basic_salary || record.basic_salary || 0).toFixed(2)],
-        ["BR Allowance", parseFloat(sb.br_allowance || 0).toFixed(2)],
-        ["OT Morning", parseFloat(sb.ot_morning_fees || record.ot_morning || 0).toFixed(2)],
-        ["OT Night", parseFloat(sb.ot_night_fees || record.ot_evening || 0).toFixed(2)],
-        ["Other Allowances", parseFloat(sb.total_allowances || 0).toFixed(2)],
-        [{ content: "Gross Salary", styles: { fontStyle: "bold" } }, { content: parseFloat(sb.gross_salary || 0).toFixed(2), styles: { fontStyle: "bold" } }],
-        ["", ""],
-        ["EPF (8%)", `- ${parseFloat(sb.epf_employee_deduction || 0).toFixed(2)}`],
-        ["No Pay Deduction", `- ${parseFloat(sb.no_pay_deduction || sb.full_day_nopay_deduction || 0).toFixed(2)}`],
-        ["Loan Installment", `- ${parseFloat(sb.loan_installment || sb.loan_principal || 0).toFixed(2)}`],
-        ["Stamp Duty", `- ${parseFloat(sb.stamp_duty || sb.stamp || 0).toFixed(2)}`],
-        ["Other Deductions", `- ${parseFloat(sb.total_fixed_deductions || 0).toFixed(2)}`],
-        [{ content: "Total Deductions", styles: { fontStyle: "bold" } }, { content: `- ${parseFloat(sb.total_deductions || 0).toFixed(2)}`, styles: { fontStyle: "bold" } }],
-        ["", ""],
-        [{ content: "NET SALARY", styles: { fontStyle: "bold", fontSize: 11 } }, { content: parseFloat(sb.net_salary || 0).toFixed(2), styles: { fontStyle: "bold", fontSize: 11, textColor: [22, 163, 74] } }],
-      ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [31, 41, 55] },
-      columnStyles: { 1: { halign: "right" } },
-    });
-
-    const y = doc.lastAutoTable.finalY + 10;
-    if (record.enable_epf_etf) {
-      doc.setFontSize(8); doc.setTextColor(100);
-      doc.text(`EPF Employer (12%): LKR ${parseFloat(sb.epf_employer_contribution || 0).toFixed(2)}`, 14, y);
-      doc.text(`ETF Employer (3%): LKR ${parseFloat(sb.etf_employer_contribution || 0).toFixed(2)}`, 14, y + 5);
-    }
-    doc.setFontSize(8); doc.setTextColor(150);
-    doc.text(`Generated on ${new Date().toLocaleDateString("en-LK")}`, 14, doc.internal.pageSize.height - 8);
-    doc.save(`payslip_${record.employee_no}_${monthName}_${record.year}.pdf`);
+  const downloadAllPaySlips = () => {
+    if (!salaryData.length) return;
+    downloadPayslips(salaryData);
   };
 
   return (
@@ -929,8 +887,18 @@ const SalaryPage = ({ employeeProfile }) => {
           animation: pulse-highlight 0.6s ease-in-out;
         }
       `}</style>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8 gap-3">
         <h1 className="text-3xl font-bold text-gray-800">Salary Records</h1>
+        {salaryData.length > 0 && (
+          <button
+            type="button"
+            onClick={downloadAllPaySlips}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-700 text-white rounded-lg text-sm font-medium hover:bg-teal-800"
+          >
+            <Download size={16} />
+            Download all (2 per A4)
+          </button>
+        )}
       </div>
 
       {/* Auto-Refresh Controls */}
@@ -1102,8 +1070,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {parseFloat(record.basic_salary).toLocaleString("en-US", {
-                        style: "currency",
-                        currency: "LKR",
                         minimumFractionDigits: 2,
                       })}
                     </td>
@@ -1122,8 +1088,6 @@ const SalaryPage = ({ employeeProfile }) => {
                       {record.salary_breakdown?.net_salary?.toLocaleString(
                         "en-US",
                         {
-                          style: "currency",
-                          currency: "LKR",
                           minimumFractionDigits: 2,
                         }
                       )}
@@ -1614,8 +1578,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     Current Net Salary:{" "}
                     <span className="font-medium text-gray-800">
                       {parseFloat(currentRecord.salary_breakdown.net_salary).toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1626,8 +1588,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="text-gray-500">Basic Salary:</span>
                     <span className="font-medium">
                       {parseFloat(formData.basic_salary || 0).toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1638,8 +1598,6 @@ const SalaryPage = ({ employeeProfile }) => {
                       <span className="text-gray-700">Estimated Net Salary (preview):</span>
                       <span className="text-blue-700">
                         {calculateNetSalary().toLocaleString("en-LK", {
-                          style: "currency",
-                          currency: "LKR",
                         })}
                       </span>
                     </div>
@@ -1649,8 +1607,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="text-gray-500">BR Allowance:</span>
                     <span className="font-medium">
                       {calculateBRAllowance().toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1659,8 +1615,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="text-gray-500">No-Pay Deduction:</span>
                     <span className="font-medium">
                       {calculateNoPayDeduction().toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1670,8 +1624,6 @@ const SalaryPage = ({ employeeProfile }) => {
                       <span className="text-gray-500">EPF (8%):</span>
                       <span className="font-medium">
                         {calculateEPF().toLocaleString("en-LK", {
-                          style: "currency",
-                          currency: "LKR",
                         })}
                       </span>
                     </div>
@@ -1681,8 +1633,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="text-gray-500">Loan Installment:</span>
                     <span className="font-medium">
                       {parseFloat(formData.installment_amount || 0).toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1706,8 +1656,6 @@ const SalaryPage = ({ employeeProfile }) => {
                       {(
                         parseFloat(currentRecord?.salary_breakdown?.probation_deduction ?? 0) || 0
                       ).toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                         minimumFractionDigits: 2,
                       })}
                     </span>
@@ -1725,8 +1673,6 @@ const SalaryPage = ({ employeeProfile }) => {
                       <span className="text-gray-700">Estimated Net Salary:</span>
                       <span className="text-blue-700">
                         {calculateNetSalary().toLocaleString("en-LK", {
-                          style: "currency",
-                          currency: "LKR",
                         })}
                       </span>
                     </div>
@@ -1737,8 +1683,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="text-gray-500">Total Allowances:</span>
                     <span className="font-medium">
                       {calculateTotalAllowances().toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1747,8 +1691,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="text-gray-500">Total Deductions:</span>
                     <span className="font-medium">
                       {calculateTotalDeductions().toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1820,8 +1762,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="font-medium">Total:</span>
                     <span className="font-bold text-blue-700">
                       {calculateTotalAllowances().toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>
@@ -1890,8 +1830,6 @@ const SalaryPage = ({ employeeProfile }) => {
                     <span className="font-medium">Total:</span>
                     <span className="font-bold text-red-700">
                       {calculateTotalDeductions().toLocaleString("en-LK", {
-                        style: "currency",
-                        currency: "LKR",
                       })}
                     </span>
                   </div>

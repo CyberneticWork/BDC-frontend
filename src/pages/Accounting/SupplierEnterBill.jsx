@@ -251,7 +251,7 @@ const SupplierEnterBill = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1 text-sm font-medium">
                           <DollarSign className="h-3 w-3 text-green-500" />
-                          <span>${bill.totalAmount?.toFixed(2)}</span>
+                          <span>{bill.totalAmount?.toFixed(2)}</span>
                         </div>
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(bill.status)}`}>
                           {bill.status}
@@ -307,7 +307,7 @@ const SupplierEnterBill = () => {
                         {bill.dueDate}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${bill.totalAmount?.toFixed(2)}
+                        {bill.totalAmount?.toFixed(2)}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(bill.status)}`}>

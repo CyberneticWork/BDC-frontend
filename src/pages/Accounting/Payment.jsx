@@ -241,7 +241,7 @@ const Payment = () => {
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1 text-sm font-medium">
                             <DollarSign className="h-3 w-3 text-green-500" />
-                            <span>${payment.amount?.toFixed(2)}</span>
+                            <span>{payment.amount?.toFixed(2)}</span>
                           </div>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(payment.status)}`}>
                             {payment.status}
@@ -306,7 +306,7 @@ const Payment = () => {
                         </span>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${payment.amount?.toFixed(2)}
+                        {payment.amount?.toFixed(2)}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(payment.status)}`}>
@@ -388,7 +388,7 @@ const Payment = () => {
                     .filter(bill => !formData.supplier || bill.supplier === formData.supplier)
                     .map((bill) => (
                     <option key={bill.id} value={bill.billNumber}>
-                      {bill.billNumber} - ${bill.totalAmount?.toFixed(2)}
+                      {bill.billNumber} - {bill.totalAmount?.toFixed(2)}
                     </option>
                   ))}
                 </select>

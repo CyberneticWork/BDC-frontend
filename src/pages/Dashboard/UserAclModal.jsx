@@ -109,6 +109,7 @@ export default function UserAclModal({ user, onClose }) {
   const featureChips = [
     ["weekly_off", "Weekly off"],
     ["medical_claims", "Medical claims"],
+    ["medical_leave", "Medical leave"],
     ["salary_advance", "Salary advance"],
     ["leave_workflow", "Leave covering"],
   ];

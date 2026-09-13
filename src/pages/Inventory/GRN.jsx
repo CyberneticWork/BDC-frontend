@@ -59,8 +59,6 @@ const GRN = () => {
   const formatLKR = (value) => {
     try {
       return new Intl.NumberFormat("en-LK", {
-        style: "currency",
-        currency: "LKR",
       }).format(Number(value || 0));
     } catch {
       const num = Number(value || 0).toFixed(2);

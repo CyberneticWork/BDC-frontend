@@ -118,6 +118,11 @@ const HRLeaveApproval = () => {
           leaveBalanceDays: leave.leave_balance_days,
           nopayDays: Number(leave.nopay_days ?? leave.over_limit ?? 0) || 0,
           nopayApplied: !!leave.nopay_applied,
+          requiresEvidence: !!leave.requires_evidence,
+          evidencePath: leave.evidence_path || "",
+          evidenceName: leave.evidence_name || "",
+          medicalCasualDays: Number(leave.medical_casual_days ?? 0),
+          medicalAnnualDays: Number(leave.medical_annual_days ?? 0),
         };
       });
 
@@ -161,6 +166,14 @@ const HRLeaveApproval = () => {
   // Handle HR approval with email notification
   const handleHRApprove = async (id) => {
     const pending = leaveRequests.find((r) => r.id === id);
+    if (pending?.requiresEvidence && !pending?.evidencePath) {
+      Swal.fire({
+        icon: "warning",
+        title: "Medical evidence required",
+        text: "HR cannot approve this medical leave until the employee attaches a report or photo.",
+      });
+      return;
+    }
     const nopayHint = Number(pending?.nopayDays || 0);
     const result = await Swal.fire({
       title: "Approve Leave?",
@@ -216,7 +229,7 @@ const HRLeaveApproval = () => {
         Swal.fire({
           icon: "error",
           title: "Failed",
-          text: "Could not approve leave request. Please try again.",
+          text: error?.response?.data?.message || "Could not approve leave request. Please try again.",
           confirmButtonColor: "#3b82f6",
         });
       } finally {
@@ -695,8 +708,9 @@ const HRLeaveApproval = () => {
                                         onClick={() =>
                                           handleHRApprove(request.id)
                                         }
-                                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                                        title="Approve"
+                                        disabled={request.requiresEvidence && !request.evidencePath}
+                                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-40"
+                                        title={request.requiresEvidence && !request.evidencePath ? "Waiting for medical evidence" : "Approve"}
                                       >
                                         <Check size={18} />
                                       </button>
@@ -917,9 +931,10 @@ const HRLeaveApproval = () => {
                                     handleHRApprove(request.id);
                                     setShowDetails(null);
                                   }}
-                                  className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow"
+                                  disabled={request.requiresEvidence && !request.evidencePath}
+                                  className="px-5 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors shadow disabled:opacity-50"
                                 >
-                                  Approve Request
+                                  {request.requiresEvidence && !request.evidencePath ? "Waiting for evidence" : "Approve Request"}
                                 </button>
                               </div>
                             )}
@@ -1178,7 +1193,7 @@ const HRLeaveApproval = () => {
         Swal.fire({
           icon: "error",
           title: "Failed",
-          text: "Could not approve leave request. Please try again.",
+          text: error?.response?.data?.message || "Could not approve leave request. Please try again.",
           confirmButtonColor: "#3b82f6",
         });
       } finally {

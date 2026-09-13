@@ -360,7 +360,7 @@ export function SuccessPdfView({
       doc.setTextColor(20);
       doc.setFont(undefined, "normal");
       const formatLKR = (v) => {
-        try { return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(Number(v||0)); } catch { return `LKR ${Number(v||0).toFixed(2)}`; }
+        try { return new Intl.NumberFormat('en-LK', {}).format(Number(v||0)); } catch { return `LKR ${Number(v||0).toFixed(2)}`; }
       };
       doc.text(`Discount: ${formatLKR(discountAmount)}`, rightX, totalY, { align: 'right' });
       let summaryY = totalY + 18;

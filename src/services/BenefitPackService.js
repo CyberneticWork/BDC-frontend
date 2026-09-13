@@ -38,3 +38,12 @@ export const listPendingPayments = (params = {}) =>
 
 export const markPendingPaymentPaid = (id, payload = {}) =>
   axios.post(`/hr/pending-payments/${id}/paid`, payload).then((r) => r.data);
+
+export const listHrNotices = () =>
+  axios.get("/hr/notices").then((r) => r.data);
+
+export const createHrNotice = (payload) =>
+  axios.post("/hr/notices", payload).then((r) => r.data);
+
+export const deleteHrNotice = (id) =>
+  axios.delete(`/hr/notices/${id}`).then((r) => r.data);

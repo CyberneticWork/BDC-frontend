@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useBranding } from "../../contexts/BrandingContext";
+import { isEmployeeUser } from "../../services/UserService";
 import config from "@src/config";
 import { mediaUrl } from "../../utils/mediaUrl";
 
@@ -50,43 +51,9 @@ const Sidebar = ({
 
   const menuItems = useMemo(() => {
     // 1. සේවකයෙකු සඳහා (Employee Role) පෙන්විය යුතු මෙනු පද්ධතිය
-    if (user?.role === 'employee') {
+    if (isEmployeeUser(user)) {
       return [
-        { id: "dashboard", name: "Dashboard", icon: Home },
         { id: "employeePortal", name: "Employee Portal", icon: Briefcase },
-        { id: "myProfile", name: "My Profile", icon: User },
-        { id: "changePassword", name: "Change Password", icon: Key },
-        //{ id: "chatbot", name: "Chat with System", icon: MessageCircle },
-        {
-          id: "hrMaster",
-          name: "My Records", // සේවකයාට "My Records" ලෙස පෙනේ
-          icon: Users,
-          subItems: [
-            {
-              id: "loans",
-              name: "My Loans",
-              subItems: [
-                { id: "viewLoans", name: "Active Loans" },
-              ],
-            },
-            {
-              id: "salaryProcess",
-              name: "Payroll",
-              subItems: [
-                // { id: "salaryRecords", name: "Salary History" },
-                { id: "downloadSalarySlip", name: "Download Pay Slip" },
-              ],
-            },
-            {
-              id: "timeAttendance",
-              name: "Attendance",
-              subItems: [
-                { id: "leaveMaster", name: "Apply Leave" },
-                // { id: "TimeCard", name: "My Time Card" },
-              ],
-            },
-          ],
-        },
       ];
     }
 
@@ -108,8 +75,8 @@ const Sidebar = ({
           { id: "grouproster", name: "Roster" },
           { id: "rosterCalendar", name: "Roster Calendar" },
           { id: "shiftOvertimeRates", name: "Shift OT Rates" },
-          { id: "resignation", name: "Resignation" },
-          { id: "termination", name: "Termination" },
+          { id: "resignation", name: "Resignation request" },
+          { id: "termination", name: "Resignation approval" },
           {
             id: "allowanceDeduction",
             name: "Compensation",
@@ -125,6 +92,7 @@ const Sidebar = ({
             name: "Loans",
             subItems: [
               { id: "viewLoans", name: "View Loans" },
+              { id: "loanApprovals", name: "Loan approval" },
               { id: "employeeLoan", name: "Employee Wise Loan" },
             ],
           },
@@ -155,6 +123,7 @@ const Sidebar = ({
               { id: "advanceApprovals", name: "Advance Approvals" },
               { id: "weeklyOffManagement", name: "Weekly Offs" },
               { id: "medicalClaims", name: "Medical Claims" },
+              { id: "companyNotices", name: "Company notices" },
               { id: "pendingPayments", name: "Pending Payments" },
               { id: "leavecalendar", name: "Leave Calendar" },
             ],
@@ -238,7 +207,7 @@ const Sidebar = ({
 
   // Permission අනුව මෙනු Filter කිරීම (Admin සඳහා පමණයි මෙය වැඩ කරන්නේ)
   const filterMenuItems = (items, ancestors = []) => {
-    if (user?.role === 'employee') return items;
+    if (isEmployeeUser(user)) return items;
 
     return items
       .map((item) => {
@@ -536,8 +505,8 @@ const Sidebar = ({
         { id: "shiftTime", name: "Shift Time" },
         { id: "grouproster", name: "Roster" },
         { id: "shiftOvertimeRates", name: "Shift OT Rates" },
-        { id: "resignation", name: "Resignation" },
-        { id: "termination", name: "Termination" },
+        { id: "resignation", name: "Resignation request" },
+        { id: "termination", name: "Resignation approval" },
         {
           id: "allowanceDeduction",
           name: "Compensation",

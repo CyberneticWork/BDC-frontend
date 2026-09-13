@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Key, LogIn, ArrowLeft } from 'lucide-react';
 import axios from '../../utils/axios';
 import { useBranding } from '../../contexts/BrandingContext';
+import { setUser, homePathForUser } from '../../services/UserService';
 
 export default function OTPLogin() {
   const navigate = useNavigate();
@@ -45,14 +46,11 @@ export default function OTPLogin() {
     try {
       const { data } = await axios.post('/login/otp', { email, otp });
       localStorage.setItem('token', data.access_token);
-      
-      // Fetch user data after login
       const { data: userData } = await axios.get('/user', {
         headers: { Authorization: `Bearer ${data.access_token}` }
       });
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      navigate('/employee-portal');
+      setUser(userData);
+      navigate(homePathForUser(userData), { replace: true });
       window.location.reload();
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');

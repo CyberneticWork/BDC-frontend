@@ -291,7 +291,7 @@ const Cheque = () => {
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1 text-sm font-medium">
                             <DollarSign className="h-3 w-3 text-green-500" />
-                            <span>${cheque.amount?.toFixed(2)}</span>
+                            <span>{cheque.amount?.toFixed(2)}</span>
                           </div>
                           <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(cheque.status)}`}>
                             {getStatusIcon(cheque.status)}
@@ -357,7 +357,7 @@ const Cheque = () => {
                         {cheque.postDate || '-'}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${cheque.amount?.toFixed(2)}
+                        {cheque.amount?.toFixed(2)}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(cheque.status)}`}>

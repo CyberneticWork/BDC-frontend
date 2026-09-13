@@ -23,3 +23,19 @@ export function clearUser() {
   user = null;
   localStorage.removeItem("user");
 }
+
+export function isEmployeeUser(u = getUser()) {
+  const role = String(u?.role || "").toLowerCase();
+  if (role === "employee") return true;
+  if (u?.portal_only) return true;
+  if (u?.employee_id && !["admin", "hr", "supervisor"].includes(role)) return true;
+  return false;
+}
+
+export function homePathForUser(u, from) {
+  if (isEmployeeUser(u)) return "/employee-portal";
+  if (from && from !== "/" && !String(from).startsWith("/employee-portal")) {
+    return from;
+  }
+  return "/dashboard";
+}

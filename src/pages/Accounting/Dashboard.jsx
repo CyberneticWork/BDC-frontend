@@ -195,11 +195,11 @@ const FinancialChart = ({ type }) => {
 
 const RecentTransactions = () => {
   const transactions = [
-    { id: 1, name: 'Office Supplies', date: 'Today, 10:45 AM', amount: '-$245.50', category: 'expense', status: 'completed' },
-    { id: 2, name: 'Client Payment', date: 'Today, 09:30 AM', amount: '$1,500.00', category: 'income', status: 'completed' },
-    { id: 3, name: 'Software Subscription', date: 'Yesterday, 3:45 PM', amount: '-$99.00', category: 'expense', status: 'completed' },
-    { id: 4, name: 'Consulting Fee', date: 'Yesterday, 11:20 AM', amount: '$750.00', category: 'income', status: 'pending' },
-    { id: 5, name: 'Marketing Services', date: 'Jul 28, 2023', amount: '-$1,200.00', category: 'expense', status: 'completed' },
+    { id: 1, name: 'Office Supplies', date: 'Today, 10:45 AM', amount: '-245.50', category: 'expense', status: 'completed' },
+    { id: 2, name: 'Client Payment', date: 'Today, 09:30 AM', amount: '1,500.00', category: 'income', status: 'completed' },
+    { id: 3, name: 'Software Subscription', date: 'Yesterday, 3:45 PM', amount: '-99.00', category: 'expense', status: 'completed' },
+    { id: 4, name: 'Consulting Fee', date: 'Yesterday, 11:20 AM', amount: '750.00', category: 'income', status: 'pending' },
+    { id: 5, name: 'Marketing Services', date: 'Jul 28, 2023', amount: '-1,200.00', category: 'expense', status: 'completed' },
   ];
 
   return (
@@ -240,9 +240,9 @@ const RecentTransactions = () => {
 
 const AccountBalances = () => {
   const accounts = [
-    { name: 'Business Checking', number: '****4532', balance: '$25,430.50', color: 'blue' },
-    { name: 'Savings Account', number: '****7854', balance: '$42,100.00', color: 'green' },
-    { name: 'Credit Card', number: '****9012', balance: '-$3,245.75', color: 'red' },
+    { name: 'Business Checking', number: '****4532', balance: '25,430.50', color: 'blue' },
+    { name: 'Savings Account', number: '****7854', balance: '42,100.00', color: 'green' },
+    { name: 'Credit Card', number: '****9012', balance: '-3,245.75', color: 'red' },
   ];
 
   const colorClasses = {
@@ -322,27 +322,27 @@ const FinancialSummary = () => {
       <div className="space-y-3 sm:space-y-4">
         <div className="flex justify-between items-center">
           <span className="text-gray-600 text-sm sm:text-base">Total Assets</span>
-          <span className="font-medium text-sm sm:text-base">$100,000.00</span>
+          <span className="font-medium text-sm sm:text-base">100,000.00</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-600 text-sm sm:text-base">Total Liabilities</span>
-          <span className="font-medium text-sm sm:text-base">$50,000.00</span>
+          <span className="font-medium text-sm sm:text-base">50,000.00</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-600 text-sm sm:text-base">Net Worth</span>
-          <span className="font-medium text-sm sm:text-base">$50,000.00</span>
+          <span className="font-medium text-sm sm:text-base">50,000.00</span>
         </div>
         <div className="flex justify-between items-center pt-3 sm:pt-4 border-t border-gray-100">
           <span className="text-gray-600 text-sm sm:text-base">This Month Income</span>
-          <span className="font-medium text-green-600 text-sm sm:text-base">$10,000.00</span>
+          <span className="font-medium text-green-600 text-sm sm:text-base">10,000.00</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-600 text-sm sm:text-base">This Month Expenses</span>
-          <span className="font-medium text-red-600 text-sm sm:text-base">$4,500.00</span>
+          <span className="font-medium text-red-600 text-sm sm:text-base">4,500.00</span>
         </div>
         <div className="flex justify-between items-center pt-3 sm:pt-4 border-t border-gray-100">
           <span className="text-gray-600 text-sm sm:text-base">Net Income</span>
-          <span className="font-medium text-blue-600 text-sm sm:text-base">$5,500.00</span>
+          <span className="font-medium text-blue-600 text-sm sm:text-base">5,500.00</span>
         </div>
       </div>
     </ResponsiveCard>
@@ -507,28 +507,28 @@ const Dashboard = ({ setActiveItem }) => {
           >
             <StatCard 
               title="Total Revenue" 
-              value="$25,430" 
+              value="25,430" 
               change={12.5} 
               icon="dollar-sign" 
               color="green" 
             />
             <StatCard 
               title="Total Expenses" 
-              value="$12,450" 
+              value="12,450" 
               change={8.3} 
               icon="trending-down" 
               color="red" 
             />
             <StatCard 
               title="Net Profit" 
-              value="$12,980" 
+              value="12,980" 
               change={15.2} 
               icon="bar-chart-2" 
               color="blue" 
             />
             <StatCard 
               title="Cash Flow" 
-              value="$8,750" 
+              value="8,750" 
               change={5.7} 
               icon="repeat" 
               color="purple" 

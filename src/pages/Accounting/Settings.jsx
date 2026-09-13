@@ -4,7 +4,7 @@ import { getSettings, updateSettings } from "../../services/AccountingService";
 const Settings = () => {
   const [settings, setSettings] = useState({
     companyName: "",
-    currency: "USD",
+    currency: "LKR",
     taxRate: 0,
     fiscalYearStart: "01-01",
     timeZone: "UTC",
@@ -18,11 +18,12 @@ const Settings = () => {
 
   // Options for various settings
   const currencies = [
-    { code: "USD", name: "US Dollar ($)" },
-    { code: "EUR", name: "Euro (€)" },
-    { code: "GBP", name: "British Pound (£)" },
-    { code: "CAD", name: "Canadian Dollar (C$)" },
-    { code: "AUD", name: "Australian Dollar (A$)" },
+    { code: "LKR", name: "Sri Lankan Rupee" },
+    { code: "USD", name: "US Dollar" },
+    { code: "EUR", name: "Euro" },
+    { code: "GBP", name: "British Pound" },
+    { code: "CAD", name: "Canadian Dollar" },
+    { code: "AUD", name: "Australian Dollar" },
     { code: "JPY", name: "Japanese Yen (¥)" },
     { code: "CNY", name: "Chinese Yuan (¥)" }
   ];
@@ -64,7 +65,7 @@ const Settings = () => {
       const settingsData = getSettings();
       setSettings({
         companyName: settingsData.companyName || "",
-        currency: settingsData.currency || "USD",
+        currency: settingsData.currency || "LKR",
         taxRate: settingsData.taxRate || 0,
         fiscalYearStart: "01-01",
         timeZone: "UTC",

@@ -649,7 +649,7 @@ const AccountList = () => {
 
                     <div className="flex items-center gap-2 text-xs text-gray-600">
                       <DollarSign className="h-3 w-3 text-gray-400" />
-                      <span>${account.openingBalance?.toLocaleString() || "0.00"}</span>
+                      <span>{account.openingBalance?.toLocaleString() || "0.00"}</span>
                     </div>
                   </div>
                 </div>
@@ -721,7 +721,7 @@ const AccountList = () => {
                         </span>
                       </td>*/}
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${account.openingBalance?.toLocaleString() || "0.00"}
+                        {account.openingBalance?.toLocaleString() || "0.00"}
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">

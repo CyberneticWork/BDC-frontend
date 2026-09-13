@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Building2, CheckCircle2, Lock, LogOut, Plus, Save, Settings2, Upload } from "lucide-react";
+import { Building2, CheckCircle2, Lock, LogOut, MapPin, Plus, Save, Settings2, Upload } from "lucide-react";
 import Swal from "sweetalert2";
 import {
   activateCompanyPortal,
   createCompany,
   fetchCompanies,
+  fetchDepartmentsById,
   updateCompany,
   uploadCompanyLogo,
 } from "../../services/ApiDataService";
@@ -85,9 +86,18 @@ const emptyForm = {
   leave_workflow: false,
   weekly_off: false,
   medical_claims: false,
+  medical_leave: false,
   salary_advance: false,
   medical_annual_quota: 0,
   salary_advance_percent: 50,
+  punch_enabled: false,
+  punch_scope: "company",
+  punch_latitude: "",
+  punch_longitude: "",
+  punch_radius: 400,
+  punch_office_name: "",
+  punch_require_biometric: true,
+  punch_department_ids: [],
 };
 
 export default function CyberneticAdminPage() {
@@ -102,6 +112,7 @@ export default function CyberneticAdminPage() {
   const [logoFile, setLogoFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     document.title = "Cybernetic Admin";
@@ -192,19 +203,33 @@ export default function CyberneticAdminPage() {
         company.process_config?.medical_claims?.enabled ??
         company.process_config?.medical_claims
       ),
+      medical_leave: !!(
+        company.process_config?.medical_leave?.enabled ??
+        company.process_config?.medical_leave
+      ),
       salary_advance: !!(
         company.process_config?.salary_advance?.enabled ??
         company.process_config?.salary_advance
       ),
       medical_annual_quota: company.process_config?.medical_claims?.annual_quota || 0,
       salary_advance_percent: company.process_config?.salary_advance?.percent || 50,
+      punch_enabled: !!company.process_config?.mobile_punch?.enabled,
+      punch_scope: company.process_config?.mobile_punch?.scope === "department" ? "department" : "company",
+      punch_latitude: company.process_config?.mobile_punch?.latitude ?? "",
+      punch_longitude: company.process_config?.mobile_punch?.longitude ?? "",
+      punch_radius: company.process_config?.mobile_punch?.radiusMeters || 400,
+      punch_office_name: company.process_config?.mobile_punch?.officeName || company.name || "",
+      punch_require_biometric: company.process_config?.mobile_punch?.requireBiometric !== false,
+      punch_department_ids: (company.process_config?.mobile_punch?.department_ids || []).map(Number),
     });
+    fetchDepartmentsById(company.id).then((rows) => setDepartments(Array.isArray(rows) ? rows : []));
   };
 
   const startAdd = () => {
     setEditingId(null);
     setLogoFile(null);
     setForm(emptyForm);
+    setDepartments([]);
   };
 
   const save = async (e) => {
@@ -219,6 +244,7 @@ export default function CyberneticAdminPage() {
         logo_url: googleDriveLogoUrl(form.logo_url),
         attendance_process: form.attendance_process || "spm_standard",
         process_config: {
+          ...((editingId && companies.find((c) => c.id === editingId)?.process_config) || {}),
           attendance_process: form.attendance_process || "spm_standard",
           ot_hour_calculation: form.ot_hour_calculation || "current",
           multi_roster: {
@@ -229,6 +255,7 @@ export default function CyberneticAdminPage() {
           },
           leave_workflow: { enabled: !!form.leave_workflow },
           weekly_off: { enabled: !!form.weekly_off },
+          medical_leave: { enabled: !!form.medical_leave },
           medical_claims: {
             enabled: !!form.medical_claims,
             annual_quota: Number(form.medical_annual_quota || 0),
@@ -236,6 +263,19 @@ export default function CyberneticAdminPage() {
           salary_advance: {
             enabled: !!form.salary_advance,
             percent: Number(form.salary_advance_percent || 50),
+          },
+          mobile_punch: {
+            enabled: !!form.punch_enabled,
+            scope: form.punch_scope === "department" ? "department" : "company",
+            latitude: form.punch_latitude === "" ? null : Number(form.punch_latitude),
+            longitude: form.punch_longitude === "" ? null : Number(form.punch_longitude),
+            radiusMeters: Number(form.punch_radius || 400),
+            officeName: String(form.punch_office_name || form.name || "Office").trim(),
+            requireBiometric: !!form.punch_require_biometric,
+            department_ids:
+              form.punch_scope === "department"
+                ? (form.punch_department_ids || []).map(Number).filter(Boolean)
+                : [],
           },
         },
       };
@@ -377,6 +417,7 @@ export default function CyberneticAdminPage() {
                   <th className="py-2 pr-3">Payroll process</th>
                   <th className="py-2 pr-3">OT hours</th>
                   <th className="py-2 pr-3">Leave</th>
+                  <th className="py-2 pr-3">Phone punch</th>
                   <th className="py-2"> </th>
                 </tr>
               </thead>
@@ -444,6 +485,17 @@ export default function CyberneticAdminPage() {
                         <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-900">Covering workflow</span>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">Current</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-3 text-xs">
+                      {company.process_config?.mobile_punch?.enabled ? (
+                        <span className="rounded-full bg-teal-50 px-2 py-0.5 font-semibold text-teal-800">
+                          {company.process_config.mobile_punch.scope === "department"
+                            ? "Departments"
+                            : "Company"}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Off</span>
                       )}
                     </td>
                     <td className="py-3 text-right">
@@ -666,6 +718,20 @@ export default function CyberneticAdminPage() {
               <input
                 type="checkbox"
                 className="mt-1"
+                checked={!!form.medical_leave}
+                onChange={(e) => setForm({ ...form, medical_leave: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Medical leave with evidence</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Unchecked hides medical leave on the employee portal. Allow a separate medical request, optional report upload, HR cannot approve until evidence is attached, and days deduct Casual first then Annual.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
                 checked={!!form.medical_claims}
                 onChange={(e) => setForm({ ...form, medical_claims: e.target.checked })}
               />
@@ -836,6 +902,139 @@ export default function CyberneticAdminPage() {
                 />
               </label>
             ))}
+          </div>
+          <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <MapPin className="h-4 w-4 text-teal-700" />
+              Mobile fingerprint premises
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={!!form.punch_enabled}
+                onChange={(e) => setForm({ ...form, punch_enabled: e.target.checked })}
+              />
+              Enable phone fingerprint punch
+            </label>
+            <p className="text-xs text-slate-500">
+              Only employees in the selected company or departments can punch, and only at this GPS pin. Everyone else sees fingerprint disabled.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="punch_scope"
+                  checked={form.punch_scope !== "department"}
+                  onChange={() => setForm({ ...form, punch_scope: "company" })}
+                />
+                Whole company
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="punch_scope"
+                  checked={form.punch_scope === "department"}
+                  onChange={() => setForm({ ...form, punch_scope: "department" })}
+                />
+                Selected departments
+              </label>
+            </div>
+            {form.punch_scope === "department" && (
+              <div className="max-h-40 overflow-y-auto rounded-lg border bg-white p-2 space-y-1">
+                {departments.length === 0 ? (
+                  <p className="text-xs text-slate-500">Save/open a company to load departments, or add departments in HR first.</p>
+                ) : (
+                  departments.map((d) => (
+                    <label key={d.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={(form.punch_department_ids || []).includes(Number(d.id))}
+                        onChange={(e) => {
+                          const id = Number(d.id);
+                          const ids = new Set((form.punch_department_ids || []).map(Number));
+                          if (e.target.checked) ids.add(id);
+                          else ids.delete(id);
+                          setForm({ ...form, punch_department_ids: [...ids] });
+                        }}
+                      />
+                      {d.name}
+                    </label>
+                  ))
+                )}
+              </div>
+            )}
+            <label className="block text-sm">
+              Premises name
+              <input
+                value={form.punch_office_name}
+                onChange={(e) => setForm({ ...form, punch_office_name: e.target.value })}
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                placeholder="Head office"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm">
+                Latitude
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={form.punch_latitude}
+                  onChange={(e) => setForm({ ...form, punch_latitude: e.target.value })}
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
+                />
+              </label>
+              <label className="text-sm">
+                Longitude
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={form.punch_longitude}
+                  onChange={(e) => setForm({ ...form, punch_longitude: e.target.value })}
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
+                />
+              </label>
+            </div>
+            <label className="block text-sm">
+              Allowed radius (meters)
+              <input
+                type="number"
+                min="20"
+                max="2000"
+                value={form.punch_radius}
+                onChange={(e) => setForm({ ...form, punch_radius: e.target.value })}
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+              />
+            </label>
+            <button
+              type="button"
+              className="w-full rounded-lg border border-teal-200 bg-white py-2 text-sm font-medium text-teal-800 hover:bg-teal-50"
+              onClick={() => {
+                if (!navigator.geolocation) {
+                  Swal.fire({ icon: "error", title: "Location not available on this browser" });
+                  return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      punch_latitude: pos.coords.latitude.toFixed(6),
+                      punch_longitude: pos.coords.longitude.toFixed(6),
+                    }));
+                  },
+                  (err) => Swal.fire({ icon: "error", title: "Could not read GPS", text: err.message })
+                );
+              }}
+            >
+              Use this device location as the premises pin
+            </button>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={!!form.punch_require_biometric}
+                onChange={(e) => setForm({ ...form, punch_require_biometric: e.target.checked })}
+              />
+              Require fingerprint / Face ID on the phone
+            </label>
           </div>
           <button
             type="submit"
