@@ -445,7 +445,7 @@ const SalaryProcessPage = () => {
 
     const bonusDeductions = [
       {
-        label: "Late Deduction NoPay → Monthly Bonus",
+        label: "Late Deduction NoPay (basic + bonus rate) → Monthly Bonus",
         amount: Number(breakdown.monthly_late_nopay_deduction ?? breakdown.major_late_deduction ?? 0),
       },
       {

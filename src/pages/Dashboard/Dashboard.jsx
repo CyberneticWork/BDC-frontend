@@ -53,6 +53,7 @@ import TimeCardApproval from "@dashboard/TimeCardApproval";
 import TimeCardAuditReport from "@dashboard/TimeCardAuditReport";
 import ShiftHoursReport from "@dashboard/ShiftHoursReport";
 import MonthlyHoursReport from "@dashboard/MonthlyHoursReport";
+import ContractAttendanceReport from "@dashboard/ContractAttendanceReport";
 import Department from "@dashboard/Department";
 import Grouproster from "@dashboard/Grouproster";
 import RosterCalendar from "@dashboard/RosterCalendar";
@@ -930,6 +931,12 @@ const Dashboard = ({ user, onLogout }) => {
         return (
           <ProtectedComponent module="monthlyOtHoursReport" action="view">
             <MonthlyHoursReport reportType="ot" />
+          </ProtectedComponent>
+        );
+      case "contractAttendanceReport":
+        return (
+          <ProtectedComponent module="contractAttendanceReport" action="view">
+            <ContractAttendanceReport />
           </ProtectedComponent>
         );
       case "timeCardAuditReport":

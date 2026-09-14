@@ -106,6 +106,8 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   const loanBonusInterest = Number(
     breakdown.loan_bonus_interest ?? (loanTarget === "bonus" ? loanInterest : 0)
   );
+  const salaryAdvanceBasic = Number(breakdown.salary_advance_basic || 0);
+  const salaryAdvanceBonus = Number(breakdown.salary_advance_bonus || 0);
 
   const totalLatePenalty = shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay;
 
@@ -133,11 +135,14 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
     ...(loanBasicInterest > 0
       ? [{ label: "Loan Interest → Basic", amount: loanBasicInterest }]
       : []),
+    ...(salaryAdvanceBasic > 0
+      ? [{ label: "Salary Advance → Basic", amount: salaryAdvanceBasic }]
+      : []),
   ];
 
   const bonusDeductionLines = [
     {
-      label: "Late Deduction NoPay → Monthly Bonus",
+      label: "Late Deduction NoPay (basic + bonus rate) → Monthly Bonus",
       amount: majorLateNoPay,
       hint: lateNoPayDays > 0
         ? `${lateNoPayDays} day(s) × monthly bonus/${breakdown.nopay_working_days || 30}`
@@ -181,6 +186,9 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
     ...(loanBonusPrincipal > 0
       ? [{ label: "Loan Installment (Principal) → Monthly Bonus", amount: loanBonusPrincipal }]
       : []),
+    ...(salaryAdvanceBonus > 0
+      ? [{ label: "Salary Advance → Monthly Bonus", amount: salaryAdvanceBonus }]
+      : []),
   ];
 
   const basicDeductionsSum = sumAmounts(basicDeductionLines);
@@ -195,6 +203,12 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
 
   const basicSalary = Number(breakdown.basic_salary || employee.basic_salary || 0);
   const monthlyBonus = Number(breakdown.monthly_bonus || 0);
+
+  const basicGross = basicSalary + totalAllowances;
+  const basicDeductionsForNet = basicDeductionsSum + stampDuty;
+  const basicNet = basicGross - basicDeductionsForNet;
+  const bonusGross = totalBonuses;
+  const bonusNet = bonusGross - bonusDeductionsSum;
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-4">
@@ -412,11 +426,25 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
               <span className="text-gray-600">Header Gross</span>
               <span className="font-bold">{formatMoney(gross)}</span>
             </div>
-            <div className="flex justify-between text-sm mt-3 pt-2 border-t">
-              <span className="font-bold text-green-800">Net = Gross − Total Deductions</span>
-              <span className="font-extrabold text-green-700">
-                {formatMoney(gross)} − {formatMoney(totalDeductions)} = {formatMoney(net)}
-              </span>
+            <div className="mt-3 pt-2 border-t space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-sm">
+                <span className="font-bold text-slate-800">Basic Net = (Basic + Allowances) − Basic Deductions</span>
+                <span className="font-extrabold text-slate-800">
+                  {formatMoney(basicGross)} − {formatMoney(basicDeductionsForNet)} = {formatMoney(basicNet)}
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-sm">
+                <span className="font-bold text-indigo-800">Bonus Net = Bonuses − Bonus Deductions</span>
+                <span className="font-extrabold text-indigo-800">
+                  {formatMoney(bonusGross)} − {formatMoney(bonusDeductionsSum)} = {formatMoney(bonusNet)}
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-sm pt-2 border-t">
+                <span className="font-bold text-green-800">Net = Gross − Total Deductions</span>
+                <span className="font-extrabold text-green-700">
+                  {formatMoney(gross)} − {formatMoney(totalDeductions)} = {formatMoney(net)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
