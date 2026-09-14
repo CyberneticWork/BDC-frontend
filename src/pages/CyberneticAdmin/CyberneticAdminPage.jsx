@@ -18,6 +18,7 @@ import {
 import { extractThemeFromImageFile, applyThemeToDocument } from "../../utils/logoTheme";
 import { googleDriveLogoUrl } from "../../utils/googleDriveLogo";
 import { isFirebaseConfigured, uploadToFirebase } from "../../services/firebaseStorage";
+import { useBranding } from "../../contexts/BrandingContext";
 
 const PROCESS_OPTIONS = [
   {
@@ -109,6 +110,7 @@ const emptyForm = {
 };
 
 export default function CyberneticAdminPage() {
+  const { refreshBranding } = useBranding();
   const [authed, setAuthed] = useState(!!getCyberneticToken());
   const [checking, setChecking] = useState(!!getCyberneticToken());
   const [password, setPassword] = useState("");
@@ -317,6 +319,7 @@ export default function CyberneticAdminPage() {
       });
       startAdd();
       await refresh();
+      await refreshBranding();
     } catch (error) {
       Swal.fire({
         icon: "error",
@@ -338,6 +341,7 @@ export default function CyberneticAdminPage() {
         showConfirmButton: false,
       });
       await refresh();
+      await refreshBranding();
     } catch (error) {
       Swal.fire({
         icon: "error",
