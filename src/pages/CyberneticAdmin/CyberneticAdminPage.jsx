@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Building2, CheckCircle2, Lock, LogOut, MapPin, Plus, Save, Settings2, Upload } from "lucide-react";
+import { Building2, CheckCircle2, Lock, LogOut, MapPin, Plus, Save, Settings2, Shield, Upload } from "lucide-react";
 import Swal from "sweetalert2";
 import {
   activateCompanyPortal,
@@ -47,6 +47,12 @@ const OT_HOUR_OPTIONS = [
     summary:
       "0h 00–29m = 0. 0h 30–44m = 0.30. 0h 45–59m = 0.45. For 1h+: 00–14m keep whole hours; 15–29m add 0.15; 30–44m add 0.30; 45–59m add 0.45.",
   },
+  {
+    key: "shift_end_band",
+    label: "After shift-end 15-minute OT",
+    summary:
+      "After shift end: first 30 minutes = no OT. From 31 minutes = 0.30. From 45 minutes = 0.45. From 1 hour = 1.00. After that first hour, every extra 15 minutes adds 0.15 (1.15, 1.30, 1.45, 2.00…).",
+  },
 ];
 
 const FUTURE_CONFIGS = [
@@ -88,8 +94,10 @@ const emptyForm = {
   medical_claims: false,
   medical_leave: false,
   salary_advance: false,
-  medical_annual_quota: 0,
   salary_advance_percent: 50,
+  salary_advance_hr_deduct_from: "bonus",
+  reland_excel_import: false,
+  medical_annual_quota: 0,
   punch_enabled: false,
   punch_scope: "company",
   punch_latitude: "",
@@ -113,9 +121,10 @@ export default function CyberneticAdminPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [sessionInfo, setSessionInfo] = useState(null);
 
   useEffect(() => {
-    document.title = "Cybernetic Admin";
+    document.title = "Cybernetic Control Plane";
     let cancelled = false;
     const token = getCyberneticToken();
     if (!token) {
@@ -126,8 +135,11 @@ export default function CyberneticAdminPage() {
       if (!cancelled) setChecking(false);
     }, 4000);
     loadCyberneticAdmin()
-      .then(() => {
-        if (!cancelled) setAuthed(true);
+      .then((me) => {
+        if (!cancelled) {
+          setAuthed(true);
+          setSessionInfo(me);
+        }
       })
       .catch(() => {
         logoutCyberneticAdmin();
@@ -157,7 +169,8 @@ export default function CyberneticAdminPage() {
     setLoginLoading(true);
     setLoginError(null);
     try {
-      await loginCyberneticAdmin(password);
+      const data = await loginCyberneticAdmin(password);
+      setSessionInfo(data);
       setAuthed(true);
       setPassword("");
     } catch (err) {
@@ -211,8 +224,14 @@ export default function CyberneticAdminPage() {
         company.process_config?.salary_advance?.enabled ??
         company.process_config?.salary_advance
       ),
+      reland_excel_import: !!(
+        company.process_config?.reland_excel_import?.enabled ??
+        company.process_config?.reland_excel_import
+      ),
       medical_annual_quota: company.process_config?.medical_claims?.annual_quota || 0,
       salary_advance_percent: company.process_config?.salary_advance?.percent || 50,
+      salary_advance_hr_deduct_from:
+        company.process_config?.salary_advance?.hr_deduct_from === "basic" ? "basic" : "bonus",
       punch_enabled: !!company.process_config?.mobile_punch?.enabled,
       punch_scope: company.process_config?.mobile_punch?.scope === "department" ? "department" : "company",
       punch_latitude: company.process_config?.mobile_punch?.latitude ?? "",
@@ -263,7 +282,9 @@ export default function CyberneticAdminPage() {
           salary_advance: {
             enabled: !!form.salary_advance,
             percent: Number(form.salary_advance_percent || 50),
+            hr_deduct_from: form.salary_advance_hr_deduct_from === "basic" ? "basic" : "bonus",
           },
+          reland_excel_import: { enabled: !!form.reland_excel_import },
           mobile_punch: {
             enabled: !!form.punch_enabled,
             scope: form.punch_scope === "department" ? "department" : "company",
@@ -328,71 +349,117 @@ export default function CyberneticAdminPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen grid place-items-center bg-slate-950 text-white">
-        Checking access…
+      <div className="min-h-screen grid place-items-center bg-[#06141f] text-slate-200">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-full border-2 border-teal-400/30 border-t-teal-400 animate-spin" />
+          <p className="text-sm tracking-wide text-slate-400">Verifying control-plane session</p>
+        </div>
       </div>
     );
   }
 
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-        <form
-          onSubmit={handleLogin}
-          className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-8 shadow-2xl"
-        >
-          <div className="mb-6 flex items-center gap-3 text-white">
-            <Lock className="h-6 w-6 text-teal-400" />
-            <div>
-              <h1 className="text-xl font-semibold">Cybernetic Admin</h1>
-              <p className="text-sm text-slate-400">Company URLs, logos and theme. Not an HR user.</p>
-            </div>
+      <div className="min-h-screen bg-[#06141f] text-white relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(13,148,136,0.18),_transparent_55%)]" />
+        <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8 lg:flex-row lg:items-center lg:justify-between gap-12">
+          <div className="max-w-lg">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-400">Cybernetic</p>
+            <h1 className="mt-3 font-[Outfit,sans-serif] text-4xl font-semibold leading-tight">
+              Control plane
+            </h1>
+            <p className="mt-4 text-slate-400 leading-relaxed">
+              Restricted operator console for tenant companies, branding, attendance packs and portal activation.
+              This is not an HR user login.
+            </p>
+            <ul className="mt-8 space-y-3 text-sm text-slate-300">
+              <li className="flex items-start gap-2">
+                <Shield className="mt-0.5 h-4 w-4 text-teal-400" />
+                Signed JWT session stays in this browser after close, and expires automatically.
+              </li>
+              <li className="flex items-start gap-2">
+                <Lock className="mt-0.5 h-4 w-4 text-teal-400" />
+                Failed attempts are rate-limited. Use the server password from CYBERNETIC_ADMIN_PASSWORD.
+              </li>
+            </ul>
           </div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-          <input
-            type="password"
-            autoFocus
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-teal-500"
-            placeholder="Enter admin password"
-          />
-          {loginError && <p className="mt-2 text-sm text-red-400">{loginError}</p>}
-          <button
-            type="submit"
-            disabled={loginLoading}
-            className="mt-5 w-full rounded-lg bg-teal-500 py-2.5 font-medium text-slate-950 hover:bg-teal-400 disabled:opacity-60"
+          <form
+            onSubmit={handleLogin}
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur"
           >
-            {loginLoading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+            <div className="mb-6 flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-teal-500/15 text-teal-300">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Operator sign-in</h2>
+                <p className="text-sm text-slate-400">Cybernetic Admin</p>
+              </div>
+            </div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Access password</label>
+            <input
+              type="password"
+              autoFocus
+              autoComplete="current-password"
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-[#06141f] px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-teal-500"
+              placeholder="Enter operator password"
+            />
+            {loginError && <p className="mt-2 text-sm text-red-400">{loginError}</p>}
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="mt-5 w-full rounded-lg bg-teal-500 py-2.5 font-semibold text-slate-950 hover:bg-teal-400 disabled:opacity-60"
+            >
+              {loginLoading ? "Authenticating…" : "Continue"}
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="border-b bg-slate-950 text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-teal-400">Cybernetic</p>
-            <h1 className="text-lg font-semibold">Company tenants</h1>
+      <header className="border-b border-slate-800 bg-[#06141f] text-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-teal-500/15 text-teal-300">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-400">Cybernetic control plane</p>
+              <h1 className="text-lg font-semibold">Tenant operations</h1>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              logoutCyberneticAdmin();
-              setAuthed(false);
-            }}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm hover:bg-white/10"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right text-xs text-slate-400 sm:block">
+              <div>Operator session</div>
+              <div>
+                {sessionInfo?.expires_in_hours || sessionInfo?.session?.ttl_hours
+                  ? `TTL ${sessionInfo.expires_in_hours || sessionInfo.session?.ttl_hours}h`
+                  : "Signed in"}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                logoutCyberneticAdmin();
+                setSessionInfo(null);
+                setAuthed(false);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm hover:bg-white/10"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[1.1fr_0.9fr]">
+      <main className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="rounded-2xl border bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold text-slate-800">Companies</h2>
@@ -418,6 +485,7 @@ export default function CyberneticAdminPage() {
                   <th className="py-2 pr-3">OT hours</th>
                   <th className="py-2 pr-3">Leave</th>
                   <th className="py-2 pr-3">Phone punch</th>
+                  <th className="py-2 pr-3">Reland Excel</th>
                   <th className="py-2"> </th>
                 </tr>
               </thead>
@@ -474,7 +542,9 @@ export default function CyberneticAdminPage() {
                       )}
                     </td>
                     <td className="py-3 pr-3 text-xs">
-                      {company.process_config?.ot_hour_calculation === "minute_band" ? (
+                      {company.process_config?.ot_hour_calculation === "shift_end_band" ? (
+                        <span className="rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-900">Shift-end band</span>
+                      ) : company.process_config?.ot_hour_calculation === "minute_band" ? (
                         <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-900">Minute band</span>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">Current</span>
@@ -494,6 +564,13 @@ export default function CyberneticAdminPage() {
                             ? "Departments"
                             : "Company"}
                         </span>
+                      ) : (
+                        <span className="text-slate-400">Off</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-3 text-xs">
+                      {company.process_config?.reland_excel_import?.enabled || company.process_config?.reland_excel_import === true ? (
+                        <span className="rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-900">On</span>
                       ) : (
                         <span className="text-slate-400">Off</span>
                       )}
@@ -770,18 +847,60 @@ export default function CyberneticAdminPage() {
               </span>
             </label>
             {form.salary_advance && (
-              <label className="block text-sm">
-                Available advance (% of basic)
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  value={form.salary_advance_percent}
-                  onChange={(e) => setForm({ ...form, salary_advance_percent: e.target.value })}
-                />
-              </label>
+              <>
+                <label className="block text-sm">
+                  Available advance (% of basic)
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    value={form.salary_advance_percent}
+                    onChange={(e) => setForm({ ...form, salary_advance_percent: e.target.value })}
+                  />
+                </label>
+                <fieldset className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+                  <legend className="font-semibold text-slate-900 px-1">
+                    HR salary advance deduct from
+                  </legend>
+                  <p className="text-xs text-slate-600 mb-2">
+                    Applies when HR creates an advance or HR approves one. Employee portal requests cannot choose this.
+                  </p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="salary_advance_hr_deduct_from"
+                      checked={form.salary_advance_hr_deduct_from !== "basic"}
+                      onChange={() => setForm({ ...form, salary_advance_hr_deduct_from: "bonus" })}
+                    />
+                    Monthly bonus
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer mt-1">
+                    <input
+                      type="radio"
+                      name="salary_advance_hr_deduct_from"
+                      checked={form.salary_advance_hr_deduct_from === "basic"}
+                      onChange={() => setForm({ ...form, salary_advance_hr_deduct_from: "basic" })}
+                    />
+                    Basic salary
+                  </label>
+                </fieldset>
+              </>
             )}
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.reland_excel_import}
+                onChange={(e) => setForm({ ...form, reland_excel_import: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Reland fingerprint Excel import</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Unchecked hides Reland import on Time Card. Allow HR to upload Reland Raw Clock-InOut Log.xls and write those punches as time cards for this company only.
+                </span>
+              </span>
+            </label>
             <div className="pt-1">
               <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Coming soon</p>
               <div className="space-y-2">

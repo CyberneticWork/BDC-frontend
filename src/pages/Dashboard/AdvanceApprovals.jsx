@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Check, X, RefreshCw, Wallet } from "lucide-react";
+import { Check, Plus, X, RefreshCw, Wallet } from "lucide-react";
 import {
+  createHrAdvance,
   listAdvanceRequests,
   reviewAdvanceRequest,
 } from "../../services/EmployeePortalService";
+import employeeService from "../../services/EmployeeDataService";
 
 const money = (v) =>
   `Rs. ${Number(v || 0).toLocaleString(undefined, {
@@ -11,19 +13,31 @@ const money = (v) =>
     maximumFractionDigits: 2,
   })}`;
 
+const deductLabel = (row) => {
+  const v = String(row.deduct_from || row.hr_deduct_from || "").toLowerCase();
+  if (v === "basic") return "Basic salary";
+  if (v === "bonus") return "Monthly bonus";
+  return null;
+};
+
 export default function AdvanceApprovals() {
   const [items, setItems] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [status, setStatus] = useState("PENDING");
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState({});
   const [msg, setMsg] = useState("");
+  const [form, setForm] = useState({
+    employee_id: "",
+    amount: "",
+    needed_on: "",
+    reason: "",
+  });
 
   const load = async () => {
     try {
       setLoading(true);
-      const data = await listAdvanceRequests(
-        status ? { status } : {}
-      );
+      const data = await listAdvanceRequests(status ? { status } : {});
       setItems(data.items || []);
     } catch (e) {
       setMsg(e?.response?.data?.message || "Failed to load advance requests");
@@ -35,6 +49,13 @@ export default function AdvanceApprovals() {
   useEffect(() => {
     load();
   }, [status]);
+
+  useEffect(() => {
+    employeeService
+      .fetchEmployees()
+      .then((rows) => setEmployees(Array.isArray(rows) ? rows : rows?.data || []))
+      .catch(() => setEmployees([]));
+  }, []);
 
   const review = async (id, action) => {
     try {
@@ -49,6 +70,23 @@ export default function AdvanceApprovals() {
     }
   };
 
+  const createFromHr = async (e) => {
+    e.preventDefault();
+    try {
+      await createHrAdvance({
+        employee_id: Number(form.employee_id),
+        amount: Number(form.amount),
+        needed_on: form.needed_on || null,
+        reason: form.reason,
+      });
+      setMsg("Salary advance created by HR and sent to Pending Payments (if the company pack is on).");
+      setForm({ employee_id: "", amount: "", needed_on: "", reason: "" });
+      await load();
+    } catch (err) {
+      setMsg(err?.response?.data?.message || "Create failed");
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -58,7 +96,7 @@ export default function AdvanceApprovals() {
             Salary Advance Approvals
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Review employee portal advance requests
+            HR can create advances here, or approve portal requests. Deduct from basic or bonus follows the company Cybernetic setting — not the employee form.
           </p>
         </div>
         <div className="flex gap-2">
@@ -81,6 +119,60 @@ export default function AdvanceApprovals() {
           </button>
         </div>
       </div>
+
+      <form
+        onSubmit={createFromHr}
+        className="bg-white rounded-2xl border border-teal-50 p-4 shadow-[0_10px_30px_rgba(6,42,50,0.06)] grid gap-3 md:grid-cols-2"
+      >
+        <p className="md:col-span-2 font-semibold text-sm text-slate-800 flex items-center gap-2">
+          <Plus className="w-4 h-4 text-teal-600" />
+          Create salary advance from HR
+        </p>
+        <select
+          required
+          className="border border-teal-100 rounded-xl px-3 py-2 text-sm"
+          value={form.employee_id}
+          onChange={(e) => setForm({ ...form, employee_id: e.target.value })}
+        >
+          <option value="">Select employee</option>
+          {employees.map((emp) => (
+            <option key={emp.id} value={emp.id}>
+              {emp.attendance_employee_no ? `#${emp.attendance_employee_no} · ` : ""}
+              {emp.full_name || emp.name_with_initials || `Employee ${emp.id}`}
+            </option>
+          ))}
+        </select>
+        <input
+          required
+          type="number"
+          min="1"
+          step="0.01"
+          placeholder="Amount"
+          className="border border-teal-100 rounded-xl px-3 py-2 text-sm"
+          value={form.amount}
+          onChange={(e) => setForm({ ...form, amount: e.target.value })}
+        />
+        <input
+          type="date"
+          className="border border-teal-100 rounded-xl px-3 py-2 text-sm"
+          value={form.needed_on}
+          onChange={(e) => setForm({ ...form, needed_on: e.target.value })}
+        />
+        <input
+          required
+          type="text"
+          placeholder="Reason"
+          className="border border-teal-100 rounded-xl px-3 py-2 text-sm"
+          value={form.reason}
+          onChange={(e) => setForm({ ...form, reason: e.target.value })}
+        />
+        <button
+          type="submit"
+          className="md:col-span-2 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-teal-700 text-white text-sm font-semibold"
+        >
+          Save HR advance
+        </button>
+      </form>
 
       {msg && (
         <div className="rounded-xl bg-teal-50 border border-teal-100 px-4 py-2 text-sm text-teal-800">
@@ -111,11 +203,19 @@ export default function AdvanceApprovals() {
                     {row.employee?.attendance_employee_no
                       ? ` · #${row.employee.attendance_employee_no}`
                       : ""}
+                    {row.company_name ? ` · ${row.company_name}` : ""}
                   </p>
                   <p className="text-sm text-slate-500 mt-1">{row.reason}</p>
                   {row.needed_on && (
                     <p className="text-xs text-slate-400 mt-1">
                       Needed on: {String(row.needed_on).slice(0, 10)}
+                    </p>
+                  )}
+                  {deductLabel(row) && (
+                    <p className="text-xs text-teal-800 mt-1 font-semibold">
+                      Payroll deduct from: {deductLabel(row)}
+                      {row.status === "PENDING" ? " (on approve)" : ""}
+                      {row.source === "hr" ? " · Created by HR" : ""}
                     </p>
                   )}
                 </div>

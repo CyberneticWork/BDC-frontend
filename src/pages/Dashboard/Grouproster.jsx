@@ -24,7 +24,7 @@ import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 import axios from "@utils/axios";
 import DatePickerInput from "@components/DatePickerInput";
-import moment from "moment";
+import { format, parseISO } from "date-fns";
 
 const RosterManagementSystem = () => {
   const [dateFrom, setDateFrom] = useState("");
@@ -1036,7 +1036,7 @@ const RosterManagementSystem = () => {
               <h3 className="font-bold text-lg text-gray-800">Shift Selection</h3>
             </div>
             <div className="text-sm text-gray-600">
-              <span className="font-semibold">{moment(dateFrom).format("yyyy/MM/DD")} - {moment(dateTo).format("yyyy/MM/DD")}</span>
+              <span className="font-semibold">{dateFrom ? format(parseISO(dateFrom), "yyyy/MM/dd") : ""} - {dateTo ? format(parseISO(dateTo), "yyyy/MM/dd") : ""}</span>
             </div>
           </div>
 

@@ -205,7 +205,7 @@ const SalaryProcessPage = () => {
 
     try {
       setIsLoading(true);
-
+      
       const response = await processSalaries({
         data: processedDisplayedData,
         month: parseInt(month, 10),
@@ -224,7 +224,7 @@ const SalaryProcessPage = () => {
       if (blocked > 0) detail += `, ${blocked} issued (locked)`;
 
       notify.success(reprocess ? "Revised & Reprocessed" : "Processed", detail);
-      await fetchSalaryData();
+        await fetchSalaryData();
     } catch (error) {
       console.error("Error processing salaries:", error);
       const errorMsg = error.response?.data?.message || error.response?.data?.errors || error.message;
@@ -387,6 +387,8 @@ const SalaryProcessPage = () => {
     const loanBasicInterest = Number(breakdown.loan_basic_interest ?? (loanTarget === 'basic' ? loanInterest : 0));
     const loanBonusPrincipal = Number(breakdown.loan_bonus_principal ?? (loanTarget === 'bonus' ? loanPrincipal : 0));
     const loanBonusInterest = Number(breakdown.loan_bonus_interest ?? (loanTarget === 'bonus' ? loanInterest : 0));
+    const salaryAdvanceBasic = Number(breakdown.salary_advance_basic || 0);
+    const salaryAdvanceBonus = Number(breakdown.salary_advance_bonus || 0);
 
     const basicEarnings = [
       { label: "Basic Salary", amount: Number(breakdown.basic_salary || emp?.basic_salary || 0) },
@@ -414,6 +416,7 @@ const SalaryProcessPage = () => {
       // --------------------------
       ...(loanBasicPrincipal > 0 ? [{ label: "Loan Installment (Principal) → Basic", amount: loanBasicPrincipal }] : []),
       ...(loanBasicInterest > 0 ? [{ label: "Loan Interest → Basic", amount: loanBasicInterest }] : []),
+      ...(salaryAdvanceBasic > 0 ? [{ label: "Salary Advance → Basic", amount: salaryAdvanceBasic }] : []),
     ].filter((item) => item.amount > 0);
 
     const bonusEarnings = [
@@ -422,7 +425,13 @@ const SalaryProcessPage = () => {
       { label: "KPI Bonus (6M)", amount: Number(breakdown.kpi_bonus_allowance || 0) },
     ].filter((item) => item.amount > 0);
 
-    const customDeductionsList = deductions.map((d) => ({
+    const customDeductionsList = deductions
+      .filter((d) => {
+        if (salaryAdvanceBasic + salaryAdvanceBonus <= 0) return true;
+        const n = String(d.name || "").toLowerCase();
+        return !n.includes("salary advance") && n !== "advance" && !n.includes("salary_advance");
+      })
+      .map((d) => ({
        label: `${d.name} (${d.category || 'General'})`,
        amount: Number(d.amount || 0)
     }));
@@ -462,6 +471,7 @@ const SalaryProcessPage = () => {
       { label: "Sports Fund", amount: Number(breakdown.sports_fund_deduction || 0) },
       { label: "Staff Fund", amount: Number(breakdown.staff_fund_deduction || 0) },
       ...(loanBonusPrincipal > 0 ? [{ label: "Loan Installment (Principal) → Monthly Bonus", amount: loanBonusPrincipal }] : []),
+      ...(salaryAdvanceBonus > 0 ? [{ label: "Salary Advance → Monthly Bonus", amount: salaryAdvanceBonus }] : []),
       ...customDeductionsList 
     ].filter((item) => item.amount > 0);
 
@@ -565,7 +575,7 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, si
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.text(String(emp.company_name || emp.employee?.organizationAssignment?.company?.name || "Company"), cx, y0 + 5.5, { align: "center", maxWidth: boxW - 6 });
-    doc.setFontSize(9);
+    doc.setFontSize(9); 
     doc.text(String(payslip.title || "PAYSLIP"), cx, y0 + 10.5, { align: "center", maxWidth: boxW - 6 });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
@@ -602,7 +612,7 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, si
       const accNo = empObj.compensation?.bank_account_no || emp.bank_account_no || "-";
       doc.setFont("helvetica", "bold");
       doc.text("Bank:", innerL, y);
-      doc.setFont("helvetica", "normal");
+      doc.setFont("helvetica", "normal"); 
       doc.text(`${bankName} / ${accNo}`, innerL + 22, y, { maxWidth: boxW - 28 });
       y += 5;
     }
@@ -618,8 +628,8 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, si
       doc.text(formatMoney(amount), innerR, y, { align: "right" });
       y += 4.2;
     };
-
-    doc.setFont("helvetica", "bold");
+      
+      doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.text("Earnings", innerL, y);
     y += 5;
@@ -630,20 +640,20 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, si
     }
     moneyLine("Total Earnings", earningsTotal, true);
     y += 2;
-    doc.setFont("helvetica", "bold");
+    doc.setFont("helvetica", "bold"); 
     doc.setFontSize(8);
     doc.text("Deductions", innerL, y);
     y += 5;
     if ((payslip.deductions || []).length) {
       payslip.deductions.forEach((item) => moneyLine(item.label, item.amount));
-    } else {
+    } else { 
       moneyLine("No deductions", 0);
     }
     moneyLine("Total Deductions", deductionsTotal, true);
     y += 3;
     doc.setFillColor(209, 250, 229);
     doc.rect(innerL, y - 4, boxW - 6, 8, "F");
-    doc.setFont("helvetica", "bold");
+    doc.setFont("helvetica", "bold"); 
     doc.setFontSize(8.5);
     doc.setTextColor(6, 95, 70);
     doc.text("NET AMOUNT", innerL + 1.5, y + 1.2);
@@ -989,13 +999,13 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, si
                   {employee.process_status}
                 </span>
               )}
-              <EmployeeSalaryCard
-                employee={employee}
-                empId={String(employee.id)}
-                isSelected={selectedEmployees.includes(String(employee.id))}
-                onSelect={() => handleSelectEmployee(employee)}
-                onDownload={handleDownloadEmployeePayslips}
-              />
+            <EmployeeSalaryCard
+              employee={employee}
+              empId={String(employee.id)}
+              isSelected={selectedEmployees.includes(String(employee.id))}
+              onSelect={() => handleSelectEmployee(employee)}
+              onDownload={handleDownloadEmployeePayslips}
+            />
             </div>
           ))}
         </div>

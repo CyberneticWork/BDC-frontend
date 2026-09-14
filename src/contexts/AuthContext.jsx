@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { loadUser } from "../services/AuthService";
 import { permissions } from "../config/permissions"; // Or fetch from API
+import { getToken } from "../services/TokenService";
 
 const AuthContext = createContext();
 
@@ -10,6 +11,9 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchUser = async () => {
+      if (!getToken()) {
+        return;
+      }
       try {
         const userData = await loadUser();
         setUser(userData);

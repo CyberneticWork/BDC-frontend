@@ -1,4 +1,4 @@
-import moment from 'moment';
+import { format, isValid, parse } from 'date-fns';
 import React, { useRef } from 'react';
 
 /**
@@ -30,8 +30,11 @@ const DatePickerInput = ({
 
     const getDisplayText = () => {
         if (!value) return "";
-        const parsed = moment(value, "YYYY-MM-DD", false);
-        return parsed.isValid() ? parsed.format(displayFormat) : value;
+        const parsed = parse(value, 'yyyy-MM-dd', new Date());
+        const dateFnsFormat = displayFormat
+          .replace(/YYYY/g, 'yyyy')
+          .replace(/DD/g, 'dd');
+        return isValid(parsed) ? format(parsed, dateFnsFormat) : value;
     };
 
     const handleTextClick = () => {

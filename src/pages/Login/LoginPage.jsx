@@ -38,16 +38,24 @@ function LoginPage({ onSuccess }) {
       await login(credentials);
       const user = await loadUser();
       setUser(user);
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(user);
       return {};
     } catch (err) {
       const validationErrors = err?.response?.data?.errors;
       if (validationErrors) return { errors: validationErrors };
+      const timedOut = err?.code === "ECONNABORTED" || /timeout/i.test(String(err?.message || ""));
+      const unreachable =
+        !err?.response &&
+        (err?.code === "ERR_NETWORK" || err?.message === "Network Error");
       setError(
         err?.response?.data?.message ||
           (err?.response?.status === 500
             ? "Login service error. Please try again."
-            : "Login failed. Please check your credentials.")
+            : timedOut
+              ? "The HR API did not respond in time. Start MySQL in XAMPP, then try again."
+              : unreachable
+                ? "Cannot reach the HR API. Open http://localhost:5173 and keep php artisan serve running on port 8000."
+                : "Login failed. Please check your credentials.")
       );
       return {};
     } finally {
@@ -69,7 +77,7 @@ function LoginPage({ onSuccess }) {
     {
       icon: Shield,
       title: "Secure access",
-      text: "Role-based control for HR, supervisors and staff.",
+      text: "Sign-in issues a random JWT. Username and password are not sent again after login.",
     },
   ];
 
@@ -175,7 +183,7 @@ function LoginPage({ onSuccess }) {
       >
         <div className="w-full max-w-md mx-auto">
           <div className="rounded-3xl border border-white/70 bg-white/90 p-8 sm:p-9 shadow-[0_24px_60px_rgba(6,42,50,0.12)]">
-            {brandingLoading ? (
+            {brandingLoading && !branding ? (
               <p className="text-sm text-slate-500">Loading company branding…</p>
             ) : null}
             <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: secondary }}>
@@ -185,7 +193,7 @@ function LoginPage({ onSuccess }) {
               Welcome back
             </h2>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
-              Use your email or NIC and password to open the {companyName} dashboard.
+              Use your email or NIC and password once. The app then keeps a signed JWT session, so closing the browser and coming back still opens the {companyName} dashboard until you log out.
             </p>
 
             {error && (

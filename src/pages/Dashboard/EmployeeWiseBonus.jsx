@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 // import * as EmployeeWiseBonusService from "@services/EmployeeWiseBonusService";
 import * as EmployeeWiseBonusService from "../../services/EmployeeWiseBonusService";
-import moment from "moment";
+import { format, parseISO, isValid } from "date-fns";
 
 function EmployeeWiseBonus() {
     const [data, setData] = useState([]);
@@ -824,7 +824,7 @@ function EmployeeWiseBonus() {
                                                 LKR {parseFloat(rec.amount).toFixed(2)}
                                             </td>
                                             <td className="py-4 px-6 hidden sm:table-cell text-gray-500">
-                                                {moment(rec.date).format("YYYY-MM-DD") || "—"}
+                                                {rec.date && isValid(parseISO(String(rec.date).slice(0, 10))) ? format(parseISO(String(rec.date).slice(0, 10)), "yyyy-MM-dd") : "—"}
                                             </td>
                                             <td className="py-4 px-6 hidden lg:table-cell">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize border ${rec.status === 'active'

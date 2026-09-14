@@ -114,12 +114,87 @@ const filterFirstInLastOut = (records) => {
     // අර පළවෙනි IN එක විතරක් add වෙලා අනිත් IN ටික Main Table එකෙන් හැංගෙනවා!
   });
 
-  // නැවත දිනය සහ වෙලාව අනුව පිළිවෙලට හැදීම
-  return finalRecords.sort((a, b) => {
-    if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
-    return (a.time || '').localeCompare(b.time || '');
-  });
+  return pairSameDayInOut(finalRecords);
 };
+
+const NEARBY_IN_OUT_MINUTES = 30;
+
+function punchMinutes(time) {
+  const parts = String(time || "")
+    .trim()
+    .split(":")
+    .map((n) => Number(n));
+  if (parts.length < 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) return null;
+  return parts[0] * 60 + parts[1] + (Number.isFinite(parts[2]) ? parts[2] / 60 : 0);
+}
+
+function isOutPunch(rec) {
+  const entry = rec?.entry;
+  const status = String(rec?.status || rec?.inOut || "").toUpperCase();
+  return (
+    entry === 2 ||
+    entry === "2" ||
+    entry === 0 ||
+    entry === "0" ||
+    status === "OUT" ||
+    status === "EARLY OUT"
+  );
+}
+
+/** One table row per employee/day: show IN and OUT together when both exist. */
+function pairSameDayInOut(records) {
+  if (!Array.isArray(records)) return [];
+
+  const grouped = {};
+  records.forEach((rec) => {
+    const key = `${rec.employee_id || rec.empNo}_${rec.date}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(rec);
+  });
+
+  const rows = [];
+  Object.values(grouped).forEach((group) => {
+    group.sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+    const ins = group.filter((r) => !isOutPunch(r));
+    const outs = group.filter(isOutPunch);
+    const inPunch = ins[0] || (!outs.length ? group[0] : null);
+    const outPunch = outs.length ? outs[outs.length - 1] : null;
+
+    if (inPunch && outPunch && inPunch.id !== outPunch.id) {
+      const inMin = punchMinutes(inPunch.time);
+      const outMin = punchMinutes(outPunch.time);
+      const gap = inMin != null && outMin != null ? Math.abs(outMin - inMin) : null;
+      rows.push({
+        ...inPunch,
+        inTime: inPunch.time,
+        outTime: outPunch.time,
+        time: `${inPunch.time || "—"} – ${outPunch.time || "—"}`,
+        inOut: "IN/OUT",
+        pairedOutId: outPunch.id,
+        nearbyPair: gap != null && gap <= NEARBY_IN_OUT_MINUTES,
+        pairMinutes: gap,
+        status: inPunch.status === outPunch.status ? inPunch.status : `${inPunch.status} / ${outPunch.status}`,
+      });
+      return;
+    }
+
+    const only = inPunch || outPunch || group[0];
+    rows.push({
+      ...only,
+      inTime: isOutPunch(only) ? "" : only.time,
+      outTime: isOutPunch(only) ? only.time : "",
+      nearbyPair: false,
+      pairMinutes: null,
+    });
+  });
+
+  return rows.sort((a, b) => {
+    if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+    const emp = String(a.empNo || "").localeCompare(String(b.empNo || ""));
+    if (emp !== 0) return emp;
+    return String(a.time || "").localeCompare(String(b.time || ""));
+  });
+}
 // ==============================================================================
 // ==============================================================================
 
@@ -874,6 +949,60 @@ const TimeCard = ({ employeeProfile }) => {
         return;
       }
 
+      if (importMethod === 'reland') {
+        if (!selectedCompany) {
+          Swal.fire({ icon: 'error', title: 'Company required', text: 'Select a company for Reland import.' });
+          setIsLoading(false);
+          return;
+        }
+        const company = companies.find((c) => String(c.id) === String(selectedCompany));
+        const relandOn = !!(company?.process_config?.reland_excel_import?.enabled ?? company?.process_config?.reland_excel_import);
+        if (!relandOn) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Reland import is off',
+            text: 'Enable Reland fingerprint Excel import for this company in Cybernetic Admin.',
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', excelFile);
+        formData.append('company_id', String(selectedCompany));
+        formData.append('from_date', selectedDate);
+        formData.append('to_date', selectedToDate);
+
+        const data = await timeCardService.importRelandExcel(formData);
+
+        const imported = data.imported ?? data.data?.imported ?? 0;
+        const skipped = data.skipped ?? data.data?.skipped ?? 0;
+        const errors = data.errors || data.data?.errors || [];
+        Swal.fire({
+          icon: imported > 0 ? 'success' : 'warning',
+          title: imported > 0 ? 'Reland Import Completed' : 'No punches saved',
+          html: `
+            <div>
+              <p>Imported: <b>${imported}</b></p>
+              <p>Skipped: <b>${skipped}</b></p>
+              ${errors.length ? `<p class="text-red-600 text-left text-sm mt-2">${errors.slice(0, 10).join('<br>')}</p>` : ''}
+            </div>
+          `
+        });
+
+        const updated = await fetchTimeCards();
+        const filtered = filterFirstInLastOut(updated);
+        setAttendanceData(filtered);
+        setFilteredData(filtered);
+        setSelectedCompany('');
+        setSelectedDate('');
+        setSelectedToDate('');
+        setExcelFile(null);
+        if (excelInputRef.current) excelInputRef.current.value = '';
+        setIsLoading(false);
+        return;
+      }
+
       // Read the Excel file client-side using FileReader and SheetJS
       const reader = new FileReader();
 
@@ -883,9 +1012,46 @@ const TimeCard = ({ employeeProfile }) => {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-
-          // Convert to JSON
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          const headerLine = (jsonData[0] || []).map((h) => String(h || '').toLowerCase()).join(' ');
+          const isReland = /user id|enroll id|att type|verify mode/.test(headerLine);
+
+          if (isReland) {
+            if (!selectedCompany) {
+              Swal.fire({ icon: 'error', title: 'Company required', text: 'Select the company for this Reland file.' });
+              setIsLoading(false);
+              return;
+            }
+            const formData = new FormData();
+            formData.append('file', excelFile);
+            formData.append('company_id', String(selectedCompany));
+            formData.append('from_date', selectedDate);
+            formData.append('to_date', selectedToDate);
+            const relandRes = await timeCardService.importRelandExcel(formData);
+            const imported = relandRes.imported ?? relandRes.data?.imported ?? 0;
+            const skipped = relandRes.skipped ?? relandRes.data?.skipped ?? 0;
+            const errors = relandRes.errors || relandRes.data?.errors || [];
+            Swal.fire({
+              icon: imported > 0 ? 'success' : 'warning',
+              title: imported > 0 ? 'Reland Import Completed' : 'No punches saved',
+              html: `
+                <div>
+                  <p>Imported: <b>${imported}</b></p>
+                  <p>Skipped: <b>${skipped}</b></p>
+                  ${errors.length ? `<p class="text-red-600 text-left text-sm mt-2">${errors.slice(0, 10).join('<br>')}</p>` : ''}
+                  ${imported === 0 ? '<p class="text-left text-sm mt-2">Reland User ID must match the employee attendance number.</p>' : ''}
+                </div>
+              `
+            });
+            const updated = await fetchTimeCards();
+            const filtered = filterFirstInLastOut(updated);
+            setAttendanceData(filtered);
+            setFilteredData(filtered);
+            setExcelFile(null);
+            if (excelInputRef.current) excelInputRef.current.value = '';
+            setIsLoading(false);
+            return;
+          }
 
           // Skip header row and map data to structured format
           const records = jsonData.slice(1).map(row => ({
@@ -1118,8 +1284,17 @@ const TimeCard = ({ employeeProfile }) => {
                       />
                       <span className="ml-3 text-slate-700 font-medium text-sm sm:text-base">iVMS-4200 / Hik-Connect Export</span>
                     </label>
+                    <label className="inline-flex items-center cursor-pointer p-3 rounded-lg hover:bg-blue-100 transition-colors duration-200">
+                      <input
+                        type="radio"
+                        className="form-radio h-5 w-5 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                        checked={importMethod === 'reland'}
+                        onChange={() => setImportMethod('reland')}
+                      />
+                      <span className="ml-3 text-slate-700 font-medium text-sm sm:text-base">Reland Raw Clock-InOut Log</span>
+                    </label>
                   </div>
-                  {(importMethod === 'excel' || importMethod === 'hikvision') && (
+                  {(importMethod === 'excel' || importMethod === 'hikvision' || importMethod === 'reland') && (
                     <div className="mt-4">
                       <label className="block text-sm font-semibold text-slate-700 mb-2">Upload Excel File</label>
                       <input
@@ -1129,11 +1304,16 @@ const TimeCard = ({ employeeProfile }) => {
                         onChange={handleExcelUpload}
                         ref={excelInputRef}
                       />
+                      {importMethod === 'reland' && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          Use Reland export: Dept, User ID, Name, Enroll ID, Device ID, Place, Date, Time, Att Type. First punch of the day is IN, next is OUT. Reland User ID must match attendance number.
+                        </p>
+                      )}
                       <button
                         className="mt-3 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg"
                         onClick={handleImportExcel}
                       >
-                        Import {importMethod === 'hikvision' ? 'Hikvision Excel' : 'Excel'}
+                        Import {importMethod === 'hikvision' ? 'Hikvision Excel' : importMethod === 'reland' ? 'Reland Excel' : 'Excel'}
                       </button>
                     </div>
                   )}
@@ -1325,7 +1505,8 @@ const TimeCard = ({ employeeProfile }) => {
                         <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">EMP NO</th>
                         <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">Name</th>
                         <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">Fingerprint Clock</th>
-                        <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">Time</th>
+                        <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">IN</th>
+                        <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">OUT</th>
                         <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">Date</th>
                         <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">Entry</th>
                         <th className="py-4 px-3 sm:px-6 text-left font-bold text-slate-800 text-xs sm:text-sm lg:text-base">Status</th>
@@ -1335,27 +1516,36 @@ const TimeCard = ({ employeeProfile }) => {
                     <tbody>
                       {paginatedAttendance.length > 0 ? (
                         paginatedAttendance.map((record, index) => (
-                          <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-blue-50/50 transition-colors duration-200 border-b border-gray-100`}>
+                          <tr key={record.id || index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${record.nearbyPair ? 'bg-amber-50/80 hover:bg-amber-50' : 'hover:bg-blue-50/50'} transition-colors duration-200 border-b border-gray-100`}>
                             <td className="py-4 px-3 sm:px-6 font-semibold text-slate-700 text-xs sm:text-sm lg:text-base">{record.empNo}</td>
                             <td className="py-4 px-3 sm:px-6 font-medium text-slate-800 text-xs sm:text-sm lg:text-base">{record.name}</td>
                             <td className="py-4 px-3 sm:px-6 text-slate-600 text-xs sm:text-sm lg:text-base">{record.fingerprintClock}</td>
-                            <td className="py-4 px-3 sm:px-6 text-slate-600 font-mono text-xs sm:text-sm lg:text-base">{record.time}</td>
+                            <td className="py-4 px-3 sm:px-6 text-emerald-800 font-mono text-xs sm:text-sm lg:text-base">{record.inTime || '—'}</td>
+                            <td className="py-4 px-3 sm:px-6 text-rose-800 font-mono text-xs sm:text-sm lg:text-base">{record.outTime || '—'}</td>
                             <td className="py-4 px-3 sm:px-6 text-slate-600 text-xs sm:text-sm lg:text-base">{record.date}</td>
-                            <td className="py-4 px-3 sm:px-6 text-slate-700 font-bold text-xs sm:text-sm lg:text-base">{record.entry}</td>
+                            <td className="py-4 px-3 sm:px-6 text-slate-700 font-bold text-xs sm:text-sm lg:text-base">{record.pairedOutId ? '1 / 2' : record.entry}</td>
                             <td className="py-4 px-3 sm:px-6">
-
+                              <div className="flex flex-wrap items-center gap-1.5">
                               <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border ${record.status === 'Absent'
                                 ? 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
                                 : record.status === 'Early OUT'
                                   ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border-yellow-200'
                                   : record.status === 'Late Coming'
                                     ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border-orange-200'
-                                    : record.inOut === 'IN'
+                                    : record.inOut === 'IN' || record.inOut === 'IN/OUT'
                                       ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200'
                                       : 'bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border-red-200'
                                 }`}>
                                 {record.status}
                               </span>
+                              {record.inTime && record.outTime ? (
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] sm:text-xs font-semibold border ${record.nearbyPair ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                  {record.nearbyPair
+                                    ? `Nearby IN+OUT · ${Math.round(record.pairMinutes)} min`
+                                    : 'IN + OUT'}
+                                </span>
+                              ) : null}
+                              </div>
                             </td>
                             <td className="py-4 px-3 sm:px-6 flex gap-2">
                               {canEdit && (
@@ -1387,7 +1577,7 @@ const TimeCard = ({ employeeProfile }) => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8" className="py-16 text-center text-slate-500">
+                          <td colSpan="9" className="py-16 text-center text-slate-500">
                             <div className="flex flex-col items-center space-y-3">
                               <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2h-2a2 2 0 01-2-2v-6a2 2 0 012-2h2v6z" />
@@ -3039,7 +3229,7 @@ const TimeCard = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8" className="py-16 text-center text-slate-500">
+                          <td colSpan="9" className="py-16 text-center text-slate-500">
                             <div className="flex flex-col items-center space-y-3">
                               <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2h-2a2 2 0 01-2-2v-6a2 2 0 012-2h2v6z" />
