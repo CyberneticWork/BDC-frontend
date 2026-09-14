@@ -1,11 +1,40 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import fs from "fs";
 import path from "path";
+
+const SPA_FALLBACK_DIRS = [
+  "cybernetic-admin",
+  "admin",
+  "dashboard",
+  "otp-login",
+  "employee-portal",
+  "employee-login",
+];
+
+function spaFallbackPages() {
+  return {
+    name: "spa-fallback-pages",
+    closeBundle() {
+      const dist = path.resolve(__dirname, "dist");
+      const indexFile = path.join(dist, "index.html");
+      if (!fs.existsSync(indexFile)) {
+        return;
+      }
+      const html = fs.readFileSync(indexFile, "utf8");
+      for (const dir of SPA_FALLBACK_DIRS) {
+        const destDir = path.join(dist, dir);
+        fs.mkdirSync(destDir, { recursive: true });
+        fs.writeFileSync(path.join(destDir, "index.html"), html);
+      }
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), spaFallbackPages()],
   server: {
     host: true,
     port: 5173,

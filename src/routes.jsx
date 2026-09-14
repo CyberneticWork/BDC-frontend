@@ -9,8 +9,8 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/cybernetic-admin" element={<CyberneticAdminPage />} />
-      <Route path="/admin" element={<CyberneticAdminPage />} />
+      <Route path="/cybernetic-admin/*" element={<CyberneticAdminPage />} />
+      <Route path="/admin/*" element={<CyberneticAdminPage />} />
       <Route path="/otp-login" element={<OTPLogin />} />
       <Route path="/employee-portal" element={<EmployeePortal />} />
       <Route path="/employee-login" element={<Navigate to="/otp-login" replace />} />
