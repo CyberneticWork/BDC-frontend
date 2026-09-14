@@ -18,16 +18,13 @@ axios.interceptors.request.use((req) => {
   if (token !== null) {
     req.headers.Authorization = `Bearer ${token}`;
   }
-  const url = String(req.url || "");
-  const isCyberneticAdmin = url.includes("cybernetic-admin");
-  const wantsAllCompanies = ["1", 1, true, "true"].includes(req.params?.all);
-  if (isCyberneticAdmin || wantsAllCompanies) {
-    const cyberneticToken =
-      sessionStorage.getItem("cybernetic_admin_token") ||
-      localStorage.getItem("cybernetic_admin_token");
-    if (cyberneticToken) {
-      req.headers["X-Cybernetic-Token"] = cyberneticToken;
-    }
+  // Always send the Cybernetic Admin token when present. Create/edit company
+  // uses POST/PUT /companies (not /cybernetic-admin), which still requires it.
+  const cyberneticToken =
+    sessionStorage.getItem("cybernetic_admin_token") ||
+    localStorage.getItem("cybernetic_admin_token");
+  if (cyberneticToken) {
+    req.headers["X-Cybernetic-Token"] = cyberneticToken;
   }
   return req;
 });
