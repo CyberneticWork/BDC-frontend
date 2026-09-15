@@ -63,6 +63,7 @@ export default defineConfig({
       "@hooks": path.resolve(__dirname, "./src/hooks"),
       "@Accounting": path.resolve(__dirname, "./src/Pages/Accounting"),
       "@Inventory": path.resolve(__dirname, "./src/Pages/Inventory/MasterFile"),
+      xlsx: path.resolve(__dirname, "./src/utils/xlsx-compat.js"),
     },
   },
 });
