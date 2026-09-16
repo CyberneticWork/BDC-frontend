@@ -60,6 +60,13 @@ const timeCardService = {
     return response.data;
   },
 
+  async importRelandExcel(formData) {
+    const response = await axios.post('/attendance/import-reland-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   // Add this method to process the data client-side
   async importExcelData(data) {
     // client-side guard: require from_date & to_date

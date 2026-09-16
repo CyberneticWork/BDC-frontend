@@ -89,3 +89,6 @@ export const listAdvanceRequests = (params = {}) =>
 
 export const reviewAdvanceRequest = (id, payload) =>
   axios.post(`/hr/advance-requests/${id}/review`, payload).then((r) => r.data);
+
+export const createHrAdvance = (payload) =>
+  axios.post('/hr/advance-requests', payload).then((r) => r.data);

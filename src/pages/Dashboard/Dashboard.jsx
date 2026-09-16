@@ -17,6 +17,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import NotificationBell from "../../components/NotificationBell";
+import { useBranding } from "../../contexts/BrandingContext";
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -54,6 +55,7 @@ import TimeCardAuditReport from "@dashboard/TimeCardAuditReport";
 import ShiftHoursReport from "@dashboard/ShiftHoursReport";
 import MonthlyHoursReport from "@dashboard/MonthlyHoursReport";
 import ContractAttendanceReport from "@dashboard/ContractAttendanceReport";
+import DailyOtHoursReport from "@dashboard/DailyOtHoursReport";
 import Department from "@dashboard/Department";
 import Grouproster from "@dashboard/Grouproster";
 import RosterCalendar from "@dashboard/RosterCalendar";
@@ -506,6 +508,7 @@ const AdminHRDashboardHome = ({ setActiveItem }) => (
 
 // ─── Dashboard (main) ─────────────────────────────────────────────────────────
 const Dashboard = ({ user, onLogout }) => {
+  const { branding } = useBranding();
   const [activeItem, setActiveItem] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [employeeProfile, setEmployeeProfile] = useState(null);
@@ -939,6 +942,12 @@ const Dashboard = ({ user, onLogout }) => {
             <ContractAttendanceReport />
           </ProtectedComponent>
         );
+      case "dailyOtHoursReport":
+        return (
+          <ProtectedComponent module="dailyOtHoursReport" action="view">
+            <DailyOtHoursReport />
+          </ProtectedComponent>
+        );
       case "timeCardAuditReport":
         return (
           <ProtectedComponent module="timeCardAuditReport" action="view">
@@ -1357,7 +1366,9 @@ const Dashboard = ({ user, onLogout }) => {
                 Management dashboard
               </p>
               <h1 className="relative font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold mt-2 max-w-2xl leading-tight">
-                {user.role === "employee" ? "Your staff portal" : "SPM Tax HR control center"}
+                {user.role === "employee"
+                  ? "Your staff portal"
+                  : `${branding?.name || "HR"} control center`}
               </h1>
               <p className="relative mt-3 text-teal-50/90 text-base sm:text-lg max-w-xl">
                 {user.role === "employee"

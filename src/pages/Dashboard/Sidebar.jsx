@@ -145,6 +145,7 @@ const Sidebar = ({
               { id: "absentReport", name: "Absent Report" },
               { id: "shiftHoursReport", name: "Shift Hours Reports" },
               { id: "contractAttendanceReport", name: "Contract Time Attendance" },
+              { id: "dailyOtHoursReport", name: "Daily OT Hours" },
               { id: "monthlyWorkingHoursReport", name: "Monthly Working Hours" },
               { id: "monthlyOtHoursReport", name: "Monthly OT Hours" },
               { id: "timeCardAuditReport", name: "Time Card Audit Report" },
@@ -570,6 +571,7 @@ const Sidebar = ({
             { id: "singleEntryReport", name: "Single Entry Report" },
             { id: "absentReport", name: "Absent Report" },
             { id: "shiftHoursReport", name: "Shift Hours Reports" },
+            { id: "dailyOtHoursReport", name: "Daily OT Hours" },
           ],
         },
         // --- අලුතින් එකතු කළ Salary Reports කොටස ---
@@ -678,7 +680,7 @@ const Sidebar = ({
       timecardReports:
         path.includes("timecardReports") ||
         activeItem === "timecardReports" ||
-        ["attendanceReport", "singleEntryReport","absentReport","shiftHoursReport","contractAttendanceReport"].includes(activeItem),
+        ["attendanceReport", "singleEntryReport","absentReport","shiftHoursReport","contractAttendanceReport","dailyOtHoursReport"].includes(activeItem),
       
       // --- අලුතින් එකතු කළ කොටස ---
       salaryReports:
