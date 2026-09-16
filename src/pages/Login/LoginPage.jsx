@@ -41,7 +41,16 @@ function LoginPage({ onSuccess }) {
       if (onSuccess) onSuccess(user);
       return {};
     } catch (err) {
-      setError("The provided credentials are incorrect.");
+      const status = err?.response?.status;
+      if (!err?.response) {
+        setError("Cannot reach the HR API.");
+      } else if (status === 429) {
+        setError("Too many login attempts. Try again later.");
+      } else if (status >= 500) {
+        setError("Login service is unavailable. Please try again.");
+      } else {
+        setError("The provided credentials are incorrect.");
+      }
       return {};
     } finally {
       setLoading(false);
