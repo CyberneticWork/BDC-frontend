@@ -1,17 +1,6 @@
-import axios from "axios";
+import axios from "@utils/axios";
 
-const API = axios.create({
-  baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
-  //baseURL: "http://127.0.0.1:8000/api",
-  // withCredentials: true, // needed only if you use cookie auth
-});
-
-// If you use Sanctum token:
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+const API = axios;
 
 const BonusService = {
   async getAllBonuses() {

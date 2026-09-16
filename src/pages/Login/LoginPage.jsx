@@ -41,14 +41,7 @@ function LoginPage({ onSuccess }) {
       if (onSuccess) onSuccess();
       return {};
     } catch (err) {
-      const validationErrors = err?.response?.data?.errors;
-      if (validationErrors) return { errors: validationErrors };
-      setError(
-        err?.response?.data?.message ||
-          (err?.response?.status === 500
-            ? "Login service error. Please try again."
-            : "Login failed. Please check your credentials.")
-      );
+      setError("The provided credentials are incorrect.");
       return {};
     } finally {
       setLoading(false);

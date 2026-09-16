@@ -143,20 +143,7 @@ const LMSService = {
   async enrollInCourse(courseId, userId = null) {
     try {
       const url = `/courses/${courseId}/enroll`;
-      console.log("Making enrollment API call to:", url);
-      console.log("Full URL:", axios.defaults.baseURL + url);
-
-      // Check if token exists
-      const token = localStorage.getItem("token");
-      console.log("Auth token exists:", !!token);
-      console.log(
-        "Auth token value:",
-        token ? token.substring(0, 20) + "..." : "null"
-      );
-
-      // If userId is provided, send it in the request body as a workaround
       const requestData = userId ? { user_id: userId } : {};
-      console.log("Request data:", requestData);
 
       const response = await axios.post(url, requestData);
       console.log("Enrollment API response:", response);

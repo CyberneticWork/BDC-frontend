@@ -575,7 +575,7 @@ const SalaryPage = ({ employeeProfile }) => {
       const noPayDeduction = (parseInt(formData.approved_no_pay_days || 0) || 0) * perDaySalary;
       const adjustedBasic = basicSalaryNum - noPayDeduction;
 
-      const epfBase = adjustedBasic + totalAllowances;
+      const epfBase = Math.max(0, adjustedBasic);
       const epfEmployee = formData.enable_epf_etf ? epfBase * 0.08 : 0;
       const epfEmployer = formData.enable_epf_etf ? epfBase * 0.12 : 0;
       const etfEmployer = formData.enable_epf_etf ? epfBase * 0.03 : 0;
@@ -583,7 +583,7 @@ const SalaryPage = ({ employeeProfile }) => {
       const morningOtVal = formData.ot_morning_enabled ? parseFloat(formData.ot_morning || 0) : 0;
       const eveningOtVal = formData.ot_evening_enabled ? parseFloat(formData.ot_evening || 0) : 0;
 
-      const grossSalary = epfBase + morningOtVal + eveningOtVal;
+      const grossSalary = adjustedBasic + totalAllowances + morningOtVal + eveningOtVal;
       
       // ==========================================
 
@@ -773,8 +773,8 @@ const SalaryPage = ({ employeeProfile }) => {
   const calculateEPF = () => {
     if (!formData.enable_epf_etf) return 0;
     const basicSalary = parseFloat(formData.basic_salary || 0);
-    // Using simplified calculation - actual would include allowances too
-    return basicSalary * 0.08;
+    const noPayDeduction = calculateNoPayDeduction();
+    return Math.max(0, basicSalary - noPayDeduction) * 0.08;
   };
 
   const calculateNetSalary = () => {

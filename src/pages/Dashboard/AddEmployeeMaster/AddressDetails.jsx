@@ -13,7 +13,7 @@ import {
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import ErrorDisplay from "@components/ErrorMessage/ErrorDisplay";
 import FieldError from "@components/ErrorMessage/FieldError";
-import config from "../../../config";
+import axios from "../../../utils/axios";
 import { toast } from "react-toastify";
 
 const provinceData = {
@@ -128,7 +128,7 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
    * Emergency contact relationship types — fetch, add, edit, delete.
    */
   const EmergencyRelationshipTypesSelector = () => {
-    const apiUrl = `${config.apiBaseUrl}/api/emergency-contact-relationship-types`;
+    const relationshipTypesUrl = "/emergency-contact-relationship-types";
     const [isLoading, setIsLoading] = useState(false);
     const [addFormVisible, setAddFormVisible] = useState(false);
     const [manageVisible, setManageVisible] = useState(false);
@@ -138,24 +138,15 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
     const fetchTypes = useCallback(async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(apiUrl, {
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (!res.ok) {
-          toast.error("Failed to fetch emergency contact relationship types.");
-          return;
-        }
-
-        const data = await res.json();
+        const { data } = await axios.get(relationshipTypesUrl);
         setTypes(Array.isArray(data) ? data : data.data ?? []);
       } catch (err) {
         console.error(err);
-        toast.error(err instanceof Error ? err.message : "Something went wrong!");
+        toast.error("Failed to fetch emergency contact relationship types.");
       } finally {
         setIsLoading(false);
       }
-    }, [apiUrl]);
+    }, []);
 
     useEffect(() => {
       fetchTypes();
@@ -188,21 +179,16 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
         throw new Error("Description/Title cannot be empty!");
       }
 
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: trimmed }),
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.message || "Failed to create new relationship type.");
+      try {
+        await axios.post(relationshipTypesUrl, { description: trimmed });
+      } catch (err) {
+        throw new Error(err?.response?.data?.message || "Failed to create new relationship type.");
       }
 
       await fetchTypes();
       selectRelationship(trimmed);
       return trimmed;
-    }, [apiUrl, fetchTypes, selectRelationship]);
+    }, [fetchTypes, selectRelationship]);
 
     const updateType = useCallback(async (id, description) => {
       const trimmed = description.trim();
@@ -210,15 +196,10 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
         throw new Error("Description/Title cannot be empty!");
       }
 
-      const res = await fetch(`${apiUrl}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: trimmed }),
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.message || "Failed to update relationship type.");
+      try {
+        await axios.put(`${relationshipTypesUrl}/${id}`, { description: trimmed });
+      } catch (err) {
+        throw new Error(err?.response?.data?.message || "Failed to update relationship type.");
       }
 
       await fetchTypes();
@@ -226,21 +207,20 @@ const AddressDetails = ({ onNext, onPrevious, activeCategory }) => {
         selectRelationship(trimmed);
       }
       return trimmed;
-    }, [apiUrl, fetchTypes, editingType, formData.address.emergencyContact.relationship, selectRelationship]);
+    }, [fetchTypes, editingType, formData.address.emergencyContact.relationship, selectRelationship]);
 
     const deleteType = useCallback(async (id, description) => {
-      const res = await fetch(`${apiUrl}/${id}`, { method: "DELETE" });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.message || "Failed to delete relationship type.");
+      try {
+        await axios.delete(`${relationshipTypesUrl}/${id}`);
+      } catch (err) {
+        throw new Error(err?.response?.data?.message || "Failed to delete relationship type.");
       }
 
       await fetchTypes();
       if (formData.address.emergencyContact.relationship === description) {
         selectRelationship("");
       }
-    }, [apiUrl, fetchTypes, formData.address.emergencyContact.relationship, selectRelationship]);
+    }, [fetchTypes, formData.address.emergencyContact.relationship, selectRelationship]);
 
     const AddNewRelationshipTypeForm = ({ onClose }) => {
       const [description, setDescription] = useState("");

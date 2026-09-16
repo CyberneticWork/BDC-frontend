@@ -402,7 +402,10 @@ const SalaryProcessPage = () => {
     */
 
     const basicDeductions = [
-      { label: "EPF Deduction (8%)", amount: Number(breakdown.epf_employee_deduction || 0) },
+      {
+        label: "EPF Deduction (8% of basic − basic NoPay)",
+        amount: Number(breakdown.epf_employee_deduction || 0),
+      },
       { label: "Full Day No Pay Deduction", amount: Number(breakdown.full_day_nopay_deduction || 0) },
       {
         label: "Leave Shortfall NoPay → Basic",

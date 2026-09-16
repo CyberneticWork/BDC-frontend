@@ -4,7 +4,7 @@ import { fetchTimeCards, approveOt } from "@services/OverTimeService";
 import { fetchCompanies } from "@services/ApiDataService";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx"; 
-import axios from "axios";
+import axios from "@utils/axios";
 
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   if (totalPages <= 1) return null;
@@ -163,7 +163,7 @@ const Overtime = () => {
     try {
       setIsLoading(true);
       const toDec = (h, m) => (parseInt(h || 0) + (parseInt(m || 0) / 60)).toFixed(2);
-      await axios.put(`http://127.0.0.1:8000/api/overtime/${editData.id}`, {
+      await axios.put(`/overtime/${editData.id}`, {
         morning_ot: toDec(editData.morning_ot_h, editData.morning_ot_m),
         evening_ot: toDec(editData.evening_ot_h, editData.evening_ot_m),
         holiday_shift_hours: toDec(editData.holiday_shift_h, editData.holiday_shift_m),
@@ -598,7 +598,7 @@ const Overtime = () => {
         return (hours + (mins / 60)).toFixed(2);
       };
 
-      await axios.put(`http://127.0.0.1:8000/api/overtime/${editData.id}`, {
+      await axios.put(`/overtime/${editData.id}`, {
         morning_ot: toDecimal(editData.morning_ot_h, editData.morning_ot_m),
         evening_ot: toDecimal(editData.evening_ot_h, editData.evening_ot_m),
         holiday_ot_hours: toDecimal(editData.holiday_ot_h, editData.holiday_ot_m),

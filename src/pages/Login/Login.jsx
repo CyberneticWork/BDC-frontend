@@ -15,11 +15,21 @@ const Login = ({ onSuccess, loading: parentLoading }) => {
   };
 
   const handleSubmit = async () => {
+    const identifier = String(formData.identifier || "").trim();
+    const password = String(formData.password || "");
+    const nextErrors = {};
+    if (identifier.length < 3) {
+      nextErrors.identifier = ["Enter your email or NIC."];
+    }
+    if (password.length < 8) {
+      nextErrors.password = ["Enter a valid password."];
+    }
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      return;
+    }
     if (onSuccess) {
-      const result = await onSuccess(formData);
-      if (result?.errors) {
-        setErrors(result.errors);
-      }
+      await onSuccess({ identifier, password });
     }
   };
 

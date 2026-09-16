@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
-import axios from 'axios';
+import axios from '../../utils/axios';
 
 const ChangePassword = () => {
   const [formData, setFormData] = useState({
@@ -42,14 +42,7 @@ const ChangePassword = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        'http://localhost:8000/api/change-password',
-        formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.post('/change-password', formData);
 
       setSuccess(true);
       setTimeout(() => {

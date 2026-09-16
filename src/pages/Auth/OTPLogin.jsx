@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Key, LogIn, ArrowLeft } from 'lucide-react';
 import axios from '../../utils/axios';
 import { useBranding } from '../../contexts/BrandingContext';
+import { setToken } from '../../services/TokenService';
 import { setUser, homePathForUser } from '../../services/UserService';
 
 export default function OTPLogin() {
@@ -28,11 +29,11 @@ export default function OTPLogin() {
     setMessage('');
 
     try {
-      const { data } = await axios.post('/send-otp', { email });
-      setMessage(data.message);
+      await axios.post('/send-otp', { email });
+      setMessage('If that account exists, an OTP has been sent.');
       setStep(2);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send OTP');
+      setError('Unable to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -45,15 +46,13 @@ export default function OTPLogin() {
 
     try {
       const { data } = await axios.post('/login/otp', { email, otp });
-      localStorage.setItem('token', data.access_token);
-      const { data: userData } = await axios.get('/user', {
-        headers: { Authorization: `Bearer ${data.access_token}` }
-      });
+      await setToken(data.access_token || data.token);
+      const { data: userData } = await axios.get('/user');
       setUser(userData);
       navigate(homePathForUser(userData), { replace: true });
       window.location.reload();
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid OTP');
+      setError('The provided credentials are incorrect.');
     } finally {
       setLoading(false);
     }

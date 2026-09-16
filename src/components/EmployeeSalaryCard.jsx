@@ -84,6 +84,9 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   const shortLeaveLate = Number(breakdown.short_leave_deduction || 0);
   const halfDayLate = Number(breakdown.half_day_deduction || 0);
   const epfEmployee = Number(breakdown.epf_employee_deduction || 0);
+  const epfEmployer = Number(breakdown.epf_employer_contribution || 0);
+  const etfEmployer = Number(breakdown.etf_employer_contribution || 0);
+  const epfEtfBase = Number(breakdown.epf_etf_base || 0);
   const epfEtfFixed = Number(breakdown.epf_etf_fixed_deductions || 0);
   const probationDeduction = Number(breakdown.probation_deduction || 0);
   const stampDuty = Number(breakdown.stamp_duty || breakdown.stamp || 0);
@@ -113,7 +116,7 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
 
   // Rebuild total deductions the same way backend does, so UI explains the header total.
   const basicDeductionLines = [
-    { label: "EPF Employee (8%)", amount: epfEmployee },
+    { label: "EPF Employee (8%)", amount: epfEmployee, hint: "(basic − basic NoPay) × 8%" },
     { label: "EPF/ETF Fixed Deductions", amount: epfEtfFixed },
     { label: "Full Day No-Pay (Weekdays)", amount: fullDayNoPay },
     {
@@ -444,6 +447,15 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
                 <span className="font-extrabold text-green-700">
                   {formatMoney(gross)} − {formatMoney(totalDeductions)} = {formatMoney(net)}
                 </span>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 mt-2 space-y-1">
+                <p className="text-[11px] text-emerald-800 font-semibold">
+                  EPF / ETF base = basic − basic NoPay
+                  {epfEtfBase > 0 ? ` (${formatMoney(epfEtfBase)})` : ""}
+                </p>
+                <Line label="EPF employee 8%" amount={epfEmployee} tone="green" hint="from EPF/ETF base" />
+                <Line label="EPF employer 12%" amount={epfEmployer} tone="green" hint="employer — not deducted from net" />
+                <Line label="ETF employer 3%" amount={etfEmployer} tone="green" hint="employer — not deducted from net" />
               </div>
             </div>
           </div>

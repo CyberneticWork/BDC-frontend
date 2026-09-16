@@ -56,6 +56,8 @@ const AuthForm = ({
             type="text"
             required
             autoComplete="username"
+            minLength={3}
+            maxLength={190}
             value={formData.identifier || ""}
             onChange={onChange}
             className={fieldClass}
@@ -77,7 +79,10 @@ const AuthForm = ({
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
             required
+            minLength={8}
+            maxLength={255}
             value={formData.password || ""}
             onChange={onChange}
             className={`${fieldClass} pr-12`}
