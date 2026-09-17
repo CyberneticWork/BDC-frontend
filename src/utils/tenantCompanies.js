@@ -74,7 +74,13 @@ export function companyListQueryParams() {
 }
 
 function isSharedSpmPortal(host = currentAppHost()) {
-  return isLocalAppHost(host) || host.includes("spmhr") || host.includes("apispmhr");
+  return (
+    isLocalAppHost(host) ||
+    host.includes("spmhr") ||
+    host.includes("apispmhr") ||
+    host.includes("sunfohr") ||
+    host.includes("apisunfohr")
+  );
 }
 
 /** Companies that belong on this login URL / organization group. */

@@ -25,7 +25,7 @@ export const fetchCompanies = async (options = {}) => {
     if (!options.all) {
       await ensureBrandedCompany();
     }
-    const response = await axios.get(`${API_PREFIX}/companies`, {
+    const response = await axios.get(options.all ? "/companies" : `${API_PREFIX}/companies`, {
       params: options.all ? { all: 1 } : companyListQueryParams(),
     });
     const rows = (response.data || []).map(normalizeCompany);
