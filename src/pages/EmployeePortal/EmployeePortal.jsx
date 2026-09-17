@@ -969,6 +969,9 @@ export default function EmployeePortal() {
           <section className="space-y-4">
             <h2 className="text-xl font-bold">Salary advance</h2>
             <form className="bg-white rounded-2xl p-5 border space-y-3" onSubmit={onSubmitAdvance}>
+              <p className="text-sm text-slate-600">
+                HR chooses whether this is deducted from monthly bonus or basic salary when they approve. You cannot select that here.
+              </p>
               <input className="w-full border rounded-xl px-3 py-2" type="number" min="1" step="0.01" required placeholder="Amount" value={advanceForm.amount} onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })} />
               <input className="w-full border rounded-xl px-3 py-2" type="date" value={advanceForm.needed_on} onChange={(e) => setAdvanceForm({ ...advanceForm, needed_on: e.target.value })} />
               <textarea className="w-full border rounded-xl px-3 py-2" rows="3" required placeholder="Reason" value={advanceForm.reason} onChange={(e) => setAdvanceForm({ ...advanceForm, reason: e.target.value })} />

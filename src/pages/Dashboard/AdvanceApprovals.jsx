@@ -20,6 +20,40 @@ const deductLabel = (row) => {
   return null;
 };
 
+const rowDefaultDeduct = (row) => {
+  const v = String(row?.deduct_from || row?.hr_deduct_from || "bonus").toLowerCase();
+  return v === "basic" ? "basic" : "bonus";
+};
+
+function DeductFromField({ value, onChange }) {
+  return (
+    <fieldset className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50/40 px-3 py-2">
+      <legend className="text-xs font-semibold text-slate-700 px-1">
+        Deduct from payroll
+      </legend>
+      <p className="text-xs text-slate-500 mb-2">HR only — employees cannot choose this.</p>
+      <div className="flex flex-wrap gap-4 text-sm">
+        <label className="inline-flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            checked={value !== "basic"}
+            onChange={() => onChange("bonus")}
+          />
+          Monthly bonus (default)
+        </label>
+        <label className="inline-flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            checked={value === "basic"}
+            onChange={() => onChange("basic")}
+          />
+          Basic salary
+        </label>
+      </div>
+    </fieldset>
+  );
+}
+
 export default function AdvanceApprovals() {
   const [items, setItems] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -32,7 +66,9 @@ export default function AdvanceApprovals() {
     amount: "",
     needed_on: "",
     reason: "",
+    deduct_from: "bonus",
   });
+  const [approveFrom, setApproveFrom] = useState({});
 
   const load = async () => {
     try {
@@ -62,6 +98,9 @@ export default function AdvanceApprovals() {
       await reviewAdvanceRequest(id, {
         action,
         note: note[id] || "",
+        ...(action === "APPROVE"
+          ? { deduct_from: approveFrom[id] || rowDefaultDeduct(items.find((r) => r.id === id)) }
+          : {}),
       });
       setMsg(`Request ${action === "APPROVE" ? "approved" : "rejected"}`);
       await load();
@@ -78,9 +117,10 @@ export default function AdvanceApprovals() {
         amount: Number(form.amount),
         needed_on: form.needed_on || null,
         reason: form.reason,
+        deduct_from: form.deduct_from || "bonus",
       });
       setMsg("Salary advance created by HR and sent to Pending Payments (if the company pack is on).");
-      setForm({ employee_id: "", amount: "", needed_on: "", reason: "" });
+      setForm({ employee_id: "", amount: "", needed_on: "", reason: "", deduct_from: "bonus" });
       await load();
     } catch (err) {
       setMsg(err?.response?.data?.message || "Create failed");
@@ -96,7 +136,7 @@ export default function AdvanceApprovals() {
             Salary Advance Approvals
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            HR can create advances here, or approve portal requests. Deduct from basic or bonus follows the company Cybernetic setting — not the employee form.
+            HR can create advances here, or approve portal requests. Choose whether payroll deducts from monthly bonus (default) or basic salary. The employee portal cannot pick this.
           </p>
         </div>
         <div className="flex gap-2">
@@ -166,6 +206,10 @@ export default function AdvanceApprovals() {
           value={form.reason}
           onChange={(e) => setForm({ ...form, reason: e.target.value })}
         />
+        <DeductFromField
+          value={form.deduct_from}
+          onChange={(deduct_from) => setForm({ ...form, deduct_from })}
+        />
         <button
           type="submit"
           className="md:col-span-2 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-teal-700 text-white text-sm font-semibold"
@@ -225,7 +269,14 @@ export default function AdvanceApprovals() {
               </div>
 
               {row.status === "PENDING" && (
-                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                <div className="mt-3 flex flex-col gap-2">
+                  <DeductFromField
+                    value={approveFrom[row.id] || rowDefaultDeduct(row)}
+                    onChange={(deduct_from) =>
+                      setApproveFrom({ ...approveFrom, [row.id]: deduct_from })
+                    }
+                  />
+                  <div className="flex flex-wrap gap-2 items-center">
                   <input
                     type="text"
                     placeholder="Review note (optional)"
@@ -249,6 +300,7 @@ export default function AdvanceApprovals() {
                   >
                     <X className="w-4 h-4" /> Reject
                   </button>
+                  </div>
                 </div>
               )}
             </article>

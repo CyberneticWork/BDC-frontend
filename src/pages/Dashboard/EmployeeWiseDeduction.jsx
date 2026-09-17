@@ -188,6 +188,7 @@ export default function EmployeeWiseDeduction() {
                 <th className="px-4 py-3">Deduction</th>
                 <th className="px-4 py-3">Month</th>
                 <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Deduct from</th>
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
@@ -204,6 +205,13 @@ export default function EmployeeWiseDeduction() {
                     {row.year}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{Number(row.amount || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {String(row.deduct_from || "").toLowerCase() === "basic"
+                      ? "Basic salary"
+                      : String(row.deduction_name || "").toLowerCase().includes("advance")
+                        ? "Monthly bonus"
+                        : "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       type="button"
@@ -223,7 +231,7 @@ export default function EmployeeWiseDeduction() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                     No assignments for this filter. Click Assign Deduction to add.
                   </td>
                 </tr>

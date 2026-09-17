@@ -29,7 +29,13 @@ const emptyForm = () => ({
   department_id: "",
   amount: "",
     status: "active",
+    deduct_from: "bonus",
 });
+
+function looksLikeSalaryAdvance(name) {
+  const n = String(name || "").toLowerCase();
+  return n.includes("salary advance") || n.includes("salary_advance") || n.trim() === "advance";
+}
 
 export default function CreateNewDeduction() {
   const [rows, setRows] = useState([]);
@@ -108,6 +114,7 @@ export default function CreateNewDeduction() {
       department_id: row.department_id ? String(row.department_id) : "",
       amount: row.amount != null ? String(row.amount) : "",
       status: row.status || "active",
+      deduct_from: row.deduct_from === "basic" ? "basic" : "bonus",
     });
     setErrors({});
     setModalOpen(true);
@@ -137,6 +144,9 @@ export default function CreateNewDeduction() {
       amount: Number(form.amount),
       status: form.status,
     };
+    if (looksLikeSalaryAdvance(form.deduction_name)) {
+      payload.deduct_from = form.deduct_from === "basic" ? "basic" : "bonus";
+    }
     if (!editingId) {
       payload.deduction_code = form.deduction_code.trim();
     }
@@ -425,6 +435,34 @@ export default function CreateNewDeduction() {
                     required
                 />
               </Field>
+              {looksLikeSalaryAdvance(form.deduction_name) && (
+                <fieldset className="rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-3">
+                  <legend className="text-sm font-semibold text-slate-800 px-1">
+                    Deduct salary advance from
+                  </legend>
+                  <p className="text-xs text-slate-500 mb-2">
+                    HR default for this deduction. Employees cannot choose this.
+                  </p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={form.deduct_from !== "basic"}
+                        onChange={() => setForm((f) => ({ ...f, deduct_from: "bonus" }))}
+                      />
+                      Monthly bonus (default)
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={form.deduct_from === "basic"}
+                        onChange={() => setForm((f) => ({ ...f, deduct_from: "basic" }))}
+                      />
+                      Basic salary
+                    </label>
+                  </div>
+                </fieldset>
+              )}
               <Field label="Description">
                   <textarea
                   value={form.description}

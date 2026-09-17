@@ -171,7 +171,7 @@ export default function CyberneticAdminPage() {
     setLoginLoading(true);
     setLoginError(null);
     try {
-      const data = await loginCyberneticAdmin(password);
+      const data = await loginCyberneticAdmin(password.trim());
       setSessionInfo(data);
       setAuthed(true);
       setPassword("");
@@ -868,7 +868,7 @@ export default function CyberneticAdminPage() {
                     HR salary advance deduct from
                   </legend>
                   <p className="text-xs text-slate-600 mb-2">
-                    Applies when HR creates an advance or HR approves one. Employee portal requests cannot choose this.
+                    Default for the HR approval screen if HR does not change it. Employees never see this choice.
                   </p>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input

@@ -37,6 +37,11 @@ const MONTHS = [
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 8 }, (_, i) => currentYear - 2 + i);
 
+function isSalaryAdvanceItem(item, nameKey, codeKey) {
+  const n = `${item?.[nameKey] || ""} ${item?.[codeKey] || ""}`.toLowerCase();
+  return n.includes("salary advance") || n.includes("salary_advance") || n.trim() === "advance";
+}
+
 function monthCount(fromMonth, fromYear, toMonth, toYear) {
   const from = fromYear * 12 + fromMonth;
   const to = toYear * 12 + toMonth;
@@ -300,6 +305,7 @@ function AssignModal({
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [amount, setAmount] = useState("");
+  const [deductFrom, setDeductFrom] = useState("bonus");
   const [employee, setEmployee] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const attendanceRef = useRef(null);
@@ -313,6 +319,13 @@ function AssignModal({
     () => filteredItems.find((a) => String(a.id) === String(itemId)),
     [filteredItems, itemId]
   );
+  const salaryAdvance = idKey === "deduction_id" && isSalaryAdvanceItem(selected, nameKey, codeKey);
+
+  useEffect(() => {
+    if (salaryAdvance) {
+      setDeductFrom(selected?.deduct_from === "basic" ? "basic" : "bonus");
+    }
+  }, [salaryAdvance, selected?.deduct_from]);
 
   const months = valueType === "fixed"
     ? monthCount(Number(fromMonth), Number(fromYear), Number(toMonth), Number(toYear))
@@ -360,6 +373,9 @@ function AssignModal({
       [idKey]: Number(itemId),
       value_type: valueType,
     };
+    if (salaryAdvance) {
+      payload.deduct_from = deductFrom === "basic" ? "basic" : "bonus";
+    }
 
     if (valueType === "fixed") {
       Object.assign(payload, {
@@ -561,6 +577,35 @@ function AssignModal({
                   </button>
                 </div>
               </div>
+
+              {salaryAdvance && (
+                <fieldset className="rounded-xl border border-rose-100 bg-rose-50/50 px-3 py-3">
+                  <legend className="text-sm font-semibold text-slate-800 px-1">
+                    Deduct salary advance from
+                  </legend>
+                  <p className="text-xs text-slate-500 mb-2">
+                    HR only. Payroll will take this amount from monthly bonus or basic salary.
+                  </p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={deductFrom !== "basic"}
+                        onChange={() => setDeductFrom("bonus")}
+                      />
+                      Monthly bonus (default)
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={deductFrom === "basic"}
+                        onChange={() => setDeductFrom("basic")}
+                      />
+                      Basic salary
+                    </label>
+                  </div>
+                </fieldset>
+              )}
 
               {valueType === "fixed" ? (
                 <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
