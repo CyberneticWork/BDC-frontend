@@ -1,19 +1,21 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import EmpPersonalDetails from "@dashboard/AddEmployeeMaster/EmpPersonalDetails";
 import AddressDetails from "@dashboard/AddEmployeeMaster/AddressDetails";
 import OrganizationDetails from "@dashboard/AddEmployeeMaster/OrganizationDetails";
 import CompensationManagement from "@dashboard/AddEmployeeMaster/CompensationManagement";
 import Employeedocument from "@dashboard/AddEmployeeMaster/Employeedocument";
+import EmployeeQualifications from "@dashboard/AddEmployeeMaster/EmployeeQualifications";
 import EmployeeConfirmationModal from "./EmployeeConfirmationModal";
 import {
   EmployeeFormProvider,
   useEmployeeForm,
 } from "@contexts/EmployeeFormContext";
 import employeeService from "@services/EmployeeDataService";
+import { fetchCompanies } from "@services/ApiDataService";
 import Swal from "sweetalert2";
 import { Download, Upload } from "lucide-react";
 
-const steps = [
+const baseSteps = [
   "personal",
   "address",
   "compensation",
@@ -21,6 +23,9 @@ const steps = [
   "documents",
   "confirmation",
 ];
+
+const qualificationsEnabled = (company) =>
+  !!(company?.process_config?.qualifications?.enabled ?? company?.process_config?.qualifications === true);
 
 const EmployeeMasterWrapper = () => {
   return (
@@ -32,11 +37,34 @@ const EmployeeMasterWrapper = () => {
 
 const EmployeeMaster = () => {
   const [activeCategory, setActiveCategory] = useState("personal");
-  const currentStepIndex = steps.indexOf(activeCategory);
-  const { setFormErrors, setIsSubmitting, clearForm, loadEmployeeData } =
+  const { formData, setFormErrors, setIsSubmitting, clearForm, loadEmployeeData } =
     useEmployeeForm();
   const excelInputRef = useRef(null);
   const [importing, setImporting] = useState(false);
+  const [companies, setCompanies] = useState([]);
+
+  useEffect(() => {
+    fetchCompanies()
+      .then((rows) => setCompanies(Array.isArray(rows) ? rows : []))
+      .catch(() => setCompanies([]));
+  }, []);
+
+  const selectedCompanyId = formData.organization?.company;
+  const showQualifications = qualificationsEnabled(
+    companies.find((c) => selectedCompanyId && String(c.id) === String(selectedCompanyId))
+  );
+  const steps = useMemo(() => {
+    if (!showQualifications) return baseSteps;
+    const at = baseSteps.indexOf("organization") + 1;
+    return [...baseSteps.slice(0, at), "qualifications", ...baseSteps.slice(at)];
+  }, [showQualifications]);
+  const currentStepIndex = steps.indexOf(activeCategory);
+
+  useEffect(() => {
+    if (activeCategory === "qualifications" && !showQualifications) {
+      setActiveCategory("organization");
+    }
+  }, [activeCategory, showQualifications]);
 
   // Load employee data if editing
   useEffect(() => {
@@ -266,6 +294,13 @@ const EmployeeMaster = () => {
           )}
           {activeCategory === "organization" && (
             <OrganizationDetails
+              onNext={goNext}
+              onPrevious={goPrevious}
+              activeCategory={activeCategory}
+            />
+          )}
+          {activeCategory === "qualifications" && showQualifications && (
+            <EmployeeQualifications
               onNext={goNext}
               onPrevious={goPrevious}
               activeCategory={activeCategory}

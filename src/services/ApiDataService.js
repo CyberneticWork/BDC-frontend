@@ -28,13 +28,21 @@ export const fetchCompanies = async (options = {}) => {
     const response = await axios.get(options.all ? "/companies" : `${API_PREFIX}/companies`, {
       params: options.all ? { all: 1 } : companyListQueryParams(),
     });
-    const rows = (response.data || []).map(normalizeCompany);
+    const payload = response.data;
+    const list = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : null;
+    if (!list) {
+      throw new Error(payload?.message || "Companies API did not return a list.");
+    }
+    const rows = list.map(normalizeCompany);
     if (options.all) {
       return rows;
     }
     return companiesForCurrentUrl(rows);
   } catch (error) {
     console.error("Error fetching companies:", error);
+    if (options.all) {
+      throw error;
+    }
     return [];
   }
 };

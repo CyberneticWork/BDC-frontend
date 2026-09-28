@@ -28,6 +28,12 @@ async function appendEmployeeMedia(formData, submissionData) {
   }
 }
 
+function appendQualifications(formData, submissionData) {
+  if (Array.isArray(formData.qualifications)) {
+    submissionData.append("qualifications", JSON.stringify(formData.qualifications));
+  }
+}
+
 const employeeService = {
   // Submit employee data with file uploads
   async submitEmployee(formData) {
@@ -36,6 +42,7 @@ const employeeService = {
       const submissionData = new FormData();
 
       await appendEmployeeMedia(formData, submissionData);
+      appendQualifications(formData, submissionData);
 
       // Append all other form data as JSON
       submissionData.append(
@@ -85,6 +92,7 @@ const employeeService = {
       const submissionData = new FormData();
 
       await appendEmployeeMedia(formData, submissionData);
+      appendQualifications(formData, submissionData);
 
       // Append all other form data as JSON
       submissionData.append(

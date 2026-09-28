@@ -12,7 +12,7 @@ import {
   Edit,
   X,
 } from "lucide-react";
-import { useEmployeeForm } from "@contexts/EmployeeFormContext";
+import { useEmployeeForm, mapQualificationsFromApi } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import { useDebounce } from "@uidotdev/usehooks";
 import employeeService from "@services/EmployeeDataService";
@@ -455,6 +455,7 @@ const EmpPersonalDetails = ({ onNext }) => {
             apiData.compensation?.employee_category
           ),
         },
+        qualifications: mapQualificationsFromApi(apiData.qualifications),
         documents:
           apiData.documents?.map((doc) => ({
             id: doc.id,

@@ -115,6 +115,22 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
       return;
     }
 
+    const incompleteQualification = (formData.qualifications || []).find((q) => {
+      const touched = q.qualificationType || q.instituteName || q.courseName || q.completionYear;
+      if (!touched) return false;
+      return !q.qualificationType || !q.instituteName || (q.status !== 'following' && !q.completionYear);
+    });
+    if (incompleteQualification) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Incomplete Qualification',
+        text: incompleteQualification.status === 'following'
+          ? 'Each following qualification needs a qualification type and institute name.'
+          : 'Each qualification needs a qualification type, institute name and completion year.',
+      });
+      return;
+    }
+
     const hasSpouse = !!formData.personal.spouseName || !!formData.personal.spouseType;
     const validChildren = (formData.personal.children || []).filter(
       (child) => child.name || child.dob

@@ -98,6 +98,7 @@ const emptyForm = {
   salary_advance_percent: 50,
   salary_advance_hr_deduct_from: "bonus",
   reland_excel_import: false,
+  qualifications: false,
   medical_annual_quota: 0,
   punch_enabled: false,
   punch_scope: "company",
@@ -162,8 +163,20 @@ export default function CyberneticAdminPage() {
   }, [authed]);
 
   const refresh = async () => {
-    const rows = await fetchCompanies({ all: true });
-    setCompanies(Array.isArray(rows) ? rows : []);
+    try {
+      const rows = await fetchCompanies({ all: true });
+      setCompanies(Array.isArray(rows) ? rows : []);
+    } catch (err) {
+      setCompanies([]);
+      Swal.fire({
+        icon: "error",
+        title: "Companies did not load",
+        text:
+          err?.response?.data?.message ||
+          err?.message ||
+          "The API did not return the company list. Check apiurbanhr is Laravel /api, not the welcome page.",
+      });
+    }
   };
 
   const handleLogin = async (e) => {
@@ -239,6 +252,10 @@ export default function CyberneticAdminPage() {
         company.process_config?.reland_excel_import?.enabled ??
         company.process_config?.reland_excel_import
       ),
+      qualifications: !!(
+        company.process_config?.qualifications?.enabled ??
+        company.process_config?.qualifications
+      ),
       medical_annual_quota: company.process_config?.medical_claims?.annual_quota || 0,
       salary_advance_percent: company.process_config?.salary_advance?.percent || 50,
       salary_advance_hr_deduct_from:
@@ -296,6 +313,7 @@ export default function CyberneticAdminPage() {
             hr_deduct_from: form.salary_advance_hr_deduct_from === "basic" ? "basic" : "bonus",
           },
           reland_excel_import: { enabled: !!form.reland_excel_import },
+          qualifications: { enabled: !!form.qualifications },
           mobile_punch: {
             enabled: !!form.punch_enabled,
             scope: form.punch_scope === "department" ? "department" : "company",
@@ -499,6 +517,7 @@ export default function CyberneticAdminPage() {
                   <th className="py-2 pr-3">Leave</th>
                   <th className="py-2 pr-3">Phone punch</th>
                   <th className="py-2 pr-3">Reland Excel</th>
+                  <th className="py-2 pr-3">Qualifications</th>
                   <th className="py-2"> </th>
                 </tr>
               </thead>
@@ -584,6 +603,13 @@ export default function CyberneticAdminPage() {
                     <td className="py-3 pr-3 text-xs">
                       {company.process_config?.reland_excel_import?.enabled || company.process_config?.reland_excel_import === true ? (
                         <span className="rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-900">On</span>
+                      ) : (
+                        <span className="text-slate-400">Off</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-3 text-xs">
+                      {company.process_config?.qualifications?.enabled || company.process_config?.qualifications === true ? (
+                        <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-900">On</span>
                       ) : (
                         <span className="text-slate-400">Off</span>
                       )}
@@ -911,6 +937,20 @@ export default function CyberneticAdminPage() {
                 <span className="font-semibold text-slate-900">Reland fingerprint Excel import</span>
                 <span className="block text-xs text-slate-600 mt-0.5">
                   Unchecked hides Reland import on Time Card. Allow HR to upload Reland Raw Clock-InOut Log.xls and write those punches as time cards for this company only.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.qualifications}
+                onChange={(e) => setForm({ ...form, qualifications: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Employee qualifications</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Unchecked hides the Qualifications step in Employee Master. Allow HR to record any number of completed qualifications (e.g. 7 diplomas and 2 degrees) and qualifications the employee is currently following, for this company only.
                 </span>
               </span>
             </label>

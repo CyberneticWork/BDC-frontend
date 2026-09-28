@@ -86,7 +86,9 @@ function isSharedSpmPortal(host = currentAppHost()) {
     host.includes("apihilburn") ||
     host.includes("jcfood") ||
     host.includes("apijcfood") ||
-    host.includes("jayseafood")
+    host.includes("jayseafood") ||
+    host.includes("urbanhr") ||
+    host.includes("apiurbanhr")
   );
 }
 

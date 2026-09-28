@@ -121,8 +121,18 @@ const initialState = {
     dayOff: "",
     employeeCategory: "Non-Executive",
   },
+  qualifications: [],
   documents: [],
 };
+
+export const mapQualificationsFromApi = (rows) =>
+  (Array.isArray(rows) ? rows : []).map((q) => ({
+    status: q.status === "following" ? "following" : "completed",
+    qualificationType: q.qualification_type || "",
+    courseName: q.course_name || "",
+    instituteName: q.institute_name || "",
+    completionYear: q.completion_year ? String(q.completion_year) : "",
+  }));
 
 export const EmployeeFormProvider = ({ children }) => {
   const [formData, setFormData] = useState(initialState);
@@ -415,6 +425,7 @@ export const EmployeeFormProvider = ({ children }) => {
           return "Non-Executive";
         })(),
       },
+      qualifications: mapQualificationsFromApi(employeeData.qualifications),
       documents: [],
     });
   }, []);

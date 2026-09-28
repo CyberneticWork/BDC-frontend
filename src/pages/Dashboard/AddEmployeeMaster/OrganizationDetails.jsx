@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Building2,
   Users,
@@ -23,9 +23,21 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
 import DatePickerInput from "../../../components/DatePickerInput";
 
+const sameId = (a, b) =>
+  a !== "" && a != null && b !== "" && b != null && String(a) === String(b);
+
 const OrganizationDetails = ({ onNext, onPrevious }) => {
   const { formData, updateFormData, errors, clearFieldError } =
     useEmployeeForm();
+  const orgRef = useRef(formData.organization);
+  const personalRef = useRef(formData.personal);
+  useEffect(() => {
+    orgRef.current = formData.organization;
+  }, [formData.organization]);
+  useEffect(() => {
+    personalRef.current = formData.personal;
+  }, [formData.personal]);
+
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
   const [isLoadingSubDepartments, setIsLoadingSubDepartments] = useState(false);
@@ -98,21 +110,44 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
           fetchDesignations(),
         ]);
 
-        setCompanies(companiesData);
+        // Read latest form after await — do not overwrite an employee already loaded for edit
+        const currentOrg = orgRef.current || {};
+        const isEditing = !!personalRef.current?.id || !!localStorage.getItem("editEmployeeId");
+        let companyRows = Array.isArray(companiesData) ? [...companiesData] : [];
+
+        if (
+          currentOrg.company &&
+          !companyRows.some((c) => sameId(c.id, currentOrg.company))
+        ) {
+          companyRows = [
+            {
+              id: currentOrg.company,
+              name: currentOrg.companyName || `Company #${currentOrg.company}`,
+              company_code: currentOrg.companyCode || "",
+            },
+            ...companyRows,
+          ];
+        }
+
+        setCompanies(companyRows);
         setIsLoadingCompanies(false);
-        setDesignations(DesignationsData);
+        setDesignations(Array.isArray(DesignationsData) ? DesignationsData : []);
         setIsLoadingDesignations(false);
-        if (companiesData.length && !formData.organization.company) {
+
+        // Only auto-pick a company on a blank "new employee" form
+        if (companyRows.length && !currentOrg.company && !isEditing) {
           const preferred =
-            companiesData.find((c) => c.portal_active) || companiesData[0];
+            companyRows.find((c) => c.portal_active) || companyRows[0];
           updateFormData("organization", {
-            company: preferred.id,
+            company: preferred.id != null ? String(preferred.id) : "",
             companyCode: preferred.company_code || "",
             companyName: preferred.name || "",
           });
         }
       } catch (e) {
         console.error("Error loading data:", e);
+        setIsLoadingCompanies(false);
+        setIsLoadingDesignations(false);
       }
     };
 
@@ -125,7 +160,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
         setIsLoadingDepartments(true);
         try {
           const departmentsData = await fetchDepartmentsById(companyId);
-          setDepartments(departmentsData);
+          setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
         } catch (e) {
           console.error("Error loading departments:", e);
         } finally {
@@ -139,7 +174,49 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     return () => {
       window.removeEventListener('loadDepartments', handleLoadDepartments);
     };
-  }, []);
+  }, [updateFormData]);
+
+  // Keep the selected company visible even if the tenant company list is filtered
+  useEffect(() => {
+    const companyId = formData.organization.company;
+    if (!companyId) return;
+    setCompanies((prev) => {
+      if (prev.some((c) => sameId(c.id, companyId))) return prev;
+      return [
+        {
+          id: companyId,
+          name: formData.organization.companyName || `Company #${companyId}`,
+          company_code: formData.organization.companyCode || "",
+        },
+        ...prev,
+      ];
+    });
+  }, [
+    formData.organization.company,
+    formData.organization.companyName,
+    formData.organization.companyCode,
+  ]);
+
+  // Keep selected designation visible if the master list missed it
+  useEffect(() => {
+    const designationId = formData.organization.designation;
+    if (!designationId) return;
+    setDesignations((prev) => {
+      if (prev.some((d) => sameId(d.id, designationId))) return prev;
+      return [
+        {
+          id: designationId,
+          name:
+            formData.organization.designationName ||
+            `Designation #${designationId}`,
+        },
+        ...prev,
+      ];
+    });
+  }, [
+    formData.organization.designation,
+    formData.organization.designationName,
+  ]);
 
   // Load departments when company is selected
   useEffect(() => {
@@ -150,7 +227,22 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
           const departmentsData = await fetchDepartmentsById(
             formData.organization.company
           );
-          setDepartments(departmentsData);
+          let rows = Array.isArray(departmentsData) ? [...departmentsData] : [];
+          const deptId = orgRef.current?.department;
+          if (
+            deptId &&
+            !rows.some((d) => sameId(d.id, deptId))
+          ) {
+            rows = [
+              {
+                id: deptId,
+                name: orgRef.current?.departmentName || `Department #${deptId}`,
+                company_id: formData.organization.company,
+              },
+              ...rows,
+            ];
+          }
+          setDepartments(rows);
         } catch (e) {
           console.error("Error loading departments:", e);
         } finally {
@@ -173,7 +265,19 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
           const subDepartmentsData = await fetchSubDepartmentsById(
             formData.organization.department
           );
-          setSubDepartments(subDepartmentsData);
+          let rows = Array.isArray(subDepartmentsData) ? [...subDepartmentsData] : [];
+          const subId = orgRef.current?.subDepartment;
+          if (subId && !rows.some((s) => sameId(s.id, subId))) {
+            rows = [
+              {
+                id: subId,
+                name: orgRef.current?.subDepartmentName || `Sub-department #${subId}`,
+                department_id: formData.organization.department,
+              },
+              ...rows,
+            ];
+          }
+          setSubDepartments(rows);
         } catch (e) {
           console.error("Error loading sub-departments:", e);
         } finally {
@@ -188,7 +292,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
-    const parsedValue = value === "" ? "" : Number(value); // safely parse to number if not empty
+    const parsedValue = value === "" ? "" : String(value);
 
     // Clear field error
     if (errors.organization?.[name]) {
@@ -196,9 +300,9 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     }
 
     if (name === "company") {
-      const selected = companies.find((c) => c.id === parsedValue);
+      const selected = companies.find((c) => sameId(c.id, parsedValue));
       updateFormData("organization", {
-        company: selected?.id || "",
+        company: selected?.id != null ? String(selected.id) : parsedValue,
         companyCode: selected?.company_code || "",
         companyName: selected?.name || "",
         department: "",
@@ -210,9 +314,9 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     }
 
     if (name === "department") {
-      const selected = departments.find((d) => d.id === parsedValue);
+      const selected = departments.find((d) => sameId(d.id, parsedValue));
       updateFormData("organization", {
-        department: selected?.id || "",
+        department: selected?.id != null ? String(selected.id) : parsedValue,
         departmentName: selected?.name || "",
         subDepartment: "",
         subDepartmentName: "",
@@ -221,18 +325,18 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     }
 
     if (name === "subDepartment") {
-      const selected = subDepartments.find((s) => s.id === parsedValue);
+      const selected = subDepartments.find((s) => sameId(s.id, parsedValue));
       updateFormData("organization", {
-        subDepartment: selected?.id || "",
+        subDepartment: selected?.id != null ? String(selected.id) : parsedValue,
         subDepartmentName: selected?.name || "",
       });
       return;
     }
 
     if (name === "designation") {
-      const selected = designations.find((s) => s.id === parsedValue);
+      const selected = designations.find((s) => sameId(s.id, parsedValue));
       updateFormData("organization", {
-        designation: selected?.id || "",
+        designation: selected?.id != null ? String(selected.id) : parsedValue,
         designationName: selected?.name || "",
       });
       return;
@@ -317,7 +421,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 ) : (
                   <select
                     name="company"
-                    value={formData.organization.company}
+                    value={formData.organization.company || ""}
                     onChange={handleChange}
                     className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.company
                       ? "border-red-500"
@@ -326,7 +430,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   >
                     <option value="">Select Company ID</option>
                     {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
+                      <option key={c.id} value={String(c.id)}>
                         {c.company_code
                           ? `${c.company_code} — ${c.name}`
                           : c.name}
@@ -377,7 +481,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 ) : (
                   <select
                     name="department"
-                    value={formData.organization.department}
+                    value={formData.organization.department || ""}
                     onChange={handleChange}
                     disabled={
                       !formData.organization.company || isLoadingDepartments
@@ -392,7 +496,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   >
                     <option value="">Select Department</option>
                     {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
+                      <option key={d.id} value={String(d.id)}>
                         {d.name}
                       </option>
                     ))}
@@ -416,7 +520,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 ) : (
                   <select
                     name="subDepartment"
-                    value={formData.organization.subDepartment}
+                    value={formData.organization.subDepartment || ""}
                     onChange={handleChange}
                     disabled={
                       !formData.organization.department ||
@@ -433,7 +537,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   >
                     <option value="">Select Sub Department</option>
                     {subDepartments.map((s) => (
-                      <option key={s.id} value={s.id}>
+                      <option key={s.id} value={String(s.id)}>
                         {s.name}
                       </option>
                     ))}
@@ -504,7 +608,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   <>
                     <select
                       name="designation"
-                      value={formData.organization.designation}
+                      value={formData.organization.designation || ""}
                       onChange={handleDesignationChange}
                       className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.designation
                         ? "border-red-500"
@@ -514,7 +618,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                     >
                       <option value="">Select designation</option>
                       {designations.map((s) => (
-                        <option key={s.id} value={s.id}>
+                        <option key={s.id} value={String(s.id)}>
                           {s.name}
                         </option>
                       ))}
