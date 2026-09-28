@@ -1,5 +1,5 @@
 import React from "react";
-import { GraduationCap, BookOpen, Plus, Trash2 } from "lucide-react";
+import { GraduationCap, BookOpen, Plus, Trash2, School, Award } from "lucide-react";
 import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 
 const QUALIFICATION_TYPES = [
@@ -16,6 +16,24 @@ const QUALIFICATION_TYPES = [
   "Master of Philosophy",
   "Doctorate",
 ];
+
+const OL_GRADES = ["A*", "A", "B", "C", "D", "E", "S", "F", "W", "U"];
+
+const AL_SYLLABUSES = ["National", "Cambridge", "AQA"];
+
+const AL_STREAM_SUGGESTIONS = [
+  "Physical Science (Mathematics)",
+  "Biological Science",
+  "Commerce",
+  "Arts",
+  "Engineering Technology",
+  "Bio-systems Technology",
+];
+
+const emptySchoolResults = {
+  ol: { englishGrade: "", mathsGrade: "", yearSat: "" },
+  al: { syllabus: "", stream: "", yearSat: "" },
+};
 
 const emptyRow = (status) => ({
   status,
@@ -130,9 +148,67 @@ const QualificationSection = ({ title, subtitle, icon, status, yearLabel, yearRe
   </div>
 );
 
-const EmployeeQualifications = ({ onNext, onPrevious }) => {
+const SchoolCard = ({ title, subtitle, icon, children }) => (
+  <div className="mb-8 p-4 border border-gray-200 rounded-lg bg-gray-50">
+    <h2 className="text-xl font-semibold text-gray-700 flex items-center gap-2">
+      {icon}
+      {title}
+    </h2>
+    <p className="text-gray-500 text-sm pl-7 mb-4">{subtitle}</p>
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3 rounded-lg border border-gray-200 bg-white p-3">
+      {children}
+    </div>
+  </div>
+);
+
+const Field = ({ label, children }) => (
+  <div>
+    <label className="mb-1 block text-xs font-semibold text-gray-600">{label}</label>
+    {children}
+  </div>
+);
+
+const YearInput = ({ value, onChange }) => (
+  <input
+    type="number"
+    className={inputClass}
+    placeholder={String(currentYear)}
+    min={1950}
+    max={currentYear + 1}
+    value={value}
+    onChange={(e) => onChange(e.target.value.slice(0, 4))}
+  />
+);
+
+const GradeSelect = ({ value, onChange }) => (
+  <select className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
+    <option value="">Select grade</option>
+    {OL_GRADES.map((grade) => (
+      <option key={grade} value={grade}>{grade}</option>
+    ))}
+  </select>
+);
+
+const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: true } }) => {
   const { formData, setFormData } = useEmployeeForm();
   const all = Array.isArray(formData.qualifications) ? formData.qualifications : [];
+  const school = {
+    ol: { ...emptySchoolResults.ol, ...(formData.schoolResults?.ol || {}) },
+    al: { ...emptySchoolResults.al, ...(formData.schoolResults?.al || {}) },
+  };
+
+  const setSchool = (level, field, value) =>
+    setFormData((prev) => {
+      const current = prev.schoolResults || emptySchoolResults;
+      return {
+        ...prev,
+        schoolResults: {
+          ...emptySchoolResults,
+          ...current,
+          [level]: { ...emptySchoolResults[level], ...(current[level] || {}), [field]: value },
+        },
+      };
+    });
 
   const setRows = (updater) =>
     setFormData((prev) => ({
@@ -152,30 +228,92 @@ const EmployeeQualifications = ({ onNext, onPrevious }) => {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="bg-white rounded-2xl shadow-xl p-6">
-        <QualificationSection
-          title="Qualifications"
-          subtitle="Add every completed qualification — for example 7 diplomas and 2 degrees."
-          icon={<GraduationCap className="text-blue-500" size={20} />}
-          status="completed"
-          yearLabel="Completion year"
-          yearRequired
-          rows={completed}
-          onAdd={handleAdd}
-          onChange={handleChange}
-          onRemove={handleRemove}
-        />
-        <QualificationSection
-          title="Following qualifications"
-          subtitle="Qualifications the employee is currently studying for."
-          icon={<BookOpen className="text-blue-500" size={20} />}
-          status="following"
-          yearLabel="Expected completion year"
-          yearRequired={false}
-          rows={following}
-          onAdd={handleAdd}
-          onChange={handleChange}
-          onRemove={handleRemove}
-        />
+        {packs.ol && (
+          <SchoolCard
+            title="O/L results"
+            subtitle="G.C.E. Ordinary Level results for English and Mathematics."
+            icon={<School className="text-blue-500" size={20} />}
+          >
+            <Field label="English">
+              <GradeSelect value={school.ol.englishGrade} onChange={(v) => setSchool("ol", "englishGrade", v)} />
+            </Field>
+            <Field label="Mathematics">
+              <GradeSelect value={school.ol.mathsGrade} onChange={(v) => setSchool("ol", "mathsGrade", v)} />
+            </Field>
+            <Field label="Year sat">
+              <YearInput value={school.ol.yearSat} onChange={(v) => setSchool("ol", "yearSat", v)} />
+            </Field>
+          </SchoolCard>
+        )}
+
+        {packs.al && (
+          <SchoolCard
+            title="A/L details"
+            subtitle="G.C.E. Advanced Level syllabus, subject stream and year sat."
+            icon={<Award className="text-blue-500" size={20} />}
+          >
+            <Field label="Syllabus">
+              <select
+                className={inputClass}
+                value={school.al.syllabus}
+                onChange={(e) => setSchool("al", "syllabus", e.target.value)}
+              >
+                <option value="">Select syllabus</option>
+                {AL_SYLLABUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Subject stream">
+              <input
+                type="text"
+                list="al-stream-options"
+                className={inputClass}
+                placeholder="e.g. Commerce"
+                maxLength={100}
+                value={school.al.stream}
+                onChange={(e) => setSchool("al", "stream", e.target.value)}
+              />
+              <datalist id="al-stream-options">
+                {AL_STREAM_SUGGESTIONS.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Year sat">
+              <YearInput value={school.al.yearSat} onChange={(v) => setSchool("al", "yearSat", v)} />
+            </Field>
+          </SchoolCard>
+        )}
+
+        {packs.qualifications && (
+          <>
+            <QualificationSection
+              title="Qualifications"
+              subtitle="Add every completed qualification — for example 7 diplomas and 2 degrees."
+              icon={<GraduationCap className="text-blue-500" size={20} />}
+              status="completed"
+              yearLabel="Completion year"
+              yearRequired
+              rows={completed}
+              onAdd={handleAdd}
+              onChange={handleChange}
+              onRemove={handleRemove}
+            />
+            <QualificationSection
+              title="Following qualifications"
+              subtitle="Qualifications the employee is currently studying for."
+              icon={<BookOpen className="text-blue-500" size={20} />}
+              status="following"
+              yearLabel="Expected completion year"
+              yearRequired={false}
+              rows={following}
+              onAdd={handleAdd}
+              onChange={handleChange}
+              onRemove={handleRemove}
+            />
+          </>
+        )}
 
         <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between space-x-4">
           <button

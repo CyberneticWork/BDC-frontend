@@ -32,6 +32,9 @@ function appendQualifications(formData, submissionData) {
   if (Array.isArray(formData.qualifications)) {
     submissionData.append("qualifications", JSON.stringify(formData.qualifications));
   }
+  if (formData.schoolResults && typeof formData.schoolResults === "object") {
+    submissionData.append("school_results", JSON.stringify(formData.schoolResults));
+  }
 }
 
 const employeeService = {

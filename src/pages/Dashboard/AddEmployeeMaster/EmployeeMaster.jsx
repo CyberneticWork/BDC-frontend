@@ -24,8 +24,8 @@ const baseSteps = [
   "confirmation",
 ];
 
-const qualificationsEnabled = (company) =>
-  !!(company?.process_config?.qualifications?.enabled ?? company?.process_config?.qualifications === true);
+const packOn = (company, key) =>
+  !!(company?.process_config?.[key]?.enabled ?? company?.process_config?.[key] === true);
 
 const EmployeeMasterWrapper = () => {
   return (
@@ -50,21 +50,27 @@ const EmployeeMaster = () => {
   }, []);
 
   const selectedCompanyId = formData.organization?.company;
-  const showQualifications = qualificationsEnabled(
-    companies.find((c) => selectedCompanyId && String(c.id) === String(selectedCompanyId))
+  const selectedCompany = companies.find(
+    (c) => selectedCompanyId && String(c.id) === String(selectedCompanyId)
   );
+  const educationPacks = {
+    qualifications: packOn(selectedCompany, "qualifications"),
+    ol: packOn(selectedCompany, "ol_results"),
+    al: packOn(selectedCompany, "al_results"),
+  };
+  const showEducation = educationPacks.qualifications || educationPacks.ol || educationPacks.al;
   const steps = useMemo(() => {
-    if (!showQualifications) return baseSteps;
+    if (!showEducation) return baseSteps;
     const at = baseSteps.indexOf("organization") + 1;
-    return [...baseSteps.slice(0, at), "qualifications", ...baseSteps.slice(at)];
-  }, [showQualifications]);
+    return [...baseSteps.slice(0, at), "education", ...baseSteps.slice(at)];
+  }, [showEducation]);
   const currentStepIndex = steps.indexOf(activeCategory);
 
   useEffect(() => {
-    if (activeCategory === "qualifications" && !showQualifications) {
+    if (activeCategory === "education" && !showEducation) {
       setActiveCategory("organization");
     }
-  }, [activeCategory, showQualifications]);
+  }, [activeCategory, showEducation]);
 
   // Load employee data if editing
   useEffect(() => {
@@ -299,11 +305,11 @@ const EmployeeMaster = () => {
               activeCategory={activeCategory}
             />
           )}
-          {activeCategory === "qualifications" && showQualifications && (
+          {activeCategory === "education" && showEducation && (
             <EmployeeQualifications
               onNext={goNext}
               onPrevious={goPrevious}
-              activeCategory={activeCategory}
+              packs={educationPacks}
             />
           )}
           {activeCategory === "documents" && (

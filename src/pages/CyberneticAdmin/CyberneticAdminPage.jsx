@@ -56,6 +56,15 @@ const OT_HOUR_OPTIONS = [
   },
 ];
 
+const EDUCATION_PACKS = [
+  ["qualifications", "Quals"],
+  ["ol_results", "O/L"],
+  ["al_results", "A/L"],
+];
+
+const packOn = (company, key) =>
+  !!(company?.process_config?.[key]?.enabled ?? company?.process_config?.[key] === true);
+
 const FUTURE_CONFIGS = [
   {
     key: "holiday_calendar",
@@ -99,6 +108,8 @@ const emptyForm = {
   salary_advance_hr_deduct_from: "bonus",
   reland_excel_import: false,
   qualifications: false,
+  ol_results: false,
+  al_results: false,
   medical_annual_quota: 0,
   punch_enabled: false,
   punch_scope: "company",
@@ -256,6 +267,8 @@ export default function CyberneticAdminPage() {
         company.process_config?.qualifications?.enabled ??
         company.process_config?.qualifications
       ),
+      ol_results: packOn(company, "ol_results"),
+      al_results: packOn(company, "al_results"),
       medical_annual_quota: company.process_config?.medical_claims?.annual_quota || 0,
       salary_advance_percent: company.process_config?.salary_advance?.percent || 50,
       salary_advance_hr_deduct_from:
@@ -314,6 +327,8 @@ export default function CyberneticAdminPage() {
           },
           reland_excel_import: { enabled: !!form.reland_excel_import },
           qualifications: { enabled: !!form.qualifications },
+          ol_results: { enabled: !!form.ol_results },
+          al_results: { enabled: !!form.al_results },
           mobile_punch: {
             enabled: !!form.punch_enabled,
             scope: form.punch_scope === "department" ? "department" : "company",
@@ -517,7 +532,7 @@ export default function CyberneticAdminPage() {
                   <th className="py-2 pr-3">Leave</th>
                   <th className="py-2 pr-3">Phone punch</th>
                   <th className="py-2 pr-3">Reland Excel</th>
-                  <th className="py-2 pr-3">Qualifications</th>
+                  <th className="py-2 pr-3">Education</th>
                   <th className="py-2"> </th>
                 </tr>
               </thead>
@@ -608,8 +623,14 @@ export default function CyberneticAdminPage() {
                       )}
                     </td>
                     <td className="py-3 pr-3 text-xs">
-                      {company.process_config?.qualifications?.enabled || company.process_config?.qualifications === true ? (
-                        <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-900">On</span>
+                      {EDUCATION_PACKS.some(([key]) => packOn(company, key)) ? (
+                        <span className="flex flex-wrap gap-1">
+                          {EDUCATION_PACKS.filter(([key]) => packOn(company, key)).map(([key, label]) => (
+                            <span key={key} className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-900">
+                              {label}
+                            </span>
+                          ))}
+                        </span>
                       ) : (
                         <span className="text-slate-400">Off</span>
                       )}
@@ -950,7 +971,35 @@ export default function CyberneticAdminPage() {
               <span>
                 <span className="font-semibold text-slate-900">Employee qualifications</span>
                 <span className="block text-xs text-slate-600 mt-0.5">
-                  Unchecked hides the Qualifications step in Employee Master. Allow HR to record any number of completed qualifications (e.g. 7 diplomas and 2 degrees) and qualifications the employee is currently following, for this company only.
+                  Adds qualifications to the Education step in Employee Master. Allow HR to record any number of completed qualifications (e.g. 7 diplomas and 2 degrees) and qualifications the employee is currently following, for this company only.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.ol_results}
+                onChange={(e) => setForm({ ...form, ol_results: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">O/L results</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Adds O/L fields to the Education step in Employee Master: English grade, Mathematics grade and year sat, for this company only.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.al_results}
+                onChange={(e) => setForm({ ...form, al_results: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">A/L details</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Adds A/L fields to the Education step in Employee Master: syllabus (National, Cambridge, AQA), subject stream and year sat, for this company only.
                 </span>
               </span>
             </label>

@@ -122,8 +122,25 @@ const initialState = {
     employeeCategory: "Non-Executive",
   },
   qualifications: [],
+  schoolResults: {
+    ol: { englishGrade: "", mathsGrade: "", yearSat: "" },
+    al: { syllabus: "", stream: "", yearSat: "" },
+  },
   documents: [],
 };
+
+export const mapSchoolResultsFromApi = (row) => ({
+  ol: {
+    englishGrade: row?.ol_english_grade || "",
+    mathsGrade: row?.ol_maths_grade || "",
+    yearSat: row?.ol_year ? String(row.ol_year) : "",
+  },
+  al: {
+    syllabus: row?.al_syllabus || "",
+    stream: row?.al_stream || "",
+    yearSat: row?.al_year ? String(row.al_year) : "",
+  },
+});
 
 export const mapQualificationsFromApi = (rows) =>
   (Array.isArray(rows) ? rows : []).map((q) => ({
@@ -426,6 +443,7 @@ export const EmployeeFormProvider = ({ children }) => {
         })(),
       },
       qualifications: mapQualificationsFromApi(employeeData.qualifications),
+      schoolResults: mapSchoolResultsFromApi(employeeData.school_result),
       documents: [],
     });
   }, []);
