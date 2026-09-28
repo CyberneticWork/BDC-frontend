@@ -32,6 +32,12 @@ function appendQualifications(formData, submissionData) {
   if (Array.isArray(formData.qualifications)) {
     submissionData.append("qualifications", JSON.stringify(formData.qualifications));
   }
+  if (Array.isArray(formData.followingQualifications)) {
+    submissionData.append("following_qualifications", JSON.stringify(formData.followingQualifications));
+  }
+  if (Array.isArray(formData.previousEmployments)) {
+    submissionData.append("previous_employments", JSON.stringify(formData.previousEmployments));
+  }
   if (formData.schoolResults && typeof formData.schoolResults === "object") {
     submissionData.append("school_results", JSON.stringify(formData.schoolResults));
   }

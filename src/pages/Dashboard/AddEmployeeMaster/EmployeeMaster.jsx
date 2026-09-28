@@ -5,6 +5,7 @@ import OrganizationDetails from "@dashboard/AddEmployeeMaster/OrganizationDetail
 import CompensationManagement from "@dashboard/AddEmployeeMaster/CompensationManagement";
 import Employeedocument from "@dashboard/AddEmployeeMaster/Employeedocument";
 import EmployeeQualifications from "@dashboard/AddEmployeeMaster/EmployeeQualifications";
+import EmployeePreviousEmployment from "@dashboard/AddEmployeeMaster/EmployeePreviousEmployment";
 import EmployeeConfirmationModal from "./EmployeeConfirmationModal";
 import {
   EmployeeFormProvider,
@@ -23,6 +24,8 @@ const baseSteps = [
   "documents",
   "confirmation",
 ];
+
+const STEP_LABELS = { previousEmployment: "Previous Employment" };
 
 const packOn = (company, key) =>
   !!(company?.process_config?.[key]?.enabled ?? company?.process_config?.[key] === true);
@@ -55,22 +58,27 @@ const EmployeeMaster = () => {
   );
   const educationPacks = {
     qualifications: packOn(selectedCompany, "qualifications"),
+    following: packOn(selectedCompany, "following_qualifications"),
     ol: packOn(selectedCompany, "ol_results"),
     al: packOn(selectedCompany, "al_results"),
   };
-  const showEducation = educationPacks.qualifications || educationPacks.ol || educationPacks.al;
+  const showEducation = Object.values(educationPacks).some(Boolean);
+  const showPreviousEmployment = packOn(selectedCompany, "previous_employment");
   const steps = useMemo(() => {
-    if (!showEducation) return baseSteps;
+    const addonSteps = [
+      ...(showEducation ? ["education"] : []),
+      ...(showPreviousEmployment ? ["previousEmployment"] : []),
+    ];
     const at = baseSteps.indexOf("organization") + 1;
-    return [...baseSteps.slice(0, at), "education", ...baseSteps.slice(at)];
-  }, [showEducation]);
+    return [...baseSteps.slice(0, at), ...addonSteps, ...baseSteps.slice(at)];
+  }, [showEducation, showPreviousEmployment]);
   const currentStepIndex = steps.indexOf(activeCategory);
 
   useEffect(() => {
-    if (activeCategory === "education" && !showEducation) {
+    if (!steps.includes(activeCategory)) {
       setActiveCategory("organization");
     }
-  }, [activeCategory, showEducation]);
+  }, [activeCategory, steps]);
 
   // Load employee data if editing
   useEffect(() => {
@@ -270,7 +278,7 @@ const EmployeeMaster = () => {
               }`}
               onClick={() => setActiveCategory(step)}
             >
-              {step.charAt(0).toUpperCase() + step.slice(1)}
+              {STEP_LABELS[step] || step.charAt(0).toUpperCase() + step.slice(1)}
             </button>
           ))}
         </div>
@@ -311,6 +319,9 @@ const EmployeeMaster = () => {
               onPrevious={goPrevious}
               packs={educationPacks}
             />
+          )}
+          {activeCategory === "previousEmployment" && showPreviousEmployment && (
+            <EmployeePreviousEmployment onNext={goNext} onPrevious={goPrevious} />
           )}
           {activeCategory === "documents" && (
             <Employeedocument

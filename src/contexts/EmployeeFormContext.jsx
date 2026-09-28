@@ -122,6 +122,8 @@ const initialState = {
     employeeCategory: "Non-Executive",
   },
   qualifications: [],
+  followingQualifications: [],
+  previousEmployments: [],
   schoolResults: {
     ol: { englishGrade: "", mathsGrade: "", yearSat: "" },
     al: { syllabus: "", stream: "", yearSat: "" },
@@ -143,12 +145,34 @@ export const mapSchoolResultsFromApi = (row) => ({
 });
 
 export const mapQualificationsFromApi = (rows) =>
+  (Array.isArray(rows) ? rows : [])
+    .filter((q) => q.status !== "following")
+    .map((q) => ({
+      qualificationType: q.qualification_type || "",
+      courseName: q.course_name || "",
+      instituteName: q.institute_name || "",
+      completionYear: q.completion_year ? String(q.completion_year) : "",
+    }));
+
+const toMonthInput = (year, month) =>
+  year && month ? `${year}-${String(month).padStart(2, "0")}` : "";
+
+export const mapFollowingQualificationsFromApi = (rows) =>
   (Array.isArray(rows) ? rows : []).map((q) => ({
-    status: q.status === "following" ? "following" : "completed",
-    qualificationType: q.qualification_type || "",
-    courseName: q.course_name || "",
+    qualificationName: q.qualification_name || "",
     instituteName: q.institute_name || "",
-    completionYear: q.completion_year ? String(q.completion_year) : "",
+    startMonth: toMonthInput(q.start_year, q.start_month),
+    endMonth: toMonthInput(q.end_year, q.end_month),
+    lectureType: q.lecture_type || "",
+  }));
+
+export const mapPreviousEmploymentsFromApi = (rows) =>
+  (Array.isArray(rows) ? rows : []).map((p) => ({
+    organizationName: p.organization_name || "",
+    lastDesignation: p.last_designation || "",
+    joinDate: p.join_date ? String(p.join_date).slice(0, 10) : "",
+    lastDate: p.last_date ? String(p.last_date).slice(0, 10) : "",
+    comments: p.comments || "",
   }));
 
 export const EmployeeFormProvider = ({ children }) => {
@@ -443,6 +467,8 @@ export const EmployeeFormProvider = ({ children }) => {
         })(),
       },
       qualifications: mapQualificationsFromApi(employeeData.qualifications),
+      followingQualifications: mapFollowingQualificationsFromApi(employeeData.following_qualifications),
+      previousEmployments: mapPreviousEmploymentsFromApi(employeeData.previous_employments),
       schoolResults: mapSchoolResultsFromApi(employeeData.school_result),
       documents: [],
     });

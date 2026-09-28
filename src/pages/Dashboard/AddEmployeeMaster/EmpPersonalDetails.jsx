@@ -15,6 +15,8 @@ import {
 import {
   useEmployeeForm,
   mapQualificationsFromApi,
+  mapFollowingQualificationsFromApi,
+  mapPreviousEmploymentsFromApi,
   mapSchoolResultsFromApi,
 } from "@contexts/EmployeeFormContext";
 import FieldError from "@components/ErrorMessage/FieldError";
@@ -460,6 +462,8 @@ const EmpPersonalDetails = ({ onNext }) => {
           ),
         },
         qualifications: mapQualificationsFromApi(apiData.qualifications),
+        followingQualifications: mapFollowingQualificationsFromApi(apiData.following_qualifications),
+        previousEmployments: mapPreviousEmploymentsFromApi(apiData.previous_employments),
         schoolResults: mapSchoolResultsFromApi(apiData.school_result),
         documents:
           apiData.documents?.map((doc) => ({

@@ -115,19 +115,34 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
       return;
     }
 
-    const incompleteQualification = (formData.qualifications || []).find((q) => {
-      const touched = q.qualificationType || q.instituteName || q.courseName || q.completionYear;
-      if (!touched) return false;
-      return !q.qualificationType || !q.instituteName || (q.status !== 'following' && !q.completionYear);
-    });
-    if (incompleteQualification) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Incomplete Qualification',
-        text: incompleteQualification.status === 'following'
-          ? 'Each following qualification needs a qualification type and institute name.'
-          : 'Each qualification needs a qualification type, institute name and completion year.',
-      });
+    const addonProblem = (() => {
+      const qualification = (formData.qualifications || []).find(
+        (q) => (q.qualificationType || q.instituteName || q.courseName || q.completionYear)
+          && (!q.qualificationType || !q.instituteName || !q.completionYear)
+      );
+      if (qualification) {
+        return ['Incomplete Qualification', 'Each qualification needs a qualification type, institute name and completion year.'];
+      }
+      const following = (formData.followingQualifications || []).find(
+        (f) => (f.qualificationName || f.instituteName || f.startMonth || f.endMonth || f.lectureType)
+          && (!f.qualificationName || !f.instituteName || !f.startMonth || !f.lectureType
+            || (f.endMonth && f.endMonth < f.startMonth))
+      );
+      if (following) {
+        return ['Incomplete Following Qualification', 'Each following qualification needs a name, institute, starting year and month, and lecture type. The ending month cannot be before the starting month.'];
+      }
+      const employment = (formData.previousEmployments || []).find(
+        (p) => (p.organizationName || p.lastDesignation || p.joinDate || p.lastDate || p.comments)
+          && (!p.organizationName || (p.joinDate && p.lastDate && p.lastDate < p.joinDate)
+            || String(p.comments || '').trim().split(/\s+/).filter(Boolean).length > 50)
+      );
+      if (employment) {
+        return ['Incomplete Previous Employment', 'Each previous employment needs an organization name, a last date on or after the join date, and comments of 50 words or fewer.'];
+      }
+      return null;
+    })();
+    if (addonProblem) {
+      Swal.fire({ icon: 'error', title: addonProblem[0], text: addonProblem[1] });
       return;
     }
 

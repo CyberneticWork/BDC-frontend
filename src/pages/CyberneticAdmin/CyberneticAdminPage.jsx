@@ -56,10 +56,12 @@ const OT_HOUR_OPTIONS = [
   },
 ];
 
-const EDUCATION_PACKS = [
+const EMPLOYEE_ADDON_PACKS = [
   ["qualifications", "Quals"],
+  ["following_qualifications", "Following"],
   ["ol_results", "O/L"],
   ["al_results", "A/L"],
+  ["previous_employment", "Prev. employment"],
 ];
 
 const packOn = (company, key) =>
@@ -110,6 +112,8 @@ const emptyForm = {
   qualifications: false,
   ol_results: false,
   al_results: false,
+  following_qualifications: false,
+  previous_employment: false,
   medical_annual_quota: 0,
   punch_enabled: false,
   punch_scope: "company",
@@ -269,6 +273,8 @@ export default function CyberneticAdminPage() {
       ),
       ol_results: packOn(company, "ol_results"),
       al_results: packOn(company, "al_results"),
+      following_qualifications: packOn(company, "following_qualifications"),
+      previous_employment: packOn(company, "previous_employment"),
       medical_annual_quota: company.process_config?.medical_claims?.annual_quota || 0,
       salary_advance_percent: company.process_config?.salary_advance?.percent || 50,
       salary_advance_hr_deduct_from:
@@ -329,6 +335,8 @@ export default function CyberneticAdminPage() {
           qualifications: { enabled: !!form.qualifications },
           ol_results: { enabled: !!form.ol_results },
           al_results: { enabled: !!form.al_results },
+          following_qualifications: { enabled: !!form.following_qualifications },
+          previous_employment: { enabled: !!form.previous_employment },
           mobile_punch: {
             enabled: !!form.punch_enabled,
             scope: form.punch_scope === "department" ? "department" : "company",
@@ -532,7 +540,7 @@ export default function CyberneticAdminPage() {
                   <th className="py-2 pr-3">Leave</th>
                   <th className="py-2 pr-3">Phone punch</th>
                   <th className="py-2 pr-3">Reland Excel</th>
-                  <th className="py-2 pr-3">Education</th>
+                  <th className="py-2 pr-3">Employee add-ons</th>
                   <th className="py-2"> </th>
                 </tr>
               </thead>
@@ -623,9 +631,9 @@ export default function CyberneticAdminPage() {
                       )}
                     </td>
                     <td className="py-3 pr-3 text-xs">
-                      {EDUCATION_PACKS.some(([key]) => packOn(company, key)) ? (
+                      {EMPLOYEE_ADDON_PACKS.some(([key]) => packOn(company, key)) ? (
                         <span className="flex flex-wrap gap-1">
-                          {EDUCATION_PACKS.filter(([key]) => packOn(company, key)).map(([key, label]) => (
+                          {EMPLOYEE_ADDON_PACKS.filter(([key]) => packOn(company, key)).map(([key, label]) => (
                             <span key={key} className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-900">
                               {label}
                             </span>
@@ -971,7 +979,21 @@ export default function CyberneticAdminPage() {
               <span>
                 <span className="font-semibold text-slate-900">Employee qualifications</span>
                 <span className="block text-xs text-slate-600 mt-0.5">
-                  Adds qualifications to the Education step in Employee Master. Allow HR to record any number of completed qualifications (e.g. 7 diplomas and 2 degrees) and qualifications the employee is currently following, for this company only.
+                  Adds qualifications to the Education step in Employee Master. Allow HR to record any number of completed qualifications (e.g. 7 diplomas and 2 degrees), for this company only.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.following_qualifications}
+                onChange={(e) => setForm({ ...form, following_qualifications: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Following qualifications</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Adds a Following section to the Education step: name of the qualification, institute, starting and ending year/month, and Weekday or Weekend lectures, for this company only.
                 </span>
               </span>
             </label>
@@ -1000,6 +1022,20 @@ export default function CyberneticAdminPage() {
                 <span className="font-semibold text-slate-900">A/L details</span>
                 <span className="block text-xs text-slate-600 mt-0.5">
                   Adds A/L fields to the Education step in Employee Master: syllabus (National, Cambridge, AQA), subject stream and year sat, for this company only.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.previous_employment}
+                onChange={(e) => setForm({ ...form, previous_employment: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Previous employment information</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Adds a Previous Employment step to Employee Master: organization name, last designation, join date, last date and comments (50 words max), for this company only.
                 </span>
               </span>
             </label>
