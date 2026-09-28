@@ -94,6 +94,12 @@ const emptyForm = {
   theme_secondary: "#0D9488",
   theme_accent: "#FF6B4A",
   late_attendance_policy_enabled: false,
+  late_grace_nopay: false,
+  late_grace_start_time: "07:15",
+  late_grace_grace_minutes: 15,
+  late_grace_block_minutes: 30,
+  late_grace_days_per_block: 1,
+  late_grace_deduct_from: "bonus",
   portal_active: false,
   attendance_process: "spm_standard",
   ot_hour_calculation: "current",
@@ -236,6 +242,13 @@ export default function CyberneticAdminPage() {
       theme_secondary: company.theme_secondary || "#0D9488",
       theme_accent: company.theme_accent || "#FF6B4A",
       late_attendance_policy_enabled: !!company.late_attendance_policy_enabled,
+      late_grace_nopay: packOn(company, "late_grace_nopay"),
+      late_grace_start_time: company.process_config?.late_grace_nopay?.start_time || "07:15",
+      late_grace_grace_minutes: company.process_config?.late_grace_nopay?.grace_minutes ?? 15,
+      late_grace_block_minutes: company.process_config?.late_grace_nopay?.block_minutes ?? 30,
+      late_grace_days_per_block: company.process_config?.late_grace_nopay?.days_per_block ?? 1,
+      late_grace_deduct_from:
+        company.process_config?.late_grace_nopay?.deduct_from === "basic" ? "basic" : "bonus",
       portal_active: !!company.portal_active,
       attendance_process: company.attendance_process || "spm_standard",
       ot_hour_calculation: company.process_config?.ot_hour_calculation || "current",
@@ -337,6 +350,14 @@ export default function CyberneticAdminPage() {
           al_results: { enabled: !!form.al_results },
           following_qualifications: { enabled: !!form.following_qualifications },
           previous_employment: { enabled: !!form.previous_employment },
+          late_grace_nopay: {
+            enabled: !!form.late_grace_nopay,
+            start_time: form.late_grace_start_time || "07:15",
+            grace_minutes: Math.max(0, Number(form.late_grace_grace_minutes) || 0),
+            block_minutes: Math.max(1, Number(form.late_grace_block_minutes) || 30),
+            days_per_block: Math.max(0, Number(form.late_grace_days_per_block) || 0),
+            deduct_from: form.late_grace_deduct_from === "basic" ? "basic" : "bonus",
+          },
           mobile_punch: {
             enabled: !!form.punch_enabled,
             scope: form.punch_scope === "department" ? "department" : "company",
@@ -588,6 +609,11 @@ export default function CyberneticAdminPage() {
                       ) : (
                         <span className="text-slate-400">Off</span>
                       )}
+                      {packOn(company, "late_grace_nopay") && (
+                        <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">
+                          Grace NoPay
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 pr-3 text-xs">
                       {company.attendance_process === "shift_roster" ? (
@@ -720,6 +746,99 @@ export default function CyberneticAdminPage() {
               </span>
             </span>
           </label>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm space-y-3">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.late_grace_nopay}
+                onChange={(e) => setForm({ ...form, late_grace_nopay: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-amber-900">Variable allowance attendance (late grace NoPay)</span>
+                <span className="block text-xs text-amber-800">
+                  Each day, minutes late after start time + grace are added up for the month. Every time the total
+                  reaches the block, the employee gets NoPay day(s). Replaces the other late NoPay deductions in salary
+                  for {form.name || "this company"}.
+                </span>
+              </span>
+            </label>
+            {form.late_grace_nopay && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-xs text-amber-900">
+                    Start time
+                    <input
+                      type="time"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      value={form.late_grace_start_time}
+                      onChange={(e) => setForm({ ...form, late_grace_start_time: e.target.value })}
+                    />
+                  </label>
+                  <label className="block text-xs text-amber-900">
+                    Grace (minutes / day)
+                    <input
+                      type="number"
+                      min="0"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      value={form.late_grace_grace_minutes}
+                      onChange={(e) => setForm({ ...form, late_grace_grace_minutes: e.target.value })}
+                    />
+                  </label>
+                  <label className="block text-xs text-amber-900">
+                    Monthly total that triggers NoPay (minutes)
+                    <input
+                      type="number"
+                      min="1"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      value={form.late_grace_block_minutes}
+                      onChange={(e) => setForm({ ...form, late_grace_block_minutes: e.target.value })}
+                    />
+                  </label>
+                  <label className="block text-xs text-amber-900">
+                    NoPay days each time
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      value={form.late_grace_days_per_block}
+                      onChange={(e) => setForm({ ...form, late_grace_days_per_block: e.target.value })}
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-xs text-amber-900">
+                  <span className="font-semibold">Deduct from:</span>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="late_grace_deduct_from"
+                      checked={form.late_grace_deduct_from !== "basic"}
+                      onChange={() => setForm({ ...form, late_grace_deduct_from: "bonus" })}
+                    />
+                    Monthly bonus (variable allowance)
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="late_grace_deduct_from"
+                      checked={form.late_grace_deduct_from === "basic"}
+                      onChange={() => setForm({ ...form, late_grace_deduct_from: "basic" })}
+                    />
+                    Basic salary
+                  </label>
+                </div>
+                <p className="text-xs text-amber-800">
+                  Example: start {form.late_grace_start_time || "07:15"}, grace {form.late_grace_grace_minutes || 0} min —
+                  IN at the start + {Number(form.late_grace_grace_minutes || 0) + 10} min counts 10 minutes. When the
+                  month&apos;s total reaches {form.late_grace_block_minutes || 30} minutes = {form.late_grace_days_per_block || 0} NoPay
+                  day(s), {Number(form.late_grace_block_minutes || 30) * 2} minutes = {Number(form.late_grace_days_per_block || 0) * 2}, and so on.
+                  One day&apos;s pay = (basic + monthly bonus) ÷ NoPay working days.
+                </p>
+              </>
+            )}
+          </div>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">

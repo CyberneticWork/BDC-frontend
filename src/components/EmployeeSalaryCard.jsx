@@ -81,6 +81,11 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   const lateNoPayDays = Number(breakdown.monthly_late_nopay_days || 0);
   const excessLateBasic = Number(breakdown.excess_late_nopay_basic || 0);
   const excessLateBonus = Number(breakdown.excess_late_nopay_bonus || 0);
+  const lateGraceBasic = Number(breakdown.late_grace_nopay_basic || 0);
+  const lateGraceBonus = Number(breakdown.late_grace_nopay_bonus || 0);
+  const lateGraceHint = breakdown.late_grace_enabled
+    ? `${breakdown.late_grace_excess_minutes || 0} min over ${breakdown.late_grace_start_time || "07:15"} + ${breakdown.late_grace_grace_minutes ?? 15} min grace (${breakdown.late_grace_late_days || 0} day(s)) → ${breakdown.late_grace_nopay_days || 0} NoPay day(s)`
+    : "";
   const shortLeaveLate = Number(breakdown.short_leave_deduction || 0);
   const halfDayLate = Number(breakdown.half_day_deduction || 0);
   const epfEmployee = Number(breakdown.epf_employee_deduction || 0);
@@ -112,7 +117,8 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
   const salaryAdvanceBasic = Number(breakdown.salary_advance_basic || 0);
   const salaryAdvanceBonus = Number(breakdown.salary_advance_bonus || 0);
 
-  const totalLatePenalty = shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay;
+  const totalLatePenalty =
+    shortLeaveLate + halfDayLate + majorLateNoPay + saturdayNoPay + lateGraceBasic + lateGraceBonus;
 
   // Rebuild total deductions the same way backend does, so UI explains the header total.
   const basicDeductionLines = [
@@ -132,6 +138,9 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
       amount: excessLateBasic,
       hint: "Rejected leave — deducted for late minutes",
     },
+    ...(lateGraceBasic > 0
+      ? [{ label: "Late Grace NoPay → Basic", amount: lateGraceBasic, hint: lateGraceHint }]
+      : []),
     ...(loanBasicPrincipal > 0
       ? [{ label: "Loan Installment (Principal) → Basic", amount: loanBasicPrincipal }]
       : []),
@@ -156,6 +165,9 @@ const EmployeeSalaryCard = ({ employee, empId, isSelected, onSelect, onDownload 
       amount: excessLateBonus,
       hint: "Rejected leave — deducted for late minutes",
     },
+    ...(breakdown.late_grace_enabled && breakdown.late_grace_deduct_from !== "basic"
+      ? [{ label: "Late Grace NoPay → Monthly Bonus (variable allowance)", amount: lateGraceBonus, hint: lateGraceHint }]
+      : []),
     {
       label: "Leave Shortfall NoPay → Monthly Bonus",
       amount: leaveShortfallBonusNoPay,
