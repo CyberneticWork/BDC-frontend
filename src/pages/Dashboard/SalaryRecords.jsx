@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, RefreshCw, Eye, Download, Filter, ChevronDown } from 'lucide-react';
-import { fetchCompanies, fetchDepartmentsById } from '@services/ApiDataService';
+import { fetchCompanies, fetchDepartmentsById, fetchLocations } from '@services/ApiDataService';
 import { getProcessedSalaries } from '@services/SalaryProcessService';
 import Swal from 'sweetalert2';
 import { downloadPayslip, downloadPayslips } from '../../utils/payslipPdf';
@@ -24,6 +24,8 @@ const SalaryRecords = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [companies, setCompanies] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState('');
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
 
@@ -64,16 +66,19 @@ const SalaryRecords = () => {
     const companyId = e.target.value;
     setSelectedCompany(companyId);
     setSelectedDepartment('');
+    setSelectedLocation('');
     
     if (companyId) {
       try {
-        const depts = await fetchDepartmentsById(companyId);
+        const [depts, locs] = await Promise.all([fetchDepartmentsById(companyId), fetchLocations(companyId)]);
         setDepartments(depts || []);
+        setLocations(locs);
       } catch (error) {
         console.error('Error loading departments:', error);
       }
     } else {
       setDepartments([]);
+      setLocations([]);
     }
   };
 
@@ -83,6 +88,7 @@ const SalaryRecords = () => {
       const params = {};
       if (selectedCompany) params.company_name = companies.find(c => c.id == selectedCompany)?.name || '';
       if (selectedDepartment) params.department_name = departments.find(d => d.id == selectedDepartment)?.name || '';
+      if (selectedLocation) params.location_id = selectedLocation;
       if (searchTerm) params.search = searchTerm;
 
       const data = await getProcessedSalaries(params);
@@ -92,6 +98,7 @@ const SalaryRecords = () => {
         full_name: emp.full_name || 'N/A',
         company_name: emp.company_name || 'N/A',
         department_name: emp.department_name || 'N/A',
+        location_name: emp.location_name || '',
         basic_salary: parseFloat(emp.basic_salary || 0),
         status: emp.status || 'Active',
         net_salary: parseFloat(emp.salary_breakdown?.net_salary || 0),
@@ -166,7 +173,7 @@ const SalaryRecords = () => {
             Filter Records
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
             {/* Company Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
@@ -197,6 +204,24 @@ const SalaryRecords = () => {
                 {departments.map((dept) => (
                   <option key={dept.id} value={dept.id}>
                     {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Location Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                disabled={!selectedCompany || locations.length === 0}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              >
+                <option value="">All Locations</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
                   </option>
                 ))}
               </select>
@@ -290,6 +315,7 @@ const SalaryRecords = () => {
                         <div>
                           <p className="text-sm font-medium text-gray-900">{record.company_name}</p>
                           <p className="text-sm text-gray-500">{record.department_name}</p>
+                          {record.location_name && <p className="text-xs text-teal-700">{record.location_name}</p>}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">

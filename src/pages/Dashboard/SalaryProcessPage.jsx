@@ -6,7 +6,7 @@ import {
   CheckCircle, AlertCircle, Search, Building2, Layers, RefreshCw,
 } from "lucide-react";
 import jsPDF from "jspdf";
-import { fetchCompanies, fetchDepartmentsById } from "@services/ApiDataService";
+import { fetchCompanies, fetchDepartmentsById, fetchLocations } from "@services/ApiDataService";
 import {
   getSalaryData, UpdateAllowances, saveSalaryData,
   updateSlaryStatus, fetchExcelData, importExcelData,
@@ -135,15 +135,21 @@ const SalaryProcessPage = () => {
     BonusService.getAllBonuses().then((res) => { setAvailableBonuses(Array.isArray(res) ? res : res?.data || []); });
   }, []);
 
+  const [locations, setLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState("");
+
   const handleCompanyChange = async (e) => {
     const companyId = e.target.value;
     setSelectedCompany(companyId);
     setSelectedDepartment("");
+    setSelectedLocation("");
     if (companyId) {
-        const depts = await fetchDepartmentsById(companyId);
+        const [depts, locs] = await Promise.all([fetchDepartmentsById(companyId), fetchLocations(companyId)]);
         setDepartments(depts || []);
+        setLocations(locs);
     } else {
         setDepartments([]);
+        setLocations([]);
     }
   };
 
@@ -160,7 +166,8 @@ const SalaryProcessPage = () => {
     setIsLoading(true);
     try {
       const data = await getSalaryData({
-        month, year, company_id: selectedCompany || undefined, department_id: selectedDepartment || undefined, search: searchTerm || undefined,
+        month, year, company_id: selectedCompany || undefined, department_id: selectedDepartment || undefined,
+        location_id: selectedLocation || undefined, search: searchTerm || undefined,
       });
 
       const rows = (data?.data || []).map(normalizeEmployee);
@@ -334,6 +341,7 @@ const SalaryProcessPage = () => {
         year,
         company_id: selectedCompany || undefined,
         department_id: selectedDepartment || undefined,
+        location_id: selectedLocation || undefined,
         search: searchTerm || undefined,
       });
       const rows = (fresh?.data || []).map(normalizeEmployee);
@@ -828,6 +836,14 @@ const generateSinglePayslipPDF = (doc, emp, payslip, monthName, selectedYear, si
                 <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" disabled={!selectedCompany}>
                   <option value="">All Departments</option>
                   {departments.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
+                </select>
+              </div>
+
+              <div className="relative flex-1">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Location</label>
+                <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" disabled={!selectedCompany || locations.length === 0}>
+                  <option value="">All Locations</option>
+                  {locations.map((l) => (<option key={l.id} value={l.id}>{l.name}</option>))}
                 </select>
               </div>
             </div>

@@ -29,6 +29,7 @@ export const getSalaryData = async (
       searchParams.append("company_id", params.company_id);
     // Optional params - append only when provided and non-empty
     if (params.department_id) searchParams.append("department_id", params.department_id);
+    if (params.location_id) searchParams.append("location_id", params.location_id);
     if (params.kpi_type) searchParams.append("kpi_type", params.kpi_type);
 
     const response = await axios.get(`/salaryCal/employees?${searchParams.toString()}`);

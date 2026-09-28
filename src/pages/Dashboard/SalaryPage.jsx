@@ -25,7 +25,7 @@ import {
   deleteSalaryRecordAPI,
 } from "@services/SalaryService";
 import { getSalaryData, getProcessedSalaries } from "@services/SalaryProcessService";
-import { fetchCompanies as fetchCompaniesAPI, fetchDepartmentsById } from "@services/ApiDataService";
+import { fetchCompanies as fetchCompaniesAPI, fetchDepartmentsById, fetchLocations } from "@services/ApiDataService";
 
 // Modal Component
 // Fixed Modal Component
@@ -124,6 +124,8 @@ const SalaryPage = ({ employeeProfile }) => {
   const [departments, setDepartments] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [locations, setLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState("");
   const [month, setMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [year, setYear] = useState(String(new Date().getFullYear()));
 
@@ -197,7 +199,7 @@ const SalaryPage = ({ employeeProfile }) => {
         }));
       } else {
         // Admin view — use /salaryCal/employees endpoint
-        const data = await getSalaryData({ month, year, company_id: selectedCompany, department_id: selectedDepartment || undefined, search: searchTerm.trim() || undefined });
+        const data = await getSalaryData({ month, year, company_id: selectedCompany, department_id: selectedDepartment || undefined, location_id: selectedLocation || undefined, search: searchTerm.trim() || undefined });
         rows = (data?.data || []).map(emp => ({
           ...emp,
           employee_no: emp.emp_no || emp.employee_no,
@@ -716,10 +718,13 @@ const SalaryPage = ({ employeeProfile }) => {
 
   // Load departments when company changes
   useEffect(() => {
+    setSelectedLocation("");
     if (selectedCompany) {
       fetchDepartmentsById(selectedCompany).then(setDepartments).catch(console.error);
+      fetchLocations(selectedCompany).then(setLocations);
     } else {
       setDepartments([]);
+      setLocations([]);
       setSelectedDepartment("");
     }
   }, [selectedCompany]);
@@ -956,7 +961,7 @@ const SalaryPage = ({ employeeProfile }) => {
       {/* Filter Section - admin only */}
       {!employeeProfile && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Company *</label>
               <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)}
@@ -972,6 +977,15 @@ const SalaryPage = ({ employeeProfile }) => {
                 className="w-full px-3 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100">
                 <option value="">All Departments</option>
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+              <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)}
+                disabled={!selectedCompany || locations.length === 0}
+                className="w-full px-3 h-10 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100">
+                <option value="">All Locations</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
             <div>
@@ -1067,6 +1081,9 @@ const SalaryPage = ({ employeeProfile }) => {
                       <div className="text-sm text-gray-500">
                         {record.department_name}
                       </div>
+                      {record.location_name && (
+                        <div className="text-xs text-teal-700">{record.location_name}</div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {parseFloat(record.basic_salary).toLocaleString("en-US", {

@@ -161,6 +161,32 @@ export const deleteDepartment = async (id) => {
   await axios.delete(`/departments/${id}`);
 };
 
+export const fetchLocations = async (companyId) => {
+  try {
+    const response = await axios.get(`/company-locations`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    console.error("Error fetching locations:", error);
+    return [];
+  }
+};
+
+export const createLocation = async (data) => {
+  const response = await axios.post(`/company-locations`, data);
+  return response.data;
+};
+
+export const updateLocation = async (id, data) => {
+  const response = await axios.put(`/company-locations/${id}`, data);
+  return response.data;
+};
+
+export const deleteLocation = async (id) => {
+  await axios.delete(`/company-locations/${id}`);
+};
+
 export const createSubDepartment = async (data) => {
   try {
     const response = await axios.post(`/subdepartments`, data);

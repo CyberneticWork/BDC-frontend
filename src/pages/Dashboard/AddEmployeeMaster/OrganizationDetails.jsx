@@ -10,10 +10,12 @@ import {
   CheckCircle,
   XCircle,
   X,
+  MapPin,
 } from "lucide-react";
 
 import {
   fetchCompanies,
+  fetchLocations,
   fetchDepartmentsById,
   fetchSubDepartmentsById,
   fetchDesignations,
@@ -48,6 +50,7 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
   const [departments, setDepartments] = useState([]);
   const [subDepartments, setSubDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
+  const [locations, setLocations] = useState([]);
 
   // Toggle state
   const [toggleStates, setToggleStates] = useState({
@@ -256,6 +259,26 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
     }
   }, [formData.organization.company]);
 
+  useEffect(() => {
+    const companyId = formData.organization.company;
+    if (!companyId) {
+      setLocations([]);
+      return;
+    }
+    let cancelled = false;
+    fetchLocations(companyId).then((rows) => {
+      if (cancelled) return;
+      const locationId = orgRef.current?.location;
+      if (locationId && !rows.some((l) => sameId(l.id, locationId))) {
+        rows = [{ id: locationId, name: orgRef.current?.locationName || `Location #${locationId}` }, ...rows];
+      }
+      setLocations(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.organization.company]);
+
   // Load sub-departments when department is selected
   useEffect(() => {
     if (formData.organization.department) {
@@ -309,6 +332,17 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
         departmentName: "",
         subDepartment: "",
         subDepartmentName: "",
+        location: "",
+        locationName: "",
+      });
+      return;
+    }
+
+    if (name === "location") {
+      const selected = locations.find((l) => sameId(l.id, parsedValue));
+      updateFormData("organization", {
+        location: selected?.id != null ? String(selected.id) : "",
+        locationName: selected?.name || "",
       });
       return;
     }
@@ -545,6 +579,35 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                 )}
                 <FieldError error={errors.organization?.subDepartment} />
               </div>
+            </div>
+
+            {/* Location */}
+            <div className="mb-4">
+              <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
+                <MapPin className="text-gray-500" size={16} />
+                Location
+              </label>
+              <select
+                name="location"
+                value={formData.organization.location || ""}
+                onChange={handleChange}
+                disabled={!formData.organization.company || locations.length === 0}
+                className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!formData.organization.company || locations.length === 0
+                  ? "bg-gray-100 cursor-not-allowed"
+                  : ""
+                  }`}
+              >
+                <option value="">
+                  {formData.organization.company && locations.length === 0
+                    ? "No locations — add them in Department Master"
+                    : "Select Location"}
+                </option>
+                {locations.map((l) => (
+                  <option key={l.id} value={String(l.id)}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="mb-4">

@@ -428,6 +428,10 @@ const EmpPersonalDetails = ({ onNext }) => {
           departmentName: apiData.organization_assignment?.department?.name,
           subDepartmentName:
             apiData.organization_assignment?.sub_department?.name,
+          location: apiData.organization_assignment?.location_id != null
+            ? String(apiData.organization_assignment.location_id)
+            : "",
+          locationName: apiData.organization_assignment?.location?.name || "",
           currentSupervisor:
             apiData.organization_assignment?.current_supervisor,
           dateOfJoined: apiData.organization_assignment?.date_of_joining,

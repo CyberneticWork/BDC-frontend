@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Users, UserCheck, Calendar, Edit2, Trash2, Search, Filter, ChevronDown, ChevronRight, Plus, ChevronLeft } from 'lucide-react';
+import { Building2, Users, UserCheck, Calendar, Edit2, Trash2, Search, Filter, ChevronDown, ChevronRight, Plus, ChevronLeft, MapPin } from 'lucide-react';
+import CompanyLocationsPanel from './CompanyLocationsPanel';
 import {
   fetchCompanies,
   fetchDepartments,
@@ -256,6 +257,8 @@ const Department = () => {
   const [companySearch, setCompanySearch] = useState('');
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [subdepartmentSearch, setSubdepartmentSearch] = useState('');
+  const [locationSearch, setLocationSearch] = useState('');
+  const [showAddLocation, setShowAddLocation] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -373,12 +376,14 @@ const Department = () => {
     if (activeTab === 'companies') return companySearch;
     if (activeTab === 'departments') return departmentSearch;
     if (activeTab === 'subdepartments') return subdepartmentSearch;
+    if (activeTab === 'locations') return locationSearch;
     return '';
   };
   const setSearchTerm = (val) => {
     if (activeTab === 'companies') setCompanySearch(val);
     if (activeTab === 'departments') setDepartmentSearch(val);
     if (activeTab === 'subdepartments') setSubdepartmentSearch(val);
+    if (activeTab === 'locations') setLocationSearch(val);
   };
 
   // Filtering logic per tab
@@ -1438,7 +1443,8 @@ const Department = () => {
             {[
               !tenantLocked && { key: 'companies', label: 'Companies', icon: Building2 },
               { key: 'departments', label: 'Departments', icon: Users },
-              { key: 'subdepartments', label: 'Subdepartments', icon: UserCheck }
+              { key: 'subdepartments', label: 'Subdepartments', icon: UserCheck },
+              { key: 'locations', label: 'Locations', icon: MapPin }
             ].filter(Boolean).map(tab => (
               <button
                 key={tab.key}
@@ -1507,12 +1513,29 @@ const Department = () => {
                   Add New Sub Department
                 </button>
               )}
+              {activeTab === 'locations' && (
+                <button
+                  onClick={() => setShowAddLocation(true)}
+                  className="inline-flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors shadow-sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Location
+                </button>
+              )}
             </div>
           </div>
           {/* Tables */}
           {activeTab === 'companies' && <CompaniesTable />}
           {activeTab === 'departments' && <DepartmentsTable />}
           {activeTab === 'subdepartments' && <SubdepartmentsTable />}
+          {activeTab === 'locations' && (
+            <CompanyLocationsPanel
+              companies={companies}
+              search={locationSearch}
+              showAdd={showAddLocation}
+              onCloseAdd={() => setShowAddLocation(false)}
+            />
+          )}
           {/* Edit Modal */}
           <EditModal
             show={showAddModal}
