@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Dashboard from "./Dashboard/Dashboard";
 import LoginPage from "./Login/LoginPage";
 import { loadUser, logout } from "../services/AuthService";
-import { getToken, setToken } from "../services/TokenService";
+import { clearSession, getToken } from "../services/TokenService";
 import {
   setUser as storeUser,
   clearUser,
@@ -12,6 +12,7 @@ import {
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
+import useSessionGuard, { resetToLogin } from "../hooks/useSessionGuard";
 
 function Home() {
   const [user, setUser] = useState(null);
@@ -24,6 +25,7 @@ function Home() {
     let cancelled = false;
     async function restore() {
       if (!getToken()) {
+        clearSession();
         clearUser();
         setUser(null);
         setChecking(false);
@@ -41,7 +43,7 @@ function Home() {
         }
       } catch {
         if (cancelled) return;
-        setToken(null);
+        clearSession();
         setUser(null);
         clearUser();
         clearAuth();
@@ -63,17 +65,21 @@ function Home() {
     navigate(homePathForUser(userData, location.state?.from), { replace: true });
   };
 
+  useSessionGuard(!!user, (reason) => {
+    clearUser();
+    clearAuth();
+    resetToLogin(reason);
+  });
+
   const handleLogout = async () => {
     try {
       await logout();
-      localStorage.removeItem("employeeFormData");
     } catch {
       /* ignore */
     }
     clearUser();
-    setUser(null);
     clearAuth();
-    navigate("/", { replace: true });
+    resetToLogin("user_logout");
   };
 
   if (checking) {

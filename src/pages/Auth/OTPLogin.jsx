@@ -4,7 +4,8 @@ import { Mail, Key, LogIn, ArrowLeft } from 'lucide-react';
 import axios from '../../utils/axios';
 import { useBranding } from '../../contexts/BrandingContext';
 import BrandLogo from '../../components/BrandLogo';
-import { setToken } from '../../services/TokenService';
+import { clearSession, setToken } from '../../services/TokenService';
+import { loadUser } from '../../services/AuthService';
 import { setUser, homePathForUser } from '../../services/UserService';
 
 export default function OTPLogin() {
@@ -46,9 +47,12 @@ export default function OTPLogin() {
     setError('');
 
     try {
+      clearSession();
       const { data } = await axios.post('/login/otp', { email, otp });
-      await setToken(data.access_token || data.token);
-      const { data: userData } = await axios.get('/user');
+      const token = data.access_token || data.token;
+      if (!token) throw new Error('No session token');
+      setToken(token);
+      const userData = await loadUser();
       setUser(userData);
       navigate(homePathForUser(userData), { replace: true });
       window.location.reload();

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { login, loadUser } from "../../services/AuthService";
 import Login from "./Login";
 import { setUser } from "../../services/UserService";
+import { takeAuthNotice } from "../../hooks/useSessionGuard";
 import { Shield, Users, Clock3, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import { useBranding } from "../../contexts/BrandingContext";
@@ -17,6 +18,7 @@ function companyInitials(name) {
 
 function LoginPage({ onSuccess }) {
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(() => takeAuthNotice());
   const [loading, setLoading] = useState(false);
   const [currentYear] = useState(new Date().getFullYear());
   const { branding, loading: brandingLoading } = useBranding();
@@ -35,6 +37,7 @@ function LoginPage({ onSuccess }) {
   const handleLogin = async (credentials) => {
     setLoading(true);
     setError(null);
+    setNotice("");
     try {
       await login(credentials);
       const user = await loadUser();
@@ -190,6 +193,11 @@ function LoginPage({ onSuccess }) {
               Use your email or NIC and password once. The app then keeps a signed JWT session, so closing the browser and coming back still opens the {companyName} dashboard until you log out.
             </p>
 
+            {notice && !error && (
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {notice}
+              </div>
+            )}
             {error && (
               <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 <p className="font-semibold">Login error</p>

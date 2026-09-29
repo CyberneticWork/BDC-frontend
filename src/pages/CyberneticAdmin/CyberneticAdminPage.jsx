@@ -166,7 +166,7 @@ export default function CyberneticAdminPage() {
         }
       })
       .catch(() => {
-        logoutCyberneticAdmin();
+        logoutCyberneticAdmin({ revoke: false });
         if (!cancelled) setAuthed(false);
       })
       .finally(() => {

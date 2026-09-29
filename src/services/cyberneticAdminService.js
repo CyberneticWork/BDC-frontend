@@ -30,7 +30,16 @@ export async function loginCyberneticAdmin(password) {
   return data;
 }
 
-export function logoutCyberneticAdmin() {
+export function logoutCyberneticAdmin({ revoke = true } = {}) {
+  const token = getCyberneticToken();
+  if (revoke && token) {
+    axios
+      .post("/cybernetic-admin/logout", null, {
+        timeout: 4000,
+        headers: { "X-Cybernetic-Token": token },
+      })
+      .catch(() => {});
+  }
   setCyberneticToken(null);
 }
 

@@ -36,6 +36,8 @@ import {
   submitResignation,
 } from "../../services/EmployeePortalService";
 import { logout } from "../../services/AuthService";
+import { clearSession, getToken } from "../../services/TokenService";
+import useSessionGuard, { resetToLogin } from "../../hooks/useSessionGuard";
 import { clearUser, getUser, canUseEmployeePortal, canUseHrDesk, enterEmployeePortal, enterHrDesk } from "../../services/UserService";
 import NotificationBell from "../../components/NotificationBell";
 import NotificationService from "../../services/NotificationService";
@@ -258,8 +260,14 @@ export default function EmployeePortal() {
     }
   };
 
+  useSessionGuard(!!getToken(), (reason) => {
+    clearUser();
+    resetToLogin(reason);
+  });
+
   useEffect(() => {
-    if (!localStorage.getItem("token")) {
+    if (!getToken()) {
+      clearSession();
       navigate("/", { replace: true });
       return;
     }
@@ -351,8 +359,7 @@ export default function EmployeePortal() {
       /* ignore */
     }
     clearUser();
-    localStorage.removeItem("token");
-    navigate("/", { replace: true });
+    resetToLogin("user_logout");
   };
 
   const canPunch = !!(punch?.enabled && atOffice && locReady && !punching);

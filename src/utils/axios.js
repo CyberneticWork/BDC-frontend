@@ -1,6 +1,30 @@
 import axiosLib from "axios";
-import { getToken, setToken } from "../services/TokenService";
+import { expireSession, getToken } from "../services/TokenService";
 import config from "../config";
+
+const CYBERNETIC_TOKEN_KEY = "cybernetic_admin_token";
+
+function onCyberneticAdminPage() {
+  const path = String(window.location?.pathname || "");
+  return path.startsWith("/cybernetic-admin") || path === "/admin" || path.startsWith("/admin/");
+}
+
+function readCyberneticToken() {
+  try {
+    return localStorage.getItem(CYBERNETIC_TOKEN_KEY) || sessionStorage.getItem(CYBERNETIC_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function clearCyberneticToken() {
+  try {
+    localStorage.removeItem(CYBERNETIC_TOKEN_KEY);
+    sessionStorage.removeItem(CYBERNETIC_TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 const root = String(config.apiBaseUrl || "").replace(/\/$/, "");
 const apiUrl = root ? `${root}/api` : "/api";
@@ -17,9 +41,8 @@ axios.interceptors.request.use((req) => {
   req.headers = req.headers || {};
   rewriteIndexPhpFrontController(req);
   const token = getToken();
-  const cyberneticToken =
-    sessionStorage.getItem("cybernetic_admin_token") ||
-    localStorage.getItem("cybernetic_admin_token");
+  // HR pages never send the Cybernetic Admin token: an expired admin token must not break HR calls.
+  const cyberneticToken = onCyberneticAdminPage() ? readCyberneticToken() : null;
   if (cyberneticToken) {
     req.headers["X-Cybernetic-Token"] = cyberneticToken;
   }
@@ -34,8 +57,12 @@ axios.interceptors.request.use((req) => {
     lr.includes("/media/firebase");
   if (cyberneticToken && (companyAdminCall || !token)) {
     req.headers.Authorization = `Bearer ${cyberneticToken}`;
+    req._authKind = "cybernetic";
   } else if (token) {
     req.headers.Authorization = `Bearer ${token}`;
+    req._authKind = "hr";
+  } else {
+    req._authKind = "none";
   }
   return req;
 });
@@ -57,9 +84,12 @@ axios.interceptors.response.use(
   },
   (err) => {
     const status = err?.response?.status;
-    if (status === 401) {
-      if (!urlIsLogin(err)) {
-        setToken(null);
+    if (status === 401 && !urlIsLogin(err)) {
+      const kind = err?.config?._authKind;
+      if (kind === "cybernetic") {
+        clearCyberneticToken();
+      } else if (kind === "hr" && !onCyberneticAdminPage() && isSessionRejected(err)) {
+        expireSession("unauthorized");
       }
     }
     if (err?.response?.data && typeof err.response.data === "object") {
@@ -98,6 +128,19 @@ function urlIsLogin(err) {
   const url = String(err?.config?.url || "");
   const lr = String(err?.config?.params?.__lr || "");
   return url.includes("/login") || url.includes("/send-otp") || lr.includes("/login") || lr.includes("/send-otp");
+}
+
+/** 401 from the auth middleware (bad/expired/revoked token), not e.g. "current password is incorrect". */
+function isSessionRejected(err) {
+  const data = err?.response?.data;
+  const message = String((data && (data.message || data.error)) || "").trim().toLowerCase();
+  const url = `${err?.config?.url || ""} ${err?.config?.params?.__lr || ""}`;
+  return (
+    message === "unauthenticated." ||
+    message === "unauthenticated" ||
+    message === "user not authenticated" ||
+    /\/user(\?|\s|$)/.test(url)
+  );
 }
 
 function urlIsEmployeeWrite(err) {
