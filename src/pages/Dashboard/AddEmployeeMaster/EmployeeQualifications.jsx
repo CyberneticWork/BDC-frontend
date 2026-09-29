@@ -59,11 +59,9 @@ const currentYear = new Date().getFullYear();
 const inputClass =
   "w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-const Field = ({ label, required, children }) => (
+const Field = ({ label, children }) => (
   <div>
-    <label className="mb-1 block text-xs font-semibold text-gray-600">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
+    <label className="mb-1 block text-xs font-semibold text-gray-600">{label}</label>
     {children}
   </div>
 );
@@ -127,6 +125,9 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
   return (
     <div className="max-w-6xl mx-auto">
       <div className="bg-white rounded-2xl shadow-xl p-6">
+        <p className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          All education details are optional. Leave this step blank if the employee has no qualifications, or fill in only what you know.
+        </p>
         {packs.ol && (
           <SchoolCard
             title="O/L results"
@@ -195,7 +196,7 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
             onRemove={qualifications.remove}
             renderRow={(row, index) => (
               <>
-                <Field label="Qualification" required>
+                <Field label="Qualification">
                   <select
                     className={inputClass}
                     value={row.qualificationType}
@@ -216,7 +217,7 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
                     onChange={(e) => qualifications.change(index, "courseName", e.target.value)}
                   />
                 </Field>
-                <Field label="Name of institute" required>
+                <Field label="Name of institute">
                   <input
                     type="text"
                     className={inputClass}
@@ -225,7 +226,7 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
                     onChange={(e) => qualifications.change(index, "instituteName", e.target.value)}
                   />
                 </Field>
-                <Field label="Completion year" required>
+                <Field label="Completion year">
                   <YearInput
                     value={row.completionYear}
                     max={currentYear + 10}
@@ -248,7 +249,7 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
             onRemove={following.remove}
             renderRow={(row, index) => (
               <>
-                <Field label="Name of the qualification" required>
+                <Field label="Name of the qualification">
                   <input
                     type="text"
                     className={inputClass}
@@ -258,7 +259,7 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
                     onChange={(e) => following.change(index, "qualificationName", e.target.value)}
                   />
                 </Field>
-                <Field label="Institute" required>
+                <Field label="Institute">
                   <input
                     type="text"
                     className={inputClass}
@@ -268,7 +269,7 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
                     onChange={(e) => following.change(index, "instituteName", e.target.value)}
                   />
                 </Field>
-                <Field label="Starting year & month" required>
+                <Field label="Starting year & month">
                   <input
                     type="month"
                     className={inputClass}
@@ -285,7 +286,7 @@ const EmployeeQualifications = ({ onNext, onPrevious, packs = { qualifications: 
                     onChange={(e) => following.change(index, "endMonth", e.target.value)}
                   />
                 </Field>
-                <Field label="Lecture type" required>
+                <Field label="Lecture type">
                   <select
                     className={inputClass}
                     value={row.lectureType}

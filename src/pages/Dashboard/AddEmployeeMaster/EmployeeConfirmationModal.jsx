@@ -16,6 +16,35 @@ import { useEmployeeForm } from "@contexts/EmployeeFormContext";
 import { calculateCompensationSummary, formatMoneyLKR } from "@utils/compensationCalculations";
 
 import Swal from "sweetalert2";
+import { fetchLocations } from "../../../services/ApiDataService";
+
+const REQUIRED_FIELD_LABELS = {
+  'personal.title': 'Title',
+  'personal.attendanceEmpNo': 'Attendance number',
+  'personal.epfNo': 'EPF number',
+  'personal.nicNumber': 'NIC number',
+  'personal.dob': 'Date of birth',
+  'personal.gender': 'Gender',
+  'personal.employmentStatus': 'Employment status',
+  'personal.nameWithInitial': 'Name with initials',
+  'personal.fullName': 'Full name',
+  'personal.displayName': 'Display name',
+  'personal.maritalStatus': 'Marital status',
+  'address.permanentAddress': 'Permanent address',
+  'address.email': 'Email',
+  'address.mobileLine': 'Mobile',
+  'address.district': 'District',
+  'address.province': 'Province',
+  'address.emergencyContact.relationship': 'Emergency contact relationship',
+  'address.emergencyContact.contactName': 'Emergency contact name',
+  'address.emergencyContact.contactTel': 'Emergency contact telephone',
+  'compensation.basicSalary': 'Basic salary',
+  'organization.company': 'Company',
+  'organization.department': 'Department',
+  'organization.location': 'Location',
+  'organization.dateOfJoined': 'Date of joining',
+  'organization.designation': 'Designation',
+};
 
 const EmployeeConfirmationModal = ({ onSubmit }) => {
   const { formData, errors, clearForm } = useEmployeeForm();
@@ -97,39 +126,42 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
       'address.emergencyContact.contactTel': formData.address.emergencyContact.contactTel,
       'compensation.basicSalary': formData.compensation.basicSalary,
       'organization.company': formData.organization.company,
+      'organization.department': formData.organization.department,
       'organization.dateOfJoined': formData.organization.dateOfJoined,
       'organization.designation': formData.organization.designation,
     };
 
     const missingFields = Object.entries(requiredFields)
-      .filter(([_, value]) => !value)
+      .filter(([, value]) => !value)
       .map(([key]) => key);
 
+    if (!formData.organization.location && formData.organization.company) {
+      try {
+        const locations = await fetchLocations(formData.organization.company);
+        if (Array.isArray(locations) && locations.length > 0) {
+          missingFields.push('organization.location');
+        }
+      } catch {
+        /* the server still enforces location when the company has locations */
+      }
+    }
+
     if (missingFields.length > 0) {
+      const labels = missingFields.map((key) => REQUIRED_FIELD_LABELS[key] || key.split('.').pop());
       Swal.fire({
         icon: 'error',
         title: 'Missing Required Fields',
-        text: 'Please fill all required fields before submitting.',
+        text: `Please fill: ${labels.join(', ')}.`,
       });
-      console.log(missingFields);
       return;
     }
 
     const addonProblem = (() => {
-      const qualification = (formData.qualifications || []).find(
-        (q) => (q.qualificationType || q.instituteName || q.courseName || q.completionYear)
-          && (!q.qualificationType || !q.instituteName || !q.completionYear)
-      );
-      if (qualification) {
-        return ['Incomplete Qualification', 'Each qualification needs a qualification type, institute name and completion year.'];
-      }
       const following = (formData.followingQualifications || []).find(
-        (f) => (f.qualificationName || f.instituteName || f.startMonth || f.endMonth || f.lectureType)
-          && (!f.qualificationName || !f.instituteName || !f.startMonth || !f.lectureType
-            || (f.endMonth && f.endMonth < f.startMonth))
+        (f) => f.startMonth && f.endMonth && f.endMonth < f.startMonth
       );
       if (following) {
-        return ['Incomplete Following Qualification', 'Each following qualification needs a name, institute, starting year and month, and lecture type. The ending month cannot be before the starting month.'];
+        return ['Following Qualification', 'The ending month cannot be before the starting month.'];
       }
       const employment = (formData.previousEmployments || []).find(
         (p) => (p.organizationName || p.lastDesignation || p.joinDate || p.lastDate || p.comments)
@@ -277,6 +309,8 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
         'compensation.branchCode': 'Branch code',
         'compensation.bankAccountNo': 'Bank account number',
         'organization.company': 'Company',
+        'organization.department': 'Department',
+        'organization.location': 'Location',
         'organization.dateOfJoined': 'Date of joining',
         'organization.designation': 'Designation',
       };
