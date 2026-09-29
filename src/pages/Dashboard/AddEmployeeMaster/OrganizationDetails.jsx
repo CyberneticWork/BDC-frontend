@@ -586,14 +586,14 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
             <div className="mb-4">
               <label className="text-gray-700 font-medium mb-2 flex items-center gap-1">
                 <MapPin className="text-gray-500" size={16} />
-                Location {locations.length > 0 && <span className="text-red-500">*</span>}
+                Location <span className="text-red-500">*</span>
               </label>
               <select
                 name="location"
                 value={formData.organization.location || ""}
                 onChange={handleChange}
                 disabled={!formData.organization.company || locations.length === 0}
-                required={locations.length > 0}
+                required
                 className={`w-full pl-8 pr-3 py-2 border ${errors.organization?.location ? "border-red-500" : "border-gray-300"} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!formData.organization.company || locations.length === 0
                   ? "bg-gray-100 cursor-not-allowed"
                   : ""
@@ -610,6 +610,11 @@ const OrganizationDetails = ({ onNext, onPrevious }) => {
                   </option>
                 ))}
               </select>
+              {formData.organization.company && locations.length === 0 && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Location is required. Add a location for this company in Department Master → Locations first.
+                </p>
+              )}
               <FieldError error={errors.organization?.location} />
             </div>
 

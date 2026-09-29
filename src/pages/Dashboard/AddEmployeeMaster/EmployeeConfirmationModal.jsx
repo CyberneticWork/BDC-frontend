@@ -135,15 +135,25 @@ const EmployeeConfirmationModal = ({ onSubmit }) => {
       .filter(([, value]) => !value)
       .map(([key]) => key);
 
-    if (!formData.organization.location && formData.organization.company) {
-      try {
-        const locations = await fetchLocations(formData.organization.company);
-        if (Array.isArray(locations) && locations.length > 0) {
-          missingFields.push('organization.location');
+    if (!formData.organization.location) {
+      let companyHasLocations = true;
+      if (formData.organization.company) {
+        try {
+          const locations = await fetchLocations(formData.organization.company);
+          companyHasLocations = Array.isArray(locations) && locations.length > 0;
+        } catch {
+          /* keep the generic message; the server enforces location too */
         }
-      } catch {
-        /* the server still enforces location when the company has locations */
       }
+      if (!companyHasLocations) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Location Required',
+          text: 'This company has no locations yet. Add one in Department Master → Locations, then choose it in Organization Details.',
+        });
+        return;
+      }
+      missingFields.push('organization.location');
     }
 
     if (missingFields.length > 0) {
