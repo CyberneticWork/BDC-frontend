@@ -138,6 +138,18 @@ export const uploadCompanyLogo = async (id, file, extra = {}) => {
   return response.data;
 };
 
+/** Department Master company create (Cybernetic Admin add-on `hr_company_create`). */
+export const createHrCompany = async (data) => {
+  const response = await axios.post(`/hr/companies`, {
+    company_code: data.company_code,
+    name: data.name,
+    location: data.location,
+    established: data.established || null,
+    nopay_working_days: data.nopay_working_days,
+  });
+  return response.data;
+};
+
 export const deleteCompany = async (id) => {
   try {
     await axios.delete(`/companies/${id}`);

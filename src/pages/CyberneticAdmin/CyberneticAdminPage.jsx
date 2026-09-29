@@ -62,6 +62,7 @@ const EMPLOYEE_ADDON_PACKS = [
   ["ol_results", "O/L"],
   ["al_results", "A/L"],
   ["previous_employment", "Prev. employment"],
+  ["hr_company_create", "HR adds companies"],
 ];
 
 const packOn = (company, key) =>
@@ -120,6 +121,7 @@ const emptyForm = {
   al_results: false,
   following_qualifications: false,
   previous_employment: false,
+  hr_company_create: false,
   medical_annual_quota: 0,
   punch_enabled: false,
   punch_scope: "company",
@@ -288,6 +290,7 @@ export default function CyberneticAdminPage() {
       al_results: packOn(company, "al_results"),
       following_qualifications: packOn(company, "following_qualifications"),
       previous_employment: packOn(company, "previous_employment"),
+      hr_company_create: packOn(company, "hr_company_create"),
       medical_annual_quota: company.process_config?.medical_claims?.annual_quota || 0,
       salary_advance_percent: company.process_config?.salary_advance?.percent || 50,
       salary_advance_hr_deduct_from:
@@ -350,6 +353,7 @@ export default function CyberneticAdminPage() {
           al_results: { enabled: !!form.al_results },
           following_qualifications: { enabled: !!form.following_qualifications },
           previous_employment: { enabled: !!form.previous_employment },
+          hr_company_create: { enabled: !!form.hr_company_create },
           late_grace_nopay: {
             enabled: !!form.late_grace_nopay,
             start_time: form.late_grace_start_time || "07:15",
@@ -1155,6 +1159,22 @@ export default function CyberneticAdminPage() {
                 <span className="font-semibold text-slate-900">Previous employment information</span>
                 <span className="block text-xs text-slate-600 mt-0.5">
                   Adds a Previous Employment step to Employee Master: organization name, last designation, join date, last date and comments (50 words max), for this company only.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={!!form.hr_company_create}
+                onChange={(e) => setForm({ ...form, hr_company_create: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">HR can create companies</span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Shows Add Company in Department Master for HR users of this company who have Department Master &quot;add&quot;
+                  permission. HR sets code, name, location, established and NoPay days only; the new company joins this
+                  company&apos;s organization group. Branding, portal URL and add-ons stay here in Cybernetic Admin.
                 </span>
               </span>
             </label>

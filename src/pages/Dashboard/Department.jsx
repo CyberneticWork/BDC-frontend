@@ -6,6 +6,7 @@ import {
   fetchDepartments,
   fetchSubDepartments,
   updateCompany,
+  createHrCompany,
   deleteCompany,
   createDepartment,
   updateDepartment,
@@ -26,6 +27,7 @@ const EditModal = ({
   setShowAddModal,
   refreshAll,
   canEditNopayDays = false,
+  canCreateCompany = false,
 }) => {
   const [localForm, setLocalForm] = React.useState(companyForm);
   const [errors, setErrors] = React.useState({});
@@ -207,11 +209,19 @@ const EditModal = ({
                     timer: 1500,
                     showConfirmButton: false,
                   });
+                } else if (canCreateCompany) {
+                  await createHrCompany(payload);
+                  Swal.fire({
+                    icon: "success",
+                    title: "Company added successfully!",
+                    timer: 1500,
+                    showConfirmButton: false,
+                  });
                 } else {
                   Swal.fire({
                     icon: "info",
                     title: "Use Cybernetic Admin",
-                    text: "New companies are created at /cybernetic-admin",
+                    text: "Company creation is not enabled for your company. Ask Cybernetic Admin to allow it.",
                   });
                   return;
                 }
@@ -250,8 +260,10 @@ const EditModal = ({
 };
 
 const Department = () => {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const canEditNopayDays = hasPermission("nopayWorkingDays", "edit");
+  const canCreateCompany =
+    !!user?.company_features?.hr_company_create && hasPermission("departmentMaster", "add");
   const [activeTab, setActiveTab] = useState('companies');
   // Separate search terms for each tab
   const [companySearch, setCompanySearch] = useState('');
@@ -1093,13 +1105,26 @@ const Department = () => {
     setSubDepartments(scoped.subDepartments);
   };
 
-  const tenantLocked = isDedicatedCompanyUrl(companies);
+  const tenantLocked = isDedicatedCompanyUrl(companies) && !canCreateCompany;
 
   useEffect(() => {
     if (tenantLocked && activeTab === "companies") {
       setActiveTab("departments");
     }
   }, [tenantLocked, activeTab]);
+
+  const openAddCompany = () => {
+    setEditingCompany(null);
+    setCompanyForm({
+      company_code: '',
+      name: '',
+      location: '',
+      employees: '',
+      established: '',
+      nopay_working_days: 30,
+    });
+    setShowAddModal(true);
+  };
 
   const handleCreateSubDept = async (form) => {
     try {
@@ -1495,6 +1520,15 @@ const Department = () => {
                 Search
               </button> */}
               {/* Add buttons based on activeTab */}
+              {activeTab === 'companies' && canCreateCompany && (
+                <button
+                  onClick={openAddCompany}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Company
+                </button>
+              )}
               {activeTab === 'departments' && (
                 <button
                   onClick={() => setShowAddDeptModal(true)}
@@ -1544,6 +1578,7 @@ const Department = () => {
             setShowAddModal={setShowAddModal}
             refreshAll={refreshAll}
             canEditNopayDays={canEditNopayDays}
+            canCreateCompany={canCreateCompany}
           />
 
           {/* Add Department Modal */}
