@@ -21,6 +21,16 @@ const zktecoService = {
     return res.data;
   },
 
+  testConnection: async (id) => {
+    const res = await axios.post(`/zkteco/devices/${id}/test`);
+    return res.data;
+  },
+
+  syncNow: async (id, payload = {}) => {
+    const res = await axios.post(`/zkteco/devices/${id}/sync`, payload);
+    return res.data;
+  },
+
   getEventLogs: async (id, limit = 20) => {
     const res = await axios.get(`/zkteco/devices/${id}/logs`, { params: { limit } });
     return res.data?.data ?? [];
